@@ -1,6 +1,9 @@
 {
   "id": "memory-core",
   "kind": "memory",
+  "activation": {
+    "onCommands": ["wiki"]
+  },
   "commandAliases": [
     {
       "name": "dreaming",
