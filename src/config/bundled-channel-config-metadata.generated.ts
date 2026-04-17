@@ -11037,6 +11037,27 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
           },
           additionalProperties: false,
         },
+        homeTab: {
+          type: "object",
+          properties: {
+            enabled: {
+              type: "boolean",
+            },
+            rendererModule: {
+              type: "string",
+            },
+            cacheTtlSeconds: {
+              type: "number",
+              exclusiveMinimum: 0,
+            },
+            maxBlocks: {
+              type: "integer",
+              exclusiveMinimum: 0,
+              maximum: 100,
+            },
+          },
+          additionalProperties: false,
+        },
         dmPolicy: {
           type: "string",
           enum: ["pairing", "allowlist", "open", "disabled"],
@@ -11942,6 +11963,27 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
                   },
                   ephemeral: {
                     type: "boolean",
+                  },
+                },
+                additionalProperties: false,
+              },
+              homeTab: {
+                type: "object",
+                properties: {
+                  enabled: {
+                    type: "boolean",
+                  },
+                  rendererModule: {
+                    type: "string",
+                  },
+                  cacheTtlSeconds: {
+                    type: "number",
+                    exclusiveMinimum: 0,
+                  },
+                  maxBlocks: {
+                    type: "integer",
+                    exclusiveMinimum: 0,
+                    maximum: 100,
                   },
                 },
                 additionalProperties: false,
