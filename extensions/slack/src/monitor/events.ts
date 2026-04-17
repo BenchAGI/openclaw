@@ -6,6 +6,11 @@ import { registerSlackMemberEvents } from "./events/members.js";
 import { registerSlackMessageEvents } from "./events/messages.js";
 import { registerSlackPinEvents } from "./events/pins.js";
 import { registerSlackReactionEvents } from "./events/reactions.js";
+import {
+  createHomeTabRuntime,
+  registerSlackAppHomeEvents,
+  resolveHomeTabConfig,
+} from "./home-tab/index.js";
 import type { SlackMessageHandler } from "./message-handler.js";
 
 export function registerSlackMonitorEvents(params: {
@@ -24,4 +29,16 @@ export function registerSlackMonitorEvents(params: {
   registerSlackChannelEvents({ ctx: params.ctx, trackEvent: params.trackEvent });
   registerSlackPinEvents({ ctx: params.ctx, trackEvent: params.trackEvent });
   registerSlackInteractionEvents({ ctx: params.ctx });
+
+  // Home tab — opt-in per account via channels.slack.accounts.{id}.homeTab
+  const homeTabCfg = resolveHomeTabConfig(params.account.config.homeTab);
+  if (homeTabCfg.enabled) {
+    const runtime = createHomeTabRuntime(homeTabCfg);
+    registerSlackAppHomeEvents({
+      ctx: params.ctx,
+      account: { name: params.account.name ?? params.account.accountId },
+      runtime,
+      trackEvent: params.trackEvent,
+    });
+  }
 }

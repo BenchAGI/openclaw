@@ -89,6 +89,33 @@ export type SlackSlashCommandConfig = {
   ephemeral?: boolean;
 };
 
+/**
+ * Slack Home tab configuration. Opt-in per account. When enabled, the Slack
+ * extension subscribes to `app_home_opened` events, invokes a user-provided
+ * renderer module, and publishes the resulting Block Kit view via
+ * `views.publish`. OpenClaw itself ships no opinionated home content — the
+ * renderer decides everything. Requires `features.app_home.home_tab_enabled:
+ * true` on the Slack app manifest.
+ */
+export type SlackHomeTabConfig = {
+  /** If false, ignore `app_home_opened` for this account. Default: false. */
+  enabled?: boolean;
+  /**
+   * Path to a JS/ESM module that exports a default (or named `renderHome`)
+   * async function with signature `(input: SlackHomeRenderInput) =>
+   * Promise<SlackHomeRenderResult>`. Absolute paths are used as-is; relative
+   * paths are resolved against the OpenClaw process cwd.
+   */
+  rendererModule?: string;
+  /** In-process cache TTL for the rendered result, in seconds. Default: 60. */
+  cacheTtlSeconds?: number;
+  /**
+   * Max blocks to publish. Slack's hard cap is 100. Default: 100. The renderer
+   * is responsible for its own content budget; this is a last-resort backstop.
+   */
+  maxBlocks?: number;
+};
+
 export type SlackThreadConfig = {
   /** Scope for thread history context (thread|channel). Default: thread. */
   historyScope?: "thread" | "channel";
@@ -175,6 +202,8 @@ export type SlackAccountConfig = {
   thread?: SlackThreadConfig;
   actions?: SlackActionConfig;
   slashCommand?: SlackSlashCommandConfig;
+  /** Slack Home tab configuration (opt-in). */
+  homeTab?: SlackHomeTabConfig;
   /**
    * Alias for dm.policy (prefer this so it inherits cleanly via base->account shallow merge).
    * Legacy key: channels.slack.dm.policy.
