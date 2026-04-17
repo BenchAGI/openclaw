@@ -21,6 +21,9 @@ describe("resolveManifestActivationPluginIds", () => {
       plugins: [
         {
           id: "memory-core",
+          activation: {
+            onCommands: ["wiki"],
+          },
           commandAliases: [{ name: "dreaming", kind: "runtime-slash", cliCommand: "memory" }],
           providers: [],
           channels: [],
@@ -102,6 +105,22 @@ describe("resolveManifestActivationPluginIds", () => {
         },
       }),
     ).toEqual(["demo-channel"]);
+  });
+
+  it("activates memory-core when a wiki CLI subcommand is invoked", () => {
+    // Regression: memory-core's manifest only declared a commandAlias with
+    // cliCommand="memory", so `openclaw wiki ...` loaded memory-wiki alone
+    // without memory-core. The capability singleton stayed empty, wiki CLI
+    // reported 0 artifacts, and `wiki bridge import` pruned synced sources.
+    // Fix adds activation.onCommands=["wiki"] to the memory-core manifest.
+    expect(
+      resolveManifestActivationPluginIds({
+        trigger: {
+          kind: "command",
+          command: "wiki",
+        },
+      }),
+    ).toEqual(["memory-core"]);
   });
 
   it("matches provider, agent harness, channel, and route triggers from manifest-owned metadata", () => {
