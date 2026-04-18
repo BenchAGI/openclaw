@@ -1,0 +1,54 @@
+{
+  "id": "bench-reflective-dreaming",
+  "kind": "bench",
+  "name": "Bench Reflective Dreaming",
+  "description": "Structured per-agent reflection + fleet canon + consolidation. Runs alongside memory-core.dreaming.",
+  "version": "0.1.0",
+  "runtime": "scripts",
+  "managedCronTag": "[managed-by=bench-reflective-dreaming]",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": { "type": "boolean", "default": true },
+      "timezone": { "type": "string", "default": "America/Denver" },
+      "perAgent": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string" },
+            "minute": { "type": "integer", "minimum": 0, "maximum": 59 },
+            "model": { "type": "string" },
+            "timeoutSeconds": { "type": "integer", "minimum": 60, "maximum": 3600 }
+          },
+          "required": ["id", "minute"]
+        }
+      },
+      "canon": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "coordinatorAgent": { "type": "string", "default": "kestrel-aurelius" },
+          "cron": { "type": "string", "default": "15 3 * * *" },
+          "timeoutSeconds": { "type": "integer", "default": 1200 }
+        }
+      },
+      "consolidation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "consolidatorAgent": { "type": "string", "default": "kestrel-aurelius" },
+          "cron": { "type": "string", "default": "40 3 * * *" },
+          "timeoutSeconds": { "type": "integer", "default": 900 }
+        }
+      },
+      "protocolsDir": {
+        "type": "string",
+        "default": "~/.openclaw/wiki/main/concepts",
+        "description": "Where to install the dream protocol prompt files."
+      }
+    }
+  }
+}
