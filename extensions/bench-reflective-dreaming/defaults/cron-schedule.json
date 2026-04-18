@@ -1,0 +1,22 @@
+{
+  "$comment": "Default reflective-dreaming schedule. Edit here and re-run scripts/install.sh to reconcile.",
+  "enabled": true,
+  "timezone": "America/Denver",
+  "perAgent": [
+    { "id": "main", "minute": 30, "timeoutSeconds": 900 },
+    { "id": "kestrel-aurelius", "minute": 34, "timeoutSeconds": 900 },
+    { "id": "ember", "minute": 38, "timeoutSeconds": 900 },
+    { "id": "kestrel-coder", "minute": 42, "timeoutSeconds": 900 },
+    { "id": "sage", "minute": 46, "timeoutSeconds": 900 }
+  ],
+  "canon": {
+    "coordinatorAgent": "kestrel-aurelius",
+    "cron": "15 3 * * *",
+    "timeoutSeconds": 1200
+  },
+  "consolidation": {
+    "consolidatorAgent": "kestrel-aurelius",
+    "cron": "40 3 * * *",
+    "timeoutSeconds": 900
+  }
+}
