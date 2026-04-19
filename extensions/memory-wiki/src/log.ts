@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 export type MemoryWikiLogEntry = {
-  type: "init" | "ingest" | "compile" | "lint";
+  type: "init" | "ingest" | "compile" | "lint" | "repair";
   timestamp: string;
   details?: Record<string, unknown>;
 };

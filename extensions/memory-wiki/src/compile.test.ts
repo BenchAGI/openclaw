@@ -270,7 +270,9 @@ describe("compileMemoryWikiVault", () => {
     ).resolves.toContain("Alpha uses PostgreSQL for production writes.");
     await expect(
       fs.readFile(path.join(rootDir, "reports", "stale-pages.md"), "utf8"),
-    ).resolves.toContain("[Alpha](entities/alpha.md): missing updatedAt");
+    ).resolves.toContain("[Alpha DB](concepts/alpha-db.md): stale (2025-10-01T00:00:00.000Z)");
+    const entityAlpha = await fs.readFile(path.join(rootDir, "entities", "alpha.md"), "utf8");
+    expect(entityAlpha).toContain("updatedAt:");
     const agentDigest = JSON.parse(
       await fs.readFile(path.join(rootDir, ".openclaw-wiki", "cache", "agent-digest.json"), "utf8"),
     ) as {
@@ -278,7 +280,6 @@ describe("compileMemoryWikiVault", () => {
       contradictionClusters: Array<{ key: string }>;
     };
     expect(agentDigest.claimHealth.missingEvidence).toBeGreaterThanOrEqual(1);
-    expect(agentDigest.claimHealth.freshness.unknown).toBeGreaterThanOrEqual(1);
     expect(agentDigest.contradictionClusters).toContainEqual(
       expect.objectContaining({ key: "claim.alpha.db" }),
     );

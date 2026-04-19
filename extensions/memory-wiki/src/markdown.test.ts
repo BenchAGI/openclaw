@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { createWikiPageFilename, slugifyWikiSegment } from "./markdown.js";
+import { createWikiPageFilename, extractWikiLinks, slugifyWikiSegment } from "./markdown.js";
 
 describe("slugifyWikiSegment", () => {
   it("preserves Unicode letters and numbers in wiki slugs", () => {
@@ -38,5 +38,52 @@ describe("slugifyWikiSegment", () => {
     expect(fileName.endsWith(".md")).toBe(true);
     expect(Buffer.byteLength(fileName)).toBeLessThanOrEqual(255);
     expect(createWikiPageFilename(stem)).toBe(fileName);
+  });
+});
+
+describe("extractWikiLinks", () => {
+  it("ignores wiki-like tokens inside fenced code blocks", () => {
+    const markdown = [
+      "# Page",
+      "",
+      "See [[real-page]] for context.",
+      "",
+      "```markdown",
+      "assistant: [[reply_to_current]] — this is template syntax",
+      "and should not be treated as a link.",
+      "```",
+    ].join("\n");
+    expect(extractWikiLinks(markdown)).toEqual(["real-page"]);
+  });
+
+  it("ignores wiki-like tokens inside inline code", () => {
+    const markdown = "Use the `[[reply_to_current]]` placeholder, not [[actual-page]].";
+    expect(extractWikiLinks(markdown)).toEqual(["actual-page"]);
+  });
+
+  it("extracts native markdown links even when they keep the .md suffix", () => {
+    const markdown = "- [Alpha](sources/alpha.md)\n- [[entities/beta|Beta]]";
+    expect(extractWikiLinks(markdown).toSorted()).toEqual(
+      ["entities/beta", "sources/alpha.md"].toSorted(),
+    );
+  });
+
+  it("strips the managed Related block before scanning", () => {
+    const markdown = [
+      "# Page",
+      "Visible [[inline-link]].",
+      "",
+      "## Related",
+      "<!-- openclaw:wiki:related:start -->",
+      "- [[ignored-related-link]]",
+      "<!-- openclaw:wiki:related:end -->",
+    ].join("\n");
+    expect(extractWikiLinks(markdown)).toEqual(["inline-link"]);
+  });
+
+  it("skips protocol URLs and anchor-only links", () => {
+    const markdown =
+      "[Home](/home) [ext](https://example.com) [anchor](#foo) [Alpha](sources/alpha.md)";
+    expect(extractWikiLinks(markdown).toSorted()).toEqual(["/home", "sources/alpha.md"].toSorted());
   });
 });

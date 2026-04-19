@@ -66,6 +66,8 @@ const RELATED_BLOCK_PATTERN = new RegExp(
   `${WIKI_RELATED_START_MARKER}[\\s\\S]*?${WIKI_RELATED_END_MARKER}`,
   "g",
 );
+const FENCED_CODE_PATTERN = /(^|\n)(?:```|~~~)[^\n]*\n[\s\S]*?\n(?:```|~~~)(?=\n|$)/g;
+const INLINE_CODE_PATTERN = /`[^`\n]+`/g;
 const MAX_WIKI_SEGMENT_BYTES = 240;
 const MAX_WIKI_FILENAME_COMPONENT_BYTES = 255;
 const WIKI_SEGMENT_HASH_BYTES = 12;
@@ -214,7 +216,10 @@ export function normalizeWikiClaims(value: unknown): WikiClaim[] {
 }
 
 export function extractWikiLinks(markdown: string): string[] {
-  const searchable = markdown.replace(RELATED_BLOCK_PATTERN, "");
+  const searchable = markdown
+    .replace(RELATED_BLOCK_PATTERN, "")
+    .replace(FENCED_CODE_PATTERN, "")
+    .replace(INLINE_CODE_PATTERN, "");
   const links: string[] = [];
   for (const match of searchable.matchAll(OBSIDIAN_LINK_PATTERN)) {
     const target = match[1]?.trim();
