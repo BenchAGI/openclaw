@@ -84,6 +84,7 @@ async function collectVaultCounts(vaultPath: string): Promise<{
     source: 0,
     synthesis: 0,
     report: 0,
+    canon: 0,
   };
   const sourceCounts: MemoryWikiStatus["sourceCounts"] = {
     native: 0,
@@ -92,7 +93,7 @@ async function collectVaultCounts(vaultPath: string): Promise<{
     unsafeLocal: 0,
     other: 0,
   };
-  const dirs = ["entities", "concepts", "sources", "syntheses", "reports"] as const;
+  const dirs = ["entities", "concepts", "sources", "syntheses", "reports", "canon"] as const;
   for (const dir of dirs) {
     const entries = await fs
       .readdir(path.join(vaultPath, dir), { withFileTypes: true })
@@ -235,6 +236,7 @@ export async function resolveMemoryWikiStatus(
           source: 0,
           synthesis: 0,
           report: 0,
+          canon: 0,
         },
         sourceCounts: {
           native: 0,
