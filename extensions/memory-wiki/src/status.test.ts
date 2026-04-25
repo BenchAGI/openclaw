@@ -193,6 +193,7 @@ describe("renderMemoryWikiStatus", () => {
         concept: 0,
         synthesis: 0,
         report: 0,
+        canon: 0,
       },
       sourceCounts: {
         native: 0,
