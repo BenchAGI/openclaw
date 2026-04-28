@@ -1,2 +1,0 @@
- M src/commands/health.snapshot.test.ts
- M ui/src/ui/types.ts
