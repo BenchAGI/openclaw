@@ -1,4 +1,0 @@
- M docs/plugins/memory-wiki.md
- M extensions/memory-wiki/README.md
- M extensions/memory-wiki/cli-metadata.test.ts
- M extensions/memory-wiki/openclaw.plugin.json
