@@ -349,6 +349,7 @@ describe("getHealthSnapshot", () => {
     vi.stubEnv("TELEGRAM_BOT_TOKEN", "");
     vi.stubEnv("DISCORD_BOT_TOKEN", "");
     const snap = (await getHealthSnapshot({ timeoutMs: 10 })) satisfies HealthSummary;
+    expect("instanceId" in snap).toBe(false);
     expect(snap.instanceId).toBeUndefined();
   });
 
