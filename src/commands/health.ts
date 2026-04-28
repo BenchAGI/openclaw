@@ -367,6 +367,7 @@ export async function getHealthSnapshot(params?: {
     ok: true,
     ts: Date.now(),
     durationMs: Date.now() - start,
+    ...(cfg.instanceId ? { instanceId: cfg.instanceId } : {}),
     channels,
     channelOrder,
     channelLabels,
