@@ -712,7 +712,7 @@ export function registerWikiCli(
 ) {
   const config = isResolvedMemoryWikiConfig(pluginConfig)
     ? pluginConfig
-    : resolveMemoryWikiConfig(pluginConfig);
+    : resolveMemoryWikiConfig(pluginConfig, { instanceId: appConfig?.instanceId });
   const wiki = program.command("wiki").description("Inspect and initialize the memory wiki vault");
 
   wiki

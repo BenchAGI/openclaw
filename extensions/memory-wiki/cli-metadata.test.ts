@@ -38,6 +38,7 @@ describe("memory-wiki cli metadata entry", () => {
     });
     const program = new Command();
     const appConfig = {
+      instanceId: "bench-prod-01",
       plugins: {
         entries: {
           "memory-wiki": {
@@ -68,6 +69,7 @@ describe("memory-wiki cli metadata entry", () => {
     expect(mocks.loadConfig).not.toHaveBeenCalled();
     expect(mocks.resolveMemoryWikiConfig).toHaveBeenCalledWith(
       appConfig.plugins.entries["memory-wiki"].config,
+      { instanceId: "bench-prod-01" },
     );
     expect(mocks.registerWikiCli).toHaveBeenCalledWith(program, resolvedConfig, appConfig);
   });
