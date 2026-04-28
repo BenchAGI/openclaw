@@ -705,6 +705,7 @@ function buildRootIndexBody(params: {
     `- Concepts: ${params.counts.concept}`,
     `- Syntheses: ${params.counts.synthesis}`,
     `- Reports: ${params.counts.report}`,
+    `- Canon: ${params.counts.canon}`,
   ];
 
   for (const group of COMPILE_PAGE_GROUPS) {
