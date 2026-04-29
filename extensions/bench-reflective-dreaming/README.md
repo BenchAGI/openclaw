@@ -24,8 +24,9 @@ Firebase `wikiEntries` collection and become visible in the BenchAGI web app at
 
 ## What it provides
 
-- **3 version-controlled prompt protocols** (`assets/prompts/*-protocol.md`) —
-  dream-diary, fleet-canon, memory-consolidation. Installed to
+- **4 version-controlled prompt protocols** (`assets/prompts/*.md`) —
+  dream-diary, fleet-canon, memory-consolidation, and Bailey's
+  cory-attention-rules refresh (`bailey-attention-rules.md`). Installed to
   `~/.openclaw/wiki/main/concepts/` on `install.sh`.
 - **Defaults** for which agents dream and when (`defaults/cron-schedule.json`).
 - **Install/uninstall scripts** that add and remove the 7 managed cron jobs via
