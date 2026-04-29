@@ -30,22 +30,25 @@ If/when this bridge graduates to a proper extension (e.g., for upstream PR or pr
 - **Statusline**: `~/.claude/settings.json` → `statusLine.command`.
 - **Mirror schedule**: `~/Library/LaunchAgents/ai.openclaw.claude-code-mirror.plist` — `StartInterval 900` (every 15 min), plus once at load.
 
-## Tool surface (10 tools)
+## Tool surface (11 tools)
 
-All prefixed `openclaw_`:
+Most are prefixed `openclaw_` (gateway-backed). One — `bailey_classify_email` —
+uses the `bailey_` namespace because it's specific to the Bailey
+personal-attention synthesis flow and is filesystem-backed (no gateway call).
 
-| Tool                | Wraps                                                                                  |
-| ------------------- | -------------------------------------------------------------------------------------- |
-| `gateway_health`    | `GET http://127.0.0.1:18789/healthz`                                                   |
-| `agent_list`        | gateway `agents.list` (plural — `agent.list` does not exist)                           |
-| `skill_list`        | gateway `skills.status`                                                                |
-| `wiki_search`       | gateway `wiki.search`                                                                  |
-| `wiki_get`          | gateway `wiki.get`                                                                     |
-| `wiki_inbox_append` | direct filesystem append to `~/.openclaw/wiki/main/inbox.md` (60 s dedup window)       |
-| `wiki_status`       | gateway `wiki.status`                                                                  |
-| `agent_handoff`     | gateway `sessions.create` (new session + initial brief, with heartbeat-window warning) |
-| `agent_send`        | gateway `sessions.send` (follow-up to existing sessionKey)                             |
-| `agent_messages`    | gateway `chat.history` (param is `sessionKey` not `key`)                               |
+| Tool                         | Wraps                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `openclaw_gateway_health`    | `GET http://127.0.0.1:18789/healthz`                                                                                   |
+| `openclaw_agent_list`        | gateway `agents.list` (plural — `agent.list` does not exist)                                                           |
+| `openclaw_skill_list`        | gateway `skills.status`                                                                                                |
+| `openclaw_wiki_search`       | gateway `wiki.search`                                                                                                  |
+| `openclaw_wiki_get`          | gateway `wiki.get`                                                                                                     |
+| `openclaw_wiki_inbox_append` | direct filesystem append to `~/.openclaw/wiki/main/inbox.md` (60 s dedup window)                                       |
+| `openclaw_wiki_status`       | gateway `wiki.status`                                                                                                  |
+| `openclaw_agent_handoff`     | gateway `sessions.create` (new session + initial brief, with heartbeat-window warning)                                 |
+| `openclaw_agent_send`        | gateway `sessions.send` (follow-up to existing sessionKey)                                                             |
+| `openclaw_agent_messages`    | gateway `chat.history` (param is `sessionKey` not `key`)                                                               |
+| `bailey_classify_email`      | reads latest `synthesis__bailey__cory-attention-rules-*.md` and pattern-matches an inbound thread; LLM fallback opt-in |
 
 ## Operational gotchas
 

@@ -12,6 +12,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { loadLatestSynthesis, classifyByPatterns } from "./lib/attention-rules-parser.mjs";
 
 // -- Gateway client --------------------------------------------------------
 
@@ -472,6 +473,174 @@ async function resolveAgentId(agentIdOrAlias) {
   return agentIdOrAlias ?? null;
 }
 
+// -- Email classifier ------------------------------------------------------
+//
+// `bailey_classify_email` reads the latest personal-attention synthesis
+// produced by Bailey's nightly dream and classifies an inbound email thread
+// into severity tiers (critical | actionable | fyi | noise). Pattern-match
+// is deterministic and runs first; if no rules match (or rules are missing)
+// the tool falls back to a safe default and lets a downstream LLM call (or
+// human review) decide.
+//
+// The Anthropic SDK is intentionally NOT a hard dependency. When the SDK is
+// installed in the bridge env AND ANTHROPIC_API_KEY is set, the LLM fallback
+// activates; otherwise the tool returns a "needs human review" hint. This
+// keeps the bridge dependency-free for users who haven't opted into the
+// Bailey email watcher.
+
+const LLM_FALLBACK_MODEL = process.env.OPENCLAW_BAILEY_LLM_MODEL ?? "claude-opus-4-7-20251029";
+let cachedAnthropicClient = null;
+let anthropicLoadAttempted = false;
+
+async function loadAnthropicClient() {
+  if (cachedAnthropicClient !== null) {
+    return cachedAnthropicClient;
+  }
+  if (anthropicLoadAttempted) {
+    return null;
+  }
+  anthropicLoadAttempted = true;
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return null;
+  }
+  try {
+    const mod = await import("@anthropic-ai/sdk");
+    const Anthropic = mod.default ?? mod.Anthropic;
+    if (!Anthropic) {
+      return null;
+    }
+    cachedAnthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    return cachedAnthropicClient;
+  } catch {
+    // SDK not installed in bridge env — that's fine, return null and let
+    // the caller fall back to a safe default severity.
+    return null;
+  }
+}
+
+function safeDefault(reasonSuffix) {
+  return {
+    severity: "actionable",
+    reason: `synthesis missing or unmatched; defaulting to actionable for human review${
+      reasonSuffix ? ` (${reasonSuffix})` : ""
+    }`,
+    suggested_action: "review_in_inbox",
+    model_used: "pattern",
+    confidence: 0,
+  };
+}
+
+async function classifyWithLlm({ thread, rules, partial }) {
+  const client = await loadAnthropicClient();
+  if (!client) {
+    return null;
+  }
+  const notes = typeof rules?.notes === "string" ? rules.notes : "";
+  const summary = {
+    from: thread.from ?? "",
+    subject: thread.subject ?? "",
+    snippet: typeof thread.snippet === "string" ? thread.snippet.slice(0, 800) : "",
+    date: thread.date ?? "",
+  };
+  const sys =
+    "You classify emails into one of four severities: critical, actionable, fyi, noise. " +
+    'Reply with JSON only — no prose. Schema: {"severity":string, "reason":string, "confidence":number 0..1}. ' +
+    "Use the user's attention-rules notes as context. Confidence must reflect uncertainty honestly.";
+  const userBlock =
+    `Attention notes:\n${notes || "(no notes provided)"}\n\n` +
+    `Email:\n${JSON.stringify(summary, null, 2)}\n\n` +
+    `Partial pattern match (may be empty): ${JSON.stringify(partial ?? null)}\n\n` +
+    `Return JSON only.`;
+  try {
+    const resp = await client.messages.create({
+      model: LLM_FALLBACK_MODEL,
+      max_tokens: 256,
+      system: sys,
+      messages: [{ role: "user", content: userBlock }],
+    });
+    const textBlock = resp?.content?.find?.((b) => b.type === "text");
+    if (!textBlock || typeof textBlock.text !== "string") {
+      return null;
+    }
+    const m = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!m) {
+      return null;
+    }
+    const parsed = JSON.parse(m[0]);
+    const severity = ["critical", "actionable", "fyi", "noise"].includes(parsed.severity)
+      ? parsed.severity
+      : null;
+    if (!severity) {
+      return null;
+    }
+    const confidence =
+      typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0.5;
+    return {
+      severity,
+      reason: typeof parsed.reason === "string" ? parsed.reason : "llm classification",
+      confidence,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function classifyEmail(thread) {
+  const rules = await loadLatestSynthesis();
+  if (!rules) {
+    return safeDefault("synthesis file not found");
+  }
+  const threshold =
+    typeof rules.confidence_threshold === "number" ? rules.confidence_threshold : 0.7;
+  const patternMatch = classifyByPatterns(thread, rules);
+  if (patternMatch && patternMatch.confidence >= threshold) {
+    return {
+      severity: patternMatch.severity,
+      reason: patternMatch.reason,
+      suggested_action:
+        patternMatch.severity === "critical"
+          ? "notify_immediately"
+          : patternMatch.severity === "actionable"
+            ? "review_in_inbox"
+            : patternMatch.severity === "fyi"
+              ? "log_only"
+              : "auto_archive",
+      model_used: "pattern",
+      confidence: patternMatch.confidence,
+    };
+  }
+  // Either no pattern hit or confidence below threshold → escalate to LLM
+  const llm = await classifyWithLlm({ thread, rules, partial: patternMatch });
+  if (llm) {
+    return {
+      severity: llm.severity,
+      reason: llm.reason,
+      suggested_action:
+        llm.severity === "critical"
+          ? "notify_immediately"
+          : llm.severity === "actionable"
+            ? "review_in_inbox"
+            : llm.severity === "fyi"
+              ? "log_only"
+              : "auto_archive",
+      model_used: LLM_FALLBACK_MODEL,
+      confidence: llm.confidence,
+    };
+  }
+  // LLM unavailable or failed — return the partial pattern result if any,
+  // otherwise the safe default.
+  if (patternMatch) {
+    return {
+      severity: patternMatch.severity,
+      reason: `${patternMatch.reason}; below confidence threshold ${threshold} and llm fallback unavailable`,
+      suggested_action: "review_in_inbox",
+      model_used: "pattern",
+      confidence: patternMatch.confidence,
+    };
+  }
+  return safeDefault("no patterns matched and llm fallback unavailable");
+}
+
 // -- MCP server ------------------------------------------------------------
 
 function jsonResult(value) {
@@ -763,6 +932,29 @@ function buildServer() {
     },
   );
 
+  server.registerTool(
+    "bailey_classify_email",
+    {
+      description:
+        "Classify a Gmail thread by severity (critical | actionable | fyi | noise) using " +
+        "Bailey's latest personal-attention synthesis. Pattern-matches sender + subject + " +
+        "snippet against the synthesis tiers; escalates to an LLM call when the pattern " +
+        "match falls below the synthesis confidence_threshold. Returns a safe default " +
+        "(severity=actionable, confidence=0) when the synthesis file is missing or malformed.",
+      inputSchema: {
+        threadId: z.string().min(1).describe("Gmail thread id (used only for logging)."),
+        from: z.string().describe("Sender — usually 'Name <email@host>' or just an address."),
+        subject: z.string().describe("Subject line."),
+        snippet: z.string().describe("Gmail snippet preview."),
+        date: z.string().describe("ISO 8601 timestamp of the latest message in the thread."),
+      },
+    },
+    async ({ threadId, from, subject, snippet, date }) => {
+      const result = await classifyEmail({ threadId, from, subject, snippet, date });
+      return jsonResult(result);
+    },
+  );
+
   return server;
 }
 
@@ -791,6 +983,10 @@ if (args.includes("--once-list-tools")) {
       description: "Fetch recent messages from an agent session.",
     },
     { name: "openclaw_wiki_status", description: "Report wiki bridge status." },
+    {
+      name: "bailey_classify_email",
+      description: "Classify a Gmail thread by severity using Bailey's latest attention synthesis.",
+    },
   ];
   process.stdout.write(JSON.stringify(descriptors, null, 2) + "\n");
   process.exit(0);
