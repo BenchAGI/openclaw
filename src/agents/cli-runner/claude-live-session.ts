@@ -843,8 +843,14 @@ export async function runClaudeLiveSessionTurn(params: {
 }): Promise<ClaudeLiveRunResult> {
   const key = buildClaudeLiveKey(params.context);
   const resumeCapable = Boolean(params.context.preparedBackend.backend.resumeArgs?.length);
-  const argv = [
-    params.context.preparedBackend.backend.command,
+  const command = params.context.preparedBackend.backend.command;
+  if (!command) {
+    throw new Error(
+      "claude-live-session: prepared backend has no command — partial cliBackends override reached live-session path before runtime resolution",
+    );
+  }
+  const argv: string[] = [
+    command,
     ...buildClaudeLiveArgs({
       args: params.args,
       backend: params.context.preparedBackend.backend,

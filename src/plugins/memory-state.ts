@@ -354,17 +354,8 @@ export function mergeMemoryPluginState(state: MemoryPluginState): void {
   if (state.corpusSupplements && state.corpusSupplements.length > 0) {
     memoryPluginState.corpusSupplements = [...state.corpusSupplements];
   }
-  if (state.promptBuilder) {
-    memoryPluginState.promptBuilder = state.promptBuilder;
-  }
   if (state.promptSupplements && state.promptSupplements.length > 0) {
     memoryPluginState.promptSupplements = [...state.promptSupplements];
-  }
-  if (state.flushPlanResolver) {
-    memoryPluginState.flushPlanResolver = state.flushPlanResolver;
-  }
-  if (state.runtime) {
-    memoryPluginState.runtime = state.runtime;
   }
 }
 
