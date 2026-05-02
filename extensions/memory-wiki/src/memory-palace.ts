@@ -20,7 +20,7 @@ const PALACE_KIND_LABELS: Record<WikiPageKind, string> = {
   canon: "Canon",
 };
 
-export type MemoryWikiPalaceItem = {
+type MemoryWikiPalaceItem = {
   pagePath: string;
   title: string;
   kind: WikiPageKind;
@@ -36,7 +36,7 @@ export type MemoryWikiPalaceItem = {
   snippet?: string;
 };
 
-export type MemoryWikiPalaceCluster = {
+type MemoryWikiPalaceCluster = {
   key: WikiPageKind;
   label: string;
   itemCount: number;
@@ -47,7 +47,7 @@ export type MemoryWikiPalaceCluster = {
   items: MemoryWikiPalaceItem[];
 };
 
-export type MemoryWikiPalaceStatus = {
+type MemoryWikiPalaceStatus = {
   totalItems: number;
   totalClaims: number;
   totalQuestions: number;
@@ -100,25 +100,23 @@ export async function listMemoryWikiPalace(
   const items = pages
     .map((page) => {
       const parsed = parseWikiMarkdown(page.raw);
-      return {
-        pagePath: page.relativePath,
-        title: page.title,
-        kind: page.kind,
-        ...(page.id ? { id: page.id } : {}),
-        ...(normalizeTimestamp(page.updatedAt)
-          ? { updatedAt: normalizeTimestamp(page.updatedAt) }
-          : {}),
-        ...(typeof page.sourceType === "string" && page.sourceType.trim().length > 0
+      return Object.assign(
+        { pagePath: page.relativePath, title: page.title, kind: page.kind },
+        page.id ? { id: page.id } : {},
+        normalizeTimestamp(page.updatedAt) ? { updatedAt: normalizeTimestamp(page.updatedAt) } : {},
+        typeof page.sourceType === `string` && page.sourceType.trim().length > 0
           ? { sourceType: page.sourceType.trim() }
-          : {}),
-        claimCount: page.claims.length,
-        questionCount: page.questions.length,
-        contradictionCount: page.contradictions.length,
-        claims: page.claims.map((claim) => claim.text).slice(0, 3),
-        questions: page.questions.slice(0, 3),
-        contradictions: page.contradictions.slice(0, 3),
-        ...(extractSnippet(parsed.body) ? { snippet: extractSnippet(parsed.body) } : {}),
-      } satisfies MemoryWikiPalaceItem;
+          : {},
+        {
+          claimCount: page.claims.length,
+          questionCount: page.questions.length,
+          contradictionCount: page.contradictions.length,
+          claims: page.claims.map((claim) => claim.text).slice(0, 3),
+          questions: page.questions.slice(0, 3),
+          contradictions: page.contradictions.slice(0, 3),
+        },
+        extractSnippet(parsed.body) ? { snippet: extractSnippet(parsed.body) } : {},
+      ) satisfies MemoryWikiPalaceItem;
     })
     .filter(
       (item) =>
@@ -134,16 +132,18 @@ export async function listMemoryWikiPalace(
     if (clusterItems.length === 0) {
       return null;
     }
-    return {
-      key: kind,
-      label: PALACE_KIND_LABELS[kind],
-      itemCount: clusterItems.length,
-      claimCount: clusterItems.reduce((sum, item) => sum + item.claimCount, 0),
-      questionCount: clusterItems.reduce((sum, item) => sum + item.questionCount, 0),
-      contradictionCount: clusterItems.reduce((sum, item) => sum + item.contradictionCount, 0),
-      ...(clusterItems[0]?.updatedAt ? { updatedAt: clusterItems[0].updatedAt } : {}),
-      items: clusterItems,
-    } satisfies MemoryWikiPalaceCluster;
+    return Object.assign(
+      {
+        key: kind,
+        label: PALACE_KIND_LABELS[kind],
+        itemCount: clusterItems.length,
+        claimCount: clusterItems.reduce((sum, item) => sum + item.claimCount, 0),
+        questionCount: clusterItems.reduce((sum, item) => sum + item.questionCount, 0),
+        contradictionCount: clusterItems.reduce((sum, item) => sum + item.contradictionCount, 0),
+      },
+      clusterItems[0]?.updatedAt ? { updatedAt: clusterItems[0].updatedAt } : {},
+      { items: clusterItems },
+    ) satisfies MemoryWikiPalaceCluster;
   }).filter((entry): entry is MemoryWikiPalaceCluster => entry !== null);
 
   return {

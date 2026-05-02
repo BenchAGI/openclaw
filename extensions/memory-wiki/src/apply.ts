@@ -45,7 +45,7 @@ export type CreateSynthesisMemoryWikiMutation = {
   status?: string;
 };
 
-export type UpdateMetadataMemoryWikiMutation = {
+type UpdateMetadataMemoryWikiMutation = {
   op: "update_metadata";
   lookup: string;
   sourceIds?: string[];
@@ -61,7 +61,7 @@ export type ApplyMemoryWikiMutation =
   | CreateSynthesisMemoryWikiMutation
   | UpdateMetadataMemoryWikiMutation;
 
-export type ApplyMemoryWikiMutationResult = {
+type ApplyMemoryWikiMutationResult = {
   changed: boolean;
   operation: ApplyMemoryWikiMutation["op"];
   pagePath: string;

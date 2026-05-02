@@ -19,7 +19,7 @@ import {
   runObsidianOpen,
   runObsidianSearch,
 } from "./obsidian.js";
-import { getMemoryWikiPage, searchMemoryWiki } from "./query.js";
+import { getMemoryWikiPage, searchMemoryWiki, WIKI_SEARCH_MODES } from "./query.js";
 import { syncMemoryWikiImportedSources } from "./source-sync.js";
 import { buildMemoryWikiDoctorReport, resolveMemoryWikiStatus } from "./status.js";
 import { initializeMemoryWikiVault } from "./vault.js";
@@ -294,6 +294,7 @@ export function registerMemoryWikiGatewayMethods(params: {
         const maxResults = readNumberParam(requestParams, "maxResults");
         const searchBackend = readEnumParam(requestParams, "backend", WIKI_SEARCH_BACKENDS);
         const searchCorpus = readEnumParam(requestParams, "corpus", WIKI_SEARCH_CORPORA);
+        const mode = readEnumParam(requestParams, "mode", WIKI_SEARCH_MODES);
         const minConfidence = readNumberParam(requestParams, "minConfidence");
         const includeStaged = readBooleanParam(requestParams, "includeStaged");
         respond(
@@ -305,6 +306,7 @@ export function registerMemoryWikiGatewayMethods(params: {
             maxResults,
             searchBackend,
             searchCorpus,
+            mode,
             ...(minConfidence !== undefined ? { minConfidence } : {}),
             ...(includeStaged !== undefined ? { includeStaged } : {}),
           }),

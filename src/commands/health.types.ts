@@ -20,10 +20,26 @@ export type AgentHealthSummary = {
   sessions: HealthSummary["sessions"];
 };
 
+export type PluginHealthErrorSummary = {
+  id: string;
+  origin: string;
+  activated: boolean;
+  activationSource?: string;
+  activationReason?: string;
+  failurePhase?: string;
+  error: string;
+};
+
+export type PluginHealthSummary = {
+  loaded: string[];
+  errors: PluginHealthErrorSummary[];
+};
+
 export type HealthSummary = {
   ok: true;
   ts: number;
   durationMs: number;
+  plugins?: PluginHealthSummary;
   /**
    * Bench instance this harness belongs to (from openclaw.json `instanceId`).
    * Absent when the harness runs in single-user Tier A mode.
