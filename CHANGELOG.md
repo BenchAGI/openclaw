@@ -2,6 +2,89 @@
 
 Docs: https://docs.openclaw.ai
 
+This file tracks both upstream OpenClaw releases (sourced from
+https://github.com/openclaw/openclaw) and the BenchAGI fork's deltas
+on top of them. BenchAGI fork releases are headed with a `(BenchAGI
+fork)` suffix; everything else is upstream.
+
+## 2026.5.2-beta.1 (BenchAGI fork) — 2026-05-02
+
+First publish of the BenchAGI fork as `@benchagi/openclaw` on npm. Same
+runtime CLI binary (`openclaw`) and same on-disk layout as upstream;
+the differences from upstream `openclaw@2026.5.2` are all the BenchAGI
+patches we previously applied at install time via a launchd watcher
+script. Those are now baked into the published source.
+
+### BenchAGI delta vs upstream openclaw@2026.5.2
+
+- **memory-state**: split `restoreMemoryPluginState` into a swap (used
+  for register-rollback) and an additive merge (used for cache-hit paths
+  in the plugin loader) so a cached snapshot predating a capability's
+  registration can no longer clobber a live capability. Earlier dist-side
+  bandage: Watcher Fix 1.
+- **memory-core**: activate the plugin on `openclaw wiki` CLI subcommands
+  (search/get/status/doctor) so the wiki CLI can read from the local vault
+  without something else having to activate the plugin first. Earlier
+  dist-side bandage: Watcher Fix 2.
+- **dreaming-narrative**: safe statistical fallback when the dreaming
+  narrative subagent times out or returns empty — raise the timeout, never
+  use raw memory snippets as fallback content, and always write a safe
+  fallback entry on timeout. Earlier dist-side bandage: Watcher Fix 7.
+- **memory-wiki canon indexing**: add `canon` to `WIKI_PAGE_KINDS`,
+  `inferWikiPageKind`, `QUERY_DIRS`, and `collectVaultCounts` so canon
+  files written directly to the vault by dreaming agents become
+  searchable/lookupable via `wiki.search` and `wiki.get`. Earlier
+  dist-side bandage: Watcher Fix 5.
+- **memory-wiki recursive walks**: descend into kind subdirs in
+  `listWikiMarkdownFiles`, `collectMarkdownFiles`, and
+  `collectVaultCounts` so any subdir of a kind directory contributes
+  pages (`canon/topics/*.md` was previously unreachable). Earlier
+  dist-side bandage: Watcher Fix 6.
+- **cliBackends partial overrides**: accept partial
+  `agents.defaults.cliBackends.<id>` entries by making `command` optional
+  on `CliBackendConfig` so `modelAliases`-only blocks can inherit the
+  base command. Resolves dependency on the `claude-opus-4-7` rewrite
+  workaround. Earlier dist-side bandage: Watcher Fix 4.
+- **structure-repair export**: make `extractTitleFromMarkdown`
+  publicly exported so memory-wiki structure-repair can use it.
+- **CLI turn ingest**: ingest CLI turns into the context engine
+  (the `lcm-cli-ingest-fix` patch; also pending upstream PR #76279).
+- **bench-reflective-dreaming + claude-code-bridge extensions**: ship
+  the BenchAGI dreaming and Claude Code bridge extensions inside the
+  package so they're available without an out-of-band install step.
+- **Phase D2.1 instanceId scoping**: top-level `instanceId` config
+  field, surfaced on the health snapshot, propagated into the
+  memory-wiki vault path scope, and read by claude-code-bridge for
+  per-vault cloud-mirror routing.
+- **fork rebrand**: package name `@benchagi/openclaw`, repository
+  pointing at `BenchAGI/openclaw`, scoped-package-aware code paths
+  (control-ui-assets, package-update-steps, daemon service-layout,
+  registry update probe, clawhub trusted source-repo list).
+
+### Build-time fixes (release-prep deltas)
+
+- **memory-state.ts type errors**: `mergeMemoryPluginState` previously
+  referenced `state.promptBuilder`, `state.flushPlanResolver`, and
+  `state.runtime` — fields that don't exist on `MemoryPluginState`.
+  Removed; the existing capability/corpusSupplements/promptSupplements
+  branches cover the additive merge correctly.
+- **claude-live-session.ts type error**: `argv` was being built as
+  `[backend.command, ...]` where `command` is now `string | undefined`
+  after the cliBackends partial-override patch. Pull the command into a
+  guarded local so the type system can see the runtime invariant.
+- **bundled-channel-entry smoke test**: handles scoped install paths
+  (`node_modules/@benchagi/openclaw`) and honors the
+  `EXCLUDED_CORE_BUNDLED_PLUGIN_DIRS` exclusion list (qqbot's package.json
+  is copied into dist by metadata-copier, but its TS isn't compiled, so
+  the smoke test would otherwise demand a JS file that doesn't exist).
+
+### Carry-over
+
+All upstream openclaw@2026.5.2 changes are present (this fork is
+1 commit behind upstream/main at the time of this release). See the
+upstream Unreleased section below for in-flight upstream changes that
+will land in our next fork release.
+
 ## Unreleased
 
 ### Changes
