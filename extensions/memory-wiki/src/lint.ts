@@ -50,19 +50,37 @@ function toExpectedPageType(page: WikiPageSummary): string {
   return page.kind;
 }
 
+function normalizeLinkTarget(target: string): string {
+  return target
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\.md$/i, "")
+    .replace(/^\.\/+/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+}
+
 function collectBrokenLinkIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
   const validTargets = new Set<string>();
   for (const page of pages) {
     const withoutExtension = page.relativePath.replace(/\.md$/i, "");
-    validTargets.add(page.relativePath);
-    validTargets.add(withoutExtension);
-    validTargets.add(path.basename(withoutExtension));
+    validTargets.add(normalizeLinkTarget(withoutExtension));
+    validTargets.add(normalizeLinkTarget(path.basename(withoutExtension)));
+    if (page.id) {
+      validTargets.add(normalizeLinkTarget(page.id));
+    }
   }
 
   const issues: MemoryWikiLintIssue[] = [];
   for (const page of pages) {
+    const seen = new Set<string>();
     for (const linkTarget of page.linkTargets) {
-      if (!validTargets.has(linkTarget)) {
+      const normalized = normalizeLinkTarget(linkTarget);
+      if (!normalized || seen.has(normalized)) {
+        continue;
+      }
+      seen.add(normalized);
+      if (!validTargets.has(normalized)) {
         issues.push({
           severity: "warning",
           category: "links",
@@ -334,6 +352,7 @@ async function writeLintReport(rootDir: string, issues: MemoryWikiLintIssue[]): 
         id: "report.lint",
         title: "Lint Report",
         status: "active",
+        updatedAt: new Date().toISOString(),
       },
       body: "# Lint Report\n",
     }),

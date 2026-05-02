@@ -224,6 +224,16 @@ export async function executePreparedCliRun(
     throw createCliAbortError();
   }
   const backend = context.preparedBackend.backend;
+  // Execution reaches this path only via `resolveCliBackendConfig`, which
+  // returns null unless `command` is a non-empty string. Narrow here so the
+  // spawn call (argv[0]) can treat it as required without bleeding the
+  // narrowed type up through every CliBackendConfig consumer.
+  const backendCommand = backend.command;
+  if (!backendCommand) {
+    throw new Error(
+      `cli-runner: backend "${context.backendResolved.id}" resolved without a command`,
+    );
+  }
   const { sessionId: resolvedSessionId, isNew } = resolveSessionIdToSend({
     backend,
     cliSessionId: cliSessionIdToUse,
@@ -368,7 +378,7 @@ export async function executePreparedCliRun(
             imageArg: backend.imageArg,
             argsPrompt,
           });
-          cliBackendLog.info(`cli argv: ${backend.command} ${logArgs.join(" ")}`);
+          cliBackendLog.info(`cli argv: ${backendCommand} ${logArgs.join(" ")}`);
           cliBackendLog.info(`cli env auth: ${buildCliEnvAuthLog(env)}`);
           if (
             env.OPENCLAW_MCP_TOKEN ||
@@ -470,7 +480,7 @@ export async function executePreparedCliRun(
           scopeKey,
           replaceExistingScope: Boolean(useResume && scopeKey),
           mode: "child",
-          argv: [backend.command, ...args],
+          argv: [backendCommand, ...args],
           timeoutMs: params.timeoutMs,
           noOutputTimeoutMs,
           cwd: context.workspaceDir,

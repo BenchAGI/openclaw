@@ -334,6 +334,40 @@ export function restoreMemoryPluginState(state: MemoryPluginState): void {
   memoryPluginState.promptSupplements = [...state.promptSupplements];
 }
 
+/**
+ * Additive counterpart to {@link restoreMemoryPluginState}: only overwrites
+ * each field when the incoming state carries a non-empty value. Intended for
+ * cache-hit paths in the plugin loader that must NOT clobber a live
+ * capability when the cached snapshot predates the capability's registration.
+ *
+ * Use {@link restoreMemoryPluginState} (full swap) for rollback on failed
+ * plugin registration, where each field MUST revert to its pre-register
+ * value regardless of whether the saved previous value was empty.
+ */
+export function mergeMemoryPluginState(state: MemoryPluginState): void {
+  if (state.capability) {
+    memoryPluginState.capability = {
+      pluginId: state.capability.pluginId,
+      capability: { ...state.capability.capability },
+    };
+  }
+  if (state.corpusSupplements && state.corpusSupplements.length > 0) {
+    memoryPluginState.corpusSupplements = [...state.corpusSupplements];
+  }
+  if (state.promptBuilder) {
+    memoryPluginState.promptBuilder = state.promptBuilder;
+  }
+  if (state.promptSupplements && state.promptSupplements.length > 0) {
+    memoryPluginState.promptSupplements = [...state.promptSupplements];
+  }
+  if (state.flushPlanResolver) {
+    memoryPluginState.flushPlanResolver = state.flushPlanResolver;
+  }
+  if (state.runtime) {
+    memoryPluginState.runtime = state.runtime;
+  }
+}
+
 export function clearMemoryPluginState(): void {
   memoryPluginState.capability = undefined;
   memoryPluginState.corpusSupplements = [];

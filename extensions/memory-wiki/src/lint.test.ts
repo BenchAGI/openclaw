@@ -158,4 +158,66 @@ describe("lintMemoryWikiVault", () => {
     await expect(fs.readFile(result.reportPath, "utf8")).resolves.toContain("### Contradictions");
     await expect(fs.readFile(result.reportPath, "utf8")).resolves.toContain("### Open Questions");
   });
+
+  it("accepts native-mode markdown links that keep the .md suffix", async () => {
+    const { rootDir, config } = await createVault({
+      prefix: "memory-wiki-lint-native-links-",
+      config: { vault: { renderMode: "native" } },
+      initialize: true,
+    });
+    await fs.writeFile(
+      path.join(rootDir, "sources", "alpha.md"),
+      renderWikiMarkdown({
+        frontmatter: {
+          pageType: "source",
+          id: "source.alpha",
+          title: "Alpha",
+          sourceType: "local-file",
+          sourcePath: "/tmp/alpha.md",
+          updatedAt: new Date().toISOString(),
+        },
+        body: "# Alpha\n\n[Alpha](sources/alpha.md) points to itself.\n",
+      }),
+      "utf8",
+    );
+
+    const result = await lintMemoryWikiVault(config);
+    const brokenLinks = result.issues.filter((issue) => issue.code === "broken-wikilink");
+    expect(brokenLinks).toHaveLength(0);
+  });
+
+  it("does not flag wiki-like syntax appearing inside fenced code blocks", async () => {
+    const { rootDir, config } = await createVault({
+      prefix: "memory-wiki-lint-code-fence-",
+      config: { vault: { renderMode: "native" } },
+      initialize: true,
+    });
+    await fs.writeFile(
+      path.join(rootDir, "sources", "transcript.md"),
+      renderWikiMarkdown({
+        frontmatter: {
+          pageType: "source",
+          id: "source.transcript",
+          title: "Transcript",
+          sourceType: "local-file",
+          sourcePath: "/tmp/transcript.md",
+          updatedAt: new Date().toISOString(),
+        },
+        body: [
+          "# Transcript",
+          "",
+          "```markdown",
+          "assistant: [[reply_to_current]] hello",
+          "user: [[another_template_token]]",
+          "```",
+          "",
+        ].join("\n"),
+      }),
+      "utf8",
+    );
+
+    const result = await lintMemoryWikiVault(config);
+    const brokenLinks = result.issues.filter((issue) => issue.code === "broken-wikilink");
+    expect(brokenLinks).toHaveLength(0);
+  });
 });

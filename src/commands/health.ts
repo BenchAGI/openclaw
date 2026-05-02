@@ -484,6 +484,7 @@ export async function getHealthSnapshot(params?: {
     ts: Date.now(),
     durationMs: Date.now() - start,
     ...(pluginHealth ? { plugins: pluginHealth } : {}),
+    ...(cfg.instanceId ? { instanceId: cfg.instanceId } : {}),
     channels,
     channelOrder,
     channelLabels,

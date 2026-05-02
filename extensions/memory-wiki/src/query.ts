@@ -16,7 +16,7 @@ import {
 } from "./markdown.js";
 import { initializeMemoryWikiVault } from "./vault.js";
 
-const QUERY_DIRS = ["entities", "concepts", "sources", "syntheses", "reports"] as const;
+const QUERY_DIRS = ["entities", "concepts", "sources", "syntheses", "reports", "canon"] as const;
 const AGENT_DIGEST_PATH = ".openclaw-wiki/cache/agent-digest.json";
 const CLAIMS_DIGEST_PATH = ".openclaw-wiki/cache/claims.jsonl";
 const RELATED_BLOCK_PATTERN =
@@ -81,6 +81,10 @@ export const WIKI_SEARCH_MODES = [
 ] as const;
 
 export type WikiSearchMode = (typeof WIKI_SEARCH_MODES)[number];
+
+export const DEFAULT_WIKI_SEARCH_MIN_CONFIDENCE = 0.3;
+const STAGED_STATUS_PATTERN = /status:\s*staged\b/i;
+const CANDIDATE_CONFIDENCE_PATTERN = /confidence:\s*(\d+(?:\.\d+)?)/i;
 
 type QueryDigestPage = {
   id?: string;
@@ -1181,6 +1185,41 @@ export function resolveQueryableWikiPageByLookup(
   );
 }
 
+function isStagedCandidateResult(result: WikiSearchResult): {
+  staged: boolean;
+  confidence: number | null;
+} {
+  const snippet = result.snippet ?? "";
+  if (!STAGED_STATUS_PATTERN.test(snippet)) {
+    return { staged: false, confidence: null };
+  }
+  const match = snippet.match(CANDIDATE_CONFIDENCE_PATTERN);
+  const confidence = match ? Number(match[1]) : null;
+  return {
+    staged: true,
+    confidence: Number.isFinite(confidence) ? confidence : null,
+  };
+}
+
+export function filterStagedLowConfidenceResults(
+  results: WikiSearchResult[],
+  params: { minConfidence: number; includeStaged: boolean },
+): WikiSearchResult[] {
+  if (params.includeStaged) {
+    return results;
+  }
+  return results.filter((result) => {
+    const status = isStagedCandidateResult(result);
+    if (!status.staged) {
+      return true;
+    }
+    if (status.confidence === null) {
+      return false;
+    }
+    return status.confidence >= params.minConfidence;
+  });
+}
+
 export async function searchMemoryWiki(params: {
   config: ResolvedMemoryWikiConfig;
   appConfig?: OpenClawConfig;
@@ -1191,11 +1230,18 @@ export async function searchMemoryWiki(params: {
   searchBackend?: WikiSearchBackend;
   searchCorpus?: WikiSearchCorpus;
   mode?: WikiSearchMode;
+  minConfidence?: number;
+  includeStaged?: boolean;
 }): Promise<WikiSearchResult[]> {
   const effectiveConfig = applySearchOverrides(params.config, params);
   await initializeMemoryWikiVault(effectiveConfig);
   const maxResults = Math.max(1, params.maxResults ?? 10);
   const mode = params.mode ?? "auto";
+  const minConfidence =
+    typeof params.minConfidence === "number" && Number.isFinite(params.minConfidence)
+      ? params.minConfidence
+      : DEFAULT_WIKI_SEARCH_MIN_CONFIDENCE;
+  const includeStaged = params.includeStaged === true;
 
   const wikiResults = shouldSearchWiki(effectiveConfig)
     ? await searchWikiCorpus({
@@ -1219,7 +1265,12 @@ export async function searchMemoryWiki(params: {
       )
     : [];
 
-  return [...wikiResults, ...memoryResults]
+  const combined = filterStagedLowConfidenceResults([...wikiResults, ...memoryResults], {
+    minConfidence,
+    includeStaged,
+  });
+
+  return combined
     .toSorted((left, right) => {
       if (left.score !== right.score) {
         return right.score - left.score;

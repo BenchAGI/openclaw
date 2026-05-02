@@ -72,9 +72,13 @@ repos:
         pass_filenames: false
 
       # oxlint --type-aware src test
+      # Route through run-oxlint.mjs (same as `pnpm lint`) so plugin-sdk
+      # boundary dts artifacts are prepared before oxlint runs. Calling
+      # oxlint directly leaves unresolved type imports looking like `any`
+      # and makes --type-aware report spurious errors on unchanged lines.
       - id: oxlint
         name: oxlint
-        entry: scripts/pre-commit/run-node-tool.sh oxlint --type-aware src test
+        entry: node scripts/run-oxlint.mjs --type-aware src test
         language: system
         pass_filenames: false
         types_or: [javascript, jsx, ts, tsx]

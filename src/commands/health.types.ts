@@ -40,6 +40,11 @@ export type HealthSummary = {
   ts: number;
   durationMs: number;
   plugins?: PluginHealthSummary;
+  /**
+   * Bench instance this harness belongs to (from openclaw.json `instanceId`).
+   * Absent when the harness runs in single-user Tier A mode.
+   */
+  instanceId?: string;
   channels: Record<string, ChannelHealthSummary>;
   channelOrder: string[];
   channelLabels: Record<string, string>;

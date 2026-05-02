@@ -200,3 +200,6 @@ extensions/**/.openclaw-runtime-deps-stamp.json
 
 # Output dir for scripts/run-opengrep.sh (local opengrep scans)
 /.opengrep-out/
+
+# Local Anvil smoke artifacts (Codex logs, repair patches, prompts)
+artifacts/anvil/

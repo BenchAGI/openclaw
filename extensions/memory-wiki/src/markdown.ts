@@ -7,7 +7,14 @@ import {
 } from "openclaw/plugin-sdk/text-runtime";
 import YAML from "yaml";
 
-const WIKI_PAGE_KINDS = ["entity", "concept", "source", "synthesis", "report"] as const;
+export const WIKI_PAGE_KINDS = [
+  "entity",
+  "concept",
+  "source",
+  "synthesis",
+  "report",
+  "canon",
+] as const;
 export const WIKI_RELATED_START_MARKER = "<!-- openclaw:wiki:related:start -->";
 export const WIKI_RELATED_END_MARKER = "<!-- openclaw:wiki:related:end -->";
 
@@ -107,6 +114,8 @@ const RELATED_BLOCK_PATTERN = new RegExp(
   `${WIKI_RELATED_START_MARKER}[\\s\\S]*?${WIKI_RELATED_END_MARKER}`,
   "g",
 );
+const FENCED_CODE_PATTERN = /(^|\n)(?:```|~~~)[^\n]*\n[\s\S]*?\n(?:```|~~~)(?=\n|$)/g;
+const INLINE_CODE_PATTERN = /`[^`\n]+`/g;
 const MAX_WIKI_SEGMENT_BYTES = 240;
 const MAX_WIKI_FILENAME_COMPONENT_BYTES = 255;
 const WIKI_SEGMENT_HASH_BYTES = 12;
@@ -365,8 +374,11 @@ function normalizeWikiRelationships(value: unknown): WikiRelationship[] {
   });
 }
 
-function extractWikiLinks(markdown: string): string[] {
-  const searchable = markdown.replace(RELATED_BLOCK_PATTERN, "");
+export function extractWikiLinks(markdown: string): string[] {
+  const searchable = markdown
+    .replace(RELATED_BLOCK_PATTERN, "")
+    .replace(FENCED_CODE_PATTERN, "")
+    .replace(INLINE_CODE_PATTERN, "");
   const links: string[] = [];
   for (const match of searchable.matchAll(OBSIDIAN_LINK_PATTERN)) {
     const target = match[1]?.trim();
@@ -423,6 +435,9 @@ export function inferWikiPageKind(relativePath: string): WikiPageKind | null {
   }
   if (normalized.startsWith("reports/")) {
     return "report";
+  }
+  if (normalized.startsWith("canon/")) {
+    return "canon";
   }
   return null;
 }

@@ -35,6 +35,7 @@ import {
   WIKI_RELATED_END_MARKER,
   WIKI_RELATED_START_MARKER,
 } from "./markdown.js";
+import { ensurePageStructure, isOrphanSourceShell } from "./structure-repair.js";
 import { initializeMemoryWikiVault } from "./vault.js";
 
 const COMPILE_PAGE_GROUPS: Array<{ kind: WikiPageKind; dir: string; heading: string }> = [
@@ -43,6 +44,7 @@ const COMPILE_PAGE_GROUPS: Array<{ kind: WikiPageKind; dir: string; heading: str
   { kind: "concept", dir: "concepts", heading: "Concepts" },
   { kind: "synthesis", dir: "syntheses", heading: "Syntheses" },
   { kind: "report", dir: "reports", heading: "Reports" },
+  { kind: "canon", dir: "canon", heading: "Canon" },
 ];
 const AGENT_DIGEST_PATH = ".openclaw-wiki/cache/agent-digest.json";
 const CLAIMS_DIGEST_PATH = ".openclaw-wiki/cache/claims.jsonl";
@@ -371,6 +373,7 @@ function buildPageCounts(pages: WikiPageSummary[]): Record<WikiPageKind, number>
     source: pages.filter((page) => page.kind === "source").length,
     synthesis: pages.filter((page) => page.kind === "synthesis").length,
     report: pages.filter((page) => page.kind === "report").length,
+    canon: pages.filter((page) => page.kind === "canon").length,
   };
 }
 
@@ -774,6 +777,11 @@ async function refreshPageRelatedBlocks(params: {
       continue;
     }
     const original = await fs.readFile(page.absolutePath, "utf8");
+    const parsed = parseWikiMarkdown(original);
+    const hasFrontmatter = Object.keys(parsed.frontmatter).length > 0;
+    if (!hasFrontmatter && !parsed.body.trim()) {
+      continue;
+    }
     const updated = withTrailingNewline(
       replaceManagedMarkdownBlock({
         original,
@@ -792,6 +800,39 @@ async function refreshPageRelatedBlocks(params: {
     }
     await fs.writeFile(page.absolutePath, updated, "utf8");
     updatedFiles.push(page.absolutePath);
+  }
+  return updatedFiles;
+}
+
+async function ensureAllPageStructures(params: {
+  rootDir: string;
+  pages: WikiPageSummary[];
+  nowIso: string;
+}): Promise<string[]> {
+  const updatedFiles: string[] = [];
+  for (const page of params.pages) {
+    const needsBackfill = !page.id || !page.pageType || !page.title.trim() || !page.updatedAt;
+    if (!needsBackfill) {
+      continue;
+    }
+    const raw = await fs.readFile(page.absolutePath, "utf8").catch(() => "");
+    const parsed = parseWikiMarkdown(raw);
+    const hasFrontmatter = Object.keys(parsed.frontmatter).length > 0;
+    if (
+      !hasFrontmatter &&
+      page.relativePath.startsWith("sources/") &&
+      isOrphanSourceShell(parsed.body)
+    ) {
+      continue;
+    }
+    const result = await ensurePageStructure({
+      rootDir: params.rootDir,
+      relativePath: page.relativePath,
+      nowIso: params.nowIso,
+    });
+    if (result.operation === "backfilled-structure") {
+      updatedFiles.push(path.join(params.rootDir, page.relativePath));
+    }
   }
   return updatedFiles;
 }
@@ -956,6 +997,7 @@ function buildRootIndexBody(params: {
     `- Concepts: ${params.counts.concept}`,
     `- Syntheses: ${params.counts.synthesis}`,
     `- Reports: ${params.counts.report}`,
+    `- Canon: ${params.counts.canon}`,
   ];
 
   for (const group of COMPILE_PAGE_GROUPS) {
@@ -1282,9 +1324,20 @@ export async function compileMemoryWikiVault(
 ): Promise<CompileMemoryWikiResult> {
   await initializeMemoryWikiVault(config);
   const rootDir = config.vault.path;
+  const nowIso = new Date().toISOString();
   let pages = await readPageSummaries(rootDir);
-  const updatedFiles = await refreshPageRelatedBlocks({ config, pages });
-  if (updatedFiles.length > 0) {
+  const structureUpdatedFiles = await ensureAllPageStructures({
+    rootDir,
+    pages,
+    nowIso,
+  });
+  if (structureUpdatedFiles.length > 0) {
+    pages = await readPageSummaries(rootDir);
+  }
+  const updatedFiles = [...structureUpdatedFiles];
+  const relatedUpdatedFiles = await refreshPageRelatedBlocks({ config, pages });
+  updatedFiles.push(...relatedUpdatedFiles);
+  if (relatedUpdatedFiles.length > 0) {
     pages = await readPageSummaries(rootDir);
   }
   const dashboardUpdatedFiles = await refreshDashboardPages({ config, rootDir, pages });

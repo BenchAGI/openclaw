@@ -42,6 +42,7 @@ import {
   type MemoryWikiStatus,
   resolveMemoryWikiStatus,
 } from "./status.js";
+import { findOrphanSourceShells, repairMemoryWikiVault } from "./structure-repair.js";
 import { initializeMemoryWikiVault } from "./vault.js";
 
 const WIKI_GATEWAY_TIMEOUT_MS = "30000";
@@ -74,6 +75,12 @@ type WikiCompileCommandOptions = {
 
 type WikiLintCommandOptions = {
   json?: boolean;
+};
+
+type WikiRepairCommandOptions = {
+  json?: boolean;
+  removeOrphans?: boolean;
+  dryRun?: boolean;
 };
 
 type WikiIngestCommandOptions = {
@@ -545,6 +552,43 @@ export async function runWikiLint(params: {
   });
 }
 
+export async function runWikiRepair(params: {
+  config: ResolvedMemoryWikiConfig;
+  appConfig?: OpenClawConfig;
+  removeOrphans?: boolean;
+  dryRun?: boolean;
+  json?: boolean;
+  stdout?: Pick<NodeJS.WriteStream, "write">;
+}) {
+  if (params.dryRun) {
+    const orphans = await findOrphanSourceShells(params.config);
+    const summary = {
+      dryRun: true,
+      orphansDetected: orphans.length,
+      orphans,
+    };
+    writeOutput(
+      params.json
+        ? JSON.stringify(summary, null, 2)
+        : orphans.length === 0
+          ? "No orphan source shells detected."
+          : `Detected ${orphans.length} orphan source shells:\n${orphans.map((p) => `- ${p}`).join("\n")}`,
+      params.stdout,
+    );
+    return summary;
+  }
+  const result = await repairMemoryWikiVault(params.config, {
+    removeOrphans: params.removeOrphans,
+  });
+  writeOutput(
+    params.json
+      ? JSON.stringify(result, null, 2)
+      : `Repaired wiki vault at ${result.vaultRoot} (${result.scanned} scanned, ${result.backfilled} backfilled, ${result.orphansRemoved} orphans removed).`,
+    params.stdout,
+  );
+  return result;
+}
+
 export async function runWikiIngest(params: {
   config: ResolvedMemoryWikiConfig;
   inputPath: string;
@@ -888,7 +932,7 @@ export function registerWikiCli(
 ) {
   const config = isResolvedMemoryWikiConfig(pluginConfig)
     ? pluginConfig
-    : resolveMemoryWikiConfig(pluginConfig);
+    : resolveMemoryWikiConfig(pluginConfig, { instanceId: appConfig?.instanceId });
   const wiki = program.command("wiki").description("Inspect and initialize the memory wiki vault");
 
   wiki
@@ -929,6 +973,22 @@ export function registerWikiCli(
     .option("--json", "Print JSON")
     .action(async (opts: WikiLintCommandOptions) => {
       await runWikiLint({ config, appConfig, json: opts.json });
+    });
+
+  wiki
+    .command("repair")
+    .description("Backfill missing frontmatter (id, pageType, title, updatedAt) across the vault")
+    .option("--remove-orphans", "Delete orphan source shells (empty pages with no frontmatter)")
+    .option("--dry-run", "Report what would change without writing")
+    .option("--json", "Print JSON")
+    .action(async (opts: WikiRepairCommandOptions) => {
+      await runWikiRepair({
+        config,
+        appConfig,
+        removeOrphans: opts.removeOrphans,
+        dryRun: opts.dryRun,
+        json: opts.json,
+      });
     });
 
   wiki

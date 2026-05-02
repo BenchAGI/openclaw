@@ -95,6 +95,7 @@ import {
   getMemoryCapabilityRegistration,
   listMemoryCorpusSupplements,
   listMemoryPromptSupplements,
+  mergeMemoryPluginState,
   restoreMemoryPluginState,
 } from "./memory-state.js";
 import { unwrapDefaultModuleExport } from "./module-export.js";
@@ -1472,6 +1473,17 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
       options,
     });
     if (cached) {
+      // Preserve live memory plugin state across cache hits even when
+      // shouldActivate is false (snapshot/validation mode). The conditional
+      // block below performs a full swap restore when activating; the
+      // additive merge here is a no-op in that case but keeps memory-wiki
+      // bridge imports alive in non-activating consumers (e.g. the gateway
+      // status path) that previously cleared capability to undefined.
+      mergeMemoryPluginState({
+        capability: cached.state.memoryCapability,
+        corpusSupplements: cached.state.memoryCorpusSupplements,
+        promptSupplements: cached.state.memoryPromptSupplements,
+      });
       if (shouldActivate) {
         restoreRegisteredAgentHarnesses(cached.state.agentHarnesses);
         restorePluginCommands(cached.state.commands ?? []);

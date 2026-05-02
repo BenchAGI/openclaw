@@ -23,7 +23,9 @@ Put config under `plugins.entries.memory-wiki.config`:
   vaultMode: "isolated",
 
   vault: {
-    path: "~/.openclaw/wiki/main",
+    // Omit path to use the instance-scoped default:
+    // ~/.openclaw/wiki/{instanceId}, or ~/.openclaw/wiki/main when unset.
+    // path: "~/custom/wiki",
     renderMode: "obsidian", // or "native"
   },
 
@@ -108,6 +110,9 @@ openclaw wiki init
 openclaw wiki ingest ./notes/alpha.md
 openclaw wiki compile
 openclaw wiki lint
+openclaw wiki repair                    # backfill missing id/pageType/title/updatedAt
+openclaw wiki repair --remove-orphans   # also delete empty source shells
+openclaw wiki repair --dry-run          # report orphans without writing
 openclaw wiki search "alpha"
 openclaw wiki get entity.alpha --from 1 --lines 80
 
@@ -129,6 +134,51 @@ openclaw wiki obsidian open syntheses/alpha-summary.md
 openclaw wiki obsidian command workspace:quick-switcher
 openclaw wiki obsidian daily
 ```
+
+## Canonical page standard
+
+Every page under `entities/`, `concepts/`, `sources/`, `syntheses/`, or `reports/` is expected to carry the following frontmatter. These are the fields the linter enforces and the ones the compiler will auto-repair if missing.
+
+| Field       | Required             | Notes                                                                                          |
+| ----------- | -------------------- | ---------------------------------------------------------------------------------------------- |
+| `id`        | yes (error if blank) | Stable. Form: `<kind>.<slug>` (e.g. `concept.dreaming-protocol`). Derived from filename/title. |
+| `pageType`  | yes (error if blank) | Must match the directory kind (`source`, `entity`, `concept`, `synthesis`, `report`).          |
+| `title`     | yes (error if blank) | First H1 if present, otherwise humanized filename.                                             |
+| `updatedAt` | yes (warn if blank)  | ISO 8601. Set by the generator on create or file mtime on repair.                              |
+| `sourceIds` | recommended          | Required for non-source, non-report pages to avoid the `missing-source-ids` warning.           |
+
+Generators (ingest, bridge, unsafe-local, synthesis apply, dashboard reports) are responsible for emitting all required fields at creation time. The compile pass runs a deterministic `ensurePageStructure` sweep that backfills anything still missing. `wiki repair` exposes that sweep as an explicit command for legacy content, including orphan-shell cleanup.
+
+### Provenance discipline
+
+- **Sources** never carry `sourceIds` — they _are_ the provenance. They must carry `sourcePath` plus one of `bridgeRelativePath`/`unsafeLocalRelativePath` when imported.
+- **Syntheses, concepts, entities** should cite at least one `sourceIds` entry so the related-block/backlink graph can link them to their evidence.
+- **Reports** are compiled artifacts. Their id/title/pageType are hardcoded by the dashboard definitions and should not be edited manually.
+
+### Orphan shells
+
+An "orphan shell" is a `sources/*.md` file whose entire body is just the managed `## Related` block (or is empty). These accumulate when a bridge-synced upstream source disappears partway through a sync, or when a compile pass touched a zero-byte stub. `wiki repair --remove-orphans` deletes them. `wiki repair --dry-run` reports them without changes.
+
+## Daily operator workflow
+
+The normal maintenance loop is three commands:
+
+```bash
+openclaw wiki bridge import   # pull in new memory artifacts
+openclaw wiki compile          # refresh indexes, backlinks, dashboards, digests
+openclaw wiki lint             # write the lint report
+```
+
+For a freshly-inherited or long-neglected vault, prepend an explicit repair:
+
+```bash
+openclaw wiki repair --dry-run            # preview orphans
+openclaw wiki repair --remove-orphans     # then commit the cleanup
+openclaw wiki compile
+openclaw wiki lint
+```
+
+The lint report is idempotent and written to `reports/lint.md`. Errors indicate structural violations (missing id, missing pageType, type mismatch, duplicate id); warnings indicate content-health issues (stale pages, open questions, contradictions, claim health).
 
 ## Agent tools
 

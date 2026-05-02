@@ -31,6 +31,15 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
         description:
           "Metadata fields automatically maintained by OpenClaw to record write/version history for this config file. Keep these values system-managed and avoid manual edits unless debugging migration history.",
       },
+      instanceId: {
+        type: "string",
+        minLength: 1,
+        maxLength: 128,
+        pattern: "^[A-Za-z0-9_-]+$",
+        title: "Bench Instance ID",
+        description:
+          "Opaque identifier for the Bench instance this harness belongs to. When set, per-instance resources (wiki vaults, shard directories) are scoped to this id. When unset, single-user Tier A defaults apply (~/.openclaw/wiki/main/). Required on Tier B (personal local) and Tier C (cloud-hosted) deployments.",
+      },
       env: {
         type: "object",
         properties: {
@@ -4291,7 +4300,6 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
                       additionalProperties: false,
                     },
                   },
-                  required: ["command"],
                   additionalProperties: false,
                 },
                 title: "CLI Backends",
@@ -24429,6 +24437,11 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
       label: "Config Last Touched At",
       help: "ISO timestamp of the last config write (auto-set).",
       tags: ["media"],
+    },
+    instanceId: {
+      label: "Bench Instance ID",
+      help: "Opaque identifier for the Bench instance this harness belongs to. When set, per-instance resources (wiki vaults, shard directories) are scoped to this id. When unset, single-user Tier A defaults apply (~/.openclaw/wiki/main/). Required on Tier B (personal local) and Tier C (cloud-hosted) deployments.",
+      tags: ["advanced"],
     },
     env: {
       label: "Environment",
