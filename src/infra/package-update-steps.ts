@@ -163,7 +163,7 @@ async function replaceNpmBinShims(params: {
     return;
   }
 
-  const names = new Set([params.packageName, "openclaw"]);
+  const names = new Set([params.packageName, "openclaw", "@benchagi/openclaw"]);
   const shimEntries = entries.filter((entry) => {
     const parsed = path.parse(entry);
     return names.has(entry) || names.has(parsed.name);

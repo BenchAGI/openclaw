@@ -1,17 +1,17 @@
 {
-  "name": "openclaw",
-  "version": "2026.5.2",
-  "description": "Multi-channel AI gateway with extensible messaging integrations",
+  "name": "@benchagi/openclaw",
+  "version": "2026.5.2-beta.1",
+  "description": "BenchAGI fork of OpenClaw — multi-channel AI gateway with Bench-specific patches (memory-wiki canon indexing, dreaming-narrative safe-fallback, memory-state additive restore, cli alias overrides, wiki CLI plugin activation)",
   "keywords": [],
-  "homepage": "https://github.com/openclaw/openclaw#readme",
+  "homepage": "https://github.com/BenchAGI/openclaw#readme",
   "bugs": {
-    "url": "https://github.com/openclaw/openclaw/issues"
+    "url": "https://github.com/BenchAGI/openclaw/issues"
   },
   "license": "MIT",
-  "author": "",
+  "author": "BenchAGI",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openclaw/openclaw.git"
+    "url": "git+https://github.com/BenchAGI/openclaw.git"
   },
   "bin": {
     "openclaw": "openclaw.mjs"
@@ -34,7 +34,6 @@
     "!dist/extensions/acpx/**",
     "!dist/extensions/node_modules/**",
     "!dist/extensions/*/node_modules/**",
-    "!dist/extensions/acpx/**",
     "!dist/extensions/bluebubbles/**",
     "!dist/extensions/brave/**",
     "!dist/extensions/codex/**",
@@ -1272,6 +1271,10 @@
     },
     "./extension-api": "./dist/extensionAPI.js",
     "./cli-entry": "./openclaw.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
     "android:assemble": "cd apps/android && ./gradlew :app:assemblePlayDebug",

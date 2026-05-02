@@ -475,8 +475,10 @@ async function resolveCandidate(options) {
     version: pkg.version,
   };
 
-  if (pkg.name !== "openclaw") {
-    throw new Error(`package candidate must be named "openclaw"; got: ${pkg.name || "<missing>"}`);
+  if (pkg.name !== "@benchagi/openclaw") {
+    throw new Error(
+      `package candidate must be named "@benchagi/openclaw"; got: ${pkg.name || "<missing>"}`,
+    );
   }
   if (!pkg.version) {
     throw new Error("package candidate package.json has no version");
