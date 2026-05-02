@@ -1,7 +1,8 @@
 {
   "id": "memory-core",
   "activation": {
-    "onStartup": false
+    "onStartup": false,
+    "onCommands": ["wiki"]
   },
   "kind": "memory",
   "contracts": {
