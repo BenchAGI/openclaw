@@ -4,6 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  NON_PACKAGED_BUNDLED_PLUGIN_DIRS,
+  EXCLUDED_CORE_BUNDLED_PLUGIN_DIRS,
+} from "./lib/bundled-plugin-build-entries.mjs";
 import { parsePackageRootArg } from "./lib/package-root-args.mjs";
 import { installProcessWarningFilter } from "./process-warning-filter.mjs";
 
@@ -18,8 +22,20 @@ const { packageRoot } = parsePackageRootArg(
 const distExtensionsRoot = path.join(packageRoot, "dist", "extensions");
 const installedLayoutEnv = "OPENCLAW_BUNDLED_CHANNEL_SMOKE_INSTALLED_LAYOUT";
 
+function readPackageName(root) {
+  try {
+    const raw = fs.readFileSync(path.join(root, "package.json"), "utf8");
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.name === "string" && parsed.name.length > 0 ? parsed.name : "openclaw";
+  } catch {
+    return "openclaw";
+  }
+}
+
 function packageRootLooksInstalled(root) {
-  return root.replaceAll("\\", "/").endsWith("/node_modules/openclaw");
+  const normalized = root.replaceAll("\\", "/");
+  const name = readPackageName(root);
+  return normalized.endsWith(`/node_modules/${name}`);
 }
 
 function smokeInInstalledLayoutIfNeeded() {
@@ -27,10 +43,11 @@ function smokeInInstalledLayoutIfNeeded() {
     return;
   }
 
+  const packageName = readPackageName(packageRoot);
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-channel-entry-smoke-"));
   const nodeModulesRoot = path.join(tempRoot, "node_modules");
-  const installedPackageRoot = path.join(nodeModulesRoot, "openclaw");
-  fs.mkdirSync(nodeModulesRoot, { recursive: true });
+  const installedPackageRoot = path.join(nodeModulesRoot, packageName);
+  fs.mkdirSync(path.dirname(installedPackageRoot), { recursive: true });
   fs.symlinkSync(packageRoot, installedPackageRoot, "dir");
 
   try {
@@ -71,6 +88,12 @@ function collectBundledChannelEntryFiles() {
   const files = [];
   for (const dirent of fs.readdirSync(distExtensionsRoot, { withFileTypes: true })) {
     if (!dirent.isDirectory()) {
+      continue;
+    }
+    if (
+      NON_PACKAGED_BUNDLED_PLUGIN_DIRS.has(dirent.name) ||
+      EXCLUDED_CORE_BUNDLED_PLUGIN_DIRS.has(dirent.name)
+    ) {
       continue;
     }
     const extensionRoot = path.join(distExtensionsRoot, dirent.name);
