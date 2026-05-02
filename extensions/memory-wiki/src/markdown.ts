@@ -189,7 +189,7 @@ export function renderWikiMarkdown(params: {
   return `---\n${frontmatter}\n---\n\n${params.body.trimStart()}`;
 }
 
-function extractTitleFromMarkdown(body: string): string | undefined {
+export function extractTitleFromMarkdown(body: string): string | undefined {
   const match = body.match(/^#\s+(.+?)\s*$/m);
   return normalizeOptionalString(match?.[1]);
 }
