@@ -8,7 +8,6 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -22,25 +21,68 @@ const DEFAULT_WARMUP_S = Number(process.env.OPENCLAW_BRIDGE_WARMUP_SECONDS ?? "5
 const DEFAULT_OPENCLAW_BIN = process.env.OPENCLAW_BIN ?? "openclaw";
 
 // -- LCM direct read access ------------------------------------------------
-// Read-only access to ~/.openclaw/lcm.db for lcm_grep / lcm_describe surfaces.
+// Read-only access to lossless-claw's lcm.db for lcm_grep / lcm_describe.
 // The lossless-claw plugin's tools are only registered in-process to embedded
 // agents, so external MCP clients (Claude Code, Codex CLI) need their own path
 // to recall historical context. node:sqlite can safely open lcm.db read-only
 // alongside the gateway's own writer connection.
+//
+// Anvil-repair notes (PR #20 follow-up):
+//   - The DB path is derived from OPENCLAW_STATE_DIR when set, so profiled /
+//     isolated gateways resolve the same DB their lossless-claw uses.
+//   - node:sqlite is loaded lazily inside getLcmDb() so older Node builds
+//     where the builtin is unavailable can still run the other 10 bridge
+//     tools — only the two LCM tools degrade.
+//   - busy_timeout is set to 5s so reads coexist with writer compactions
+//     instead of returning SQLITE_BUSY immediately.
 
-const LCM_DB_PATH = process.env.LCM_DATABASE_PATH ?? path.join(os.homedir(), ".openclaw", "lcm.db");
+function resolveLcmDbPath() {
+  if (process.env.LCM_DATABASE_PATH) {
+    return process.env.LCM_DATABASE_PATH;
+  }
+  const stateDir = process.env.OPENCLAW_STATE_DIR;
+  if (stateDir) {
+    return path.join(stateDir, "lcm.db");
+  }
+  return path.join(os.homedir(), ".openclaw", "lcm.db");
+}
+
+const LCM_DB_PATH = resolveLcmDbPath();
+const LCM_BUSY_TIMEOUT_MS = Number(process.env.LCM_BUSY_TIMEOUT_MS ?? "5000");
 
 let lcmDbConnection = null;
+let lcmDbInitError = null;
 
-function getLcmDb() {
-  if (lcmDbConnection) return lcmDbConnection;
-  lcmDbConnection = new DatabaseSync(LCM_DB_PATH, { readOnly: true });
+async function getLcmDb() {
+  if (lcmDbConnection) {
+    return lcmDbConnection;
+  }
+  if (lcmDbInitError) {
+    throw lcmDbInitError;
+  }
+  let DatabaseSync;
+  try {
+    ({ DatabaseSync } = await import("node:sqlite"));
+  } catch (err) {
+    lcmDbInitError = new Error(
+      `node:sqlite is unavailable in this Node build (${err instanceof Error ? err.message : String(err)}). ` +
+        "Upgrade to Node 22.5+ to enable openclaw_lcm_grep / openclaw_lcm_describe.",
+    );
+    throw lcmDbInitError;
+  }
+  const conn = new DatabaseSync(LCM_DB_PATH, { readOnly: true });
+  try {
+    conn.exec(`PRAGMA busy_timeout = ${LCM_BUSY_TIMEOUT_MS}`);
+  } catch {
+    // PRAGMA failure is non-fatal — we just lose the wait grace.
+  }
+  lcmDbConnection = conn;
   return lcmDbConnection;
 }
 
 async function lcmGrepDirect({ pattern, sessionId, limit = 20 }) {
   try {
-    const db = getLcmDb();
+    const db = await getLcmDb();
     let rows;
     if (sessionId) {
       rows = db
@@ -87,7 +129,7 @@ async function lcmGrepDirect({ pattern, sessionId, limit = 20 }) {
 
 async function lcmDescribeDirect({ sessionId }) {
   try {
-    const db = getLcmDb();
+    const db = await getLcmDb();
     const conv = db
       .prepare(
         `SELECT conversation_id, session_id, title, bootstrapped_at, created_at, updated_at
