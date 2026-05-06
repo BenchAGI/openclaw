@@ -6,6 +6,7 @@ import {
   WRITE_SCOPE,
 } from "./method-scopes.js";
 import type {
+  EventFrame,
   GatewayBroadcastFn,
   GatewayBroadcastOpts,
   GatewayBroadcastStateVersion,
@@ -55,7 +56,10 @@ function hasEventScope(client: GatewayWsClient, event: string): boolean {
   return required.some((scope) => scopes.includes(scope));
 }
 
-export function createGatewayBroadcaster(params: { clients: Set<GatewayWsClient> }) {
+export function createGatewayBroadcaster(params: {
+  clients: Set<GatewayWsClient>;
+  onEventFrame?: (frame: EventFrame) => void;
+}) {
   let seq = 0;
 
   const broadcastInternal = (
@@ -64,18 +68,20 @@ export function createGatewayBroadcaster(params: { clients: Set<GatewayWsClient>
     opts?: GatewayBroadcastOpts,
     targetConnIds?: ReadonlySet<string>,
   ) => {
-    if (params.clients.size === 0) {
-      return;
-    }
     const isTargeted = Boolean(targetConnIds);
     const eventSeq = isTargeted ? undefined : ++seq;
-    const frame = JSON.stringify({
+    const eventFrame = {
       type: "event",
       event,
       payload,
       seq: eventSeq,
       stateVersion: opts?.stateVersion,
-    });
+    } as EventFrame;
+    params.onEventFrame?.(eventFrame);
+    if (params.clients.size === 0) {
+      return;
+    }
+    const frame = JSON.stringify(eventFrame);
     if (shouldLogWs()) {
       const logMeta: Record<string, unknown> = {
         event,
