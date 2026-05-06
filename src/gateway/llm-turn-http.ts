@@ -37,6 +37,8 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
+import Anthropic from "@anthropic-ai/sdk";
+import { formatErrorMessage } from "../infra/errors.js";
 import { logWarn } from "../logger.js";
 import { normalizeOptionalString } from "../shared/string-coerce.js";
 import type { AuthRateLimiter } from "./auth-rate-limit.js";
@@ -349,41 +351,188 @@ export async function handleLlmTurnHttpRequest(
     return true;
   }
 
-  // CALL_ANTHROPIC_TODO (Phase 1B W3 follow-up):
-  //   1. Resolve the agent's local Anthropic auth profile via existing
-  //      OpenClaw `agents/auth-profiles` machinery.
-  //   2. Translate `validation.request` to Anthropic SDK params:
-  //      - `messages` → SDK MessageParam[]
-  //      - `system_prompt` → SDK system param (with cache_control if requested)
-  //      - `tools` → SDK tools[]
-  //      - `thinking_level` → SDK thinking config via existing helper
-  //   3. Apply `anthropic-payload-policy.ts` cache-control + payload normalization.
-  //   4. Optional write-ahead idempotency record keyed by
-  //      `validation.request.idempotencyKey` so a relay restart mid-call can
-  //      recover the result without re-billing the customer (spec §7 line 851).
-  //   5. Call Anthropic SDK + await the response.
-  //   6. Translate response (camelCase → snake_case wire format):
-  //        content, stop_reason, model, usage, used_auth_profile.
-  //   7. Return `sendJson(res, 200, response)`.
-  //
-  // For now this scaffold returns 501 so the relay claim path can land and
-  // exercise the route registration end-to-end without burning customer tokens.
-  logWarn(
-    `[llm_turn] received valid request for agent=${validation.request.agentId} ` +
-      `model=${validation.request.model} messages=${validation.request.messages.length} ` +
-      `tools=${validation.request.tools.length} but Anthropic call is not yet implemented`,
-  );
-  sendJson(res, 501, {
-    error: {
-      type: "not_implemented",
-      code: "llm_turn_not_implemented",
-      message:
-        "POST /v1/llm_turn route is wired and validates the request body, " +
-        "but the Anthropic call path is not yet implemented. See " +
-        "CALL_ANTHROPIC_TODO in src/gateway/llm-turn-http.ts.",
-    },
-  });
+  // Anthropic call. Resolves the auth credential via env (proper auth-profile
+  // machinery integration is a separate sub-PR — see comment block below for the
+  // remaining work). Surfaces the resolved profile name back as
+  // `used_auth_profile` so the cloud orchestrator (W2) can decide between OAuth
+  // and API/coin-mode billing per spec §6.
+  const anthropicResult = await callAnthropicForLlmTurn(validation.request);
+  if (!anthropicResult.ok) {
+    logWarn(
+      `[llm_turn] Anthropic call failed for agent=${validation.request.agentId}: ` +
+        `${anthropicResult.code} ${anthropicResult.message}`,
+    );
+    sendJson(res, anthropicResult.httpStatus, {
+      error: {
+        type: anthropicResult.errorType,
+        code: anthropicResult.code,
+        message: anthropicResult.message,
+      },
+    });
+    return true;
+  }
+
+  sendJson(res, 200, anthropicResult.response);
   return true;
+}
+
+// ─── Anthropic call ──────────────────────────────────────────────────────
+
+/**
+ * Wire-format response (snake_case per spec §7 line 741).
+ */
+interface LlmTurnWireResponse {
+  content: unknown;
+  stop_reason: string;
+  model: string;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_input_tokens: number;
+    cache_creation_input_tokens: number;
+  };
+  used_auth_profile: string;
+}
+
+type AnthropicCallSuccess = { ok: true; response: LlmTurnWireResponse };
+type AnthropicCallFailure = {
+  ok: false;
+  httpStatus: number;
+  errorType: string;
+  code: string;
+  message: string;
+};
+type AnthropicCallResult = AnthropicCallSuccess | AnthropicCallFailure;
+
+/**
+ * Resolve the Anthropic auth credential.
+ *
+ * MVP: uses `process.env.ANTHROPIC_API_KEY` (or the OAuth-token-shaped variant
+ * if present). Reports profile name `'env-api-key'` or `'env-oauth-token'`.
+ *
+ * **Auth-profile-machinery integration is the next sub-PR.** The proper path is:
+ * 1. Read agent dir from openclaw config (`resolveAgentDir(agentId)`).
+ * 2. Load auth-profile store (`loadAuthProfileStoreForSecretsRuntime`).
+ * 3. Pick the agent's default profile via `resolveAuthProfileOrder`.
+ * 4. Use the profile's credential (handles OAuth refresh via existing
+ *    `oauth.ts` machinery).
+ * 5. Surface the profile name (e.g. `'anthropic-default'`,
+ *    `'anthropic-bench-coin'`) in `used_auth_profile`.
+ *
+ * Until that lands, the env credential gives Cory's local OpenClaw a working
+ * smoke test path so end-to-end can be validated.
+ */
+function resolveAnthropicCredential(): {
+  apiKey: string | null;
+  profileName: string;
+  isOAuthToken: boolean;
+} {
+  const apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
+  if (!apiKey) {
+    return { apiKey: null, profileName: "no-credential", isOAuthToken: false };
+  }
+  // Anthropic OAuth tokens start with `sk-ant-oat` per their convention; API
+  // keys are `sk-ant-api`. Other token shapes default to API-key handling.
+  const isOAuthToken = /^sk-ant-oat/i.test(apiKey);
+  return {
+    apiKey,
+    profileName: isOAuthToken ? "env-oauth-token" : "env-api-key",
+    isOAuthToken,
+  };
+}
+
+/**
+ * Translate the validated `LlmTurnRequest` (camelCase) into Anthropic SDK
+ * params and call `messages.create`. Returns the SDK response translated to
+ * the snake_case wire response shape.
+ */
+async function callAnthropicForLlmTurn(request: LlmTurnRequest): Promise<AnthropicCallResult> {
+  const { apiKey, profileName, isOAuthToken } = resolveAnthropicCredential();
+  if (!apiKey) {
+    return {
+      ok: false,
+      httpStatus: 500,
+      errorType: "auth_failed",
+      code: "no_anthropic_credential",
+      message:
+        "OpenClaw has no Anthropic credential available (ANTHROPIC_API_KEY not set). " +
+        "Configure the agent's auth profile or set the env var to use /v1/llm_turn.",
+    };
+  }
+
+  const client = isOAuthToken
+    ? new Anthropic({ apiKey: null as unknown as string, authToken: apiKey })
+    : new Anthropic({ apiKey });
+
+  // Build the SDK call. Cache-control on the system prompt is opt-in per
+  // request (spec §7 line 707).
+  const systemParam =
+    request.cacheControl?.system === "ephemeral"
+      ? [
+          {
+            type: "text" as const,
+            text: request.systemPrompt,
+            cache_control: { type: "ephemeral" as const },
+          },
+        ]
+      : request.systemPrompt;
+
+  // Map TS thinking levels to Anthropic SDK thinking config. Anthropic accepts
+  // a budget_tokens; we pick conservative budgets per level. `off` omits the
+  // thinking config entirely.
+  const thinking = (() => {
+    switch (request.thinkingLevel) {
+      case "low":
+        return { type: "enabled" as const, budget_tokens: 4096 };
+      case "medium":
+        return { type: "enabled" as const, budget_tokens: 8192 };
+      case "high":
+        return { type: "enabled" as const, budget_tokens: 16_384 };
+      case "xhigh":
+        return { type: "enabled" as const, budget_tokens: 32_768 };
+      default:
+        return undefined;
+    }
+  })();
+
+  try {
+    const sdkResponse = await client.messages.create({
+      model: request.model,
+      max_tokens: request.maxTokens,
+      system: systemParam as never,
+      messages: request.messages as never,
+      ...(request.tools.length > 0 ? { tools: request.tools as never } : {}),
+      ...(thinking ? { thinking } : {}),
+    });
+
+    return {
+      ok: true,
+      response: {
+        content: sdkResponse.content,
+        stop_reason: sdkResponse.stop_reason ?? "end_turn",
+        model: sdkResponse.model,
+        usage: {
+          input_tokens: sdkResponse.usage?.input_tokens ?? 0,
+          output_tokens: sdkResponse.usage?.output_tokens ?? 0,
+          cache_read_input_tokens: sdkResponse.usage?.cache_read_input_tokens ?? 0,
+          cache_creation_input_tokens: sdkResponse.usage?.cache_creation_input_tokens ?? 0,
+        },
+        used_auth_profile: profileName,
+      },
+    };
+  } catch (err) {
+    const sdkError = err as { status?: number; message?: string };
+    const httpStatus = typeof sdkError.status === "number" ? sdkError.status : 502;
+    const errorType =
+      httpStatus === 401 || httpStatus === 403 ? "auth_failed" : "anthropic_call_failed";
+    return {
+      ok: false,
+      httpStatus,
+      errorType,
+      code: errorType === "auth_failed" ? "anthropic_auth_failed" : "anthropic_call_failed",
+      message: formatErrorMessage(err),
+    };
+  }
 }
 
 // ─── Path matcher ────────────────────────────────────────────────────────
