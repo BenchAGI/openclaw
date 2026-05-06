@@ -4211,21 +4211,25 @@ public struct ChatHistoryParams: Codable, Sendable {
     public let sessionkey: String
     public let limit: Int?
     public let maxchars: Int?
+    public let sinceseq: Int?
 
     public init(
         sessionkey: String,
         limit: Int?,
-        maxchars: Int?)
+        maxchars: Int?,
+        sinceseq: Int? = nil)
     {
         self.sessionkey = sessionkey
         self.limit = limit
         self.maxchars = maxchars
+        self.sinceseq = sinceseq
     }
 
     private enum CodingKeys: String, CodingKey {
         case sessionkey = "sessionKey"
         case limit
         case maxchars = "maxChars"
+        case sinceseq = "sinceSeq"
     }
 }
 

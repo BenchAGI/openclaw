@@ -12,6 +12,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Gateway/events: include richer failure detail on terminal exec tool events and make `chat.send` idempotency plus `chat.history` replay limits explicit for reconnecting clients.
 - Codex/gateway: fix gateway crashes when the codex-acp subprocess terminates abruptly; pending requests now shut down gracefully instead of propagating an uncaught EPIPE through the gateway daemon and connected channels. Fixes #67886. (#67947) Thanks @openperf.
 - Agents/bootstrap: resolve bootstrap from workspace truth instead of stale session transcript markers, keep embedded bootstrap instructions on a hidden user-context prelude, suppress normal `/new` and `/reset` greetings while `BOOTSTRAP.md` is still pending, and make the embedded runner read the bootstrap ritual before replying normally.
 - Agents/bootstrap: dedupe repeated bootstrap-truncation warnings so startup logs stay actionable. (#67906) Thanks @rubencu.

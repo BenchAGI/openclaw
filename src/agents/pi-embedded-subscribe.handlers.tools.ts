@@ -127,6 +127,59 @@ function buildCommandItemTitle(toolName: string, meta?: string): string {
   return meta ? `command ${meta}` : `${toolName} command`;
 }
 
+const TOOL_EVENT_STDERR_MAX_CHARS = 4096;
+const TOOL_EVENT_STDERR_MAX_LINES = 16;
+const TOOL_EVENT_ERROR_MAX_CHARS = 400;
+
+function summarizeToolEventErrorText(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const firstLine = value.trim().split(/\r?\n/)[0]?.trim() ?? "";
+  if (!firstLine) {
+    return undefined;
+  }
+  return firstLine.length > TOOL_EVENT_ERROR_MAX_CHARS
+    ? `${firstLine.slice(0, TOOL_EVENT_ERROR_MAX_CHARS)}...`
+    : firstLine;
+}
+
+function summarizeToolEventStderr(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const normalized = value.replace(/\r\n/g, "\n").trim();
+  if (!normalized) {
+    return undefined;
+  }
+  let truncated = false;
+  const lines = normalized.split("\n");
+  let summary = normalized;
+  if (lines.length > TOOL_EVENT_STDERR_MAX_LINES) {
+    truncated = true;
+    summary = lines.slice(-TOOL_EVENT_STDERR_MAX_LINES).join("\n");
+  }
+  if (summary.length > TOOL_EVENT_STDERR_MAX_CHARS) {
+    truncated = true;
+    summary = summary.slice(summary.length - TOOL_EVENT_STDERR_MAX_CHARS);
+  }
+  return truncated ? `...(stderr truncated)...\n${summary}` : summary;
+}
+
+function resolveToolEventErrorMessage(params: {
+  isExecTool: boolean;
+  sanitizedResult: unknown;
+  fallback?: string;
+}): string | undefined {
+  if (params.isExecTool) {
+    const fromText = summarizeToolEventErrorText(extractToolResultText(params.sanitizedResult));
+    if (fromText) {
+      return fromText;
+    }
+  }
+  return params.fallback;
+}
+
 function buildPatchItemTitle(meta?: string): string {
   return meta ? `patch ${meta}` : "apply patch";
 }
@@ -793,6 +846,16 @@ export async function handleToolExecutionEnd(
   const result = evt.result;
   const isToolError = isError || isToolResultError(result);
   const sanitizedResult = sanitizeToolResult(result);
+  const extractedToolErrorMessage = isToolError
+    ? extractToolErrorMessage(sanitizedResult)
+    : undefined;
+  const errorMessage = isToolError
+    ? resolveToolEventErrorMessage({
+        isExecTool: isExecToolName(toolName),
+        sanitizedResult,
+        fallback: extractedToolErrorMessage,
+      })
+    : undefined;
   const toolStartKey = buildToolStartKey(runId, toolCallId);
   const startData = toolStartData.get(toolStartKey);
   toolStartData.delete(toolStartKey);
@@ -803,7 +866,6 @@ export async function handleToolExecutionEnd(
   ctx.state.toolMetaById.delete(toolCallId);
   ctx.state.toolSummaryById.delete(toolCallId);
   if (isToolError) {
-    const errorMessage = extractToolErrorMessage(sanitizedResult);
     ctx.state.lastToolError = {
       toolName,
       meta,
@@ -879,19 +941,45 @@ export async function handleToolExecutionEnd(
     ctx.state.successfulCronAdds += 1;
   }
 
+  const execDetails = isExecToolName(toolName) ? readExecToolDetails(result) : null;
+  const endedAt = Date.now();
+  const durationMs =
+    execDetails && "durationMs" in execDetails && typeof execDetails.durationMs === "number"
+      ? execDetails.durationMs
+      : typeof startData?.startTime === "number"
+        ? Math.max(0, endedAt - startData.startTime)
+        : undefined;
+  const toolEventData: Record<string, unknown> = {
+    phase: "result",
+    name: toolName,
+    toolCallId,
+    meta,
+    isError: isToolError,
+    result: sanitizedResult,
+    ...(typeof durationMs === "number" ? { durationMs } : {}),
+  };
+  if (isToolError) {
+    if (execDetails && "exitCode" in execDetails && typeof execDetails.exitCode === "number") {
+      toolEventData.exitCode = execDetails.exitCode;
+    }
+    const stderrSummary =
+      execDetails && "stderr" in execDetails
+        ? summarizeToolEventStderr(execDetails.stderr)
+        : undefined;
+    if (stderrSummary) {
+      toolEventData.stderr = stderrSummary;
+    }
+    if (errorMessage) {
+      toolEventData.error = errorMessage;
+      toolEventData.errorMessage = errorMessage;
+    }
+  }
+
   emitAgentEvent({
     runId: ctx.params.runId,
     stream: "tool",
-    data: {
-      phase: "result",
-      name: toolName,
-      toolCallId,
-      meta,
-      isError: isToolError,
-      result: sanitizedResult,
-    },
+    data: toolEventData,
   });
-  const endedAt = Date.now();
   const itemId = buildToolItemId(toolCallId);
   const itemData: AgentItemEventData = {
     itemId,
@@ -904,24 +992,17 @@ export async function handleToolExecutionEnd(
     toolCallId,
     startedAt: startData?.startTime,
     endedAt,
-    ...(isToolError && extractToolErrorMessage(sanitizedResult)
-      ? { error: extractToolErrorMessage(sanitizedResult) }
-      : {}),
+    ...(isToolError && errorMessage ? { error: errorMessage } : {}),
   };
   emitTrackedItemEvent(ctx, itemData);
+  const callbackToolEventData = { ...toolEventData };
+  delete callbackToolEventData.result;
   void ctx.params.onAgentEvent?.({
     stream: "tool",
-    data: {
-      phase: "result",
-      name: toolName,
-      toolCallId,
-      meta,
-      isError: isToolError,
-    },
+    data: callbackToolEventData,
   });
 
   if (isExecToolName(toolName)) {
-    const execDetails = readExecToolDetails(result);
     const commandItemId = buildCommandItemId(toolCallId);
     if (
       execDetails?.status === "approval-pending" ||
@@ -998,9 +1079,7 @@ export async function handleToolExecutionEnd(
         startedAt: startData?.startTime,
         endedAt,
         ...(output ? { summary: output } : {}),
-        ...(isToolError && extractToolErrorMessage(sanitizedResult)
-          ? { error: extractToolErrorMessage(sanitizedResult) }
-          : {}),
+        ...(isToolError && errorMessage ? { error: errorMessage } : {}),
       });
       const outputData: AgentCommandOutputEventData = {
         itemId: commandItemId,

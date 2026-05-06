@@ -142,6 +142,7 @@ export type ExecProcessOutcome =
       exitSignal: NodeJS.Signals | number | null;
       durationMs: number;
       aggregated: string;
+      stderr?: string;
       timedOut: false;
     }
   | {
@@ -150,6 +151,7 @@ export type ExecProcessOutcome =
       exitSignal: NodeJS.Signals | number | null;
       durationMs: number;
       aggregated: string;
+      stderr?: string;
       timedOut: boolean;
       failureKind: ExecProcessFailureKind;
       reason: string;
@@ -433,6 +435,7 @@ export function formatExecFailureReason(params: {
 export function buildExecExitOutcome(params: {
   exit: RunExit;
   aggregated: string;
+  stderr?: string;
   durationMs: number;
   timeoutSec: number | null | undefined;
 }): ExecProcessOutcome {
@@ -449,6 +452,7 @@ export function buildExecExitOutcome(params: {
       exitSignal: params.exit.exitSignal,
       durationMs: params.durationMs,
       aggregated: params.aggregated + exitMsg,
+      stderr: params.stderr,
       timedOut: false,
     };
   }
@@ -469,6 +473,7 @@ export function buildExecExitOutcome(params: {
     exitSignal: params.exit.exitSignal,
     durationMs: params.durationMs,
     aggregated: params.aggregated,
+    stderr: params.stderr,
     timedOut: params.exit.timedOut,
     failureKind,
     reason: joinExecFailureOutput(params.aggregated, reason),
@@ -478,6 +483,7 @@ export function buildExecExitOutcome(params: {
 export function buildExecRuntimeErrorOutcome(params: {
   error: unknown;
   aggregated: string;
+  stderr?: string;
   durationMs: number;
 }): ExecProcessOutcome {
   return {
@@ -486,6 +492,7 @@ export function buildExecRuntimeErrorOutcome(params: {
     exitSignal: null,
     durationMs: params.durationMs,
     aggregated: params.aggregated,
+    stderr: params.stderr,
     timedOut: false,
     failureKind: "runtime-error",
     reason: joinExecFailureOutput(params.aggregated, String(params.error)),
@@ -775,6 +782,7 @@ export async function runExecProcess(opts: {
       const outcome = buildExecExitOutcome({
         exit,
         aggregated: session.aggregated.trim(),
+        stderr: session.pendingStderr.join("").trim(),
         durationMs,
         timeoutSec: opts.timeoutSec,
       });
@@ -801,6 +809,7 @@ export async function runExecProcess(opts: {
       return buildExecRuntimeErrorOutcome({
         error: err,
         aggregated: session.aggregated.trim(),
+        stderr: session.pendingStderr.join("").trim(),
         durationMs: Date.now() - startedAt,
       });
     });

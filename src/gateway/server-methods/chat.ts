@@ -70,6 +70,7 @@ import {
 } from "../protocol/index.js";
 import { CHAT_SEND_SESSION_KEY_MAX_LENGTH } from "../protocol/schema/primitives.js";
 import { getMaxChatHistoryMessagesBytes } from "../server-constants.js";
+import type { DedupeEntry } from "../server-shared.js";
 import {
   capArrayByJsonBytes,
   loadSessionEntry,
@@ -110,6 +111,43 @@ type ChatAbortRequester = {
   deviceId?: string;
   isAdmin: boolean;
 };
+
+function buildChatSendDedupeKey(params: { sessionKey: string; idempotencyKey: string }): string {
+  return `chat.send:${JSON.stringify([params.sessionKey, params.idempotencyKey])}`;
+}
+
+function readCachedChatSendDedupeEntry(params: {
+  dedupe: Map<string, DedupeEntry>;
+  sessionKey: string;
+  idempotencyKey: string;
+}): DedupeEntry | undefined {
+  return params.dedupe.get(
+    buildChatSendDedupeKey({
+      sessionKey: params.sessionKey,
+      idempotencyKey: params.idempotencyKey,
+    }),
+  );
+}
+
+function setChatSendDedupeEntry(params: {
+  dedupe: Map<string, DedupeEntry>;
+  sessionKey: string;
+  idempotencyKey: string;
+  entry: DedupeEntry;
+}) {
+  params.dedupe.set(
+    buildChatSendDedupeKey({
+      sessionKey: params.sessionKey,
+      idempotencyKey: params.idempotencyKey,
+    }),
+    params.entry,
+  );
+  setGatewayDedupeEntry({
+    dedupe: params.dedupe,
+    key: `chat:${params.idempotencyKey}`,
+    entry: params.entry,
+  });
+}
 
 /** True when a reply payload carries at least one media reference (mediaUrl or mediaUrls). */
 function isMediaBearingPayload(payload: ReplyPayload): boolean {
@@ -1616,10 +1654,11 @@ export const chatHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    const { sessionKey, limit, maxChars } = params as {
+    const { sessionKey, limit, maxChars, sinceSeq } = params as {
       sessionKey: string;
       limit?: number;
       maxChars?: number;
+      sinceSeq?: number;
     };
     const { cfg, storePath, entry } = loadSessionEntry(sessionKey);
     const sessionId = entry?.sessionId;
@@ -1672,6 +1711,12 @@ export const chatHandlers: GatewayRequestHandlers = {
       sessionKey,
       sessionId,
       messages: bounded.messages,
+      events: [],
+      frames: [],
+      eventHistory: {
+        persisted: false,
+        ...(typeof sinceSeq === "number" ? { sinceSeq } : {}),
+      },
       thinkingLevel,
       fastMode: entry?.fastMode,
       verboseLevel,
@@ -1894,7 +1939,11 @@ export const chatHandlers: GatewayRequestHandlers = {
       return;
     }
 
-    const cached = context.dedupe.get(`chat:${clientRunId}`);
+    const cached = readCachedChatSendDedupeEntry({
+      dedupe: context.dedupe,
+      sessionKey,
+      idempotencyKey: clientRunId,
+    });
     if (cached) {
       respond(cached.ok, cached.payload, cached.error, {
         cached: true,
@@ -2264,9 +2313,10 @@ export const chatHandlers: GatewayRequestHandlers = {
           } else {
             void emitUserTranscriptUpdate();
           }
-          setGatewayDedupeEntry({
+          setChatSendDedupeEntry({
             dedupe: context.dedupe,
-            key: `chat:${clientRunId}`,
+            sessionKey,
+            idempotencyKey: clientRunId,
             entry: {
               ts: Date.now(),
               ok: true,
@@ -2286,9 +2336,10 @@ export const chatHandlers: GatewayRequestHandlers = {
             );
           });
           const error = errorShape(ErrorCodes.UNAVAILABLE, String(err));
-          setGatewayDedupeEntry({
+          setChatSendDedupeEntry({
             dedupe: context.dedupe,
-            key: `chat:${clientRunId}`,
+            sessionKey,
+            idempotencyKey: clientRunId,
             entry: {
               ts: Date.now(),
               ok: false,
@@ -2317,9 +2368,10 @@ export const chatHandlers: GatewayRequestHandlers = {
         status: "error" as const,
         summary: String(err),
       };
-      setGatewayDedupeEntry({
+      setChatSendDedupeEntry({
         dedupe: context.dedupe,
-        key: `chat:${clientRunId}`,
+        sessionKey,
+        idempotencyKey: clientRunId,
         entry: {
           ts: Date.now(),
           ok: false,
