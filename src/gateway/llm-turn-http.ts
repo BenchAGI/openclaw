@@ -427,18 +427,26 @@ function resolveAnthropicCredential(): {
   profileName: string;
   isOAuthToken: boolean;
 } {
+  // Anthropic SDK convention: `ANTHROPIC_AUTH_TOKEN` for OAuth tokens,
+  // `ANTHROPIC_API_KEY` for API keys. Codex W3-anthropic P1 #2 — original
+  // resolver only checked ANTHROPIC_API_KEY which broke OAuth-only setups.
+  // Read both; OAuth takes precedence when both are set (matches SDK behavior).
+  const oauthToken = (process.env.ANTHROPIC_AUTH_TOKEN ?? "").trim();
   const apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
-  if (!apiKey) {
-    return { apiKey: null, profileName: "no-credential", isOAuthToken: false };
+  if (oauthToken) {
+    return { apiKey: oauthToken, profileName: "env-oauth-token", isOAuthToken: true };
   }
-  // Anthropic OAuth tokens start with `sk-ant-oat` per their convention; API
-  // keys are `sk-ant-api`. Other token shapes default to API-key handling.
-  const isOAuthToken = /^sk-ant-oat/i.test(apiKey);
-  return {
-    apiKey,
-    profileName: isOAuthToken ? "env-oauth-token" : "env-api-key",
-    isOAuthToken,
-  };
+  if (apiKey) {
+    // Some setups put an OAuth-shaped token in ANTHROPIC_API_KEY (Anthropic
+    // OAuth tokens start with `sk-ant-oat`). Detect and route accordingly.
+    const looksOAuth = /^sk-ant-oat/i.test(apiKey);
+    return {
+      apiKey,
+      profileName: looksOAuth ? "env-oauth-token" : "env-api-key",
+      isOAuthToken: looksOAuth,
+    };
+  }
+  return { apiKey: null, profileName: "no-credential", isOAuthToken: false };
 }
 
 /**
@@ -477,22 +485,39 @@ async function callAnthropicForLlmTurn(request: LlmTurnRequest): Promise<Anthrop
         ]
       : request.systemPrompt;
 
-  // Map TS thinking levels to Anthropic SDK thinking config. Anthropic accepts
-  // a budget_tokens; we pick conservative budgets per level. `off` omits the
-  // thinking config entirely.
-  const thinking = (() => {
+  // Map TS thinking levels to Anthropic SDK thinking config. Codex W3-anthropic
+  // P1 #1: Anthropic requires `thinking.budget_tokens < max_tokens`. Cap the
+  // budget to `request.maxTokens - 1` reserving at least 1 output token; if
+  // the requested level's budget is below the cap, use it as-is. `off` omits
+  // the thinking config entirely.
+  const desiredBudget = (() => {
     switch (request.thinkingLevel) {
       case "low":
-        return { type: "enabled" as const, budget_tokens: 4096 };
+        return 4096;
       case "medium":
-        return { type: "enabled" as const, budget_tokens: 8192 };
+        return 8192;
       case "high":
-        return { type: "enabled" as const, budget_tokens: 16_384 };
+        return 16_384;
       case "xhigh":
-        return { type: "enabled" as const, budget_tokens: 32_768 };
+        return 32_768;
       default:
-        return undefined;
+        return null;
     }
+  })();
+  const thinking = (() => {
+    if (desiredBudget === null) {
+      return undefined;
+    }
+    // Reserve at least 1024 output tokens beyond the thinking budget so the
+    // model has room to actually answer; cap budget to maxTokens - 1024 floor.
+    const maxBudget = Math.max(1, request.maxTokens - 1024);
+    const budget = Math.min(desiredBudget, maxBudget);
+    if (budget < 1024) {
+      // Below the Anthropic minimum thinking budget — disable rather than
+      // send an invalid request.
+      return undefined;
+    }
+    return { type: "enabled" as const, budget_tokens: budget };
   })();
 
   try {
