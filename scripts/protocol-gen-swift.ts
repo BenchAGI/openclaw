@@ -80,6 +80,9 @@ function safeName(name: string) {
 
 // filled later once schemas are loaded
 const schemaNameByObject = new Map<object, string>();
+const initDefaultNilOptionalParams = new Map<string, Set<string>>([
+  ["ChatHistoryParams", new Set(["sinceSeq"])],
+]);
 
 function swiftType(schema: JsonSchema, required: boolean): string {
   const t = schema.type;
@@ -135,7 +138,8 @@ function emitStruct(name: string, schema: JsonSchema): string {
         .map(([key, prop]) => {
           const propName = safeName(key);
           const req = required.has(key);
-          return `        ${propName}: ${swiftType(prop, true)}${req ? "" : "?"}`;
+          const defaultValue = initDefaultNilOptionalParams.get(name)?.has(key) ? " = nil" : "";
+          return `        ${propName}: ${swiftType(prop, true)}${req ? "" : "?"}${defaultValue}`;
         })
         .join(",\n") +
       ")\n" +

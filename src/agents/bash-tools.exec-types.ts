@@ -56,6 +56,7 @@ export type ExecToolDetails =
       exitCode: number | null;
       durationMs: number;
       aggregated: string;
+      stderr?: string;
       timedOut?: boolean;
       cwd?: string;
     }

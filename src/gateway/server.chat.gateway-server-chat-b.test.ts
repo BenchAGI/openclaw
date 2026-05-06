@@ -123,6 +123,32 @@ async function prepareMainHistoryHarness(params: {
 }
 
 describe("gateway server chat", () => {
+  test("chat.history accepts sinceSeq while reporting no durable event replay", async () => {
+    await withGatewayChatHarness(async ({ ws, createSessionDir }) => {
+      await prepareMainHistoryHarness({ ws, createSessionDir });
+
+      const historyRes = await rpcReq<{
+        messages?: unknown[];
+        events?: unknown[];
+        frames?: unknown[];
+        eventHistory?: { persisted?: boolean; sinceSeq?: number };
+      }>(ws, "chat.history", {
+        sessionKey: "main",
+        limit: 10,
+        sinceSeq: 42,
+      });
+
+      expect(historyRes.ok).toBe(true);
+      expect(Array.isArray(historyRes.payload?.messages)).toBe(true);
+      expect(historyRes.payload?.events).toEqual([]);
+      expect(historyRes.payload?.frames).toEqual([]);
+      expect(historyRes.payload?.eventHistory).toMatchObject({
+        persisted: false,
+        sinceSeq: 42,
+      });
+    });
+  });
+
   test("chat.history backfills claude-cli sessions from Claude project files", async () => {
     await withGatewayChatHarness(async ({ ws, createSessionDir }) => {
       await connectOk(ws);
@@ -618,6 +644,7 @@ describe("gateway server chat", () => {
       await vi.waitFor(() => {
         expect(spy.mock.calls.length).toBeGreaterThan(0);
       }, FAST_WAIT_OPTS);
+      const startedCallCount = spy.mock.calls.length;
 
       const inFlight = await rpcReq<{ status?: string }>(ws, "chat.send", {
         sessionKey: "main",
@@ -626,6 +653,7 @@ describe("gateway server chat", () => {
       });
       expect(inFlight.ok).toBe(true);
       expect(["started", "in_flight", "ok"]).toContain(inFlight.payload?.status ?? "");
+      expect(spy.mock.calls.length).toBe(startedCallCount);
 
       const abortRes = await rpcReq<{ aborted?: boolean }>(ws, "chat.abort", {
         sessionKey: "main",
@@ -656,6 +684,7 @@ describe("gateway server chat", () => {
         expect(again.ok).toBe(true);
         expect(again.payload?.status).toBe("ok");
       }, FAST_WAIT_OPTS);
+      expect(spy).toHaveBeenCalledTimes(1);
     });
   });
 });

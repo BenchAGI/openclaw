@@ -754,6 +754,60 @@ describe("handleToolExecutionEnd derived tool events", () => {
     );
   });
 
+  it("adds rich failure details to failed exec tool result events", async () => {
+    const { ctx, onAgentEvent } = createTestContext();
+    const stderr = Array.from({ length: 20 }, (_, index) => `stderr line ${index + 1}`).join("\n");
+
+    await handleToolExecutionStart(
+      ctx as never,
+      {
+        type: "tool_execution_start",
+        toolName: "exec",
+        toolCallId: "tool-exec-failed-details",
+        args: { command: "npm test" },
+      } as never,
+    );
+
+    await handleToolExecutionEnd(
+      ctx as never,
+      {
+        type: "tool_execution_end",
+        toolName: "exec",
+        toolCallId: "tool-exec-failed-details",
+        isError: true,
+        result: {
+          content: [{ type: "text", text: "primary failure\nmore detail" }],
+          details: {
+            status: "failed",
+            aggregated: "primary failure\nmore detail",
+            stderr,
+            exitCode: 2,
+            durationMs: 1234,
+            cwd: "/tmp/work",
+          },
+        },
+      } as never,
+    );
+
+    const toolEvent = onAgentEvent.mock.calls
+      .map(([event]) => event as { stream?: string; data?: Record<string, unknown> })
+      .find((event) => event.stream === "tool" && event.data?.phase === "result");
+
+    expect(toolEvent?.data).toMatchObject({
+      phase: "result",
+      name: "exec",
+      toolCallId: "tool-exec-failed-details",
+      isError: true,
+      exitCode: 2,
+      durationMs: 1234,
+      error: "primary failure",
+      errorMessage: "primary failure",
+    });
+    expect(toolEvent?.data?.stderr).toContain("...(stderr truncated)...");
+    expect(toolEvent?.data?.stderr).toContain("stderr line 20");
+    expect(String(toolEvent?.data?.stderr).split("\n")).not.toContain("stderr line 1");
+  });
+
   it("emits patch summary events for apply_patch results", async () => {
     const { ctx, onAgentEvent } = createTestContext();
 
