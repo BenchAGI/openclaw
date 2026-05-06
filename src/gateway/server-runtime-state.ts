@@ -17,6 +17,7 @@ import type { AuthRateLimiter } from "./auth-rate-limit.js";
 import type { ResolvedGatewayAuth } from "./auth.js";
 import type { ChatAbortControllerEntry } from "./chat-abort.js";
 import type { ControlUiRootState } from "./control-ui.js";
+import { createEventFrameHistory, type EventFrameHistory } from "./event-frame-history.js";
 import type { HooksConfigResolved } from "./hooks.js";
 import { isLoopbackHost, resolveGatewayListenHosts } from "./net.js";
 import type { GatewayBroadcastFn, GatewayBroadcastToConnIdsFn } from "./server-broadcast-types.js";
@@ -89,6 +90,7 @@ export async function createGatewayRuntimeState(params: {
   clients: Set<GatewayWsClient>;
   broadcast: GatewayBroadcastFn;
   broadcastToConnIds: GatewayBroadcastToConnIdsFn;
+  eventHistory: EventFrameHistory;
   agentRunSeq: Map<string, number>;
   dedupe: Map<string, DedupeEntry>;
   chatRunState: ReturnType<typeof createChatRunState>;
@@ -133,7 +135,11 @@ export async function createGatewayRuntimeState(params: {
     }
 
     const clients = new Set<GatewayWsClient>();
-    const { broadcast, broadcastToConnIds } = createGatewayBroadcaster({ clients });
+    const eventHistory = createEventFrameHistory();
+    const { broadcast, broadcastToConnIds } = createGatewayBroadcaster({
+      clients,
+      onEventFrame: eventHistory.record,
+    });
 
     const handleHooksRequest = createGatewayHooksRequestHandler({
       deps: params.deps,
@@ -262,6 +268,7 @@ export async function createGatewayRuntimeState(params: {
       clients,
       broadcast,
       broadcastToConnIds,
+      eventHistory,
       agentRunSeq,
       dedupe,
       chatRunState,

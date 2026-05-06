@@ -37,6 +37,7 @@ export type GatewayRequestContextParams = {
   chatRunBuffers: GatewayRequestContext["chatRunBuffers"];
   chatDeltaSentAt: GatewayRequestContext["chatDeltaSentAt"];
   chatDeltaLastBroadcastLen: GatewayRequestContext["chatDeltaLastBroadcastLen"];
+  eventHistory?: GatewayRequestContext["eventHistory"];
   addChatRun: GatewayRequestContext["addChatRun"];
   removeChatRun: GatewayRequestContext["removeChatRun"];
   subscribeSessionEvents: GatewayRequestContext["subscribeSessionEvents"];
@@ -130,6 +131,7 @@ export function createGatewayRequestContext(
     chatRunBuffers: params.chatRunBuffers,
     chatDeltaSentAt: params.chatDeltaSentAt,
     chatDeltaLastBroadcastLen: params.chatDeltaLastBroadcastLen,
+    eventHistory: params.eventHistory ?? { get: () => [] },
     addChatRun: params.addChatRun,
     removeChatRun: params.removeChatRun,
     subscribeSessionEvents: params.subscribeSessionEvents,

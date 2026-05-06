@@ -26,6 +26,7 @@ export const LogsTailResultSchema = Type.Object(
 export const ChatHistoryParamsSchema = Type.Object(
   {
     sessionKey: NonEmptyString,
+    sinceSeq: Type.Optional(Type.Integer({ minimum: 0 })),
     limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000 })),
     maxChars: Type.Optional(Type.Integer({ minimum: 1, maximum: 500_000 })),
     sinceSeq: Type.Optional(Type.Integer()),
@@ -47,6 +48,14 @@ export const ChatSendParamsSchema = Type.Object(
     timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
     systemInputProvenance: Type.Optional(InputProvenanceSchema),
     systemProvenanceReceipt: Type.Optional(Type.String()),
+    cloudAuth: Type.Optional(
+      Type.Object(
+        {
+          firebaseIdToken: NonEmptyString,
+        },
+        { additionalProperties: false },
+      ),
+    ),
     idempotencyKey: NonEmptyString,
   },
   { additionalProperties: false },

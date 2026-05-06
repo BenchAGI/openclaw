@@ -1,3 +1,5 @@
+import type { EventFrame } from "./protocol/index.js";
+
 export type GatewayBroadcastStateVersion = {
   presence?: number;
   health?: number;
@@ -20,3 +22,5 @@ export type GatewayBroadcastToConnIdsFn = (
   connIds: ReadonlySet<string>,
   opts?: GatewayBroadcastOpts,
 ) => void;
+
+export type { EventFrame };

@@ -43,6 +43,7 @@ import {
   isChatStopCommandText,
   resolveChatRunExpiresAtMs,
 } from "../chat-abort.js";
+import { pollBenchCloudCliTurnStatus } from "../bench-cloud-client.js";
 import {
   type ChatImageContent,
   type OffloadedRef,
@@ -51,6 +52,11 @@ import {
 import { MediaOffloadError } from "../chat-attachments.js";
 import { stripEnvelopeFromMessage, stripEnvelopeFromMessages } from "../chat-sanitize.js";
 import { augmentChatHistoryWithCliSessionImports } from "../cli-session-history.js";
+import {
+  canAttemptBenchCloudBridge,
+  createCliRemoteBrainTurn,
+  resolveBenchCloudBridgeConfig,
+} from "../cloud-brain-bridge.js";
 import { isSuppressedControlReplyText } from "../control-reply-text.js";
 import { ADMIN_SCOPE } from "../method-scopes.js";
 import {
@@ -1641,6 +1647,100 @@ function broadcastChatError(params: {
   params.context.agentRunSeq.delete(params.runId);
 }
 
+function normalizeCloudAuthToken(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const token = (value as { firebaseIdToken?: unknown }).firebaseIdToken;
+  return typeof token === "string" && token.trim().length > 0 ? token : undefined;
+}
+
+function normalizeCliThinkingLevel(value: string | undefined) {
+  if (
+    value === "off" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "xhigh"
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function cloudBridgeErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.name === "AbortError") {
+    return "cloud-brain turn aborted";
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+function broadcastRemoteBrainAgentEvent(params: {
+  context: Pick<GatewayRequestContext, "broadcast" | "agentRunSeq">;
+  runId: string;
+  sessionKey: string;
+  stream: string;
+  data: Record<string, unknown>;
+}) {
+  const seq = nextChatSeq({ agentRunSeq: params.context.agentRunSeq }, params.runId);
+  params.context.broadcast("agent", {
+    runId: params.runId,
+    seq,
+    stream: params.stream,
+    ts: Date.now(),
+    data: {
+      ...params.data,
+      sessionKey: params.sessionKey,
+      source: "cloud-brain",
+    },
+  });
+}
+
+function persistRemoteBrainTranscriptTurn(params: {
+  context: Pick<GatewayRequestContext, "logGateway">;
+  sessionKey: string;
+  entry: ReturnType<typeof loadSessionEntry>["entry"];
+  storePath?: string;
+  agentId: string;
+  userMessage: string;
+  assistantText: string;
+  runId: string;
+  timestamp: number;
+}) {
+  const sessionId = params.entry?.sessionId ?? params.runId;
+  const transcriptPath = resolveTranscriptPath({
+    sessionId,
+    storePath: params.storePath,
+    sessionFile: params.entry?.sessionFile,
+    agentId: params.agentId,
+  });
+  if (transcriptPath) {
+    emitSessionTranscriptUpdate({
+      sessionFile: transcriptPath,
+      sessionKey: params.sessionKey,
+      message: buildChatSendTranscriptMessage({
+        message: params.userMessage,
+        savedImages: [],
+        timestamp: params.timestamp,
+      }),
+    });
+  }
+  const appended = appendAssistantTranscriptMessage({
+    message: params.assistantText,
+    sessionId,
+    storePath: params.storePath,
+    sessionFile: params.entry?.sessionFile,
+    agentId: params.agentId,
+    createIfMissing: true,
+    idempotencyKey: `${params.runId}:assistant`,
+  });
+  if (!appended.ok) {
+    params.context.logGateway.warn(
+      `cloud-brain transcript append failed: ${appended.error ?? "unknown error"}`,
+    );
+  }
+}
+
 export const chatHandlers: GatewayRequestHandlers = {
   "chat.history": async ({ params, respond, context }) => {
     if (!validateChatHistoryParams(params)) {
@@ -1654,13 +1754,14 @@ export const chatHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    const { sessionKey, limit, maxChars, sinceSeq } = params as {
+    const { sessionKey, sinceSeq, limit, maxChars } = params as {
       sessionKey: string;
+      sinceSeq?: number;
       limit?: number;
       maxChars?: number;
-      sinceSeq?: number;
     };
-    const { cfg, storePath, entry } = loadSessionEntry(sessionKey);
+    const { cfg, storePath, entry, canonicalKey } = loadSessionEntry(sessionKey);
+    const replaySessionKey = canonicalKey ?? sessionKey;
     const sessionId = entry?.sessionId;
     const sessionAgentId = resolveSessionAgentId({ sessionKey, config: cfg });
     const resolvedSessionModel = resolveSessionModelRef(cfg, entry, sessionAgentId);
@@ -1710,6 +1811,7 @@ export const chatHandlers: GatewayRequestHandlers = {
     respond(true, {
       sessionKey,
       sessionId,
+      events: context.eventHistory.get(replaySessionKey, sinceSeq),
       messages: bounded.messages,
       events: [],
       frames: [],
@@ -1833,6 +1935,9 @@ export const chatHandlers: GatewayRequestHandlers = {
       timeoutMs?: number;
       systemInputProvenance?: InputProvenance;
       systemProvenanceReceipt?: string;
+      cloudAuth?: {
+        firebaseIdToken?: string;
+      };
       idempotencyKey: string;
     };
     const explicitOriginResult = normalizeExplicitChatSendOrigin({
@@ -1890,7 +1995,7 @@ export const chatHandlers: GatewayRequestHandlers = {
       return;
     }
     const rawSessionKey = p.sessionKey;
-    const { cfg, entry, canonicalKey: sessionKey } = loadSessionEntry(rawSessionKey);
+    const { cfg, storePath, entry, canonicalKey: sessionKey } = loadSessionEntry(rawSessionKey);
     const agentId = resolveSessionAgentId({
       sessionKey,
       config: cfg,
@@ -1959,6 +2064,255 @@ export const chatHandlers: GatewayRequestHandlers = {
       });
       return;
     }
+
+    const bridgeConfig = resolveBenchCloudBridgeConfig(cfg);
+    const cloudAuthToken = normalizeCloudAuthToken(p.cloudAuth);
+    const bridgeAttempt = { config: bridgeConfig, authToken: cloudAuthToken };
+    if (canAttemptBenchCloudBridge(bridgeAttempt)) {
+      const startedAtMs = Date.now();
+      const remoteAbortController = new AbortController();
+      try {
+        const turn = await createCliRemoteBrainTurn({
+          config: bridgeAttempt.config,
+          authToken: bridgeAttempt.authToken,
+          signal: remoteAbortController.signal,
+          request: {
+            agentId,
+            sessionKey,
+            runId: clientRunId,
+            idempotencyKey: clientRunId,
+            message: rawMessage,
+            thinkingLevel: normalizeCliThinkingLevel(p.thinking),
+            attachmentCount: normalizedAttachments.length,
+          },
+        });
+        if (turn.dispatch === "remote-brain") {
+          context.chatAbortControllers.set(clientRunId, {
+            controller: remoteAbortController,
+            sessionId: entry?.sessionId ?? clientRunId,
+            sessionKey,
+            startedAtMs,
+            expiresAtMs: resolveChatRunExpiresAtMs({ now: startedAtMs, timeoutMs }),
+            ownerConnId: normalizeOptionalText(client?.connId),
+            ownerDeviceId: normalizeOptionalText(client?.connect?.device?.id),
+          });
+          const ackPayload = {
+            runId: clientRunId,
+            status: "started" as const,
+            remoteBrain: true,
+            directiveId: turn.directiveId,
+            cloudTurnId: turn.cloudTurnId,
+          };
+          respond(true, ackPayload, undefined, { runId: clientRunId });
+          broadcastRemoteBrainAgentEvent({
+            context,
+            runId: clientRunId,
+            sessionKey,
+            stream: "lifecycle",
+            data: {
+              phase: "start",
+              directiveId: turn.directiveId,
+              cloudTurnId: turn.cloudTurnId,
+              agentId,
+            },
+          });
+
+          void pollBenchCloudCliTurnStatus({
+            config: bridgeAttempt.config,
+            authToken: bridgeAttempt.authToken,
+            statusUrl: turn.statusUrl,
+            signal: remoteAbortController.signal,
+          })
+            .then((status) => {
+              if (remoteAbortController.signal.aborted) {
+                return;
+              }
+              if (status.status === "completed") {
+                const responseText = status.responseText ?? "";
+                const message = {
+                  role: "assistant",
+                  content: [{ type: "text", text: responseText }],
+                  timestamp: Date.now(),
+                  stopReason: status.stopReason ?? "stop",
+                  usage: { input: 0, output: 0, totalTokens: 0 },
+                  runId: clientRunId,
+                  directiveId: status.directiveId,
+                };
+                persistRemoteBrainTranscriptTurn({
+                  context,
+                  sessionKey,
+                  entry,
+                  storePath,
+                  agentId,
+                  userMessage: parsedMessage,
+                  assistantText: responseText,
+                  runId: clientRunId,
+                  timestamp: startedAtMs,
+                });
+                broadcastRemoteBrainAgentEvent({
+                  context,
+                  runId: clientRunId,
+                  sessionKey,
+                  stream: "lifecycle",
+                  data: {
+                    phase: "end",
+                    directiveId: status.directiveId,
+                    agentId,
+                    stopReason: status.stopReason,
+                    usedAuthProfile: status.usedAuthProfile,
+                  },
+                });
+                broadcastChatFinal({
+                  context,
+                  runId: clientRunId,
+                  sessionKey,
+                  message,
+                });
+                setGatewayDedupeEntry({
+                  dedupe: context.dedupe,
+                  key: `chat:${clientRunId}`,
+                  entry: {
+                    ts: Date.now(),
+                    ok: true,
+                    payload: {
+                      runId: clientRunId,
+                      status: "ok" as const,
+                      remoteBrain: true,
+                      directiveId: status.directiveId,
+                    },
+                  },
+                });
+                return;
+              }
+              const errorMessage =
+                status.error?.message ??
+                `cloud-brain directive ended in status: ${status.status}`;
+              const error = errorShape(ErrorCodes.UNAVAILABLE, errorMessage);
+              setGatewayDedupeEntry({
+                dedupe: context.dedupe,
+                key: `chat:${clientRunId}`,
+                entry: {
+                  ts: Date.now(),
+                  ok: false,
+                  payload: {
+                    runId: clientRunId,
+                    status: "error" as const,
+                    remoteBrain: true,
+                    directiveId: status.directiveId,
+                    summary: errorMessage,
+                  },
+                  error,
+                },
+              });
+              broadcastRemoteBrainAgentEvent({
+                context,
+                runId: clientRunId,
+                sessionKey,
+                stream: "lifecycle",
+                data: {
+                  phase: "error",
+                  directiveId: status.directiveId,
+                  agentId,
+                  errorMessage,
+                },
+              });
+              broadcastChatError({
+                context,
+                runId: clientRunId,
+                sessionKey,
+                errorMessage,
+              });
+            })
+            .catch((err) => {
+              if (remoteAbortController.signal.aborted) {
+                return;
+              }
+              const errorMessage = cloudBridgeErrorMessage(err);
+              const error = errorShape(ErrorCodes.UNAVAILABLE, errorMessage);
+              setGatewayDedupeEntry({
+                dedupe: context.dedupe,
+                key: `chat:${clientRunId}`,
+                entry: {
+                  ts: Date.now(),
+                  ok: false,
+                  payload: {
+                    runId: clientRunId,
+                    status: "error" as const,
+                    remoteBrain: true,
+                    summary: errorMessage,
+                  },
+                  error,
+                },
+              });
+              broadcastRemoteBrainAgentEvent({
+                context,
+                runId: clientRunId,
+                sessionKey,
+                stream: "lifecycle",
+                data: {
+                  phase: "error",
+                  agentId,
+                  errorMessage,
+                },
+              });
+              broadcastChatError({
+                context,
+                runId: clientRunId,
+                sessionKey,
+                errorMessage,
+              });
+            })
+            .finally(() => {
+              context.chatAbortControllers.delete(clientRunId);
+              context.chatRunBuffers.delete(clientRunId);
+              context.chatDeltaSentAt.delete(clientRunId);
+              context.chatDeltaLastBroadcastLen.delete(clientRunId);
+            });
+          return;
+        }
+      } catch (err) {
+        const errorMessage = cloudBridgeErrorMessage(err);
+        const error = errorShape(ErrorCodes.UNAVAILABLE, errorMessage);
+        const payload = {
+          runId: clientRunId,
+          status: "error" as const,
+          remoteBrain: true,
+          summary: errorMessage,
+        };
+        setGatewayDedupeEntry({
+          dedupe: context.dedupe,
+          key: `chat:${clientRunId}`,
+          entry: {
+            ts: Date.now(),
+            ok: false,
+            payload,
+            error,
+          },
+        });
+        respond(true, { runId: clientRunId, status: "started" as const, remoteBrain: true }, undefined, {
+          runId: clientRunId,
+        });
+        broadcastRemoteBrainAgentEvent({
+          context,
+          runId: clientRunId,
+          sessionKey,
+          stream: "lifecycle",
+          data: {
+            phase: "error",
+            agentId,
+            errorMessage,
+          },
+        });
+        broadcastChatError({
+          context,
+          runId: clientRunId,
+          sessionKey,
+          errorMessage,
+        });
+        return;
+      }
+    }
+
     if (normalizedAttachments.length > 0) {
       const modelRef = resolveSessionModelRef(cfg, entry, agentId);
       const supportsImages = await resolveGatewayModelSupportsImages({
