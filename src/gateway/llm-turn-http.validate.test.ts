@@ -134,6 +134,19 @@ describe("validateLlmTurnRequest", () => {
     expect(validateLlmTurnRequest({ ...validBody, max_tokens: "8192" }).ok).toBe(false);
   });
 
+  it("rejects fractional max_tokens (Codex W3 #2)", () => {
+    expect(validateLlmTurnRequest({ ...validBody, max_tokens: 0.5 }).ok).toBe(false);
+    expect(validateLlmTurnRequest({ ...validBody, max_tokens: 8192.5 }).ok).toBe(false);
+  });
+
+  it("rejects non-object request bodies (Codex W3 #1)", () => {
+    expect(validateLlmTurnRequest(null as unknown as Record<string, unknown>).ok).toBe(false);
+    expect(validateLlmTurnRequest(undefined as unknown as Record<string, unknown>).ok).toBe(false);
+    expect(validateLlmTurnRequest("hello" as unknown as Record<string, unknown>).ok).toBe(false);
+    expect(validateLlmTurnRequest([] as unknown as Record<string, unknown>).ok).toBe(false);
+    expect(validateLlmTurnRequest(42 as unknown as Record<string, unknown>).ok).toBe(false);
+  });
+
   it("requires idempotency_key", () => {
     const result = validateLlmTurnRequest({ ...validBody, idempotency_key: undefined });
     expect(result.ok).toBe(false);

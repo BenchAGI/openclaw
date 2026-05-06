@@ -108,13 +108,28 @@ export type LlmTurnValidationResult =
  * Exported separately from the HTTP handler so the validator can be unit-
  * tested without standing up the gateway.
  */
-export function validateLlmTurnRequest(body: LlmTurnWireRequest): LlmTurnValidationResult {
-  const agentId = normalizeOptionalString(body.agent_id);
+export function validateLlmTurnRequest(body: unknown): LlmTurnValidationResult {
+  // Top-level guard: JSON bodies of `null`, primitives, or arrays would
+  // otherwise throw on field access and produce a generic 500 from the
+  // dispatch error handler (Codex W3 finding #1). Reject early with a
+  // 400-shaped invalid_field result.
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return {
+      ok: false,
+      error: {
+        code: "invalid_field",
+        field: "<root>",
+        reason: "request body must be a JSON object",
+      },
+    };
+  }
+  const wire = body as LlmTurnWireRequest;
+  const agentId = normalizeOptionalString(wire.agent_id);
   if (!agentId) {
     return { ok: false, error: { code: "missing_field", field: "agent_id" } };
   }
 
-  const systemPrompt = typeof body.system_prompt === "string" ? body.system_prompt : null;
+  const systemPrompt = typeof wire.system_prompt === "string" ? wire.system_prompt : null;
   if (systemPrompt === null) {
     return { ok: false, error: { code: "missing_field", field: "system_prompt" } };
   }
@@ -130,10 +145,10 @@ export function validateLlmTurnRequest(body: LlmTurnWireRequest): LlmTurnValidat
     };
   }
 
-  if (!Array.isArray(body.messages)) {
+  if (!Array.isArray(wire.messages)) {
     return { ok: false, error: { code: "missing_field", field: "messages" } };
   }
-  if (body.messages.length === 0) {
+  if (wire.messages.length === 0) {
     return {
       ok: false,
       error: {
@@ -143,20 +158,20 @@ export function validateLlmTurnRequest(body: LlmTurnWireRequest): LlmTurnValidat
       },
     };
   }
-  if (body.messages.length > MAX_MESSAGES_LENGTH) {
+  if (wire.messages.length > MAX_MESSAGES_LENGTH) {
     return {
       ok: false,
       error: {
         code: "oversized_field",
         field: "messages",
         limit: MAX_MESSAGES_LENGTH,
-        actual: body.messages.length,
+        actual: wire.messages.length,
       },
     };
   }
   const messages: LlmTurnRequest["messages"] = [];
-  for (let i = 0; i < body.messages.length; i++) {
-    const m = body.messages[i] as { role?: unknown; content?: unknown };
+  for (let i = 0; i < wire.messages.length; i++) {
+    const m = wire.messages[i] as { role?: unknown; content?: unknown };
     if (!m || typeof m !== "object") {
       return {
         ok: false,
@@ -184,26 +199,26 @@ export function validateLlmTurnRequest(body: LlmTurnWireRequest): LlmTurnValidat
   }
 
   const tools: LlmTurnRequest["tools"] = [];
-  if (body.tools !== undefined) {
-    if (!Array.isArray(body.tools)) {
+  if (wire.tools !== undefined) {
+    if (!Array.isArray(wire.tools)) {
       return {
         ok: false,
         error: { code: "invalid_field", field: "tools", reason: "must be an array" },
       };
     }
-    if (body.tools.length > MAX_TOOLS_LENGTH) {
+    if (wire.tools.length > MAX_TOOLS_LENGTH) {
       return {
         ok: false,
         error: {
           code: "oversized_field",
           field: "tools",
           limit: MAX_TOOLS_LENGTH,
-          actual: body.tools.length,
+          actual: wire.tools.length,
         },
       };
     }
-    for (let i = 0; i < body.tools.length; i++) {
-      const t = body.tools[i] as {
+    for (let i = 0; i < wire.tools.length; i++) {
+      const t = wire.tools[i] as {
         name?: unknown;
         description?: unknown;
         input_schema?: unknown;
@@ -233,31 +248,37 @@ export function validateLlmTurnRequest(body: LlmTurnWireRequest): LlmTurnValidat
     }
   }
 
-  const model = normalizeOptionalString(body.model);
+  const model = normalizeOptionalString(wire.model);
   if (!model) {
     return { ok: false, error: { code: "missing_field", field: "model" } };
   }
 
-  const thinkingLevel = normalizeOptionalString(body.thinking_level) ?? undefined;
+  const thinkingLevel = normalizeOptionalString(wire.thinking_level) ?? undefined;
 
-  const maxTokensRaw = body.max_tokens;
-  if (typeof maxTokensRaw !== "number" || !Number.isFinite(maxTokensRaw) || maxTokensRaw <= 0) {
+  const maxTokensRaw = wire.max_tokens;
+  // Require a positive integer (Codex W3 finding #2): the original
+  // `Number.isFinite(...) && > 0` allowed `0.5` to floor to 0 token budget.
+  if (typeof maxTokensRaw !== "number" || !Number.isInteger(maxTokensRaw) || maxTokensRaw <= 0) {
     return {
       ok: false,
-      error: { code: "invalid_field", field: "max_tokens", reason: "must be a positive number" },
+      error: {
+        code: "invalid_field",
+        field: "max_tokens",
+        reason: "must be a positive integer",
+      },
     };
   }
-  const maxTokens = Math.floor(maxTokensRaw);
+  const maxTokens = maxTokensRaw;
 
   const cacheControl =
-    body.cache_control && typeof body.cache_control === "object"
-      ? (body.cache_control as { system?: unknown })
+    wire.cache_control && typeof wire.cache_control === "object"
+      ? (wire.cache_control as { system?: unknown })
       : undefined;
   const cacheControlNormalized = cacheControl
     ? { system: normalizeOptionalString(cacheControl.system) ?? undefined }
     : undefined;
 
-  const idempotencyKey = normalizeOptionalString(body.idempotency_key);
+  const idempotencyKey = normalizeOptionalString(wire.idempotency_key);
   if (!idempotencyKey) {
     return { ok: false, error: { code: "missing_field", field: "idempotency_key" } };
   }
