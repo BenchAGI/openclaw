@@ -89,6 +89,7 @@ let sessionHistoryHttpModulePromise:
   | undefined;
 let sessionKillHttpModulePromise: Promise<typeof import("./session-kill-http.js")> | undefined;
 let toolsInvokeHttpModulePromise: Promise<typeof import("./tools-invoke-http.js")> | undefined;
+let llmTurnHttpModulePromise: Promise<typeof import("./llm-turn-http.js")> | undefined;
 
 function getIdentityAvatarModule() {
   identityAvatarModulePromise ??= import("../agents/identity-avatar.js");
@@ -133,6 +134,11 @@ function getSessionKillHttpModule() {
 function getToolsInvokeHttpModule() {
   toolsInvokeHttpModulePromise ??= import("./tools-invoke-http.js");
   return toolsInvokeHttpModulePromise;
+}
+
+function getLlmTurnHttpModule() {
+  llmTurnHttpModulePromise ??= import("./llm-turn-http.js");
+  return llmTurnHttpModulePromise;
 }
 
 type HookDispatchers = {
@@ -239,6 +245,10 @@ function isOpenResponsesPath(pathname: string): boolean {
 
 function isToolsInvokePath(pathname: string): boolean {
   return pathname === "/tools/invoke";
+}
+
+function isLlmTurnPath(pathname: string): boolean {
+  return pathname === "/v1/llm_turn";
 }
 
 function isSessionKillPath(pathname: string): boolean {
@@ -950,6 +960,22 @@ export function createGatewayHttpServer(opts: {
           name: "tools-invoke",
           run: async () =>
             (await getToolsInvokeHttpModule()).handleToolsInvokeHttpRequest(req, res, {
+              auth: resolvedAuth,
+              trustedProxies,
+              allowRealIpFallback,
+              rateLimiter,
+            }),
+        });
+      }
+      if (isLlmTurnPath(requestPath)) {
+        // Phase 1B W3: cloud-brain `llm_turn` directives are dispatched here
+        // by the relay after claim. The cloud orchestrator (web app) emits
+        // the directive; the relay POSTs to this endpoint with the inline
+        // `system_prompt` + `messages` + `tools`. See spec §7 line 709.
+        requestStages.push({
+          name: "llm-turn",
+          run: async () =>
+            (await getLlmTurnHttpModule()).handleLlmTurnHttpRequest(req, res, {
               auth: resolvedAuth,
               trustedProxies,
               allowRealIpFallback,
