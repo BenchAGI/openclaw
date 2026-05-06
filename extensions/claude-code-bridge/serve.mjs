@@ -33,7 +33,9 @@ const LCM_DB_PATH = process.env.LCM_DATABASE_PATH ?? path.join(os.homedir(), ".o
 let lcmDbConnection = null;
 
 function getLcmDb() {
-  if (lcmDbConnection) return lcmDbConnection;
+  if (lcmDbConnection) {
+    return lcmDbConnection;
+  }
   lcmDbConnection = new DatabaseSync(LCM_DB_PATH, { readOnly: true });
   return lcmDbConnection;
 }
