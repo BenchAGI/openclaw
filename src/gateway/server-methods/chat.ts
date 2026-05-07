@@ -55,6 +55,7 @@ import { augmentChatHistoryWithCliSessionImports } from "../cli-session-history.
 import {
   canAttemptBenchCloudBridge,
   createCliRemoteBrainTurn,
+  resolveBenchCloudAgentId,
   resolveBenchCloudBridgeConfig,
 } from "../cloud-brain-bridge.js";
 import { isSuppressedControlReplyText } from "../control-reply-text.js";
@@ -2069,6 +2070,10 @@ export const chatHandlers: GatewayRequestHandlers = {
     const cloudAuthToken = normalizeCloudAuthToken(p.cloudAuth);
     const bridgeAttempt = { config: bridgeConfig, authToken: cloudAuthToken };
     if (canAttemptBenchCloudBridge(bridgeAttempt)) {
+      const cloudAgentId = resolveBenchCloudAgentId({
+        config: bridgeAttempt.config,
+        agentId,
+      });
       const startedAtMs = Date.now();
       const remoteAbortController = new AbortController();
       try {
@@ -2077,7 +2082,7 @@ export const chatHandlers: GatewayRequestHandlers = {
           authToken: bridgeAttempt.authToken,
           signal: remoteAbortController.signal,
           request: {
-            agentId,
+            agentId: cloudAgentId,
             sessionKey,
             runId: clientRunId,
             idempotencyKey: clientRunId,

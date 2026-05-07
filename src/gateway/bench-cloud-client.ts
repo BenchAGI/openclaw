@@ -5,6 +5,7 @@ export type BenchCloudBridgeConfig = {
   apiBaseUrl: string;
   instanceId?: string;
   installId?: string;
+  agentIdAliases: Record<string, string>;
   pollIntervalMs: number;
   pollTimeoutMs: number;
 };
