@@ -11,8 +11,13 @@ type BenchCloudConfigSource = {
   apiBaseUrl?: string;
   instanceId?: string;
   installId?: string;
+  agentIdAliases?: Record<string, unknown>;
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
+};
+
+const DEFAULT_BENCH_CLOUD_AGENT_ID_ALIASES: Record<string, string> = {
+  "kestrel-aurelius": "aurelius",
 };
 
 function boolFromEnv(value: string | undefined): boolean | undefined {
@@ -33,6 +38,27 @@ function positiveInt(value: unknown, fallback: number): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function normalizeAgentIdForCloud(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim().toLowerCase()
+    : undefined;
+}
+
+function normalizeAgentIdAliases(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  const aliases: Record<string, string> = {};
+  for (const [from, to] of Object.entries(value as Record<string, unknown>)) {
+    const normalizedFrom = normalizeAgentIdForCloud(from);
+    const normalizedTo = normalizeAgentIdForCloud(to);
+    if (normalizedFrom && normalizedTo) {
+      aliases[normalizedFrom] = normalizedTo;
+    }
+  }
+  return aliases;
+}
+
 export function resolveBenchCloudBridgeConfig(cfg: OpenClawConfig): BenchCloudBridgeConfig {
   const source = ((cfg as unknown as { gateway?: { benchCloud?: BenchCloudConfigSource } }).gateway
     ?.benchCloud ?? {}) as BenchCloudConfigSource;
@@ -48,12 +74,17 @@ export function resolveBenchCloudBridgeConfig(cfg: OpenClawConfig): BenchCloudBr
     "https://benchagi.com";
   const instanceId = source.instanceId ?? process.env.BENCH_INSTANCE_ID;
   const installId = source.installId ?? process.env.BENCH_INSTALL_ID;
+  const agentIdAliases = {
+    ...DEFAULT_BENCH_CLOUD_AGENT_ID_ALIASES,
+    ...normalizeAgentIdAliases(source.agentIdAliases),
+  };
 
   return {
     enabled,
     apiBaseUrl,
     instanceId,
     installId,
+    agentIdAliases,
     pollIntervalMs: positiveInt(
       source.pollIntervalMs ?? process.env.BENCH_CLOUD_BRIDGE_POLL_INTERVAL_MS,
       1000,
@@ -70,6 +101,17 @@ export function canAttemptBenchCloudBridge(params: {
   authToken?: string;
 }): params is { config: BenchCloudBridgeConfig & { instanceId: string }; authToken: string } {
   return Boolean(params.config.enabled && params.config.instanceId && params.authToken);
+}
+
+export function resolveBenchCloudAgentId(params: {
+  config: BenchCloudBridgeConfig;
+  agentId: string;
+}): string {
+  const normalizedAgentId = normalizeAgentIdForCloud(params.agentId);
+  if (!normalizedAgentId) {
+    return params.agentId;
+  }
+  return params.config.agentIdAliases[normalizedAgentId] ?? normalizedAgentId;
 }
 
 export async function createCliRemoteBrainTurn(params: {
