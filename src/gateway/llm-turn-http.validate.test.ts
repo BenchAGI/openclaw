@@ -5,7 +5,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { validateLlmTurnRequest } from "./llm-turn-http.js";
+import {
+  buildLlmTurnCliPrompt,
+  resolveLlmTurnModelRoute,
+  validateLlmTurnRequest,
+} from "./llm-turn-http.js";
 
 const validBody = {
   agent_id: "aurelius",
@@ -175,5 +179,65 @@ describe("validateLlmTurnRequest", () => {
     if (result.ok) {
       expect(result.request.cacheControl).toEqual({ system: "ephemeral" });
     }
+  });
+});
+
+describe("resolveLlmTurnModelRoute", () => {
+  it("routes Claude CLI refs to the local Claude CLI backend", () => {
+    expect(resolveLlmTurnModelRoute("claude-cli/claude-sonnet-4-6")).toEqual({
+      kind: "cli",
+      provider: "claude-cli",
+      model: "claude-sonnet-4-6",
+      originalProvider: "claude-cli",
+    });
+  });
+
+  it("routes Codex CLI refs to the local Codex CLI backend", () => {
+    expect(resolveLlmTurnModelRoute("codex-cli/gpt-5.4")).toEqual({
+      kind: "cli",
+      provider: "codex-cli",
+      model: "gpt-5.4",
+      originalProvider: "codex-cli",
+    });
+  });
+
+  it("treats openai-codex cloud-brain refs as Codex CLI execution", () => {
+    expect(resolveLlmTurnModelRoute("openai-codex/gpt-5.4")).toEqual({
+      kind: "cli",
+      provider: "codex-cli",
+      model: "gpt-5.4",
+      originalProvider: "openai-codex",
+    });
+  });
+
+  it("leaves bare Anthropic model refs on the Anthropic SDK path", () => {
+    expect(resolveLlmTurnModelRoute("claude-sonnet-4-6")).toEqual({
+      kind: "anthropic",
+      model: "claude-sonnet-4-6",
+    });
+  });
+});
+
+describe("buildLlmTurnCliPrompt", () => {
+  it("includes the cloud conversation transcript without the inline system prompt", () => {
+    const result = validateLlmTurnRequest({
+      ...validBody,
+      system_prompt: "SECRET_PERSONA",
+      messages: [
+        { role: "user", content: "hello" },
+        { role: "assistant", content: [{ type: "text", text: "hi there" }] },
+        { role: "user", content: [{ type: "text", text: "continue" }] },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    const prompt = buildLlmTurnCliPrompt(result.request);
+    expect(prompt).toContain("User:\nhello");
+    expect(prompt).toContain("Assistant:\nhi there");
+    expect(prompt).toContain("User:\ncontinue");
+    expect(prompt).not.toContain("SECRET_PERSONA");
   });
 });

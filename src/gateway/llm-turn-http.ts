@@ -36,10 +36,19 @@
  * dispatching directives in test mode (returning a controlled error response).
  */
 
+import fs from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
+import { runCliAgent } from "../agents/cli-runner.js";
+import { parseModelRef } from "../agents/model-selection.js";
+import type { ThinkLevel } from "../auto-reply/thinking.js";
+import { loadConfig } from "../config/config.js";
+import { resolveStateDir } from "../config/paths.js";
+import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import { logWarn } from "../logger.js";
+import { normalizeAgentId } from "../routing/session-key.js";
 import { normalizeOptionalString } from "../shared/string-coerce.js";
 import type { AuthRateLimiter } from "./auth-rate-limit.js";
 import type { ResolvedGatewayAuth } from "./auth.js";
@@ -73,7 +82,7 @@ interface LlmTurnWireRequest {
   idempotency_key?: unknown;
 }
 
-interface LlmTurnRequest {
+export interface LlmTurnRequest {
   agentId: string;
   messages: Array<{ role: string; content: unknown }>;
   systemPrompt: string;
@@ -351,32 +360,27 @@ export async function handleLlmTurnHttpRequest(
     return true;
   }
 
-  // Anthropic call. Resolves the auth credential via env (proper auth-profile
-  // machinery integration is a separate sub-PR — see comment block below for the
-  // remaining work). Surfaces the resolved profile name back as
-  // `used_auth_profile` so the cloud orchestrator (W2) can decide between OAuth
-  // and API/coin-mode billing per spec §6.
-  const anthropicResult = await callAnthropicForLlmTurn(validation.request);
-  if (!anthropicResult.ok) {
+  const executionResult = await runLlmTurn(validation.request);
+  if (!executionResult.ok) {
     logWarn(
-      `[llm_turn] Anthropic call failed for agent=${validation.request.agentId}: ` +
-        `${anthropicResult.code} ${anthropicResult.message}`,
+      `[llm_turn] call failed for agent=${validation.request.agentId}: ` +
+        `${executionResult.code} ${executionResult.message}`,
     );
-    sendJson(res, anthropicResult.httpStatus, {
+    sendJson(res, executionResult.httpStatus, {
       error: {
-        type: anthropicResult.errorType,
-        code: anthropicResult.code,
-        message: anthropicResult.message,
+        type: executionResult.errorType,
+        code: executionResult.code,
+        message: executionResult.message,
       },
     });
     return true;
   }
 
-  sendJson(res, 200, anthropicResult.response);
+  sendJson(res, 200, executionResult.response);
   return true;
 }
 
-// ─── Anthropic call ──────────────────────────────────────────────────────
+// ─── LLM execution ───────────────────────────────────────────────────────
 
 /**
  * Wire-format response (snake_case per spec §7 line 741).
@@ -394,15 +398,294 @@ interface LlmTurnWireResponse {
   used_auth_profile: string;
 }
 
-type AnthropicCallSuccess = { ok: true; response: LlmTurnWireResponse };
-type AnthropicCallFailure = {
+type LlmTurnExecutionSuccess = { ok: true; response: LlmTurnWireResponse };
+type LlmTurnExecutionFailure = {
   ok: false;
   httpStatus: number;
   errorType: string;
   code: string;
   message: string;
 };
-type AnthropicCallResult = AnthropicCallSuccess | AnthropicCallFailure;
+type LlmTurnExecutionResult = LlmTurnExecutionSuccess | LlmTurnExecutionFailure;
+
+export type LlmTurnModelRoute =
+  | { kind: "anthropic"; model: string }
+  | { kind: "cli"; provider: "claude-cli" | "codex-cli"; model: string; originalProvider: string };
+
+const CLI_LLM_TURN_TIMEOUT_MS = 240_000;
+
+function buildLlmTurnFailure(params: {
+  httpStatus: number;
+  errorType: string;
+  code: string;
+  message: string;
+}): LlmTurnExecutionFailure {
+  return {
+    ok: false,
+    httpStatus: params.httpStatus,
+    errorType: params.errorType,
+    code: params.code,
+    message: params.message,
+  };
+}
+
+export function resolveLlmTurnModelRoute(rawModel: string): LlmTurnModelRoute {
+  const parsed = parseModelRef(rawModel, "anthropic", { allowPluginNormalization: false });
+  if (!parsed) {
+    return { kind: "anthropic", model: rawModel };
+  }
+
+  switch (parsed.provider) {
+    case "claude-cli":
+      return {
+        kind: "cli",
+        provider: "claude-cli",
+        model: parsed.model,
+        originalProvider: parsed.provider,
+      };
+    case "codex-cli":
+      return {
+        kind: "cli",
+        provider: "codex-cli",
+        model: parsed.model,
+        originalProvider: parsed.provider,
+      };
+    case "openai-codex":
+      return {
+        kind: "cli",
+        provider: "codex-cli",
+        model: parsed.model,
+        originalProvider: parsed.provider,
+      };
+    default:
+      return { kind: "anthropic", model: rawModel };
+  }
+}
+
+function normalizeThinkLevel(value: string | undefined): ThinkLevel | undefined {
+  switch (value) {
+    case "off":
+    case "minimal":
+    case "low":
+    case "medium":
+    case "high":
+    case "xhigh":
+    case "adaptive":
+      return value;
+    default:
+      return undefined;
+  }
+}
+
+function stringifyUnknownContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    const parts = content
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return stringifyUnknownContent(entry);
+        }
+        const block = entry as Record<string, unknown>;
+        if (typeof block.text === "string") {
+          return block.text;
+        }
+        if (typeof block.content === "string") {
+          return block.content;
+        }
+        if (Array.isArray(block.content)) {
+          return stringifyUnknownContent(block.content);
+        }
+        if (typeof block.type === "string") {
+          return `[${block.type}]`;
+        }
+        return "";
+      })
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    return parts.join("\n\n");
+  }
+  if (content && typeof content === "object") {
+    try {
+      return JSON.stringify(content);
+    } catch {
+      return "[unserializable object]";
+    }
+  }
+  if (content === undefined || content === null) {
+    return "";
+  }
+  if (
+    typeof content === "number" ||
+    typeof content === "bigint" ||
+    typeof content === "boolean" ||
+    typeof content === "symbol"
+  ) {
+    return content.toString();
+  }
+  return "";
+}
+
+export function buildLlmTurnCliPrompt(request: LlmTurnRequest): string {
+  const transcript = request.messages
+    .map((message) => {
+      const role = message.role === "assistant" ? "Assistant" : "User";
+      const text = stringifyUnknownContent(message.content).trim();
+      return `${role}:\n${text || "[empty]"}`;
+    })
+    .join("\n\n");
+
+  const toolsNote =
+    request.tools.length > 0
+      ? [
+          "Cloud-declared tool schemas were included with this turn.",
+          "Use locally available OpenClaw/MCP tools when appropriate; do not invent tool results.",
+        ].join(" ")
+      : "";
+
+  return [
+    "Continue the cloud-brain conversation below.",
+    "The complete persona and operating policy were supplied as the system prompt for this run.",
+    toolsNote,
+    transcript,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function withInlineLlmTurnSystemPrompt(
+  cfg: OpenClawConfig,
+  agentId: string,
+  systemPrompt: string,
+): OpenClawConfig {
+  const normalizedAgentId = normalizeAgentId(agentId);
+  const configuredAgents = Array.isArray(cfg.agents?.list) ? cfg.agents.list : [];
+  let patchedAgent = false;
+  const agentList = configuredAgents.map((entry) => {
+    if (!entry || typeof entry !== "object" || normalizeAgentId(entry.id) !== normalizedAgentId) {
+      return entry;
+    }
+    patchedAgent = true;
+    return { ...entry, systemPromptOverride: systemPrompt };
+  });
+  if (!patchedAgent) {
+    agentList.push({ id: normalizedAgentId, systemPromptOverride: systemPrompt });
+  }
+
+  return {
+    ...cfg,
+    agents: {
+      ...cfg.agents,
+      list: agentList,
+      defaults: {
+        ...cfg.agents?.defaults,
+        systemPromptOverride: systemPrompt,
+        bootstrapPromptTruncationWarning: "off",
+      },
+    },
+  };
+}
+
+async function resolveLlmTurnWorkspaceDir(agentId: string): Promise<string> {
+  const safeAgentId = normalizeAgentId(agentId);
+  const dir = path.join(resolveStateDir(), "cloud-brain-runs", safeAgentId);
+  await fs.mkdir(dir, { recursive: true });
+  return dir;
+}
+
+function extractCliResponseText(result: Awaited<ReturnType<typeof runCliAgent>>): string {
+  const visibleText = result.meta.finalAssistantVisibleText?.trim();
+  if (visibleText) {
+    return visibleText;
+  }
+  const payloadText = (result.payloads ?? [])
+    .filter((payload) => !payload.isError && !payload.isReasoning)
+    .map((payload) => payload.text?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n\n");
+  return payloadText || "No response from OpenClaw CLI runner.";
+}
+
+function normalizeCliUsage(
+  usage: Awaited<ReturnType<typeof runCliAgent>>["meta"]["agentMeta"] extends { usage?: infer U }
+    ? U
+    : unknown,
+): LlmTurnWireResponse["usage"] {
+  const record =
+    usage && typeof usage === "object"
+      ? (usage as {
+          input?: number;
+          output?: number;
+          cacheRead?: number;
+          cacheWrite?: number;
+        })
+      : {};
+  return {
+    input_tokens: Math.max(0, record.input ?? 0),
+    output_tokens: Math.max(0, record.output ?? 0),
+    cache_read_input_tokens: Math.max(0, record.cacheRead ?? 0),
+    cache_creation_input_tokens: Math.max(0, record.cacheWrite ?? 0),
+  };
+}
+
+async function callCliForLlmTurn(
+  request: LlmTurnRequest,
+  route: Extract<LlmTurnModelRoute, { kind: "cli" }>,
+): Promise<LlmTurnExecutionResult> {
+  try {
+    const cfg = withInlineLlmTurnSystemPrompt(loadConfig(), request.agentId, request.systemPrompt);
+    const workspaceDir = await resolveLlmTurnWorkspaceDir(request.agentId);
+    const sessionAgentId = normalizeAgentId(request.agentId);
+    const sessionToken =
+      request.idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64) || "turn";
+    const result = await runCliAgent({
+      sessionId: `cloud-brain-${sessionAgentId}-${sessionToken}`,
+      sessionKey: `agent:${sessionAgentId}:cloud-brain-${sessionToken}`,
+      agentId: request.agentId,
+      sessionFile: path.join(workspaceDir, "llm-turn-session.json"),
+      workspaceDir,
+      config: cfg,
+      prompt: buildLlmTurnCliPrompt(request),
+      provider: route.provider,
+      model: route.model,
+      thinkLevel: normalizeThinkLevel(request.thinkingLevel),
+      timeoutMs: Number(process.env.OPENCLAW_LLM_TURN_CLI_TIMEOUT_MS) || CLI_LLM_TURN_TIMEOUT_MS,
+      runId: request.idempotencyKey,
+      senderIsOwner: true,
+    });
+
+    return {
+      ok: true,
+      response: {
+        content: [{ type: "text", text: extractCliResponseText(result) }],
+        stop_reason: result.meta.completion?.stopReason ?? "end_turn",
+        model: `${route.provider}/${route.model}`,
+        usage: normalizeCliUsage(result.meta.agentMeta?.usage),
+        used_auth_profile:
+          result.meta.agentMeta?.cliSessionBinding?.authProfileId ??
+          (route.originalProvider === route.provider
+            ? route.provider
+            : `${route.provider}:via-${route.originalProvider}`),
+      },
+    };
+  } catch (err) {
+    return buildLlmTurnFailure({
+      httpStatus: 502,
+      errorType: "cli_call_failed",
+      code: "cli_call_failed",
+      message: formatErrorMessage(err),
+    });
+  }
+}
+
+async function runLlmTurn(request: LlmTurnRequest): Promise<LlmTurnExecutionResult> {
+  const route = resolveLlmTurnModelRoute(request.model);
+  if (route.kind === "cli") {
+    return callCliForLlmTurn(request, route);
+  }
+  return callAnthropicForLlmTurn(request, route.model);
+}
 
 /**
  * Resolve the Anthropic auth credential.
@@ -454,18 +737,20 @@ function resolveAnthropicCredential(): {
  * params and call `messages.create`. Returns the SDK response translated to
  * the snake_case wire response shape.
  */
-async function callAnthropicForLlmTurn(request: LlmTurnRequest): Promise<AnthropicCallResult> {
+async function callAnthropicForLlmTurn(
+  request: LlmTurnRequest,
+  model: string,
+): Promise<LlmTurnExecutionResult> {
   const { apiKey, profileName, isOAuthToken } = resolveAnthropicCredential();
   if (!apiKey) {
-    return {
-      ok: false,
+    return buildLlmTurnFailure({
       httpStatus: 500,
       errorType: "auth_failed",
       code: "no_anthropic_credential",
       message:
         "OpenClaw has no Anthropic credential available (ANTHROPIC_API_KEY not set). " +
         "Configure the agent's auth profile or set the env var to use /v1/llm_turn.",
-    };
+    });
   }
 
   const client = isOAuthToken
@@ -522,7 +807,7 @@ async function callAnthropicForLlmTurn(request: LlmTurnRequest): Promise<Anthrop
 
   try {
     const sdkResponse = await client.messages.create({
-      model: request.model,
+      model,
       max_tokens: request.maxTokens,
       system: systemParam as never,
       messages: request.messages as never,
