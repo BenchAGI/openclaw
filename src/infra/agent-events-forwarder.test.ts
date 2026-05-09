@@ -144,4 +144,66 @@ describe("agent events forwarder", () => {
     }
     expect(request.body.events.map((event) => event.seq)).toEqual([1, 2]);
   });
+
+  it("keeps the scheduled flush timer referenced for short CLI runs", () => {
+    let listener: ((evt: AgentEventPayload) => void) | undefined;
+    const unref = vi.fn();
+    const setTimer = vi.fn(
+      (_cb: () => void, _ms?: number) => ({ unref }) as unknown as ReturnType<typeof setTimeout>,
+    );
+    const forwarder = createAgentEventsForwarder({
+      config,
+      registerAgentEventListener: (next) => {
+        listener = next;
+        return () => undefined;
+      },
+      sendBatch: createSendBatchMock(),
+      setTimeout: setTimer as unknown as typeof setTimeout,
+    });
+
+    listener?.(makeEvent());
+
+    expect(forwarder).not.toBeNull();
+    expect(setTimer).toHaveBeenCalledTimes(1);
+    expect(unref).not.toHaveBeenCalled();
+
+    forwarder?.stop();
+  });
+
+  it("bounds endpoint backlog by dropping the oldest queued events", async () => {
+    let listener: ((evt: AgentEventPayload) => void) | undefined;
+    let releaseFirstBatch: (() => void) | undefined;
+    const firstBatch = new Promise<void>((resolve) => {
+      releaseFirstBatch = resolve;
+    });
+    const sendBatch = vi.fn(async (_request: AgentEventsBatchRequest) => {
+      if (sendBatch.mock.calls.length === 1) {
+        await firstBatch;
+      }
+    });
+    const forwarder = createAgentEventsForwarder({
+      config: { ...config, maxBatchSize: 2, maxQueueSize: 3 },
+      registerAgentEventListener: (next) => {
+        listener = next;
+        return () => undefined;
+      },
+      sendBatch,
+    });
+
+    listener?.(makeEvent({ seq: 1 }));
+    listener?.(makeEvent({ seq: 2 }));
+    listener?.(makeEvent({ seq: 3 }));
+    listener?.(makeEvent({ seq: 4 }));
+    listener?.(makeEvent({ seq: 5 }));
+    listener?.(makeEvent({ seq: 6 }));
+
+    expect(forwarder?.getPendingCount()).toBe(3);
+
+    releaseFirstBatch?.();
+    await forwarder?.flush();
+
+    expect(
+      sendBatch.mock.calls.map(([request]) => request.body.events.map((event) => event.seq)),
+    ).toEqual([[1, 2], [4, 5], [6]]);
+  });
 });

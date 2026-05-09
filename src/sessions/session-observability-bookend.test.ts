@@ -55,7 +55,75 @@ describe("session observability bookend", () => {
     });
   });
 
-  it("emits a synthetic session closed event from agent lifecycle end", () => {
+  it("emits a synthetic session closed event from session lifecycle close", () => {
+    const harness = createHarness();
+
+    harness.sessionListener?.({
+      sessionKey: "agent:main:main",
+      reason: "close",
+      stats: {
+        startedAt: 100,
+        endedAt: 250,
+        durationMs: 150,
+        status: "done",
+        outputTokens: 10,
+      },
+    });
+
+    expect(harness.emitAgentEvent).toHaveBeenCalledWith({
+      runId: "agent:main:main",
+      stream: "agent.session.closed",
+      sessionKey: "agent:main:main",
+      data: expect.objectContaining({
+        sessionId: "session-1",
+        sessionKey: "agent:main:main",
+        reason: "close",
+        transcriptPath: "/tmp/session-1.jsonl",
+        stats: expect.objectContaining({
+          totalTokens: 42,
+          startedAt: 100,
+          endedAt: 250,
+          durationMs: 150,
+          status: "done",
+          outputTokens: 10,
+        }),
+      }),
+    });
+  });
+
+  it("emits a synthetic session opened event from agent lifecycle start", () => {
+    const harness = createHarness();
+
+    harness.agentListener?.({
+      runId: "run-1",
+      seq: 7,
+      stream: "lifecycle",
+      ts: 1_000,
+      sessionKey: "agent:main:main",
+      data: {
+        phase: "start",
+        startedAt: 100,
+      },
+    });
+
+    expect(harness.emitAgentEvent).toHaveBeenCalledWith({
+      runId: "run-1",
+      stream: "agent.session.opened",
+      sessionKey: "agent:main:main",
+      data: expect.objectContaining({
+        sessionId: "session-1",
+        sessionKey: "agent:main:main",
+        reason: "agent-lifecycle-start",
+        transcriptPath: "/tmp/session-1.jsonl",
+        stats: expect.objectContaining({
+          totalTokens: 42,
+          startedAt: 100,
+        }),
+      }),
+    });
+  });
+
+  it("does not emit a close bookend directly from agent lifecycle end", () => {
     const harness = createHarness();
 
     harness.agentListener?.({
@@ -68,30 +136,10 @@ describe("session observability bookend", () => {
         phase: "end",
         startedAt: 100,
         endedAt: 250,
-        aborted: false,
-        stopReason: "end_turn",
       },
     });
 
-    expect(harness.emitAgentEvent).toHaveBeenCalledWith({
-      runId: "run-1",
-      stream: "agent.session.closed",
-      sessionKey: "agent:main:main",
-      data: expect.objectContaining({
-        sessionId: "session-1",
-        sessionKey: "agent:main:main",
-        reason: "agent-lifecycle-close",
-        transcriptPath: "/tmp/session-1.jsonl",
-        stats: expect.objectContaining({
-          totalTokens: 42,
-          startedAt: 100,
-          endedAt: 250,
-          durationMs: 150,
-          aborted: false,
-          stopReason: "end_turn",
-        }),
-      }),
-    });
+    expect(harness.emitAgentEvent).not.toHaveBeenCalled();
   });
 
   it("unsubscribes both listeners on stop", () => {

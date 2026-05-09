@@ -15,7 +15,11 @@ import {
 import { formatErrorMessage } from "../infra/errors.js";
 import { resolveAgentIdFromSessionKey } from "../routing/session-key.js";
 import { normalizeOptionalString } from "../shared/string-coerce.js";
-import { onSessionLifecycleEvent, type SessionLifecycleEvent } from "./session-lifecycle-events.js";
+import {
+  onSessionLifecycleEvent,
+  type SessionLifecycleEvent,
+  type SessionLifecycleStats,
+} from "./session-lifecycle-events.js";
 
 type SessionBookendKind = "opened" | "closed";
 
@@ -159,16 +163,15 @@ function resolveLifecycleEventKind(
   return null;
 }
 
-function resolveAgentLifecycleEventKind(event: AgentEventPayload): SessionBookendKind | null {
+function resolveAgentLifecycleEventKind(
+  event: AgentEventPayload,
+): Extract<SessionBookendKind, "opened"> | null {
   if (event.stream !== "lifecycle") {
     return null;
   }
   const phase = normalizeOptionalString(event.data.phase);
   if (phase === "start") {
     return "opened";
-  }
-  if (phase === "end" || phase === "error") {
-    return "closed";
   }
   return null;
 }
@@ -192,6 +195,46 @@ function collectAgentLifecycleStats(event: AgentEventPayload): SessionObservabil
       ? { error: normalizeOptionalString(event.data.error) }
       : {}),
   };
+}
+
+function collectSessionLifecycleStats(
+  stats: SessionLifecycleStats | undefined,
+): SessionObservabilityStats | undefined {
+  if (!stats) {
+    return undefined;
+  }
+  const next: SessionObservabilityStats = {};
+  const copyNumber = (key: keyof SessionObservabilityStats, value: unknown) => {
+    const normalized = readFiniteNumber(value);
+    if (normalized !== undefined) {
+      next[key] = normalized as never;
+    }
+  };
+  copyNumber("startedAt", stats.startedAt);
+  copyNumber("endedAt", stats.endedAt);
+  copyNumber("durationMs", stats.durationMs);
+  copyNumber("inputTokens", stats.inputTokens);
+  copyNumber("outputTokens", stats.outputTokens);
+  copyNumber("totalTokens", stats.totalTokens);
+  copyNumber("estimatedCostUsd", stats.estimatedCostUsd);
+  copyNumber("cacheRead", stats.cacheRead);
+  copyNumber("cacheWrite", stats.cacheWrite);
+  const aborted = readBoolean(stats.aborted);
+  if (aborted !== undefined) {
+    next.aborted = aborted;
+  }
+  const stopReason = normalizeOptionalString(stats.stopReason);
+  if (stopReason) {
+    next.stopReason = stopReason;
+  }
+  const error = normalizeOptionalString(stats.error);
+  if (error) {
+    next.error = error;
+  }
+  if (stats.status) {
+    next.status = stats.status;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
 }
 
 function mergeStats(
@@ -275,6 +318,7 @@ export function createSessionObservabilityBookend(
           label: snapshot.label ?? event.label,
           displayName: snapshot.displayName ?? event.displayName,
         },
+        eventStats: collectSessionLifecycleStats(event.stats),
         emit,
       });
     } catch (error) {
@@ -291,7 +335,7 @@ export function createSessionObservabilityBookend(
       const sessionKey = normalizeOptionalString(event.sessionKey) ?? event.runId;
       const lifecycleEvent: SessionLifecycleEvent = {
         sessionKey,
-        reason: kind === "opened" ? "agent-lifecycle-start" : "agent-lifecycle-close",
+        reason: "agent-lifecycle-start",
       };
       emitBookend({
         kind,
@@ -325,7 +369,11 @@ export function startSessionObservabilityBookend(
   return activeBookendState.bookend;
 }
 
-export function resetSessionObservabilityBookendForTest(): void {
+export function stopSessionObservabilityBookend(): void {
   activeBookendState.bookend?.stop();
   activeBookendState.bookend = null;
+}
+
+export function resetSessionObservabilityBookendForTest(): void {
+  stopSessionObservabilityBookend();
 }

@@ -12,6 +12,8 @@ import { resolveHomeRelativePath } from "./home-dir.js";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 2_000;
 const DEFAULT_MAX_BATCH_SIZE = 64;
+const DEFAULT_MAX_QUEUE_SIZE = DEFAULT_MAX_BATCH_SIZE * 32;
+const DROP_WARNING_INTERVAL_MS = 10_000;
 const OBSERVABILITY_CONFIG_RELATIVE_PATH = path.join("config", "observability.json");
 const EXPLICIT_AGENT_EVENT_TYPES = new Set([
   "agent.session.opened",
@@ -40,6 +42,7 @@ export type AgentEventsForwarderConfig = {
   hostId: string;
   flushIntervalMs?: number;
   maxBatchSize?: number;
+  maxQueueSize?: number;
 };
 
 export type BenchAgentEvent = {
@@ -76,6 +79,7 @@ export type AgentEventsForwarderDeps = {
 
 export type AgentEventsForwarder = {
   flush: () => Promise<void>;
+  flushAndStop: () => Promise<void>;
   stop: () => void;
   getPendingCount: () => number;
 };
@@ -129,6 +133,7 @@ function normalizeObservabilityConfig(raw: unknown): AgentEventsForwarderConfig 
     hostId,
     flushIntervalMs: readOptionalPositiveInt(record.flushIntervalMs),
     maxBatchSize: readOptionalPositiveInt(record.maxBatchSize),
+    maxQueueSize: readOptionalPositiveInt(record.maxQueueSize),
   };
 }
 
@@ -248,10 +253,16 @@ export function createAgentEventsForwarder(
   const clearTimer = deps.clearTimeout ?? clearTimeout;
   const flushIntervalMs = config.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS;
   const maxBatchSize = config.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
+  const maxQueueSize = Math.max(
+    maxBatchSize,
+    config.maxQueueSize ?? Math.max(maxBatchSize, DEFAULT_MAX_QUEUE_SIZE),
+  );
   const pending: BenchAgentEvent[] = [];
   let timer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
-  let flushTail = Promise.resolve();
+  let flushPromise: Promise<void> | null = null;
+  let droppedSinceLastWarning = 0;
+  let lastDropWarningAt = 0;
 
   const clearScheduledFlush = () => {
     if (timer) {
@@ -271,6 +282,23 @@ export function createAgentEventsForwarder(
     console.warn(`[openclaw] agent observability forwarder: ${formatErrorMessage(error)}`);
   };
 
+  const reportDroppedEvents = (count: number) => {
+    droppedSinceLastWarning += count;
+    if (process.env.NODE_ENV === "test" || process.env.VITEST === "true") {
+      return;
+    }
+    const now = Date.now();
+    if (lastDropWarningAt !== 0 && now - lastDropWarningAt < DROP_WARNING_INTERVAL_MS) {
+      return;
+    }
+    const dropped = droppedSinceLastWarning;
+    droppedSinceLastWarning = 0;
+    lastDropWarningAt = now;
+    console.warn(
+      `[openclaw] observability: dropped ${String(dropped)} event${dropped === 1 ? "" : "s"}, endpoint backlog`,
+    );
+  };
+
   const drainOnce = async () => {
     if (pending.length === 0) {
       return;
@@ -285,15 +313,17 @@ export function createAgentEventsForwarder(
 
   const flush = async () => {
     clearScheduledFlush();
-    flushTail = flushTail.then(async () => {
+    flushPromise ??= (async () => {
       for (;;) {
-        if (stopped || pending.length === 0) {
+        if (pending.length === 0) {
           return;
         }
         await drainOnce();
       }
+    })().finally(() => {
+      flushPromise = null;
     });
-    await flushTail;
+    await flushPromise;
   };
 
   const scheduleFlush = () => {
@@ -304,7 +334,15 @@ export function createAgentEventsForwarder(
       timer = null;
       void flush();
     }, flushIntervalMs);
-    timer.unref?.();
+  };
+
+  const enqueue = (event: BenchAgentEvent) => {
+    const overflowCount = pending.length + 1 - maxQueueSize;
+    if (overflowCount > 0) {
+      pending.splice(0, overflowCount);
+      reportDroppedEvents(overflowCount);
+    }
+    pending.push(event);
   };
 
   const unsubscribe = register((event) => {
@@ -315,7 +353,7 @@ export function createAgentEventsForwarder(
     if (!mapped) {
       return;
     }
-    pending.push(mapped);
+    enqueue(mapped);
     if (pending.length >= maxBatchSize) {
       void flush();
       return;
@@ -325,7 +363,20 @@ export function createAgentEventsForwarder(
 
   return {
     flush,
+    flushAndStop: async () => {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
+      clearScheduledFlush();
+      unsubscribe();
+      await flush();
+      pending.length = 0;
+    },
     stop: () => {
+      if (stopped) {
+        return;
+      }
       stopped = true;
       clearScheduledFlush();
       unsubscribe();
@@ -353,4 +404,18 @@ export function resetAgentEventsForwarderForTest(): void {
   activeForwarderState.forwarder?.stop();
   activeForwarderState.forwarder = null;
   activeForwarderState.startupAttempted = false;
+}
+
+export async function stopAgentEventsForwarder(options?: { flush?: boolean }): Promise<void> {
+  const forwarder = activeForwarderState.forwarder;
+  activeForwarderState.forwarder = null;
+  activeForwarderState.startupAttempted = false;
+  if (!forwarder) {
+    return;
+  }
+  if (options?.flush === true) {
+    await forwarder.flushAndStop();
+    return;
+  }
+  forwarder.stop();
 }
