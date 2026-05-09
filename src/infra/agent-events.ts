@@ -288,6 +288,8 @@ export function onAgentEvent(listener: (evt: AgentEventPayload) => void) {
   return registerListener(state.listeners, listener);
 }
 
+export const registerAgentEventListener = onAgentEvent;
+
 export function resetAgentEventsForTest() {
   const state = getAgentEventState();
   state.seqByRun.clear();

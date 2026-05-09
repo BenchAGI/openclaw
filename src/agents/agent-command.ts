@@ -77,6 +77,9 @@ type SkillsRuntime = typeof import("./skills.js");
 type SkillsFilterRuntime = typeof import("./skills/filter.js");
 type SkillsRefreshStateRuntime = typeof import("./skills/refresh-state.js");
 type SkillsRemoteRuntime = typeof import("../infra/skills-remote.js");
+type AgentEventsForwarderRuntime = typeof import("../infra/agent-events-forwarder.js");
+type SessionObservabilityBookendRuntime =
+  typeof import("../sessions/session-observability-bookend.js");
 
 let attemptExecutionRuntimePromise: Promise<AttemptExecutionRuntime> | undefined;
 let acpManagerRuntimePromise: Promise<AcpManagerRuntime> | undefined;
@@ -92,6 +95,10 @@ let skillsRuntimePromise: Promise<SkillsRuntime> | undefined;
 let skillsFilterRuntimePromise: Promise<SkillsFilterRuntime> | undefined;
 let skillsRefreshStateRuntimePromise: Promise<SkillsRefreshStateRuntime> | undefined;
 let skillsRemoteRuntimePromise: Promise<SkillsRemoteRuntime> | undefined;
+let agentEventsForwarderRuntimePromise: Promise<AgentEventsForwarderRuntime> | undefined;
+let sessionObservabilityBookendRuntimePromise:
+  | Promise<SessionObservabilityBookendRuntime>
+  | undefined;
 
 function loadAttemptExecutionRuntime(): Promise<AttemptExecutionRuntime> {
   attemptExecutionRuntimePromise ??= import("./command/attempt-execution.runtime.js");
@@ -161,6 +168,26 @@ function loadSkillsRefreshStateRuntime(): Promise<SkillsRefreshStateRuntime> {
 function loadSkillsRemoteRuntime(): Promise<SkillsRemoteRuntime> {
   skillsRemoteRuntimePromise ??= import("../infra/skills-remote.js");
   return skillsRemoteRuntimePromise;
+}
+
+function loadAgentEventsForwarderRuntime(): Promise<AgentEventsForwarderRuntime> {
+  agentEventsForwarderRuntimePromise ??= import("../infra/agent-events-forwarder.js");
+  return agentEventsForwarderRuntimePromise;
+}
+
+function loadSessionObservabilityBookendRuntime(): Promise<SessionObservabilityBookendRuntime> {
+  sessionObservabilityBookendRuntimePromise ??=
+    import("../sessions/session-observability-bookend.js");
+  return sessionObservabilityBookendRuntimePromise;
+}
+
+async function startAgentObservabilityRuntime(): Promise<void> {
+  const [forwarderRuntime, bookendRuntime] = await Promise.all([
+    loadAgentEventsForwarderRuntime(),
+    loadSessionObservabilityBookendRuntime(),
+  ]);
+  forwarderRuntime.startAgentEventsForwarder();
+  bookendRuntime.startSessionObservabilityBookend();
 }
 
 async function resolveAgentCommandDeps(deps: CliDeps | undefined): Promise<CliDeps> {
@@ -426,6 +453,10 @@ async function agentCommandInternal(
   let sessionEntry = prepared.sessionEntry;
 
   try {
+    await startAgentObservabilityRuntime().catch((error) => {
+      log.warn(`agent observability startup failed: ${formatErrorMessage(error)}`);
+    });
+
     if (opts.deliver === true) {
       const sendPolicy = resolveSendPolicy({
         cfg,
