@@ -50,6 +50,7 @@ export async function runGatewayClosePrelude(params: {
   disposeBrowserAuthRateLimiter: () => void;
   stopModelPricingRefresh?: () => void;
   stopChannelHealthMonitor?: () => void;
+  stopAgentObservability?: () => Promise<void>;
   clearSecretsRuntimeSnapshot?: () => void;
   closeMcpServer?: () => Promise<void>;
 }): Promise<void> {
@@ -60,6 +61,7 @@ export async function runGatewayClosePrelude(params: {
   params.disposeBrowserAuthRateLimiter();
   params.stopModelPricingRefresh?.();
   params.stopChannelHealthMonitor?.();
+  await params.stopAgentObservability?.().catch(() => {});
   params.clearSecretsRuntimeSnapshot?.();
   await params.closeMcpServer?.().catch(() => {});
 }

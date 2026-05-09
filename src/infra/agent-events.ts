@@ -111,6 +111,11 @@ export type AgentRunContext = {
   isHeartbeat?: boolean;
   /** Whether control UI clients should receive chat/agent updates for this run. */
   isControlUiVisible?: boolean;
+  /**
+   * True when the run owner will emit the session-observability close bookend
+   * after its own persistence path has finished.
+   */
+  deferSessionObservabilityClose?: boolean;
   /** Timestamp when this context was first registered (for TTL-based cleanup). */
   registeredAt?: number;
   /** Timestamp of last activity (updated on every emitAgentEvent). */
@@ -154,6 +159,9 @@ export function registerAgentRunContext(runId: string, context: AgentRunContext)
   }
   if (context.isControlUiVisible !== undefined) {
     existing.isControlUiVisible = context.isControlUiVisible;
+  }
+  if (context.deferSessionObservabilityClose !== undefined) {
+    existing.deferSessionObservabilityClose = context.deferSessionObservabilityClose;
   }
   if (context.isHeartbeat !== undefined && existing.isHeartbeat !== context.isHeartbeat) {
     existing.isHeartbeat = context.isHeartbeat;
@@ -287,6 +295,8 @@ export function onAgentEvent(listener: (evt: AgentEventPayload) => void) {
   const state = getAgentEventState();
   return registerListener(state.listeners, listener);
 }
+
+export const registerAgentEventListener = onAgentEvent;
 
 export function resetAgentEventsForTest() {
   const state = getAgentEventState();

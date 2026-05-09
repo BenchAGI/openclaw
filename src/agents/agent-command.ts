@@ -23,6 +23,10 @@ import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import { applyVerboseOverride } from "../sessions/level-overrides.js";
 import { applyModelOverrideToSessionEntry } from "../sessions/model-overrides.js";
 import { resolveSendPolicy } from "../sessions/send-policy.js";
+import {
+  emitSessionLifecycleEvent,
+  type SessionLifecycleStats,
+} from "../sessions/session-lifecycle-events.js";
 import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { sanitizeForLog } from "../terminal/ansi.js";
 import { resolveMessageChannel } from "../utils/message-channel.js";
@@ -77,6 +81,7 @@ type SkillsRuntime = typeof import("./skills.js");
 type SkillsFilterRuntime = typeof import("./skills/filter.js");
 type SkillsRefreshStateRuntime = typeof import("./skills/refresh-state.js");
 type SkillsRemoteRuntime = typeof import("../infra/skills-remote.js");
+type AgentObservabilityRuntime = typeof import("../infra/agent-observability-runtime.js");
 
 let attemptExecutionRuntimePromise: Promise<AttemptExecutionRuntime> | undefined;
 let acpManagerRuntimePromise: Promise<AcpManagerRuntime> | undefined;
@@ -92,6 +97,7 @@ let skillsRuntimePromise: Promise<SkillsRuntime> | undefined;
 let skillsFilterRuntimePromise: Promise<SkillsFilterRuntime> | undefined;
 let skillsRefreshStateRuntimePromise: Promise<SkillsRefreshStateRuntime> | undefined;
 let skillsRemoteRuntimePromise: Promise<SkillsRemoteRuntime> | undefined;
+let agentObservabilityRuntimePromise: Promise<AgentObservabilityRuntime> | undefined;
 
 function loadAttemptExecutionRuntime(): Promise<AttemptExecutionRuntime> {
   attemptExecutionRuntimePromise ??= import("./command/attempt-execution.runtime.js");
@@ -163,6 +169,16 @@ function loadSkillsRemoteRuntime(): Promise<SkillsRemoteRuntime> {
   return skillsRemoteRuntimePromise;
 }
 
+function loadAgentObservabilityRuntime(): Promise<AgentObservabilityRuntime> {
+  agentObservabilityRuntimePromise ??= import("../infra/agent-observability-runtime.js");
+  return agentObservabilityRuntimePromise;
+}
+
+async function ensureAgentObservabilityRuntime(): Promise<void> {
+  const observabilityRuntime = await loadAgentObservabilityRuntime();
+  observabilityRuntime.startAgentObservabilityRuntime();
+}
+
 async function resolveAgentCommandDeps(deps: CliDeps | undefined): Promise<CliDeps> {
   if (deps) {
     return deps;
@@ -202,6 +218,60 @@ const OVERRIDE_FIELDS_CLEARED_BY_DELETE: OverrideFieldClearedByDelete[] = [
 ];
 
 const OVERRIDE_VALUE_MAX_LENGTH = 256;
+
+function resolveTerminalSessionStatus(params: {
+  error?: boolean;
+  aborted?: boolean;
+  stopReason?: string;
+}): SessionEntry["status"] {
+  if (params.error) {
+    return "failed";
+  }
+  if (params.stopReason === "aborted") {
+    return "killed";
+  }
+  if (params.aborted === true) {
+    return "timeout";
+  }
+  return "done";
+}
+
+function buildTerminalLifecycleStats(params: {
+  startedAt: number;
+  endedAt: number;
+  aborted?: boolean;
+  stopReason?: string;
+  error?: string;
+}): SessionLifecycleStats {
+  const durationMs = Math.max(0, params.endedAt - params.startedAt);
+  return {
+    startedAt: params.startedAt,
+    endedAt: params.endedAt,
+    durationMs,
+    ...(params.aborted !== undefined ? { aborted: params.aborted } : {}),
+    ...(params.stopReason ? { stopReason: params.stopReason } : {}),
+    ...(params.error ? { error: params.error } : {}),
+    status: resolveTerminalSessionStatus({
+      error: Boolean(params.error),
+      aborted: params.aborted,
+      stopReason: params.stopReason,
+    }),
+  };
+}
+
+function emitAgentSessionClosedAfterPersistence(params: {
+  sessionKey?: string;
+  stats?: SessionLifecycleStats;
+}): void {
+  if (!params.sessionKey || !params.stats) {
+    return;
+  }
+  emitSessionLifecycleEvent({
+    sessionKey: params.sessionKey,
+    reason: "close",
+    stats: params.stats,
+  });
+}
 
 async function persistSessionEntry(params: PersistSessionEntryParams): Promise<void> {
   await persistSessionEntryBase({
@@ -426,6 +496,10 @@ async function agentCommandInternal(
   let sessionEntry = prepared.sessionEntry;
 
   try {
+    await ensureAgentObservabilityRuntime().catch((error) => {
+      log.warn(`agent observability startup failed: ${formatErrorMessage(error)}`);
+    });
+
     if (opts.deliver === true) {
       const sendPolicy = resolveSendPolicy({
         cfg,
@@ -448,6 +522,7 @@ async function agentCommandInternal(
       const startedAt = Date.now();
       registerAgentRunContext(runId, {
         sessionKey,
+        deferSessionObservabilityClose: true,
       });
       attemptExecutionRuntime.emitAcpLifecycleStart({ runId, startedAt });
 
@@ -511,10 +586,31 @@ async function agentCommandInternal(
           runId,
           message: acpError.message,
         });
+        emitAgentSessionClosedAfterPersistence({
+          sessionKey,
+          stats: buildTerminalLifecycleStats({
+            startedAt,
+            endedAt: Date.now(),
+            error: acpError.message,
+          }),
+        });
         throw acpError;
       }
 
-      attemptExecutionRuntime.emitAcpLifecycleEnd({ runId });
+      const acpEndedAt = Date.now();
+      const acpTerminalStats = buildTerminalLifecycleStats({
+        startedAt,
+        endedAt: acpEndedAt,
+        aborted: opts.abortSignal?.aborted === true,
+        stopReason,
+      });
+      attemptExecutionRuntime.emitAcpLifecycleEnd({
+        runId,
+        startedAt,
+        endedAt: acpEndedAt,
+        aborted: opts.abortSignal?.aborted === true,
+        stopReason,
+      });
 
       const finalTextRaw = visibleTextAccumulator.finalizeRaw();
       const finalText = visibleTextAccumulator.finalize();
@@ -544,6 +640,10 @@ async function agentCommandInternal(
         stopReason,
         abortSignal: opts.abortSignal,
       });
+      emitAgentSessionClosedAfterPersistence({
+        sessionKey,
+        stats: acpTerminalStats,
+      });
       const payloads = result.payloads;
       const { deliverAgentCommandResult } = await loadDeliveryRuntime();
 
@@ -567,6 +667,7 @@ async function agentCommandInternal(
       registerAgentRunContext(runId, {
         sessionKey,
         verboseLevel: resolvedVerboseLevel,
+        deferSessionObservabilityClose: true,
       });
     }
 
@@ -830,6 +931,7 @@ async function agentCommandInternal(
 
     const startedAt = Date.now();
     let lifecycleEnded = false;
+    let terminalLifecycleStats: SessionLifecycleStats | undefined;
     const attemptExecutionRuntime = await loadAttemptExecutionRuntime();
 
     let result: Awaited<ReturnType<AttemptExecutionRuntime["runAgentAttempt"]>>;
@@ -905,8 +1007,16 @@ async function agentCommandInternal(
         result = fallbackResult.result;
         fallbackProvider = fallbackResult.provider;
         fallbackModel = fallbackResult.model;
+        const endedAt = Date.now();
         if (!lifecycleEnded) {
           const stopReason = result.meta.stopReason;
+          const aborted = result.meta.aborted ?? false;
+          terminalLifecycleStats = buildTerminalLifecycleStats({
+            startedAt,
+            endedAt,
+            aborted,
+            stopReason,
+          });
           if (stopReason && stopReason !== "end_turn") {
             console.error(`[agent] run ${runId} ended with stopReason=${stopReason}`);
           }
@@ -916,10 +1026,17 @@ async function agentCommandInternal(
             data: {
               phase: "end",
               startedAt,
-              endedAt: Date.now(),
-              aborted: result.meta.aborted ?? false,
+              endedAt,
+              aborted,
               stopReason,
             },
+          });
+        } else {
+          terminalLifecycleStats = buildTerminalLifecycleStats({
+            startedAt,
+            endedAt,
+            aborted: result.meta.aborted ?? false,
+            stopReason: result.meta.stopReason,
           });
         }
         break;
@@ -930,6 +1047,12 @@ async function agentCommandInternal(
             log.error(
               `Live session model switch in subagent run ${runId}: exceeded maximum retries (${MAX_LIVE_SWITCH_RETRIES})`,
             );
+            const endedAt = Date.now();
+            terminalLifecycleStats = buildTerminalLifecycleStats({
+              startedAt,
+              endedAt,
+              error: "Agent run failed",
+            });
             if (!lifecycleEnded) {
               emitAgentEvent({
                 runId,
@@ -937,11 +1060,15 @@ async function agentCommandInternal(
                 data: {
                   phase: "error",
                   startedAt,
-                  endedAt: Date.now(),
+                  endedAt,
                   error: "Agent run failed",
                 },
               });
             }
+            emitAgentSessionClosedAfterPersistence({
+              sessionKey,
+              stats: terminalLifecycleStats,
+            });
             throw new Error(
               `Exceeded maximum live model switch retries (${MAX_LIVE_SWITCH_RETRIES})`,
               { cause: err },
@@ -954,6 +1081,12 @@ async function agentCommandInternal(
               `Live session model switch in subagent run ${runId}: ` +
                 `rejected ${sanitizeForLog(err.provider)}/${sanitizeForLog(err.model)} (not in allowlist)`,
             );
+            const endedAt = Date.now();
+            terminalLifecycleStats = buildTerminalLifecycleStats({
+              startedAt,
+              endedAt,
+              error: "Agent run failed",
+            });
             if (!lifecycleEnded) {
               emitAgentEvent({
                 runId,
@@ -961,11 +1094,15 @@ async function agentCommandInternal(
                 data: {
                   phase: "error",
                   startedAt,
-                  endedAt: Date.now(),
+                  endedAt,
                   error: "Agent run failed",
                 },
               });
             }
+            emitAgentSessionClosedAfterPersistence({
+              sessionKey,
+              stats: terminalLifecycleStats,
+            });
             throw new Error(
               `Live model switch rejected: ${sanitizeForLog(err.provider)}/${sanitizeForLog(err.model)} is not in the agent allowlist`,
               { cause: err },
@@ -1000,17 +1137,34 @@ async function agentCommandInternal(
           continue;
         }
         if (!lifecycleEnded) {
+          const endedAt = Date.now();
+          const message = err instanceof Error ? err.message : "Agent run failed";
+          terminalLifecycleStats = buildTerminalLifecycleStats({
+            startedAt,
+            endedAt,
+            error: message,
+          });
           emitAgentEvent({
             runId,
             stream: "lifecycle",
             data: {
               phase: "error",
               startedAt,
-              endedAt: Date.now(),
-              error: err instanceof Error ? err.message : "Agent run failed",
+              endedAt,
+              error: message,
             },
           });
+        } else {
+          terminalLifecycleStats = buildTerminalLifecycleStats({
+            startedAt,
+            endedAt: Date.now(),
+            error: err instanceof Error ? err.message : "Agent run failed",
+          });
         }
+        emitAgentSessionClosedAfterPersistence({
+          sessionKey,
+          stats: terminalLifecycleStats,
+        });
         throw err;
       }
     }
@@ -1054,6 +1208,11 @@ async function agentCommandInternal(
         );
       }
     }
+
+    emitAgentSessionClosedAfterPersistence({
+      sessionKey,
+      stats: terminalLifecycleStats,
+    });
 
     const payloads = result.payloads ?? [];
     const { deliverAgentCommandResult } = await loadDeliveryRuntime();

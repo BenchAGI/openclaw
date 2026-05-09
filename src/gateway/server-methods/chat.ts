@@ -36,6 +36,7 @@ import {
   isWebchatClient,
   normalizeMessageChannel,
 } from "../../utils/message-channel.js";
+import { pollBenchCloudCliTurnStatus } from "../bench-cloud-client.js";
 import {
   abortChatRunById,
   type ChatAbortControllerEntry,
@@ -43,7 +44,6 @@ import {
   isChatStopCommandText,
   resolveChatRunExpiresAtMs,
 } from "../chat-abort.js";
-import { pollBenchCloudCliTurnStatus } from "../bench-cloud-client.js";
 import {
   type ChatImageContent,
   type OffloadedRef,
@@ -1814,7 +1814,6 @@ export const chatHandlers: GatewayRequestHandlers = {
       sessionId,
       events: context.eventHistory.get(replaySessionKey, sinceSeq),
       messages: bounded.messages,
-      events: [],
       frames: [],
       eventHistory: {
         persisted: false,
@@ -2190,8 +2189,7 @@ export const chatHandlers: GatewayRequestHandlers = {
                 return;
               }
               const errorMessage =
-                status.error?.message ??
-                `cloud-brain directive ended in status: ${status.status}`;
+                status.error?.message ?? `cloud-brain directive ended in status: ${status.status}`;
               const error = errorShape(ErrorCodes.UNAVAILABLE, errorMessage);
               setGatewayDedupeEntry({
                 dedupe: context.dedupe,
@@ -2294,9 +2292,14 @@ export const chatHandlers: GatewayRequestHandlers = {
             error,
           },
         });
-        respond(true, { runId: clientRunId, status: "started" as const, remoteBrain: true }, undefined, {
-          runId: clientRunId,
-        });
+        respond(
+          true,
+          { runId: clientRunId, status: "started" as const, remoteBrain: true },
+          undefined,
+          {
+            runId: clientRunId,
+          },
+        );
         broadcastRemoteBrainAgentEvent({
           context,
           runId: clientRunId,

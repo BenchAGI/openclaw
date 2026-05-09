@@ -138,7 +138,7 @@ export async function createGatewayRuntimeState(params: {
     const eventHistory = createEventFrameHistory();
     const { broadcast, broadcastToConnIds } = createGatewayBroadcaster({
       clients,
-      onEventFrame: eventHistory.record,
+      onEventFrame: (frame) => eventHistory.record(frame),
     });
 
     const handleHooksRequest = createGatewayHooksRequestHandler({
