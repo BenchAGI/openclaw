@@ -30,7 +30,7 @@ vi.mock("../logging/subsystem.js", () => ({
   })),
 }));
 
-const { createGatewayCloseHandler } = await import("./server-close.js");
+const { createGatewayCloseHandler, runGatewayClosePrelude } = await import("./server-close.js");
 type GatewayCloseHandlerParams = Parameters<typeof createGatewayCloseHandler>[0];
 type GatewayCloseClient = GatewayCloseHandlerParams["clients"] extends Set<infer T> ? T : never;
 
@@ -272,5 +272,18 @@ describe("createGatewayCloseHandler", () => {
     await vi.advanceTimersByTimeAsync(HTTP_CLOSE_GRACE_MS + HTTP_CLOSE_FORCE_WAIT_MS);
     await closeExpectation;
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("runGatewayClosePrelude", () => {
+  it("stops agent observability during gateway shutdown", async () => {
+    const stopAgentObservability = vi.fn(async () => undefined);
+
+    await runGatewayClosePrelude({
+      disposeBrowserAuthRateLimiter: vi.fn(),
+      stopAgentObservability,
+    });
+
+    expect(stopAgentObservability).toHaveBeenCalledTimes(1);
   });
 });

@@ -60,8 +60,9 @@ function normalizeAgentIdAliases(value: unknown): Record<string, string> {
 }
 
 export function resolveBenchCloudBridgeConfig(cfg: OpenClawConfig): BenchCloudBridgeConfig {
-  const source = ((cfg as unknown as { gateway?: { benchCloud?: BenchCloudConfigSource } }).gateway
-    ?.benchCloud ?? {}) as BenchCloudConfigSource;
+  const source: BenchCloudConfigSource =
+    (cfg as unknown as { gateway?: { benchCloud?: BenchCloudConfigSource } }).gateway?.benchCloud ??
+    {};
   const enabled =
     source.enabled ??
     boolFromEnv(process.env.BENCH_CLOUD_BRIDGE_ENABLED) ??

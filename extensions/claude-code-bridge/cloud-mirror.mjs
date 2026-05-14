@@ -151,7 +151,32 @@ async function saveState(state) {
 
 // ─── Walk vault ──────────────────────────────────────────────────────
 
-async function* walkMarkdown(dir) {
+// Top-level folders inside VAULT_DIR that contain review-worthy content.
+// Anything else at the root (boards, saved views, attachments, source
+// artifacts, plural-syntheses bridge index, etc.) is Obsidian scaffolding
+// and should NOT be pushed to the cloud review queue. The cloud queue
+// piled up to 522 drafts (89% noise) before this allowlist was added —
+// see canon/topics/wiki-review-queue-triage-2026-05-02.md.
+//
+// Override with BENCH_WIKI_MIRROR_FOLDERS=canon,dreams,...  for forks.
+const DEFAULT_REVIEW_FOLDERS = [
+  "canon",
+  "dreams",
+  "synthesis", // singular — the plural "syntheses" is a bridge index, NOT review-worthy
+  "protocols",
+  "consolidations",
+  "consolidation",
+  "sops",
+  "sop",
+];
+const REVIEW_FOLDERS = new Set(
+  (process.env.BENCH_WIKI_MIRROR_FOLDERS ?? DEFAULT_REVIEW_FOLDERS.join(","))
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+
+async function* walkMarkdown(dir, depth = 0) {
   const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
   for (const entry of entries) {
     const p = path.join(dir, entry.name);
@@ -160,8 +185,17 @@ async function* walkMarkdown(dir) {
       if (entry.name.startsWith(".")) {
         continue;
       }
-      yield* walkMarkdown(p);
+      // At the vault root, only descend into review-worthy folders.
+      if (depth === 0 && !REVIEW_FOLDERS.has(entry.name)) {
+        continue;
+      }
+      yield* walkMarkdown(p, depth + 1);
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      // Bare-uppercase root files (AGENTS.md, DEMO.md, WIKI.md) are README/
+      // navigation scaffolding — never push them.
+      if (depth === 0 && /^[A-Z][A-Z0-9]+\.md$/.test(entry.name)) {
+        continue;
+      }
       yield p;
     }
   }
@@ -175,11 +209,28 @@ function slugFromPath(absPath) {
   return rel.replace(/\\/g, "/").replace(/\.md$/, "").replace(/\//g, "__");
 }
 
+// Mirrors the server's `isValidSlug` in apps/web/src/app/api/v1/wiki/ingest/route.ts.
+// Source of truth lives there; this is a client-side guard so files whose paths
+// produce slugs the server will reject (spaces, em-dashes, other unicode) get
+// skipped + warned ONCE instead of looping forever (writer never persists hash
+// for unacknowledged slugs, so every sync re-sends them and 400s).
+function isValidSlug(value) {
+  return (
+    typeof value === "string" && /^[a-z0-9_][a-z0-9\-_.]*$/i.test(value) && value.length <= 256
+  );
+}
+
 // ─── Scan + diff ─────────────────────────────────────────────────────
 
 async function scanEntries(state) {
   const changed = [];
   let skippedTooLarge = 0;
+  let skippedBadSlug = 0;
+  // Suppress repeat warnings — only warn once per bad path per process lifetime.
+  // (Without this, a single offending file in the vault would log on every sync.)
+  if (!state.warnedBadSlugs) {
+    state.warnedBadSlugs = {};
+  }
 
   for await (const absPath of walkMarkdown(VAULT_DIR)) {
     const stat = await fs.stat(absPath);
@@ -190,6 +241,15 @@ async function scanEntries(state) {
     const raw = await fs.readFile(absPath, "utf8");
     const { frontmatter, body } = parseFrontmatter(raw);
     const slug = slugFromPath(absPath);
+    if (!isValidSlug(slug)) {
+      skippedBadSlug += 1;
+      const sourcePath = path.relative(path.dirname(VAULT_DIR), absPath);
+      if (!state.warnedBadSlugs[sourcePath]) {
+        state.warnedBadSlugs[sourcePath] = new Date().toISOString();
+        await log("warn", "skipping file with invalid slug", { sourcePath, slug });
+      }
+      continue;
+    }
     const localHash = createHash("sha256").update(raw).digest("hex");
 
     if (state.hashes[slug] === localHash) {
@@ -213,7 +273,7 @@ async function scanEntries(state) {
     });
   }
 
-  return { changed, skippedTooLarge };
+  return { changed, skippedTooLarge, skippedBadSlug };
 }
 
 // ─── POST in batches ─────────────────────────────────────────────────
@@ -249,14 +309,14 @@ async function syncOnce() {
   }
 
   const state = await loadState();
-  const { changed, skippedTooLarge } = await scanEntries(state);
+  const { changed, skippedTooLarge, skippedBadSlug } = await scanEntries(state);
 
   if (changed.length === 0) {
-    await log("info", "no changes", { skippedTooLarge });
+    await log("info", "no changes", { skippedTooLarge, skippedBadSlug });
     return;
   }
 
-  await log("info", "syncing", { count: changed.length, skippedTooLarge });
+  await log("info", "syncing", { count: changed.length, skippedTooLarge, skippedBadSlug });
 
   for (let i = 0; i < changed.length; i += BATCH_SIZE) {
     const batch = changed.slice(i, i + BATCH_SIZE);

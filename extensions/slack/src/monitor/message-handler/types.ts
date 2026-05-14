@@ -3,7 +3,10 @@ import type { ResolvedAgentRoute } from "openclaw/plugin-sdk/routing";
 import type { ResolvedSlackAccount } from "../../accounts.js";
 import type { SlackMessageEvent } from "../../types.js";
 import type { SlackChannelConfigResolved } from "../channel-config.js";
-import type { SlackMonitorContext } from "../context.js";
+import type { SlackMonitorContext, SlackPreparedTurnSurfaceContext } from "../context.js";
+
+export interface PreparedSlackMessageContext
+  extends FinalizedMsgContext, SlackPreparedTurnSurfaceContext {}
 
 export type PreparedSlackMessage = {
   ctx: SlackMonitorContext;
@@ -12,7 +15,7 @@ export type PreparedSlackMessage = {
   route: ResolvedAgentRoute;
   channelConfig: SlackChannelConfigResolved | null;
   replyTarget: string;
-  ctxPayload: FinalizedMsgContext;
+  ctxPayload: PreparedSlackMessageContext;
   replyToMode: "off" | "first" | "all" | "batched";
   isDirectMessage: boolean;
   isRoomish: boolean;

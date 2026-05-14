@@ -9,6 +9,10 @@ import { loadConfig } from "../config/config.js";
 import { type AgentEventPayload, getAgentRunContext } from "../infra/agent-events.js";
 import { detectErrorKind, type ErrorKind } from "../infra/errors.js";
 import { resolveHeartbeatVisibility } from "../infra/heartbeat-visibility.js";
+import {
+  emitSessionLifecycleEvent,
+  type SessionLifecycleStats,
+} from "../sessions/session-lifecycle-events.js";
 import { stripInlineDirectiveTagsForDisplay } from "../utils/directive-tags.js";
 import {
   isSuppressedControlReplyLeadFragment,
@@ -452,6 +456,35 @@ function readChatErrorKind(value: unknown): ErrorKind | undefined {
     : undefined;
 }
 
+function readFiniteTimestamp(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function buildTerminalSessionStats(evt: AgentEventPayload): SessionLifecycleStats {
+  const startedAt = readFiniteTimestamp(evt.data?.startedAt);
+  const endedAt = readFiniteTimestamp(evt.data?.endedAt) ?? evt.ts;
+  const stopReason = typeof evt.data?.stopReason === "string" ? evt.data.stopReason : undefined;
+  const error = typeof evt.data?.error === "string" ? evt.data.error : undefined;
+  const aborted = evt.data?.aborted === true;
+  const status =
+    evt.data?.phase === "error"
+      ? "failed"
+      : stopReason === "aborted"
+        ? "killed"
+        : aborted
+          ? "timeout"
+          : "done";
+  return {
+    ...(startedAt !== undefined ? { startedAt } : {}),
+    endedAt,
+    ...(startedAt !== undefined ? { durationMs: Math.max(0, endedAt - startedAt) } : {}),
+    aborted,
+    ...(stopReason ? { stopReason } : {}),
+    ...(error ? { error } : {}),
+    status,
+  };
+}
+
 export type AgentEventHandlerOptions = {
   broadcast: ChatEventBroadcast;
   broadcastToConnIds: (
@@ -587,7 +620,9 @@ export function createAgentEventHandler({
     const chatLink = chatRunState.registry.peek(evt.runId);
     const eventSessionKey =
       typeof evt.sessionKey === "string" && evt.sessionKey.trim() ? evt.sessionKey : undefined;
-    const isControlUiVisible = getAgentRunContext(evt.runId)?.isControlUiVisible ?? true;
+    const runContext = getAgentRunContext(evt.runId);
+    const isControlUiVisible = runContext?.isControlUiVisible ?? true;
+    const shouldEmitObservabilityClose = runContext?.deferSessionObservabilityClose !== true;
     const sessionKey =
       chatLink?.sessionKey ?? eventSessionKey ?? resolveSessionKeyForRun(evt.runId);
     const clientRunId = chatLink?.clientRunId ?? evt.runId;
@@ -647,7 +682,18 @@ export function createAgentEventHandler({
     agentRunSeq.delete(clientRunId);
 
     if (sessionKey) {
-      void persistGatewaySessionLifecycleEvent({ sessionKey, event: evt }).catch(() => undefined);
+      void persistGatewaySessionLifecycleEvent({ sessionKey, event: evt })
+        .then(() => {
+          if (!shouldEmitObservabilityClose) {
+            return;
+          }
+          emitSessionLifecycleEvent({
+            sessionKey,
+            reason: "close",
+            stats: buildTerminalSessionStats(evt),
+          });
+        })
+        .catch(() => undefined);
       const sessionEventConnIds = sessionEventSubscribers.getAll();
       if (sessionEventConnIds.size > 0) {
         broadcastToConnIds(

@@ -870,6 +870,48 @@ export const SlackThreadSchema = z
   })
   .strict();
 
+const SlackAgentKitBridgeSchema = z
+  .object({
+    enabled: z.boolean().optional().default(false),
+    url: z.string().optional(),
+    timeoutMs: z.number().int().min(1000).optional().default(60000),
+    mode: z.literal("runtime-adapter").optional().default("runtime-adapter"),
+    policy: z.enum(["inherit", "dm", "channel", "disabled"]).optional().default("inherit"),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.enabled && value.url === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["url"],
+        message: "Slack Agent Kit bridge url is required when enabled.",
+      });
+      return;
+    }
+    if (value.url === undefined) {
+      return;
+    }
+    if (value.url.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["url"],
+        message: "Slack Agent Kit bridge url must be a non-empty string.",
+      });
+      return;
+    }
+    if (!value.url.startsWith("http://") && !value.url.startsWith("https://")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["url"],
+        message: "Slack Agent Kit bridge url must start with http:// or https://.",
+      });
+    }
+  })
+  .transform((value) => ({
+    ...value,
+    url: value.url ?? "",
+  }));
+
 const SlackReplyToModeByChatTypeSchema = z
   .object({
     direct: ReplyToModeSchema.optional(),
@@ -919,6 +961,7 @@ export const SlackAccountSchema = z
     replyToMode: ReplyToModeSchema.optional(),
     replyToModeByChatType: SlackReplyToModeByChatTypeSchema.optional(),
     thread: SlackThreadSchema.optional(),
+    agentKitBridge: SlackAgentKitBridgeSchema.optional(),
     actions: z
       .object({
         reactions: z.boolean().optional(),

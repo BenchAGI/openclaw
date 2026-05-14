@@ -59,3 +59,58 @@ export type SlackAppMentionEvent = {
   channel_type?: "im" | "mpim" | "channel" | "group";
   attachments?: SlackAttachment[];
 };
+
+// SlackAgentKitBridge* types live in the canonical config module so the
+// runtime, schema, and probe all agree on the shape. Re-export here for
+// local consumers that import from ./types.js.
+export type {
+  SlackAgentKitBridgeConfig,
+  SlackAgentKitBridgeMode,
+  SlackAgentKitBridgePolicy,
+} from "openclaw/plugin-sdk/config-runtime";
+
+export type SlackAssistantSurfaceType = "assistant-pane" | "channel" | "dm";
+
+export type SlackAssistantThreadContext = {
+  channel_id?: string;
+  team_id?: string;
+  enterprise_id?: string | null;
+};
+
+export type SlackAssistantThread = {
+  user_id?: string;
+  channel_id?: string;
+  thread_ts?: string;
+  context?: SlackAssistantThreadContext;
+};
+
+export type SlackAssistantThreadStartedEvent = {
+  type: "assistant_thread_started";
+  channel?: string;
+  thread_ts?: string;
+  user?: string;
+  team?: string;
+  event_ts?: string;
+  assistant_thread?: SlackAssistantThread;
+};
+
+export type SlackAssistantThreadContextChangedEvent = {
+  type: "assistant_thread_context_changed";
+  channel?: string;
+  thread_ts?: string;
+  user?: string;
+  team?: string;
+  event_ts?: string;
+  assistant_thread?: SlackAssistantThread;
+};
+
+export type SlackAssistantUserMessageEvent = {
+  type: "assistant_user_message";
+  channel?: string;
+  thread_ts?: string;
+  user?: string;
+  text?: string;
+  team?: string;
+  event_ts?: string;
+  assistant_thread?: SlackAssistantThread;
+};

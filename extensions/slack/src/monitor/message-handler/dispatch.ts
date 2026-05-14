@@ -45,6 +45,7 @@ import {
   resolveSlackThreadTs,
 } from "../replies.js";
 import { createReplyDispatcherWithTyping, dispatchInboundMessage } from "../reply.runtime.js";
+import { dispatchAssistantBridgeTurn } from "./dispatch-assistant.js";
 import { finalizeSlackPreviewEdit } from "./preview-finalize.js";
 import type { PreparedSlackMessage } from "./types.js";
 
@@ -209,6 +210,16 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
   const { ctx, account, message, route } = prepared;
   const cfg = ctx.cfg;
   const runtime = ctx.runtime;
+
+  if (
+    prepared.ctxPayload.surface_type === "assistant_pane" &&
+    account.config.agentKitBridge?.enabled === true
+  ) {
+    const result = await dispatchAssistantBridgeTurn(prepared);
+    if (result.bridgeCalled) {
+      return;
+    }
+  }
 
   // Resolve agent identity for Slack chat:write.customize overrides.
   const outboundIdentity = resolveAgentOutboundIdentity(cfg, route.agentId);

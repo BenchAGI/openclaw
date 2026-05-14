@@ -16,7 +16,9 @@ import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
 } from "openclaw/plugin-sdk/text-runtime";
+import { resolveSlackAccount } from "../accounts.js";
 import type { SlackMessageEvent } from "../types.js";
+import { createAgentKitBridgeClient, type AgentKitBridgeClient } from "./agent-kit-bridge.js";
 import { normalizeAllowList, normalizeAllowListLower, normalizeSlackSlug } from "./allow-list.js";
 import type { SlackChannelConfigEntries } from "./channel-config.js";
 import { resolveSlackChannelConfig } from "./channel-config.js";
@@ -433,5 +435,257 @@ export function createSlackMonitorContext(params: {
     resolveChannelName,
     resolveUserName,
     setSlackThreadStatus,
+  };
+}
+
+export type SlackAssistantBridgePolicy = "inherit" | "dm" | "channel" | "disabled";
+
+export type SlackAssistantSurfaceMetadata = {
+  accountId: string;
+  apiAppId?: string;
+  teamId?: string;
+  channelId: string;
+  userId: string;
+  threadTs: string;
+  activeChannelId?: string;
+  activeTeamId?: string;
+  eventType: string;
+  surfaceType: "assistant-pane";
+  sessionKey: string;
+  policy: SlackAssistantBridgePolicy;
+  ts?: string;
+};
+
+const slackAssistantSurfaces = new WeakMap<
+  SlackMonitorContext,
+  Map<string, SlackAssistantSurfaceMetadata>
+>();
+
+function slackAssistantSurfaceKeys(params: {
+  channelId: string;
+  threadTs: string;
+  userId?: string;
+}): string[] {
+  const scoped = params.userId
+    ? `${params.channelId}:${params.threadTs}:${params.userId}`
+    : undefined;
+  const thread = `${params.channelId}:${params.threadTs}`;
+  return scoped ? [scoped, thread] : [thread];
+}
+
+export function markAssistantSurface(
+  ctx: SlackMonitorContext,
+  payload: SlackAssistantSurfaceMetadata,
+): SlackAssistantSurfaceMetadata {
+  const surfaces =
+    slackAssistantSurfaces.get(ctx) ?? new Map<string, SlackAssistantSurfaceMetadata>();
+  for (const key of slackAssistantSurfaceKeys({
+    channelId: payload.channelId,
+    threadTs: payload.threadTs,
+    userId: payload.userId,
+  })) {
+    surfaces.set(key, payload);
+  }
+  slackAssistantSurfaces.set(ctx, surfaces);
+  return payload;
+}
+
+export function getAssistantSurfaceMetadata(
+  ctx: SlackMonitorContext,
+  params: { channelId?: string; threadTs?: string; userId?: string },
+): SlackAssistantSurfaceMetadata | undefined {
+  if (!params.channelId || !params.threadTs) {
+    return undefined;
+  }
+  const surfaces = slackAssistantSurfaces.get(ctx);
+  if (!surfaces) {
+    return undefined;
+  }
+  for (const key of slackAssistantSurfaceKeys({
+    channelId: params.channelId,
+    threadTs: params.threadTs,
+    userId: params.userId,
+  })) {
+    const metadata = surfaces.get(key);
+    if (metadata) {
+      return metadata;
+    }
+  }
+  return undefined;
+}
+
+const agentKitBridgeClients = new WeakMap<SlackMonitorContext, AgentKitBridgeClient>();
+
+export function getAgentKitBridgeClient(ctx: SlackMonitorContext): AgentKitBridgeClient {
+  const cached = agentKitBridgeClients.get(ctx);
+  if (cached) {
+    return cached;
+  }
+  const account = resolveSlackAccount({
+    cfg: ctx.cfg,
+    accountId: ctx.accountId,
+  });
+  const client = createAgentKitBridgeClient(
+    account.config.agentKitBridge ?? {
+      enabled: false,
+      url: "",
+      timeoutMs: 60000,
+      mode: "runtime-adapter",
+      policy: "inherit",
+    },
+    {
+      logger: ctx.logger,
+      accountId: ctx.accountId,
+      teamId: ctx.teamId,
+      appId: ctx.apiAppId,
+    },
+  );
+  agentKitBridgeClients.set(ctx, client);
+  return client;
+}
+
+export type SlackPreparedTurnSurfaceType = "channel" | "dm" | "assistant_pane";
+
+export type SlackPreparedAssistantThreadContext = {
+  channel_id: string | null;
+  team_id: string | null;
+  thread_ts: string | null;
+  assistant_channel_id: string | null;
+  assistant_thread_ts: string | null;
+};
+
+export type SlackPreparedTurnSurfaceContext = {
+  account_id: string;
+  team_id: string;
+  app_id: string;
+  channel_id: string | null;
+  thread_ts: string | null;
+  user_id: string;
+  surface_type: SlackPreparedTurnSurfaceType;
+  turn_source_event: string;
+  turn_source_ts: string | null;
+  assistant_thread_context?: SlackPreparedAssistantThreadContext;
+};
+
+export type SlackAssistantPolicyResolution = {
+  channelId?: string;
+  channelType: "channel" | "im";
+  policySource: "channel" | "dm";
+};
+
+export function resolveAssistantPolicy(
+  ctx: SlackMonitorContext,
+  params: {
+    accountId: string;
+    configuredPolicy?: unknown;
+    metadata: SlackAssistantSurfaceMetadata;
+  },
+): SlackAssistantPolicyResolution {
+  const configuredPolicy =
+    typeof params.configuredPolicy === "string" ? params.configuredPolicy : undefined;
+  if (configuredPolicy && configuredPolicy !== "inherit") {
+    ctx.logger.warn(
+      {
+        account_id: params.accountId,
+        api_app_id: params.metadata.apiAppId,
+        team_id: params.metadata.teamId,
+        channel_id: params.metadata.activeChannelId,
+        assistant_channel_id: params.metadata.channelId,
+        thread_ts: params.metadata.threadTs,
+        user_id: params.metadata.userId,
+        surface_type: "assistant_pane",
+        configured_policy: configuredPolicy,
+        effective_policy: "inherit",
+      },
+      "slack assistant bridge policy fallback",
+    );
+  }
+
+  const inheritedChannelId = normalizeOptionalString(params.metadata.activeChannelId);
+  if (inheritedChannelId) {
+    return {
+      channelId: inheritedChannelId,
+      channelType: "channel",
+      policySource: "channel",
+    };
+  }
+
+  return {
+    channelType: "im",
+    policySource: "dm",
+  };
+}
+
+function slackTurnSourceEvent(params: {
+  source: "message" | "app_mention";
+  channelType?: SlackMessageEvent["channel_type"];
+  channelId: string;
+}): string {
+  if (params.source === "app_mention") {
+    return "app_mention";
+  }
+  const channelType = normalizeSlackChannelType(params.channelType, params.channelId);
+  return channelType === "im"
+    ? "message.im"
+    : channelType === "mpim"
+      ? "message.mpim"
+      : channelType === "group"
+        ? "message.groups"
+        : "message.channels";
+}
+
+export function buildAssistantTurnContext(params: {
+  ctx: SlackMonitorContext;
+  accountId: string;
+  message: SlackMessageEvent;
+  source: "message" | "app_mention";
+  assistantMetadata?: SlackAssistantSurfaceMetadata;
+}): SlackPreparedTurnSurfaceContext {
+  const { ctx, message, assistantMetadata } = params;
+  const turnSourceTs = message.event_ts ?? message.ts ?? assistantMetadata?.ts ?? null;
+  const userId = assistantMetadata?.userId ?? message.user ?? message.bot_id ?? "";
+
+  if (assistantMetadata) {
+    const activeChannelId = normalizeOptionalString(assistantMetadata.activeChannelId) ?? null;
+    return {
+      account_id: params.accountId,
+      team_id: ctx.teamId || assistantMetadata.teamId || "",
+      app_id: ctx.apiAppId || assistantMetadata.apiAppId || "",
+      channel_id: activeChannelId,
+      thread_ts: assistantMetadata.threadTs,
+      user_id: userId,
+      surface_type: "assistant_pane",
+      turn_source_event: slackTurnSourceEvent({
+        source: params.source,
+        channelType: message.channel_type,
+        channelId: message.channel,
+      }),
+      turn_source_ts: turnSourceTs,
+      assistant_thread_context: {
+        channel_id: activeChannelId,
+        team_id: normalizeOptionalString(assistantMetadata.activeTeamId) ?? null,
+        thread_ts: null,
+        assistant_channel_id: assistantMetadata.channelId,
+        assistant_thread_ts: assistantMetadata.threadTs,
+      },
+    };
+  }
+
+  const channelType = normalizeSlackChannelType(message.channel_type, message.channel);
+  const surfaceType: SlackPreparedTurnSurfaceType = channelType === "im" ? "dm" : "channel";
+  return {
+    account_id: params.accountId,
+    team_id: ctx.teamId,
+    app_id: ctx.apiAppId,
+    channel_id: message.channel,
+    thread_ts: message.thread_ts ?? null,
+    user_id: userId,
+    surface_type: surfaceType,
+    turn_source_event: slackTurnSourceEvent({
+      source: params.source,
+      channelType: message.channel_type,
+      channelId: message.channel,
+    }),
+    turn_source_ts: turnSourceTs,
   };
 }

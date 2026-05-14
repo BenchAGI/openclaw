@@ -145,6 +145,7 @@ describe("subagent registry persistence resume", () => {
     process.env.OPENCLAW_STATE_DIR = tempStateDir;
     const registryPath = path.join(tempStateDir, "subagents", "runs.json");
     hoisted.registryPath = registryPath;
+    hoisted.allowedRunIds = new Set(["run-1"]);
     await fs.mkdir(path.dirname(registryPath), { recursive: true });
     await fs.writeFile(
       registryPath,

@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "endpoint": "https://benchagi.example.com/api/v1/agent/events",
+  "tenantApiKey": "replace-with-tenant-api-key",
+  "agentId": "aurelius",
+  "hostId": "mac-mini-2"
+}

@@ -17,6 +17,10 @@ import {
 import { applyPluginAutoEnable } from "../config/plugin-auto-enable.js";
 import { resolveMainSessionKey } from "../config/sessions.js";
 import { clearAgentRunContext } from "../infra/agent-events.js";
+import {
+  startAgentObservabilityRuntime,
+  stopAgentObservabilityRuntime,
+} from "../infra/agent-observability-runtime.js";
 import { isDiagnosticsEnabled } from "../infra/diagnostic-events.js";
 import { isVitestRuntimeEnv, logAcceptedEnvOption } from "../infra/env.js";
 import { ensureOpenClawCliOnPath } from "../infra/path-env.js";
@@ -515,6 +519,7 @@ export async function startGatewayServer(
       disposeBrowserAuthRateLimiter: () => browserAuthRateLimiter.dispose(),
       stopModelPricingRefresh: runtimeState.stopModelPricingRefresh,
       stopChannelHealthMonitor: () => runtimeState?.channelHealthMonitor?.stop(),
+      stopAgentObservability: stopAgentObservabilityRuntime,
       clearSecretsRuntimeSnapshot,
       closeMcpServer: async () => await closeMcpLoopbackServer(),
     });
@@ -623,6 +628,8 @@ export async function startGatewayServer(
         log,
       }),
     );
+
+    startAgentObservabilityRuntime();
 
     const { execApprovalManager, pluginApprovalManager, extraHandlers } = createGatewayAuxHandlers({
       log,
