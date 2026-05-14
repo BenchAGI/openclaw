@@ -435,3 +435,79 @@ export function createSlackMonitorContext(params: {
     setSlackThreadStatus,
   };
 }
+
+export type SlackAssistantBridgePolicy = "inherit" | "dm" | "channel" | "disabled";
+
+export type SlackAssistantSurfaceMetadata = {
+  accountId: string;
+  apiAppId?: string;
+  teamId?: string;
+  channelId: string;
+  userId: string;
+  threadTs: string;
+  activeChannelId?: string;
+  activeTeamId?: string;
+  eventType: string;
+  surfaceType: "assistant-pane";
+  sessionKey: string;
+  policy: SlackAssistantBridgePolicy;
+  ts?: string;
+};
+
+const slackAssistantSurfaces = new WeakMap<
+  SlackMonitorContext,
+  Map<string, SlackAssistantSurfaceMetadata>
+>();
+
+function slackAssistantSurfaceKeys(params: {
+  channelId: string;
+  threadTs: string;
+  userId?: string;
+}): string[] {
+  const scoped = params.userId
+    ? `${params.channelId}:${params.threadTs}:${params.userId}`
+    : undefined;
+  const thread = `${params.channelId}:${params.threadTs}`;
+  return scoped ? [scoped, thread] : [thread];
+}
+
+export function markAssistantSurface(
+  ctx: SlackMonitorContext,
+  payload: SlackAssistantSurfaceMetadata,
+): SlackAssistantSurfaceMetadata {
+  const surfaces =
+    slackAssistantSurfaces.get(ctx) ?? new Map<string, SlackAssistantSurfaceMetadata>();
+  for (const key of slackAssistantSurfaceKeys({
+    channelId: payload.channelId,
+    threadTs: payload.threadTs,
+    userId: payload.userId,
+  })) {
+    surfaces.set(key, payload);
+  }
+  slackAssistantSurfaces.set(ctx, surfaces);
+  return payload;
+}
+
+export function getAssistantSurfaceMetadata(
+  ctx: SlackMonitorContext,
+  params: { channelId?: string; threadTs?: string; userId?: string },
+): SlackAssistantSurfaceMetadata | undefined {
+  if (!params.channelId || !params.threadTs) {
+    return undefined;
+  }
+  const surfaces = slackAssistantSurfaces.get(ctx);
+  if (!surfaces) {
+    return undefined;
+  }
+  for (const key of slackAssistantSurfaceKeys({
+    channelId: params.channelId,
+    threadTs: params.threadTs,
+    userId: params.userId,
+  })) {
+    const metadata = surfaces.get(key);
+    if (metadata) {
+      return metadata;
+    }
+  }
+  return undefined;
+}
