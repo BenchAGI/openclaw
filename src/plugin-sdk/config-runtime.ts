@@ -78,6 +78,8 @@ export type {
   ReplyToMode,
   SignalReactionNotificationMode,
   SlackAccountConfig,
+  SlackAgentKitBridgeConfig,
+  SlackAgentKitBridgeMode,
   SlackChannelConfig,
   SlackReactionNotificationMode,
   SlackSlashCommandConfig,
