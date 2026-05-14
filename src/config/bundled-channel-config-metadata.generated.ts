@@ -10989,6 +10989,7 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
           },
           additionalProperties: false,
         },
+        agentKitBridge: {},
         actions: {
           type: "object",
           properties: {
@@ -11898,6 +11899,7 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
                 },
                 additionalProperties: false,
               },
+              agentKitBridge: {},
               actions: {
                 type: "object",
                 properties: {
@@ -12242,6 +12244,30 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
       "execApprovals.target": {
         label: "Slack Exec Approval Target",
         help: 'Controls where Slack approval prompts are sent: "dm" sends to approver DMs (default), "channel" sends to the originating Slack chat/thread, and "both" sends to both. Channel delivery exposes the command text to the chat, so only use it in trusted channels.',
+      },
+      agentKitBridge: {
+        label: "Slack Agent Kit Bridge",
+        help: "Account-scoped localhost bridge for Slack Assistant mode. OpenClaw keeps Slack policy and delivery while the local sidecar runs the Agent Kit runtime.",
+      },
+      "agentKitBridge.enabled": {
+        label: "Slack Agent Kit Bridge Enabled",
+        help: "Enable the local Agent Kit runtime adapter for this Slack account. Default: false.",
+      },
+      "agentKitBridge.url": {
+        label: "Slack Agent Kit Bridge URL",
+        help: "Loopback URL for the local bridge sidecar, for example http://127.0.0.1:8717.",
+      },
+      "agentKitBridge.timeoutMs": {
+        label: "Slack Agent Kit Bridge Timeout",
+        help: "Maximum bridge request duration in milliseconds. Default: 60000.",
+      },
+      "agentKitBridge.mode": {
+        label: "Slack Agent Kit Bridge Mode",
+        help: 'Bridge mode for the sidecar runtime. Phase 2 supports "runtime-adapter".',
+      },
+      "agentKitBridge.policy": {
+        label: "Slack Agent Kit Bridge Policy",
+        help: 'Assistant-pane policy mapping. Default: "inherit"; use "disabled" to suppress Assistant mode for this account.',
       },
       streaming: {
         label: "Slack Streaming Mode",
@@ -15215,7 +15241,6 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
                 type: "string",
               },
               dmPolicy: {
-                default: "pairing",
                 type: "string",
                 enum: ["pairing", "allowlist", "open", "disabled"],
               },
@@ -15238,7 +15263,6 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
                 },
               },
               groupPolicy: {
-                default: "allowlist",
                 type: "string",
                 enum: ["open", "disabled", "allowlist"],
               },
@@ -15399,7 +15423,6 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
                 enum: ["off", "ack", "minimal", "extensive"],
               },
               debounceMs: {
-                default: 0,
                 type: "integer",
                 minimum: 0,
                 maximum: 9007199254740991,
@@ -15440,7 +15463,6 @@ export const GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA = [
                 maximum: 9007199254740991,
               },
             },
-            required: ["dmPolicy", "groupPolicy", "debounceMs"],
             additionalProperties: false,
           },
         },
