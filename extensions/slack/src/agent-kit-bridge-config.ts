@@ -6,5 +6,6 @@ export function defaultAgentKitBridgeConfig(): SlackAgentKitBridgeConfig {
     url: "",
     timeoutMs: 60000,
     mode: "runtime-adapter",
+    policy: "inherit",
   };
 }

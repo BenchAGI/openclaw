@@ -80,6 +80,7 @@ export type {
   SlackAccountConfig,
   SlackAgentKitBridgeConfig,
   SlackAgentKitBridgeMode,
+  SlackAgentKitBridgePolicy,
   SlackChannelConfig,
   SlackReactionNotificationMode,
   SlackSlashCommandConfig,

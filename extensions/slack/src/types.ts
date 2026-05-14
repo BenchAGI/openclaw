@@ -60,16 +60,14 @@ export type SlackAppMentionEvent = {
   attachments?: SlackAttachment[];
 };
 
-export type SlackAgentKitBridgeMode = "runtime-adapter";
-export type SlackAgentKitBridgePolicy = "inherit" | "dm" | "channel" | "disabled";
-
-export interface SlackAgentKitBridgeConfig {
-  enabled: boolean;
-  url: string;
-  timeoutMs: number;
-  mode: SlackAgentKitBridgeMode;
-  policy?: SlackAgentKitBridgePolicy;
-}
+// SlackAgentKitBridge* types live in the canonical config module so the
+// runtime, schema, and probe all agree on the shape. Re-export here for
+// local consumers that import from ./types.js.
+export type {
+  SlackAgentKitBridgeConfig,
+  SlackAgentKitBridgeMode,
+  SlackAgentKitBridgePolicy,
+} from "openclaw/plugin-sdk/config-runtime";
 
 export type SlackAssistantSurfaceType = "assistant-pane" | "channel" | "dm";
 

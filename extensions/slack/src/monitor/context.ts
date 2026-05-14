@@ -16,7 +16,9 @@ import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
 } from "openclaw/plugin-sdk/text-runtime";
+import { resolveSlackAccount } from "../accounts.js";
 import type { SlackMessageEvent } from "../types.js";
+import { createAgentKitBridgeClient, type AgentKitBridgeClient } from "./agent-kit-bridge.js";
 import { normalizeAllowList, normalizeAllowListLower, normalizeSlackSlug } from "./allow-list.js";
 import type { SlackChannelConfigEntries } from "./channel-config.js";
 import { resolveSlackChannelConfig } from "./channel-config.js";
@@ -510,4 +512,34 @@ export function getAssistantSurfaceMetadata(
     }
   }
   return undefined;
+}
+
+const agentKitBridgeClients = new WeakMap<SlackMonitorContext, AgentKitBridgeClient>();
+
+export function getAgentKitBridgeClient(ctx: SlackMonitorContext): AgentKitBridgeClient {
+  const cached = agentKitBridgeClients.get(ctx);
+  if (cached) {
+    return cached;
+  }
+  const account = resolveSlackAccount({
+    cfg: ctx.cfg,
+    accountId: ctx.accountId,
+  });
+  const client = createAgentKitBridgeClient(
+    account.config.agentKitBridge ?? {
+      enabled: false,
+      url: "",
+      timeoutMs: 60000,
+      mode: "runtime-adapter",
+      policy: "inherit",
+    },
+    {
+      logger: ctx.logger,
+      accountId: ctx.accountId,
+      teamId: ctx.teamId,
+      appId: ctx.apiAppId,
+    },
+  );
+  agentKitBridgeClients.set(ctx, client);
+  return client;
 }

@@ -73,6 +73,30 @@ export const slackChannelConfigUiHints = {
     label: "Slack Exec Approval Target",
     help: 'Controls where Slack approval prompts are sent: "dm" sends to approver DMs (default), "channel" sends to the originating Slack chat/thread, and "both" sends to both. Channel delivery exposes the command text to the chat, so only use it in trusted channels.',
   },
+  agentKitBridge: {
+    label: "Slack Agent Kit Bridge",
+    help: "Account-scoped localhost bridge for Slack Assistant mode. OpenClaw keeps Slack policy and delivery while the local sidecar runs the Agent Kit runtime.",
+  },
+  "agentKitBridge.enabled": {
+    label: "Slack Agent Kit Bridge Enabled",
+    help: "Enable the local Agent Kit runtime adapter for this Slack account. Default: false.",
+  },
+  "agentKitBridge.url": {
+    label: "Slack Agent Kit Bridge URL",
+    help: "Loopback URL for the local bridge sidecar, for example http://127.0.0.1:8717.",
+  },
+  "agentKitBridge.timeoutMs": {
+    label: "Slack Agent Kit Bridge Timeout",
+    help: "Maximum bridge request duration in milliseconds. Default: 60000.",
+  },
+  "agentKitBridge.mode": {
+    label: "Slack Agent Kit Bridge Mode",
+    help: 'Bridge mode for the sidecar runtime. Phase 2 supports "runtime-adapter".',
+  },
+  "agentKitBridge.policy": {
+    label: "Slack Agent Kit Bridge Policy",
+    help: 'Assistant-pane policy mapping. Default: "inherit"; use "disabled" to suppress Assistant mode for this account.',
+  },
   streaming: {
     label: "Slack Streaming Mode",
     help: 'Unified Slack stream preview mode: "off" | "partial" | "block" | "progress". Legacy boolean/streamMode keys are auto-mapped.',
