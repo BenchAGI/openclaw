@@ -35,8 +35,31 @@ function buildSlackManifest(botName: string) {
         always_online: true,
       },
       app_home: {
+        home_tab_enabled: true,
         messages_tab_enabled: true,
         messages_tab_read_only_enabled: false,
+      },
+      assistant_view: {
+        assistant_description:
+          "I observe, contextualize, and route. Ask me what's happening, who's discussing what, or who should own this.",
+        suggested_prompts: [
+          {
+            title: "What's in the forge?",
+            message: "What's in the forge?",
+          },
+          {
+            title: "Recent threads I missed",
+            message: "Recent threads I missed",
+          },
+          {
+            title: "Who's talking about deploys?",
+            message: "Who's talking about deploys?",
+          },
+          {
+            title: "Introduce yourself",
+            message: "Introduce yourself",
+          },
+        ],
       },
       slash_commands: [
         {
@@ -78,7 +101,10 @@ function buildSlackManifest(botName: string) {
       socket_mode_enabled: true,
       event_subscriptions: {
         bot_events: [
+          "app_home_opened",
           "app_mention",
+          "assistant_thread_started",
+          "assistant_thread_context_changed",
           "channel_rename",
           "member_joined_channel",
           "member_left_channel",
