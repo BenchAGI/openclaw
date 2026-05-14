@@ -16,6 +16,7 @@ import {
 } from "../shared/string-coerce.js";
 import { resolveUserPath } from "../utils.js";
 import {
+  canonicalizeAgentId,
   listAgentEntries,
   listAgentIds,
   resolveAgentConfig,
@@ -27,6 +28,7 @@ import {
 } from "./agent-scope-config.js";
 import { resolveEffectiveAgentSkillFilter } from "./skills/agent-filter.js";
 export {
+  canonicalizeAgentId,
   listAgentEntries,
   listAgentIds,
   resolveAgentConfig,

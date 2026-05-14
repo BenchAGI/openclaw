@@ -32,7 +32,7 @@ import { sanitizeForLog } from "../terminal/ansi.js";
 import { resolveMessageChannel } from "../utils/message-channel.js";
 import { resolveAgentRuntimeConfig } from "./agent-runtime-config.js";
 import {
-  listAgentIds,
+  canonicalizeAgentId,
   resolveAgentDir,
   resolveEffectiveModelFallbacks,
   resolveSessionAgentId,
@@ -332,14 +332,13 @@ async function prepareAgentCommandExecution(
     workspaceDir: opts.workspaceDir,
   });
   const agentIdOverrideRaw = opts.agentId?.trim();
-  const agentIdOverride = agentIdOverrideRaw ? normalizeAgentId(agentIdOverrideRaw) : undefined;
-  if (agentIdOverride) {
-    const knownAgents = listAgentIds(cfg);
-    if (!knownAgents.includes(agentIdOverride)) {
-      throw new Error(
-        `Unknown agent id "${agentIdOverrideRaw}". Use "${formatCliCommand("openclaw agents list")}" to see configured agents.`,
-      );
-    }
+  const agentIdOverride = agentIdOverrideRaw
+    ? canonicalizeAgentId(cfg, agentIdOverrideRaw)
+    : undefined;
+  if (agentIdOverrideRaw && !agentIdOverride) {
+    throw new Error(
+      `Unknown agent id "${agentIdOverrideRaw}". Use "${formatCliCommand("openclaw agents list")}" to see configured agents.`,
+    );
   }
   if (agentIdOverride && opts.sessionKey) {
     const sessionAgentId = resolveAgentIdFromSessionKey(opts.sessionKey);
