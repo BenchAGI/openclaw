@@ -876,6 +876,7 @@ const SlackAgentKitBridgeSchema = z
     url: z.string().optional(),
     timeoutMs: z.number().int().min(1000).optional().default(60000),
     mode: z.literal("runtime-adapter").optional().default("runtime-adapter"),
+    policy: z.enum(["inherit", "dm", "channel", "disabled"]).optional().default("inherit"),
   })
   .strict()
   .superRefine((value, ctx) => {

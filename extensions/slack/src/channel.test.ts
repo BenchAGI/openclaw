@@ -313,7 +313,7 @@ describe("slackPlugin status", () => {
       cfg,
     });
 
-    expect(probeSpy).toHaveBeenCalledWith("xoxb-test", 2500);
+    expect(probeSpy).toHaveBeenCalledWith("xoxb-test", 2500, undefined);
     expect(result).toEqual({
       ok: true,
       status: 200,

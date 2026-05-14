@@ -45,6 +45,7 @@ describe("Slack agentKitBridge account config", () => {
             url: "http://127.0.0.1:4317",
             timeoutMs: 1500,
             mode: "runtime-adapter",
+            policy: "channel",
           },
         },
       },
@@ -55,6 +56,7 @@ describe("Slack agentKitBridge account config", () => {
       url: "http://127.0.0.1:4317",
       timeoutMs: 1500,
       mode: "runtime-adapter",
+      policy: "channel",
     });
   });
 

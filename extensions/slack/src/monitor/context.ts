@@ -435,3 +435,36 @@ export function createSlackMonitorContext(params: {
     setSlackThreadStatus,
   };
 }
+
+import { resolveSlackAccount } from "../accounts.js";
+import { createAgentKitBridgeClient, type AgentKitBridgeClient } from "./agent-kit-bridge.js";
+
+const agentKitBridgeClients = new WeakMap<SlackMonitorContext, AgentKitBridgeClient>();
+
+export function getAgentKitBridgeClient(ctx: SlackMonitorContext): AgentKitBridgeClient {
+  const cached = agentKitBridgeClients.get(ctx);
+  if (cached) {
+    return cached;
+  }
+  const account = resolveSlackAccount({
+    cfg: ctx.cfg,
+    accountId: ctx.accountId,
+  });
+  const client = createAgentKitBridgeClient(
+    account.config.agentKitBridge ?? {
+      enabled: false,
+      url: "",
+      timeoutMs: 60000,
+      mode: "runtime-adapter",
+      policy: "inherit",
+    },
+    {
+      logger: ctx.logger,
+      accountId: ctx.accountId,
+      teamId: ctx.teamId,
+      appId: ctx.apiAppId,
+    },
+  );
+  agentKitBridgeClients.set(ctx, client);
+  return client;
+}

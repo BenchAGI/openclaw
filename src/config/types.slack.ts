@@ -107,6 +107,7 @@ export type SlackThreadConfig = {
 };
 
 export type SlackAgentKitBridgeMode = "runtime-adapter";
+export type SlackAgentKitBridgePolicy = "inherit" | "dm" | "channel" | "disabled";
 
 export type SlackAgentKitBridgeConfig = {
   /** Enable the local Agent Kit runtime adapter bridge. Default: false. */
@@ -117,6 +118,8 @@ export type SlackAgentKitBridgeConfig = {
   timeoutMs?: number;
   /** Bridge mode. Phase 2 supports only the runtime adapter. */
   mode?: SlackAgentKitBridgeMode;
+  /** Assistant-pane policy mapping. Default: inherit. */
+  policy?: SlackAgentKitBridgePolicy;
 };
 
 export type SlackAccountConfig = {

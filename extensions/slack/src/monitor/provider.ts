@@ -40,7 +40,7 @@ import {
   resolveOpenProviderRuntimeGroupPolicy,
   warnMissingProviderGroupPolicyFallbackOnce,
 } from "./config.runtime.js";
-import { createSlackMonitorContext } from "./context.js";
+import { createSlackMonitorContext, getAgentKitBridgeClient } from "./context.js";
 import { registerSlackMonitorEvents } from "./events.js";
 import { createSlackMessageHandler } from "./message-handler.js";
 import {
@@ -433,6 +433,7 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
     mediaMaxBytes,
     removeAckAfterReply,
   });
+  getAgentKitBridgeClient(ctx);
 
   // Wire up event liveness tracking: update lastEventAt on every inbound event
   // so the health monitor can detect "half-dead" sockets that pass health checks

@@ -61,10 +61,12 @@ export type SlackAppMentionEvent = {
 };
 
 export type SlackAgentKitBridgeMode = "runtime-adapter";
+export type SlackAgentKitBridgePolicy = "inherit" | "dm" | "channel" | "disabled";
 
 export interface SlackAgentKitBridgeConfig {
   enabled: boolean;
   url: string;
   timeoutMs: number;
   mode: SlackAgentKitBridgeMode;
+  policy: SlackAgentKitBridgePolicy;
 }
