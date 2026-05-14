@@ -106,6 +106,19 @@ export type SlackThreadConfig = {
   requireExplicitMention?: boolean;
 };
 
+export type SlackAgentKitBridgeMode = "runtime-adapter";
+
+export type SlackAgentKitBridgeConfig = {
+  /** Enable the local Agent Kit runtime adapter bridge. Default: false. */
+  enabled?: boolean;
+  /** Local bridge URL. Required when enabled. */
+  url?: string;
+  /** Sidecar request timeout in milliseconds. Default: 60000. */
+  timeoutMs?: number;
+  /** Bridge mode. Phase 2 supports only the runtime adapter. */
+  mode?: SlackAgentKitBridgeMode;
+};
+
 export type SlackAccountConfig = {
   /** Optional display name for this account (used in CLI/UI lists). */
   name?: string;
@@ -173,6 +186,8 @@ export type SlackAccountConfig = {
   replyToModeByChatType?: Partial<Record<"direct" | "group" | "channel", ReplyToMode>>;
   /** Thread session behavior. */
   thread?: SlackThreadConfig;
+  /** Account-scoped local Agent Kit runtime adapter bridge. */
+  agentKitBridge?: SlackAgentKitBridgeConfig;
   actions?: SlackActionConfig;
   slashCommand?: SlackSlashCommandConfig;
   /**

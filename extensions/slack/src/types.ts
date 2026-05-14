@@ -59,3 +59,12 @@ export type SlackAppMentionEvent = {
   channel_type?: "im" | "mpim" | "channel" | "group";
   attachments?: SlackAttachment[];
 };
+
+export type SlackAgentKitBridgeMode = "runtime-adapter";
+
+export interface SlackAgentKitBridgeConfig {
+  enabled: boolean;
+  url: string;
+  timeoutMs: number;
+  mode: SlackAgentKitBridgeMode;
+}
