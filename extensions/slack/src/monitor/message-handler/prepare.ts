@@ -48,7 +48,13 @@ import {
   resolveChannelContextVisibilityMode,
   resolveStorePath,
 } from "../config.runtime.js";
-import { normalizeSlackChannelType, type SlackMonitorContext } from "../context.js";
+import {
+  buildAssistantTurnContext,
+  getAssistantSurfaceMetadata,
+  normalizeSlackChannelType,
+  resolveAssistantPolicy,
+  type SlackMonitorContext,
+} from "../context.js";
 import { recordInboundSession, resolveConversationLabel } from "../conversation.runtime.js";
 import { authorizeSlackDirectMessage } from "../dm-auth.js";
 import { resolveSlackThreadStarter } from "../media.js";
@@ -330,6 +336,18 @@ export async function prepareSlackMessage(params: {
 }): Promise<PreparedSlackMessage | null> {
   const { ctx, account, message, opts } = params;
   const cfg = ctx.cfg;
+  const assistantMetadata = getAssistantSurfaceMetadata(ctx, {
+    channelId: message.channel,
+    threadTs: message.thread_ts,
+    userId: message.user,
+  });
+  const assistantPolicy = assistantMetadata
+    ? resolveAssistantPolicy(ctx, {
+        accountId: account.accountId,
+        configuredPolicy: account.config.agentKitBridge?.policy,
+        metadata: assistantMetadata,
+      })
+    : null;
   const conversation = await resolveSlackConversationContext({ ctx, account, message });
   const {
     channelInfo,
@@ -341,6 +359,31 @@ export async function prepareSlackMessage(params: {
     channelConfig,
     isBotMessage,
   } = conversation;
+  let assistantPolicyChannelConfig: ReturnType<typeof resolveSlackChannelConfig> | null = null;
+  if (assistantPolicy?.policySource === "channel" && assistantPolicy.channelId) {
+    const policyChannelInfo = await ctx.resolveChannelName(assistantPolicy.channelId);
+    const policyChannelName = policyChannelInfo.name;
+    if (
+      !ctx.isChannelAllowed({
+        channelId: assistantPolicy.channelId,
+        channelName: policyChannelName,
+        channelType: assistantPolicy.channelType,
+      })
+    ) {
+      logVerbose("slack: drop assistant-pane message (inherited channel not allowed)");
+      return null;
+    }
+    assistantPolicyChannelConfig = resolveSlackChannelConfig({
+      channelId: assistantPolicy.channelId,
+      channelName: policyChannelName,
+      channels: ctx.channelsConfig,
+      channelKeys: ctx.channelsConfigKeys,
+      defaultRequireMention: ctx.defaultRequireMention,
+      allowNameMatching: ctx.allowNameMatching,
+    });
+  }
+  const effectiveChannelConfig = assistantPolicyChannelConfig ?? channelConfig;
+  const shouldApplyChannelPolicy = isRoom || Boolean(assistantPolicyChannelConfig);
   const authorization = await authorizeSlackInboundMessage({
     ctx,
     account,
@@ -419,13 +462,22 @@ export async function prepareSlackMessage(params: {
 
   const channelUserAuthorized = isRoom
     ? resolveSlackUserAllowed({
-        allowList: channelConfig?.users,
+        allowList: effectiveChannelConfig?.users,
         userId: senderId,
         userName: senderNameForAuth,
         allowNameMatching: ctx.allowNameMatching,
       })
     : true;
-  if (isRoom && !channelUserAuthorized) {
+  const assistantChannelUserAuthorized =
+    !isRoom && assistantPolicyChannelConfig
+      ? resolveSlackUserAllowed({
+          allowList: assistantPolicyChannelConfig.users,
+          userId: senderId,
+          userName: senderNameForAuth,
+          allowNameMatching: ctx.allowNameMatching,
+        })
+      : true;
+  if ((isRoom && !channelUserAuthorized) || !assistantChannelUserAuthorized) {
     logVerbose(`Blocked unauthorized slack sender ${senderId} (not in channel users)`);
     return null;
   }
@@ -445,10 +497,12 @@ export async function prepareSlackMessage(params: {
     allowNameMatching: ctx.allowNameMatching,
   }).allowed;
   const channelUsersAllowlistConfigured =
-    isRoom && Array.isArray(channelConfig?.users) && channelConfig.users.length > 0;
+    shouldApplyChannelPolicy &&
+    Array.isArray(effectiveChannelConfig?.users) &&
+    effectiveChannelConfig.users.length > 0;
   const threadContextAllowFromLower = isRoom
     ? channelUsersAllowlistConfigured
-      ? normalizeAllowListLower(channelConfig?.users)
+      ? normalizeAllowListLower(effectiveChannelConfig?.users)
       : []
     : isDirectMessage
       ? ctx.dmPolicy === "open"
@@ -461,9 +515,9 @@ export async function prepareSlackMessage(params: {
     accountId: account.accountId,
   });
   const channelCommandAuthorized =
-    isRoom && channelUsersAllowlistConfigured
+    shouldApplyChannelPolicy && channelUsersAllowlistConfigured
       ? resolveSlackUserAllowed({
-          allowList: channelConfig?.users,
+          allowList: effectiveChannelConfig?.users,
           userId: senderId,
           userName: senderNameForAuth,
           allowNameMatching: ctx.allowNameMatching,
@@ -494,7 +548,7 @@ export async function prepareSlackMessage(params: {
   }
 
   const shouldRequireMention = isRoom
-    ? (channelConfig?.requireMention ?? ctx.defaultRequireMention)
+    ? (effectiveChannelConfig?.requireMention ?? ctx.defaultRequireMention)
     : false;
 
   // Allow "control commands" to bypass mention gating if sender is authorized.
@@ -572,7 +626,7 @@ export async function prepareSlackMessage(params: {
     Boolean(
       ackReaction &&
       shouldAckReactionGate({
-        scope: ctx.ackReactionScope as AckReactionScope | undefined,
+        scope: ctx.ackReactionScope as AckReactionScope,
         isDirect: isDirectMessage,
         isGroup: isRoomish,
         isMentionableGroup: isRoom,
@@ -679,7 +733,7 @@ export async function prepareSlackMessage(params: {
   const { untrustedChannelMetadata, groupSystemPrompt } = resolveSlackRoomContextHints({
     isRoomish,
     channelInfo,
-    channelConfig,
+    channelConfig: effectiveChannelConfig,
   });
 
   const {
@@ -718,6 +772,13 @@ export async function prepareSlackMessage(params: {
         }))
       : undefined;
   const commandBody = textForCommandDetection.trim();
+  const turnSurfaceContext = buildAssistantTurnContext({
+    ctx,
+    accountId: route.accountId,
+    message,
+    source: opts.source,
+    assistantMetadata,
+  });
 
   const ctxPayload = finalizeInboundContext({
     Body: combinedBody,
@@ -767,6 +828,16 @@ export async function prepareSlackMessage(params: {
     OriginatingChannel: "slack" as const,
     OriginatingTo: slackTo,
     NativeChannelId: message.channel,
+    account_id: turnSurfaceContext.account_id,
+    team_id: turnSurfaceContext.team_id,
+    app_id: turnSurfaceContext.app_id,
+    channel_id: turnSurfaceContext.channel_id,
+    thread_ts: turnSurfaceContext.thread_ts,
+    user_id: turnSurfaceContext.user_id,
+    surface_type: turnSurfaceContext.surface_type,
+    turn_source_event: turnSurfaceContext.turn_source_event,
+    turn_source_ts: turnSurfaceContext.turn_source_ts,
+    assistant_thread_context: turnSurfaceContext.assistant_thread_context,
   }) satisfies FinalizedMsgContext;
   const pinnedMainDmOwner = isDirectMessage
     ? resolvePinnedMainDmOwnerFromAllowlist({
@@ -831,7 +902,7 @@ export async function prepareSlackMessage(params: {
     account,
     message,
     route,
-    channelConfig,
+    channelConfig: effectiveChannelConfig,
     replyTarget,
     ctxPayload,
     replyToMode,
