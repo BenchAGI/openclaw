@@ -1,5 +1,6 @@
 import type { ResolvedSlackAccount } from "../accounts.js";
 import type { SlackMonitorContext } from "./context.js";
+import { registerSlackAssistantEvents } from "./events/assistant.js";
 import { registerSlackChannelEvents } from "./events/channels.js";
 import { registerSlackInteractionEvents } from "./events/interactions.js";
 import { registerSlackMemberEvents } from "./events/members.js";
@@ -15,6 +16,11 @@ export function registerSlackMonitorEvents(params: {
   /** Called on each inbound event to update liveness tracking. */
   trackEvent?: () => void;
 }) {
+  registerSlackAssistantEvents({
+    ctx: params.ctx,
+    account: params.account,
+    trackEvent: params.trackEvent,
+  });
   registerSlackMessageEvents({
     ctx: params.ctx,
     handleSlackMessage: params.handleSlackMessage,

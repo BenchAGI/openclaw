@@ -3,7 +3,7 @@ import { enqueueSystemEvent } from "openclaw/plugin-sdk/infra-runtime";
 import { danger } from "openclaw/plugin-sdk/runtime-env";
 import type { SlackAppMentionEvent, SlackMessageEvent } from "../../types.js";
 import { normalizeSlackChannelType } from "../channel-type.js";
-import type { SlackMonitorContext } from "../context.js";
+import { getAssistantSurfaceMetadata, type SlackMonitorContext } from "../context.js";
 import type { SlackMessageHandler } from "../message-handler.js";
 import { resolveSlackMessageSubtypeHandler } from "./message-subtype-handlers.js";
 import { authorizeAndResolveSlackSystemEventContext } from "./system-event-context.js";
@@ -21,6 +21,17 @@ export function registerSlackMessageEvents(params: {
       }
 
       const message = event as SlackMessageEvent;
+      if (
+        message.type === "message" &&
+        message.channel_type === "im" &&
+        getAssistantSurfaceMetadata(ctx, {
+          channelId: message.channel,
+          threadTs: message.thread_ts,
+          userId: message.user,
+        })
+      ) {
+        return;
+      }
       const subtypeHandler = resolveSlackMessageSubtypeHandler(message);
       if (subtypeHandler) {
         const channelId = subtypeHandler.resolveChannelId(message);
