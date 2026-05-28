@@ -831,6 +831,97 @@ function renderSectionList(params: {
     .join("\n");
 }
 
+const MS_PER_DAY = 86_400_000;
+
+function parseUpdatedAtMs(page: WikiPageSummary): number | undefined {
+  if (!page.updatedAt) {
+    return undefined;
+  }
+  const ms = Date.parse(page.updatedAt);
+  return Number.isNaN(ms) ? undefined : ms;
+}
+
+/**
+ * Picks which source pages the generated indexes should list. Sources are the
+ * raw evidence layer and grow without bound (bridge-imported memory dumps), so
+ * left unbounded the index becomes a multi-thousand-link hub that dominates the
+ * Obsidian graph. This trims the *listing* only — every source file stays on
+ * disk and remains searchable via `wiki_search` / `memory_search`.
+ *
+ * - `sourceRetentionDays > 0`: drop sources whose `updatedAt` is older than the
+ *   window. Sources without a parseable `updatedAt` are kept (we can't prove
+ *   they're stale).
+ * - `maxSourcesListed > 0`: after retention, keep only the N most recently
+ *   updated sources.
+ *
+ * Both knobs default to 0 (disabled), preserving the historical "list
+ * everything" behavior unless an operator opts in.
+ */
+export function selectIndexSources(params: {
+  sources: WikiPageSummary[];
+  maxSourcesListed: number;
+  sourceRetentionDays: number;
+  now: Date;
+}): { shown: WikiPageSummary[]; hiddenCount: number } {
+  const nowMs = params.now.getTime();
+  const retentionMs = params.sourceRetentionDays > 0 ? params.sourceRetentionDays * MS_PER_DAY : 0;
+  const total = params.sources.length;
+
+  let candidates = params.sources;
+  if (retentionMs > 0) {
+    candidates = candidates.filter((page) => {
+      const ms = parseUpdatedAtMs(page);
+      if (ms === undefined) {
+        return true;
+      }
+      return nowMs - ms <= retentionMs;
+    });
+  }
+
+  const sorted = [...candidates].sort((a, b) => {
+    const aMs = parseUpdatedAtMs(a);
+    const bMs = parseUpdatedAtMs(b);
+    if (aMs !== bMs) {
+      if (aMs === undefined) {
+        return 1;
+      }
+      if (bMs === undefined) {
+        return -1;
+      }
+      return bMs - aMs;
+    }
+    return a.relativePath.localeCompare(b.relativePath);
+  });
+
+  const shown = params.maxSourcesListed > 0 ? sorted.slice(0, params.maxSourcesListed) : sorted;
+  return { shown, hiddenCount: total - shown.length };
+}
+
+function renderSourceIndexSection(params: {
+  config: ResolvedMemoryWikiConfig;
+  sources: WikiPageSummary[];
+  now: Date;
+}): string {
+  const { shown, hiddenCount } = selectIndexSources({
+    sources: params.sources,
+    maxSourcesListed: params.config.index.maxSourcesListed,
+    sourceRetentionDays: params.config.index.sourceRetentionDays,
+    now: params.now,
+  });
+  const list = renderSectionList({
+    config: params.config,
+    pages: shown,
+    emptyText: "No sources yet.",
+  });
+  if (hiddenCount <= 0) {
+    return list;
+  }
+  const overflow = `- _…and ${hiddenCount} older source page${
+    hiddenCount === 1 ? "" : "s"
+  } not listed here (still on disk and searchable in the \`sources/\` folder)._`;
+  return shown.length === 0 ? overflow : `${list}\n${overflow}`;
+}
+
 async function writeManagedMarkdownFile(params: {
   rootDir: string;
   relativePath: string;
@@ -962,6 +1053,7 @@ function buildRootIndexBody(params: {
   config: ResolvedMemoryWikiConfig;
   pages: WikiPageSummary[];
   counts: Record<WikiPageKind, number>;
+  now: Date;
 }): string {
   const claimCount = params.pages.reduce((total, page) => total + page.claims.length, 0);
   const lines = [
@@ -977,12 +1069,15 @@ function buildRootIndexBody(params: {
 
   for (const group of COMPILE_PAGE_GROUPS) {
     lines.push("", `### ${group.heading}`);
+    const groupPages = params.pages.filter((page) => page.kind === group.kind);
     lines.push(
-      renderSectionList({
-        config: params.config,
-        pages: params.pages.filter((page) => page.kind === group.kind),
-        emptyText: `No ${normalizeLowercaseStringOrEmpty(group.heading)} yet.`,
-      }),
+      group.kind === "source"
+        ? renderSourceIndexSection({ config: params.config, sources: groupPages, now: params.now })
+        : renderSectionList({
+            config: params.config,
+            pages: groupPages,
+            emptyText: `No ${normalizeLowercaseStringOrEmpty(group.heading)} yet.`,
+          }),
     );
   }
 
@@ -993,10 +1088,19 @@ function buildDirectoryIndexBody(params: {
   config: ResolvedMemoryWikiConfig;
   pages: WikiPageSummary[];
   group: { kind: WikiPageKind; dir: string; heading: string };
+  now: Date;
 }): string {
+  const groupPages = params.pages.filter((page) => page.kind === params.group.kind);
+  if (params.group.kind === "source") {
+    return renderSourceIndexSection({
+      config: params.config,
+      sources: groupPages,
+      now: params.now,
+    });
+  }
   return renderSectionList({
     config: params.config,
-    pages: params.pages.filter((page) => page.kind === params.group.kind),
+    pages: groupPages,
     emptyText: `No ${normalizeLowercaseStringOrEmpty(params.group.heading)} yet.`,
   });
 }
@@ -1319,6 +1423,7 @@ export async function compileMemoryWikiVault(
   });
   updatedFiles.push(...digestUpdatedFiles);
 
+  const indexNow = new Date();
   const rootIndexPath = path.join(rootDir, "index.md");
   if (
     await writeManagedMarkdownFile({
@@ -1327,7 +1432,7 @@ export async function compileMemoryWikiVault(
       title: "Wiki Index",
       startMarker: "<!-- openclaw:wiki:index:start -->",
       endMarker: "<!-- openclaw:wiki:index:end -->",
-      body: buildRootIndexBody({ config, pages, counts }),
+      body: buildRootIndexBody({ config, pages, counts, now: indexNow }),
     })
   ) {
     updatedFiles.push(rootIndexPath);
@@ -1343,7 +1448,7 @@ export async function compileMemoryWikiVault(
         title: group.heading,
         startMarker: `<!-- openclaw:wiki:${group.dir}:index:start -->`,
         endMarker: `<!-- openclaw:wiki:${group.dir}:index:end -->`,
-        body: buildDirectoryIndexBody({ config, pages, group }),
+        body: buildDirectoryIndexBody({ config, pages, group, now: indexNow }),
       })
     ) {
       updatedFiles.push(filePath);
