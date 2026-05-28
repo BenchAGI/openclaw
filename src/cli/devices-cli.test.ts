@@ -243,6 +243,57 @@ describe("devices cli approve", () => {
       expect.objectContaining({ method: "device.pair.approve" }),
     );
   });
+
+  it("approves the latest pending request directly when --yes is passed", async () => {
+    callGateway
+      .mockResolvedValueOnce({
+        pending: [
+          { requestId: "req-old", ts: 1000 },
+          { requestId: "req-new", ts: 2000 },
+        ],
+      })
+      .mockResolvedValueOnce({
+        requestId: "req-new",
+        device: { deviceId: "device-1" },
+      });
+
+    await runDevicesApprove(["--latest", "--yes"]);
+
+    expect(callGateway).toHaveBeenCalledTimes(2);
+    expect(callGateway).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ method: "device.pair.list" }),
+    );
+    expect(callGateway).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        method: "device.pair.approve",
+        params: { requestId: "req-new" },
+      }),
+    );
+  });
+
+  it("approves the latest pending request when --yes is passed without --latest", async () => {
+    callGateway
+      .mockResolvedValueOnce({
+        pending: [{ requestId: "req-only", ts: 1000 }],
+      })
+      .mockResolvedValueOnce({
+        requestId: "req-only",
+        device: { deviceId: "device-1" },
+      });
+
+    await runDevicesApprove(["--yes"]);
+
+    expect(callGateway).toHaveBeenCalledTimes(2);
+    expect(callGateway).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        method: "device.pair.approve",
+        params: { requestId: "req-only" },
+      }),
+    );
+  });
 });
 
 describe("devices cli remove", () => {

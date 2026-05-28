@@ -448,6 +448,7 @@ export function registerDevicesCli(program: Command) {
       .description("Approve a pending device pairing request")
       .argument("[requestId]", "Pending request id")
       .option("--latest", "Show the most recent pending request to approve explicitly", false)
+      .option("--yes", "Skip the implicit-selection preview and approve immediately", false)
       .action(async (requestId: string | undefined, opts: DevicesRpcOpts) => {
         let resolvedRequestId = requestId?.trim();
         const usingImplicitSelection = !resolvedRequestId || Boolean(opts.latest);
@@ -463,9 +464,9 @@ export function registerDevicesCli(program: Command) {
           defaultRuntime.exit(1);
           return;
         }
-        if (usingImplicitSelection) {
-          // Keep implicit selection preview-only. A second command with the exact
-          // requestId binds the approval to the request the operator inspected.
+        if (usingImplicitSelection && !opts.yes) {
+          // Keep implicit selection preview-only by default. Pass --yes to skip
+          // the preview and approve the resolved request immediately.
           const req = selectedRequest!;
           const approveCommand = buildExplicitApproveCommand(opts, req.requestId);
           const authReminder = formatAuthFlagReminder(opts);
