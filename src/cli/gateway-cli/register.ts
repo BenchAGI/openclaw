@@ -94,6 +94,12 @@ function gatewayCallOpts(cmd: Command): Command {
     .option("--password <password>", "Gateway password (password auth)")
     .option("--timeout <ms>", "Timeout in ms", "10000")
     .option("--expect-final", "Wait for final response (agent)", false)
+    .option(
+      "--scope <scope...>",
+      "Request only these operator scope(s) instead of the full CLI default set " +
+        "(least-privilege; repeatable). Lets callers that only need e.g. operator.read " +
+        "connect without triggering a scope-upgrade pairing request.",
+    )
     .option("--json", "Output JSON", false);
 }
 
