@@ -294,6 +294,68 @@ describe("devices cli approve", () => {
       }),
     );
   });
+
+  it("recovers when --yes hits a rotated requestId by re-listing and approving the new latest", async () => {
+    callGateway
+      .mockResolvedValueOnce({
+        pending: [
+          { requestId: "req-old", ts: 1000 },
+          { requestId: "req-new", ts: 2000 },
+        ],
+      })
+      .mockRejectedValueOnce(new Error("gateway closed (1008): unknown requestId"))
+      .mockResolvedValueOnce({
+        pending: [{ requestId: "req-fresh", ts: 3000 }],
+      })
+      .mockResolvedValueOnce({
+        requestId: "req-fresh",
+        device: { deviceId: "device-1" },
+      });
+
+    await runDevicesApprove(["--latest", "--yes"]);
+
+    expect(callGateway).toHaveBeenCalledTimes(4);
+    expect(callGateway).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        method: "device.pair.approve",
+        params: { requestId: "req-new" },
+      }),
+    );
+    expect(callGateway).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ method: "device.pair.list" }),
+    );
+    expect(callGateway).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({
+        method: "device.pair.approve",
+        params: { requestId: "req-fresh" },
+      }),
+    );
+    const logOutput = runtime.log.mock.calls.map((c) => readRuntimeCallText(c)).join("\n");
+    expect(logOutput).toContain("Approved");
+    expect(logOutput).toContain("req-fresh");
+  });
+
+  it("errors out when a rotated --yes requestId cannot be recovered", async () => {
+    callGateway
+      .mockResolvedValueOnce({
+        pending: [{ requestId: "req-new", ts: 2000 }],
+      })
+      .mockRejectedValueOnce(new Error("gateway closed (1008): unknown requestId"))
+      .mockResolvedValueOnce({ pending: [] });
+
+    await runDevicesApprove(["--yes"]);
+
+    expect(callGateway).toHaveBeenCalledTimes(3);
+    expect(callGateway).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ method: "device.pair.list" }),
+    );
+    expect(runtime.error).toHaveBeenCalledWith("unknown requestId");
+    expect(runtime.exit).toHaveBeenCalledWith(1);
+  });
 });
 
 describe("devices cli remove", () => {
