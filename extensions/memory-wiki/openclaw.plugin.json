@@ -41,6 +41,14 @@
     "context.includeCompiledDigestPrompt": {
       "label": "Include Compiled Digest In Prompt",
       "help": "Append a compact compiled wiki digest snapshot to memory prompt sections for context engines and legacy prompt assembly."
+    },
+    "index.maxSourcesListed": {
+      "label": "Max Sources Listed In Index",
+      "help": "Cap how many source pages the generated indexes list (most-recently-updated first). 0 lists every source. Trims the index hub so it does not dominate the Obsidian graph; source files stay on disk and searchable."
+    },
+    "index.sourceRetentionDays": {
+      "label": "Index Source Retention (days)",
+      "help": "Drop source pages older than this many days (by updatedAt) from the generated indexes. 0 keeps all. Sources stay on disk and searchable; only the index listing is trimmed."
     }
   },
   "configSchema": {
@@ -172,6 +180,20 @@
           },
           "createDashboards": {
             "type": "boolean"
+          }
+        }
+      },
+      "index": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "maxSourcesListed": {
+            "type": "number",
+            "minimum": 0
+          },
+          "sourceRetentionDays": {
+            "type": "number",
+            "minimum": 0
           }
         }
       }

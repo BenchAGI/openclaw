@@ -70,6 +70,16 @@ Put config under `plugins.entries.memory-wiki.config`:
     createBacklinks: true, // writes managed ## Related blocks with sources, backlinks, and related pages
     createDashboards: true,
   },
+
+  index: {
+    // Trim the generated index listings for the unbounded `sources/` evidence
+    // layer so index.md does not become a multi-thousand-link hub that
+    // dominates the Obsidian graph. Both default to 0 (list everything).
+    // Source files always stay on disk and remain searchable; only the index
+    // listing is trimmed.
+    maxSourcesListed: 0, // e.g. 50 — list only the N most-recently-updated sources
+    sourceRetentionDays: 0, // e.g. 45 — drop sources older than N days from the index
+  },
 }
 ```
 
