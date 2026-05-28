@@ -110,6 +110,12 @@ function normalizeErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function isUnknownRequestIdError(error: unknown): boolean {
+  return normalizeLowercaseStringOrEmpty(normalizeErrorMessage(error)).includes(
+    "unknown requestid",
+  );
+}
+
 function shouldUseLocalPairingFallback(opts: DevicesRpcOpts, error: unknown): boolean {
   const message = normalizeLowercaseStringOrEmpty(normalizeErrorMessage(error));
   if (!message.includes("pairing required")) {
@@ -504,7 +510,37 @@ export function registerDevicesCli(program: Command) {
           defaultRuntime.exit(1);
           return;
         }
-        const result = await approvePairingWithFallback(opts, resolvedRequestId);
+        // Approve the resolved request. A null result (local fallback) or an
+        // "unknown requestId" RPC error (gateway path) both mean the request is
+        // gone. When the selection was implicit and --yes was passed, the
+        // pending requestId may have rotated between list and approve (e.g. an
+        // MCP shim re-pairing); recover by re-listing once and approving the
+        // new latest a single time before giving up.
+        const tryApprove = async (id: string): Promise<Record<string, unknown> | null> => {
+          if (usingImplicitSelection && opts.yes) {
+            try {
+              return await approvePairingWithFallback(opts, id);
+            } catch (error) {
+              if (!isUnknownRequestIdError(error)) {
+                throw error;
+              }
+              return null;
+            }
+          }
+          return await approvePairingWithFallback(opts, id);
+        };
+
+        let result = await tryApprove(resolvedRequestId);
+        if (!result && usingImplicitSelection && opts.yes) {
+          const retryRequest = selectLatestPendingRequest(
+            (await listPairingWithFallback(opts)).pending,
+          );
+          const retryRequestId = retryRequest?.requestId?.trim();
+          if (retryRequestId) {
+            resolvedRequestId = retryRequestId;
+            result = await tryApprove(retryRequestId);
+          }
+        }
         if (!result) {
           defaultRuntime.error("unknown requestId");
           defaultRuntime.exit(1);

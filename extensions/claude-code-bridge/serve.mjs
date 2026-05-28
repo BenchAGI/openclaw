@@ -336,6 +336,27 @@ async function ensureGatewayUp() {
   return { up: false };
 }
 
+// Least-privilege operator scopes per gateway method this bridge calls. The
+// plain `openclaw gateway call` defaults to the full 6-scope CLI set
+// (admin/read/write/approvals/pairing/talk.secrets); requesting all of them on
+// every connect forces a scope-upgrade pairing request whenever the bridge
+// device hasn't been approved for the full set — which then blocks even
+// read-only calls. By requesting exactly what each method needs, read tools
+// (wiki/agents/skills/chat) connect against the device's existing read grant
+// with zero upgrade churn, and only the write tools (sessions.*) need a
+// one-time operator.write grant. Keep this map in sync with the method scopes
+// declared in src/gateway/method-scopes.ts and extensions/memory-wiki.
+const METHOD_OPERATOR_SCOPES = {
+  "agents.list": ["operator.read"],
+  "skills.status": ["operator.read"],
+  "chat.history": ["operator.read"],
+  "wiki.status": ["operator.read"],
+  "wiki.search": ["operator.read"],
+  "wiki.get": ["operator.read"],
+  "sessions.create": ["operator.read", "operator.write"],
+  "sessions.send": ["operator.read", "operator.write"],
+};
+
 async function callGatewayMethod(method, params, opts = {}) {
   // openclaw CLI's own timeout defaults to 10s — pass --timeout so it matches
   // our wrapper budget (minus 2s buffer so openclaw can exit cleanly before
@@ -343,6 +364,12 @@ async function callGatewayMethod(method, params, opts = {}) {
   const wrapperTimeoutMs = opts.timeoutMs ?? 15_000;
   const innerTimeoutMs = Math.max(2_000, wrapperTimeoutMs - 2_000);
   const args = ["gateway", "call", method, "--json", "--timeout", String(innerTimeoutMs)];
+  // Unknown methods fall back to the CLI default scope set (no --scope) to
+  // preserve behavior; every method this bridge actually calls is mapped above.
+  const requestedScopes = opts.scopes ?? METHOD_OPERATOR_SCOPES[method];
+  if (Array.isArray(requestedScopes) && requestedScopes.length > 0) {
+    args.push("--scope", ...requestedScopes);
+  }
   if (opts.expectFinal) {
     args.push("--expect-final");
   }
