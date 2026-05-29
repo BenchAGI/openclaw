@@ -2,6 +2,13 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.5.28
+
+### Fixes
+
+- CLI/devices: `devices approve --yes` now recovers from a request-id race during non-interactive approval, and `gateway call` runs with least-privilege scopes.
+- Security: update bundled dependencies (axios, protobufjs, hono, @opentelemetry/*, qs, marked, and others) to their patched releases.
+
 ## 2026.4.18
 
 ### Changes
