@@ -103,7 +103,7 @@ describe("scripts/openclaw-cross-os-release-checks", () => {
     ]);
   });
 
-  it("builds a suite-aware runner matrix with the beefy Windows default", () => {
+  it("builds a suite-aware runner matrix with the GitHub-hosted Windows default", () => {
     const matrix = resolveRunnerMatrix({
       mode: "both",
       ref: "main",
@@ -119,7 +119,7 @@ describe("scripts/openclaw-cross-os-release-checks", () => {
     expect(matrix.include).toContainEqual(
       expect.objectContaining({
         os_id: "windows",
-        runner: "blacksmith-32vcpu-windows-2025",
+        runner: "windows-latest",
         suite: "dev-update",
         lane: "upgrade",
       }),
