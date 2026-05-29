@@ -78,10 +78,19 @@ const forbiddenPrefixes = [
   "docs/.generated/",
   "qa/",
 ];
+// These markers catch a real leak of private qa-lab material into the public pack:
+//   - "//#region extensions/qa-lab/" -> bundled qa-lab SOURCE leaked into a dist chunk
+//   - "qa-lab/cli.js"                -> reference to the qa-lab CLI, which is never shipped
+// Note: "qa-lab/runtime-api.js" is intentionally NOT a forbidden marker. The file
+// dist/extensions/qa-lab/runtime-api.js is part of the public pack (it is re-included by
+// the package.json `files` allowlist and listed in dist/postinstall-inventory.json via
+// src/infra/package-dist-inventory.ts), and it is a compatibility stub, not qa-lab source.
+// Bundled infra (e.g. the npm-update compat sidecars and the dist-inventory path allowlist)
+// legitimately references that path string, so treating it as a forbidden marker is a
+// false positive that blocks releases.
 const forbiddenPrivateQaContentMarkers = [
   "//#region extensions/qa-lab/",
   "qa-lab/cli.js",
-  "qa-lab/runtime-api.js",
 ] as const;
 const forbiddenPrivateQaContentScanPrefixes = ["dist/"] as const;
 const appcastPath = resolve("appcast.xml");
