@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { packAndInstallOpenclaw } from "./lib/npm-pack-install.mjs";
 import { installProcessWarningFilter } from "./process-warning-filter.mjs";
 
 installProcessWarningFilter();
@@ -45,21 +46,20 @@ function smokeInInstalledLayoutIfNeeded() {
     return;
   }
 
+  // Pack + install the package into a throwaway prefix so the smoke runs
+  // against the EXACT layout `npm i openclaw` produces. Symlinking the dev tree
+  // here would be unfaithful: it retains the build-time-only shim
+  // dist/extensions/node_modules/openclaw (excluded from the published tarball
+  // by the package.json `files` allowlist), which shadows the real package root
+  // and breaks bundled-channel-entry chunk resolution under --preserve-symlinks.
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-channel-entry-smoke-"));
-  const nodeModulesRoot = path.join(tempRoot, "node_modules");
-  const installedPackageRoot = path.join(nodeModulesRoot, "openclaw");
-  fs.mkdirSync(nodeModulesRoot, { recursive: true });
-  fs.symlinkSync(packageRoot, installedPackageRoot, "dir");
-
   try {
+    const { packageRoot: installedPackageRoot } = packAndInstallOpenclaw(tempRoot, {
+      packageCwd: packageRoot,
+    });
     const result = spawnSync(
       process.execPath,
-      [
-        "--preserve-symlinks",
-        fileURLToPath(import.meta.url),
-        "--package-root",
-        installedPackageRoot,
-      ],
+      [fileURLToPath(import.meta.url), "--package-root", installedPackageRoot],
       {
         env: { ...process.env, [installedLayoutEnv]: "1" },
         stdio: "inherit",
