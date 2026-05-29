@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { buildOutboundBaseSessionKey } from "openclaw/plugin-sdk/routing";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { buildOutboundBaseSessionKey } from "@benchagi/openclaw/plugin-sdk/routing";
 import { stripNextcloudTalkTargetPrefix } from "./normalize.js";
 
 type NextcloudTalkOutboundSessionRouteParams = {

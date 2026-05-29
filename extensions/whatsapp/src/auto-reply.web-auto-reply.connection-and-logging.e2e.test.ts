@@ -1,9 +1,9 @@
 import "./test-helpers.js";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { setLoggerOverride } from "openclaw/plugin-sdk/runtime-env";
-import { withEnvAsync } from "openclaw/plugin-sdk/testing";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { setLoggerOverride } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { withEnvAsync } from "@benchagi/openclaw/plugin-sdk/testing";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { escapeRegExp, formatEnvelopeTimestamp } from "../../../test/helpers/envelope-timestamp.js";
 import {

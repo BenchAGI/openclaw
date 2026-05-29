@@ -176,7 +176,7 @@ type DefinedPluginEntry = {
  *
  * Use this for provider, tool, command, service, memory, and context-engine
  * plugins. Channel plugins should use `defineChannelPluginEntry(...)` from
- * `openclaw/plugin-sdk/core` so they inherit the channel capability wiring.
+ * `@benchagi/openclaw/plugin-sdk/core` so they inherit the channel capability wiring.
  */
 export function definePluginEntry({
   id,

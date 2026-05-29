@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { applyAuthProfileConfig, upsertAuthProfile } from "openclaw/plugin-sdk/provider-auth";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { applyAuthProfileConfig, upsertAuthProfile } from "@benchagi/openclaw/plugin-sdk/provider-auth";
 
 /** Providers the mock harness stages placeholder credentials for by default. */
 export const QA_MOCK_AUTH_PROVIDERS = Object.freeze(["openai", "anthropic"] as const);

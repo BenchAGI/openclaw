@@ -1,25 +1,25 @@
-import { createChannelPairingController } from "openclaw/plugin-sdk/channel-pairing";
+import { createChannelPairingController } from "@benchagi/openclaw/plugin-sdk/channel-pairing";
 import {
   ensureConfiguredBindingRouteReady,
   resolveConfiguredBindingRoute,
-} from "openclaw/plugin-sdk/conversation-runtime";
-import { getSessionBindingService } from "openclaw/plugin-sdk/conversation-runtime";
-import { resolveAgentOutboundIdentity } from "openclaw/plugin-sdk/outbound-runtime";
+} from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
+import { getSessionBindingService } from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
+import { resolveAgentOutboundIdentity } from "@benchagi/openclaw/plugin-sdk/outbound-runtime";
 import {
   buildPendingHistoryContextFromMap,
   clearHistoryEntriesIfEnabled,
   DEFAULT_GROUP_HISTORY_LIMIT,
   recordPendingHistoryEntryIfEnabled,
   type HistoryEntry,
-} from "openclaw/plugin-sdk/reply-history";
-import { deriveLastRoutePolicy } from "openclaw/plugin-sdk/routing";
-import { resolveAgentIdFromSessionKey } from "openclaw/plugin-sdk/routing";
+} from "@benchagi/openclaw/plugin-sdk/reply-history";
+import { deriveLastRoutePolicy } from "@benchagi/openclaw/plugin-sdk/routing";
+import { resolveAgentIdFromSessionKey } from "@benchagi/openclaw/plugin-sdk/routing";
 import {
   resolveDefaultGroupPolicy,
   resolveOpenProviderRuntimeGroupPolicy,
   warnMissingProviderGroupPolicyFallbackOnce,
-} from "openclaw/plugin-sdk/runtime-group-policy";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/runtime-group-policy";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveFeishuRuntimeAccount } from "./accounts.js";
 import {
   checkBotMentioned,

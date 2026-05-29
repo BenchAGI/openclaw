@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
+import { resolvePreferredOpenClawTmpDir } from "@benchagi/openclaw/plugin-sdk/temp-path";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 const execFileMock = vi.hoisted(() => vi.fn());

@@ -1,10 +1,10 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   resolveThreadBindingIdleTimeoutMs,
   resolveThreadBindingMaxAgeMs,
   resolveThreadBindingsEnabled,
-} from "openclaw/plugin-sdk/conversation-runtime";
-import { normalizeAccountId } from "openclaw/plugin-sdk/routing";
+} from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
+import { normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/routing";
 
 export {
   resolveThreadBindingIdleTimeoutMs,

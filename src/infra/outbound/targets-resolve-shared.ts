@@ -1,4 +1,4 @@
-import { mapAllowFromEntries } from "openclaw/plugin-sdk/channel-config-helpers";
+import { mapAllowFromEntries } from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
 import type { ChannelPlugin } from "../../channels/plugins/types.plugin.js";
 import type { ChannelOutboundTargetMode } from "../../channels/plugins/types.public.js";
 import { formatCliCommand } from "../../cli/command-format.js";

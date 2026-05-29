@@ -5,18 +5,18 @@ import {
   TRUSTED_CLIENT_TOKEN,
   generateSecMsGecToken,
 } from "node-edge-tts/dist/drm.js";
-import { isVoiceCompatibleAudio } from "openclaw/plugin-sdk/media-runtime";
+import { isVoiceCompatibleAudio } from "@benchagi/openclaw/plugin-sdk/media-runtime";
 import {
   captureHttpExchange,
   isDebugProxyGlobalFetchPatchInstalled,
-} from "openclaw/plugin-sdk/proxy-capture";
+} from "@benchagi/openclaw/plugin-sdk/proxy-capture";
 import type {
   SpeechProviderConfig,
   SpeechProviderPlugin,
   SpeechVoiceOption,
-} from "openclaw/plugin-sdk/speech";
-import { asBoolean, asFiniteNumber, asObject, trimToUndefined } from "openclaw/plugin-sdk/speech";
-import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
+} from "@benchagi/openclaw/plugin-sdk/speech";
+import { asBoolean, asFiniteNumber, asObject, trimToUndefined } from "@benchagi/openclaw/plugin-sdk/speech";
+import { resolvePreferredOpenClawTmpDir } from "@benchagi/openclaw/plugin-sdk/temp-path";
 import { edgeTTS, inferEdgeExtension } from "./tts.js";
 
 const DEFAULT_EDGE_VOICE = "en-US-MichelleNeural";

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { normalizeOptionalString, readStringValue } from "openclaw/plugin-sdk/text-runtime";
+import { normalizeOptionalString, readStringValue } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   executeActAction,
   executeConsoleAction,

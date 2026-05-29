@@ -1,1 +1,1 @@
-export { ensurePortAvailable } from "openclaw/plugin-sdk/browser-security-runtime";
+export { ensurePortAvailable } from "@benchagi/openclaw/plugin-sdk/browser-security-runtime";

@@ -1,7 +1,7 @@
 import process from "node:process";
-import type { TelegramNetworkConfig } from "openclaw/plugin-sdk/config-runtime";
-import { isTruthyEnvValue, isWSL2Sync } from "openclaw/plugin-sdk/runtime-env";
-import { normalizeOptionalLowercaseString } from "openclaw/plugin-sdk/text-runtime";
+import type { TelegramNetworkConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { isTruthyEnvValue, isWSL2Sync } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { normalizeOptionalLowercaseString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 export const TELEGRAM_DISABLE_AUTO_SELECT_FAMILY_ENV =
   "OPENCLAW_TELEGRAM_DISABLE_AUTO_SELECT_FAMILY";

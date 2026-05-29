@@ -1,5 +1,5 @@
-import { formatErrorMessage, type PinnedDispatcherPolicy } from "openclaw/plugin-sdk/infra-runtime";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/string-coerce-runtime";
+import { formatErrorMessage, type PinnedDispatcherPolicy } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/string-coerce-runtime";
 import type { SsrFPolicy } from "../runtime-api.js";
 import type { BaseProbeResult } from "../runtime-api.js";
 import { isBunRuntime } from "./client/runtime.js";

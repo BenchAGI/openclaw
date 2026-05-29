@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/provider-onboard";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/provider-onboard";
 import {
   buildSearchCacheKey,
   buildUnsupportedSearchFilterResponse,
@@ -19,8 +19,8 @@ import {
   withTrustedWebSearchEndpoint,
   wrapWebContent,
   writeCachedSearchPayload,
-} from "openclaw/plugin-sdk/provider-web-search";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-search";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   isNativeMoonshotBaseUrl,
   MOONSHOT_BASE_URL,

@@ -2,7 +2,7 @@ import {
   applyAgentDefaultModelPrimary,
   applyProviderConfigWithModelCatalogPreset,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/provider-onboard";
+} from "@benchagi/openclaw/plugin-sdk/provider-onboard";
 import {
   CHUTES_BASE_URL,
   CHUTES_DEFAULT_MODEL_REF,

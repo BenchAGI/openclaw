@@ -1,4 +1,4 @@
-import { sendMediaWithLeadingCaption } from "openclaw/plugin-sdk/reply-payload";
+import { sendMediaWithLeadingCaption } from "@benchagi/openclaw/plugin-sdk/reply-payload";
 import {
   chunkByParagraph,
   chunkMarkdownTextWithMode,

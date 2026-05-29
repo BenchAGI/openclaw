@@ -18,17 +18,17 @@ import {
 } from "@buape/carbon";
 import type { APIStringSelectComponent } from "discord-api-types/v10";
 import { ButtonStyle, ChannelType } from "discord-api-types/v10";
-import { resolveHumanDelayConfig } from "openclaw/plugin-sdk/agent-runtime";
+import { resolveHumanDelayConfig } from "@benchagi/openclaw/plugin-sdk/agent-runtime";
 import {
   formatInboundEnvelope,
   resolveEnvelopeFormatOptions,
-} from "openclaw/plugin-sdk/channel-inbound";
-import { isDangerousNameMatchingEnabled } from "openclaw/plugin-sdk/dangerous-name-runtime";
-import { resolveMarkdownTableMode } from "openclaw/plugin-sdk/markdown-table-runtime";
-import { getAgentScopedMediaLocalRoots } from "openclaw/plugin-sdk/media-runtime";
-import { createNonExitingRuntime, logVerbose } from "openclaw/plugin-sdk/runtime-env";
-import { resolveOpenProviderRuntimeGroupPolicy } from "openclaw/plugin-sdk/runtime-group-policy";
-import { logDebug, logError } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+import { isDangerousNameMatchingEnabled } from "@benchagi/openclaw/plugin-sdk/dangerous-name-runtime";
+import { resolveMarkdownTableMode } from "@benchagi/openclaw/plugin-sdk/markdown-table-runtime";
+import { getAgentScopedMediaLocalRoots } from "@benchagi/openclaw/plugin-sdk/media-runtime";
+import { createNonExitingRuntime, logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { resolveOpenProviderRuntimeGroupPolicy } from "@benchagi/openclaw/plugin-sdk/runtime-group-policy";
+import { logDebug, logError } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveDiscordMaxLinesPerMessage } from "../accounts.js";
 import { createDiscordRestClient } from "../client.js";
 import {
@@ -88,9 +88,9 @@ import { deliverDiscordReply } from "./reply-delivery.js";
 
 let conversationRuntimePromise: Promise<typeof import("./agent-components.runtime.js")> | undefined;
 let componentsRuntimePromise: Promise<typeof import("../components.js")> | undefined;
-let replyRuntimePromise: Promise<typeof import("openclaw/plugin-sdk/reply-runtime")> | undefined;
+let replyRuntimePromise: Promise<typeof import("@benchagi/openclaw/plugin-sdk/reply-runtime")> | undefined;
 let replyPipelineRuntimePromise:
-  | Promise<typeof import("openclaw/plugin-sdk/channel-reply-pipeline")>
+  | Promise<typeof import("@benchagi/openclaw/plugin-sdk/channel-reply-pipeline")>
   | undefined;
 let typingRuntimePromise: Promise<typeof import("./typing.js")> | undefined;
 
@@ -105,11 +105,11 @@ async function loadComponentsRuntime() {
 }
 
 async function _loadReplyRuntime() {
-  replyRuntimePromise ??= import("openclaw/plugin-sdk/reply-runtime");
+  replyRuntimePromise ??= import("@benchagi/openclaw/plugin-sdk/reply-runtime");
   return await replyRuntimePromise;
 }
 async function loadReplyPipelineRuntime() {
-  replyPipelineRuntimePromise ??= import("openclaw/plugin-sdk/channel-reply-pipeline");
+  replyPipelineRuntimePromise ??= import("@benchagi/openclaw/plugin-sdk/channel-reply-pipeline");
   return await replyPipelineRuntimePromise;
 }
 

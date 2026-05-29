@@ -1,10 +1,10 @@
-import { describeAccountSnapshot } from "openclaw/plugin-sdk/account-helpers";
-import { formatNormalizedAllowFromEntries } from "openclaw/plugin-sdk/allow-from";
+import { describeAccountSnapshot } from "@benchagi/openclaw/plugin-sdk/account-helpers";
+import { formatNormalizedAllowFromEntries } from "@benchagi/openclaw/plugin-sdk/allow-from";
 import {
   adaptScopedAccountAccessor,
   createScopedChannelConfigAdapter,
-} from "openclaw/plugin-sdk/channel-config-helpers";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   collectMattermostSlashCallbackPaths,
   resolveMattermostGatewayAuthBypassPaths,

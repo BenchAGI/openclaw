@@ -1,8 +1,8 @@
 import {
   defineBundledChannelEntry,
   type OpenClawPluginApi,
-} from "openclaw/plugin-sdk/channel-entry-contract";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-entry-contract";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import { registerMatrixCliMetadata } from "./cli-metadata.js";
 
 type MatrixSubagentHooksModule = typeof import("./src/matrix/subagent-hooks.js");

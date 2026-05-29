@@ -5,9 +5,9 @@ import {
   type OpenClawConfig,
   resolveAccountEntry,
   resolveMergedAccountConfig,
-} from "openclaw/plugin-sdk/account-resolution";
-import { safeParseJsonWithSchema, safeParseWithSchema } from "openclaw/plugin-sdk/extension-shared";
-import { isSecretRef } from "openclaw/plugin-sdk/secret-input";
+} from "@benchagi/openclaw/plugin-sdk/account-resolution";
+import { safeParseJsonWithSchema, safeParseWithSchema } from "@benchagi/openclaw/plugin-sdk/extension-shared";
+import { isSecretRef } from "@benchagi/openclaw/plugin-sdk/secret-input";
 import { z } from "zod";
 import type { GoogleChatAccountConfig } from "./types.config.js";
 

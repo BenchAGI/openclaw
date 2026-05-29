@@ -1,11 +1,11 @@
 import http from "node:http";
 import { URL } from "node:url";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   createWebhookInFlightLimiter,
   WEBHOOK_BODY_READ_DEFAULTS,
-} from "openclaw/plugin-sdk/webhook-ingress";
+} from "@benchagi/openclaw/plugin-sdk/webhook-ingress";
 import {
   isRequestBodyLimitError,
   readRequestBodyWithLimit,

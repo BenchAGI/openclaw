@@ -1,7 +1,7 @@
-import { adaptScopedAccountAccessor } from "openclaw/plugin-sdk/channel-config-helpers";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/routing";
-import { isPrivateNetworkOptInEnabled } from "openclaw/plugin-sdk/ssrf-runtime";
+import { adaptScopedAccountAccessor } from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/routing";
+import { isPrivateNetworkOptInEnabled } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 import { describe, expect, it, vi } from "vitest";
 import {
   createSetupWizardAdapter,

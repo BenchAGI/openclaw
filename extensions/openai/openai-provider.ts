@@ -1,15 +1,15 @@
 import {
   type ProviderResolveDynamicModelContext,
   type ProviderRuntimeModel,
-} from "openclaw/plugin-sdk/plugin-entry";
-import { createProviderApiKeyAuthMethod } from "openclaw/plugin-sdk/provider-auth-api-key";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { createProviderApiKeyAuthMethod } from "@benchagi/openclaw/plugin-sdk/provider-auth-api-key";
 import {
   DEFAULT_CONTEXT_TOKENS,
   normalizeModelCompat,
   normalizeProviderId,
   type ProviderPlugin,
-} from "openclaw/plugin-sdk/provider-model-shared";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { isOpenAIApiBaseUrl } from "./base-url.js";
 import { applyOpenAIConfig, OPENAI_DEFAULT_MODEL } from "./default-models.js";
 import {

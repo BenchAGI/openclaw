@@ -1,5 +1,5 @@
 import { ChannelType } from "discord-api-types/v10";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createMockCommandInteraction,
@@ -12,9 +12,9 @@ const runtimeModuleMocks = vi.hoisted(() => ({
   resolveDirectStatusReplyForSession: vi.fn(),
 }));
 
-vi.mock("openclaw/plugin-sdk/reply-dispatch-runtime", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/reply-dispatch-runtime")>(
-    "openclaw/plugin-sdk/reply-dispatch-runtime",
+vi.mock("@benchagi/openclaw/plugin-sdk/reply-dispatch-runtime", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/reply-dispatch-runtime")>(
+    "@benchagi/openclaw/plugin-sdk/reply-dispatch-runtime",
   );
   return {
     ...actual,
@@ -23,7 +23,7 @@ vi.mock("openclaw/plugin-sdk/reply-dispatch-runtime", async () => {
   };
 });
 
-vi.mock("openclaw/plugin-sdk/command-status-runtime", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/command-status-runtime", () => ({
   resolveDirectStatusReplyForSession: (...args: unknown[]) =>
     runtimeModuleMocks.resolveDirectStatusReplyForSession(...args),
 }));
@@ -158,7 +158,7 @@ describe("discord native /status", () => {
       text: "status reply",
     });
     discordNativeCommandTesting.setDispatchReplyWithDispatcher(
-      runtimeModuleMocks.dispatchReplyWithDispatcher as typeof import("openclaw/plugin-sdk/reply-dispatch-runtime").dispatchReplyWithDispatcher,
+      runtimeModuleMocks.dispatchReplyWithDispatcher as typeof import("@benchagi/openclaw/plugin-sdk/reply-dispatch-runtime").dispatchReplyWithDispatcher,
     );
     setDefaultRouteState();
   });

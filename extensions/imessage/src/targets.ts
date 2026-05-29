@@ -1,5 +1,5 @@
-import { normalizeE164 } from "openclaw/plugin-sdk/account-resolution";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+import { normalizeE164 } from "@benchagi/openclaw/plugin-sdk/account-resolution";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   createAllowedChatSenderMatcher,
   type ChatSenderAllowParams,

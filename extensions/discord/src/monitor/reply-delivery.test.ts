@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __testing as threadBindingTesting,
@@ -50,9 +50,9 @@ vi.mock("../send.shared.js", () => ({
   sendDiscordText: (...args: unknown[]) => sendDiscordTextMock(...args),
 }));
 
-vi.mock("openclaw/plugin-sdk/retry-runtime", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/retry-runtime")>(
-    "openclaw/plugin-sdk/retry-runtime",
+vi.mock("@benchagi/openclaw/plugin-sdk/retry-runtime", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/retry-runtime")>(
+    "@benchagi/openclaw/plugin-sdk/retry-runtime",
   );
   return {
     ...actual,

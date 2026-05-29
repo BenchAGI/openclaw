@@ -1,5 +1,5 @@
-import { resolveInboundMentionDecision } from "openclaw/plugin-sdk/channel-inbound";
-import { resolveThreadSessionKeys } from "openclaw/plugin-sdk/routing";
+import { resolveInboundMentionDecision } from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+import { resolveThreadSessionKeys } from "@benchagi/openclaw/plugin-sdk/routing";
 import {
   buildPendingHistoryContextFromMap,
   clearHistoryEntriesIfEnabled,

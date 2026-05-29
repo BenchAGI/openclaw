@@ -16,7 +16,7 @@ import {
   supportsModelTools,
   type EmbeddedRunAttemptParams,
   type EmbeddedRunAttemptResult,
-} from "openclaw/plugin-sdk/agent-harness";
+} from "@benchagi/openclaw/plugin-sdk/agent-harness";
 import { handleCodexAppServerApprovalRequest } from "./approval-bridge.js";
 import { isCodexAppServerApprovalRequest, type CodexAppServerClient } from "./client.js";
 import { resolveCodexAppServerRuntimeOptions, type CodexAppServerStartOptions } from "./config.js";

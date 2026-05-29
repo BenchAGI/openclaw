@@ -1,4 +1,4 @@
-import { hasConfiguredSecretInput } from "openclaw/plugin-sdk/secret-input";
+import { hasConfiguredSecretInput } from "@benchagi/openclaw/plugin-sdk/secret-input";
 import {
   createAccountScopedAllowFromSection,
   createAccountScopedGroupAccessSection,
@@ -14,12 +14,12 @@ import {
   type ChannelSetupDmPolicy,
   type ChannelSetupWizard,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/setup-runtime";
-import { formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
+} from "@benchagi/openclaw/plugin-sdk/setup-runtime";
+import { formatDocsLink } from "@benchagi/openclaw/plugin-sdk/setup-tools";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { inspectSlackAccount } from "./account-inspect.js";
 import { resolveSlackAccount } from "./accounts.js";
 import {

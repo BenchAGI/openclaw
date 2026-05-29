@@ -1,4 +1,4 @@
-import { resolveSendableOutboundReplyParts } from "openclaw/plugin-sdk/reply-payload";
+import { resolveSendableOutboundReplyParts } from "@benchagi/openclaw/plugin-sdk/reply-payload";
 import { isParentOwnedBackgroundAcpSession } from "../../acp/session-interaction-mode.js";
 import {
   resolveAgentConfig,

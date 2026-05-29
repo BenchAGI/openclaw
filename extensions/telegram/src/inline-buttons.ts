@@ -1,9 +1,9 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { TelegramInlineButtonsScope } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { TelegramInlineButtonsScope } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalLowercaseString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { listTelegramAccountIds, resolveTelegramAccount } from "./accounts.js";
 
 const DEFAULT_INLINE_BUTTONS_SCOPE: TelegramInlineButtonsScope = "allowlist";

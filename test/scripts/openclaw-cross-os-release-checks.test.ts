@@ -350,8 +350,8 @@ describe("scripts/openclaw-cross-os-release-checks", () => {
     try {
       const packageRoot =
         process.platform === "win32"
-          ? join(prefixDir, "node_modules", "openclaw")
-          : join(prefixDir, "lib", "node_modules", "openclaw");
+          ? join(prefixDir, "node_modules", "@benchagi", "openclaw")
+          : join(prefixDir, "lib", "node_modules", "@benchagi", "openclaw");
       mkdirSync(packageRoot, { recursive: true });
       writeFileSync(
         join(packageRoot, "package.json"),

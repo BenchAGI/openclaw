@@ -1,14 +1,14 @@
-import { describeAccountSnapshot } from "openclaw/plugin-sdk/account-helpers";
+import { describeAccountSnapshot } from "@benchagi/openclaw/plugin-sdk/account-helpers";
 import {
   createScopedDmSecurityResolver,
   createTopLevelChannelConfigAdapter,
-} from "openclaw/plugin-sdk/channel-config-helpers";
-import { createChatChannelPlugin } from "openclaw/plugin-sdk/channel-core";
+} from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import { createChatChannelPlugin } from "@benchagi/openclaw/plugin-sdk/channel-core";
 import {
   buildPassiveChannelStatusSummary,
   buildTrafficStatusSummary,
-} from "openclaw/plugin-sdk/extension-shared";
-import { createComputedAccountStatusAdapter } from "openclaw/plugin-sdk/status-helpers";
+} from "@benchagi/openclaw/plugin-sdk/extension-shared";
+import { createComputedAccountStatusAdapter } from "@benchagi/openclaw/plugin-sdk/status-helpers";
 import {
   buildChannelConfigSchema,
   collectStatusIssuesFromLastError,

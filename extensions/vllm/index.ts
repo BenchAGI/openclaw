@@ -2,7 +2,7 @@ import {
   definePluginEntry,
   type OpenClawPluginApi,
   type ProviderAuthMethodNonInteractiveContext,
-} from "openclaw/plugin-sdk/plugin-entry";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 import {
   buildVllmProvider,
   VLLM_DEFAULT_API_KEY_ENV_VAR,
@@ -14,7 +14,7 @@ import {
 const PROVIDER_ID = "vllm";
 
 async function loadProviderSetup() {
-  return await import("openclaw/plugin-sdk/provider-setup");
+  return await import("@benchagi/openclaw/plugin-sdk/provider-setup");
 }
 
 export default definePluginEntry({

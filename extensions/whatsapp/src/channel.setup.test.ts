@@ -1,5 +1,5 @@
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/routing";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/routing";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueuedWizardPrompter } from "../../../test/helpers/plugins/setup-wizard.js";
 import { whatsappApprovalAuth } from "./approval-auth.js";
@@ -35,9 +35,9 @@ vi.mock("./login.js", () => ({
   loginWeb: hoisted.loginWeb,
 }));
 
-vi.mock("openclaw/plugin-sdk/setup", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/setup")>(
-    "openclaw/plugin-sdk/setup",
+vi.mock("@benchagi/openclaw/plugin-sdk/setup", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/setup")>(
+    "@benchagi/openclaw/plugin-sdk/setup",
   );
   const normalizeE164 = (value?: string | null) => {
     const raw = (value ?? "").trim();

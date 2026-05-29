@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
+import { resolvePreferredOpenClawTmpDir } from "@benchagi/openclaw/plugin-sdk/temp-path";
 import { afterAll, beforeAll } from "vitest";
 
 export function createMemoryCoreTestHarness() {

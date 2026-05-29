@@ -17,11 +17,11 @@ const qaTempPathState = vi.hoisted(() => ({
   preferredTmpDir: process.env.TMPDIR || "/tmp",
 }));
 
-vi.mock("openclaw/plugin-sdk/ssrf-runtime", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/ssrf-runtime", () => ({
   fetchWithSsrFGuard: fetchWithSsrFGuardMock,
 }));
 
-vi.mock("openclaw/plugin-sdk/temp-path", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/temp-path", () => ({
   resolvePreferredOpenClawTmpDir: () => qaTempPathState.preferredTmpDir,
 }));
 
@@ -794,7 +794,7 @@ describe("qa bundled plugin dir", () => {
     await writeFile(
       path.join(repoRoot, "dist", "extensions", "qa-channel", "index.js"),
       [
-        'import { normalizeAccountId } from "openclaw/plugin-sdk/account-id";',
+        'import { normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/account-id";',
         'export const accountId = normalizeAccountId("QA");',
         "",
       ].join("\n"),
@@ -1002,7 +1002,7 @@ describe("qa bundled plugin dir", () => {
     await writeFile(
       path.join(repoRoot, "extensions", "qa-channel", "index.ts"),
       [
-        'import { normalizeAccountId } from "openclaw/plugin-sdk/account-id";',
+        'import { normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/account-id";',
         'import { marker } from "fake-dep";',
         'export const accountId = `${normalizeAccountId("QA")}:${marker}`;',
         "",

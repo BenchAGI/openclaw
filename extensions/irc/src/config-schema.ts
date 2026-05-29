@@ -6,8 +6,8 @@ import {
   ToolPolicySchema,
   buildChannelConfigSchema,
   requireOpenAllowFrom,
-} from "openclaw/plugin-sdk/channel-config-schema";
-import { z } from "openclaw/plugin-sdk/zod";
+} from "@benchagi/openclaw/plugin-sdk/channel-config-schema";
+import { z } from "@benchagi/openclaw/plugin-sdk/zod";
 import { ircChannelConfigUiHints } from "./config-ui-hints.js";
 
 const IrcGroupSchema = z

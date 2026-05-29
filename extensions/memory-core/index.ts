@@ -1,4 +1,4 @@
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import { definePluginEntry } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 import { registerMemoryCli } from "./src/cli.js";
 import { registerDreamingCommand } from "./src/dreaming-command.js";
 import { registerShortTermPromotionDreaming } from "./src/dreaming.js";

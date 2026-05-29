@@ -1,6 +1,9 @@
 {
-  "name": "openclaw",
+  "name": "@benchagi/openclaw",
   "version": "2026.5.28",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "description": "Multi-channel AI gateway with extensible messaging integrations",
   "keywords": [],
   "homepage": "https://github.com/openclaw/openclaw#readme",

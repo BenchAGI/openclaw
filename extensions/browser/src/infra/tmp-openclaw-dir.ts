@@ -1,1 +1,1 @@
-export { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
+export { resolvePreferredOpenClawTmpDir } from "@benchagi/openclaw/plugin-sdk/temp-path";

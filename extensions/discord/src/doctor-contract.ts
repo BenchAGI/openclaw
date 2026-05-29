@@ -1,13 +1,13 @@
 import type {
   ChannelDoctorConfigMutation,
   ChannelDoctorLegacyConfigRule,
-} from "openclaw/plugin-sdk/channel-contract";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-contract";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   asObjectRecord,
   normalizeLegacyDmAliases,
   normalizeLegacyStreamingAliases,
-} from "openclaw/plugin-sdk/runtime-doctor";
+} from "@benchagi/openclaw/plugin-sdk/runtime-doctor";
 import { resolveDiscordPreviewStreamMode } from "./preview-streaming.js";
 
 const LEGACY_TTS_PROVIDER_KEYS = ["openai", "elevenlabs", "microsoft", "edge"] as const;

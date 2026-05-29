@@ -10,7 +10,7 @@ import {
   splitSetupEntries,
   type ChannelSetupDmPolicy,
   type ChannelSetupWizard,
-} from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/setup";
 import { resolveDefaultGoogleChatAccountId, resolveGoogleChatAccount } from "./accounts.js";
 
 const channel = "googlechat" as const;

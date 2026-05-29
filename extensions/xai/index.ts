@@ -1,8 +1,8 @@
 import { Type } from "@sinclair/typebox";
-import { defineSingleProviderPluginEntry } from "openclaw/plugin-sdk/provider-entry";
-import { OPENAI_COMPATIBLE_REPLAY_HOOKS } from "openclaw/plugin-sdk/provider-model-shared";
-import { defaultToolStreamExtraParams } from "openclaw/plugin-sdk/provider-stream-shared";
-import { jsonResult, readProviderEnvValue } from "openclaw/plugin-sdk/provider-web-search";
+import { defineSingleProviderPluginEntry } from "@benchagi/openclaw/plugin-sdk/provider-entry";
+import { OPENAI_COMPATIBLE_REPLAY_HOOKS } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { defaultToolStreamExtraParams } from "@benchagi/openclaw/plugin-sdk/provider-stream-shared";
+import { jsonResult, readProviderEnvValue } from "@benchagi/openclaw/plugin-sdk/provider-web-search";
 import {
   applyXaiModelCompat,
   normalizeXaiModelId,

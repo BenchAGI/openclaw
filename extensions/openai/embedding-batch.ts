@@ -17,7 +17,7 @@ import {
   type ProviderBatchOutputLine,
   uploadBatchJsonlFile,
   withRemoteHttpResponse,
-} from "openclaw/plugin-sdk/memory-core-host-engine-embeddings";
+} from "@benchagi/openclaw/plugin-sdk/memory-core-host-engine-embeddings";
 import type { OpenAiEmbeddingClient } from "./embedding-provider.js";
 
 export type OpenAiBatchRequest = {

@@ -1,10 +1,10 @@
-import { createOpencodeCatalogApiKeyAuthMethod } from "openclaw/plugin-sdk/opencode";
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import { createOpencodeCatalogApiKeyAuthMethod } from "@benchagi/openclaw/plugin-sdk/opencode";
+import { definePluginEntry } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 import {
   matchesExactOrPrefix,
   PASSTHROUGH_GEMINI_REPLAY_HOOKS,
-} from "openclaw/plugin-sdk/provider-model-shared";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { applyOpencodeZenConfig, OPENCODE_ZEN_DEFAULT_MODEL } from "./api.js";
 
 const PROVIDER_ID = "opencode";

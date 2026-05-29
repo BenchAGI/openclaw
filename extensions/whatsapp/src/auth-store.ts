@@ -1,11 +1,11 @@
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { formatCliCommand } from "openclaw/plugin-sdk/cli-runtime";
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/routing";
-import { info, success } from "openclaw/plugin-sdk/runtime-env";
-import { getChildLogger } from "openclaw/plugin-sdk/runtime-env";
-import { defaultRuntime, type RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
+import { formatCliCommand } from "@benchagi/openclaw/plugin-sdk/cli-runtime";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/routing";
+import { info, success } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { getChildLogger } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { defaultRuntime, type RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { resolveOAuthDir } from "./auth-store.runtime.js";
 import { hasWebCredsSync, resolveWebCredsBackupPath, resolveWebCredsPath } from "./creds-files.js";
 import { resolveComparableIdentity, type WhatsAppSelfIdentity } from "./identity.js";

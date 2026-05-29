@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "openclaw/plugin-sdk/agent-runtime";
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "@benchagi/openclaw/plugin-sdk/agent-runtime";
 import { vi } from "vitest";
 import {
   removeAckReactionAfterReply,

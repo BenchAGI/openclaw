@@ -1,9 +1,9 @@
 import type {
   ProviderResolveDynamicModelContext,
   ProviderRuntimeModel,
-} from "openclaw/plugin-sdk/plugin-entry";
-import { cloneFirstTemplateModel } from "openclaw/plugin-sdk/provider-model-shared";
-import { normalizeOptionalLowercaseString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { cloneFirstTemplateModel } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { normalizeOptionalLowercaseString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 const GOOGLE_GEMINI_CLI_PROVIDER_ID = "google-gemini-cli";
 const GEMINI_2_5_PRO_PREFIX = "gemini-2.5-pro";

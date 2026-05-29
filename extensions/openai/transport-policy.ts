@@ -3,9 +3,9 @@ import type {
   ProviderResolveWebSocketSessionPolicyContext,
   ProviderTransportTurnState,
   ProviderWebSocketSessionPolicy,
-} from "openclaw/plugin-sdk/plugin-entry";
-import { normalizeProviderId } from "openclaw/plugin-sdk/provider-model-shared";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { normalizeProviderId } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { isOpenAIApiBaseUrl, isOpenAICodexBaseUrl } from "./base-url.js";
 
 const DEFAULT_OPENAI_WS_DEGRADE_COOLDOWN_MS = 60_000;

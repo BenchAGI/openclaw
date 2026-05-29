@@ -66,7 +66,7 @@ export function resolveGlobalRoot(prefixDir, cwd) {
 // Pack + install the package rooted at `packageCwd` into `tmpRoot`, returning
 // the installed package root (`<globalRoot>/openclaw`). The returned root is a
 // real, dependency-resolved install — it does NOT contain build-time-only
-// artifacts such as the dist/extensions/node_modules/openclaw shim, so it
+// artifacts such as the dist/extensions/node_modules/@benchagi/openclaw shim, so it
 // faithfully mirrors the published tarball.
 export function packAndInstallOpenclaw(tmpRoot, { packageCwd = process.cwd() } = {}) {
   const packDir = join(tmpRoot, "pack");
@@ -75,6 +75,6 @@ export function packAndInstallOpenclaw(tmpRoot, { packageCwd = process.cwd() } =
   const tarballPath = resolvePackedTarballPath(packDir, packResults);
   const prefixDir = join(tmpRoot, "prefix");
   installPackedTarball(prefixDir, tarballPath, tmpRoot);
-  const packageRoot = join(resolveGlobalRoot(prefixDir, tmpRoot), "openclaw");
+  const packageRoot = join(resolveGlobalRoot(prefixDir, tmpRoot), "@benchagi", "openclaw");
   return { packageRoot, tarballPath };
 }

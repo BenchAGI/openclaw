@@ -1,4 +1,4 @@
-import { encodePngRgba, fillPixel } from "openclaw/plugin-sdk/media-runtime";
+import { encodePngRgba, fillPixel } from "@benchagi/openclaw/plugin-sdk/media-runtime";
 
 export const MATRIX_QA_IMAGE_ATTACHMENT_FILENAME = "red-top-blue-bottom.png";
 

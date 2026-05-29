@@ -24,12 +24,12 @@ const {
   mockRuntimeResolveMarkdownTableMode: vi.fn(() => "preserve"),
 }));
 
-vi.mock("openclaw/plugin-sdk/config-runtime", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/config-runtime", () => ({
   resolveMarkdownTableMode: mockResolveMarkdownTableMode,
 }));
 
-vi.mock("openclaw/plugin-sdk/text-runtime", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("openclaw/plugin-sdk/text-runtime")>();
+vi.mock("@benchagi/openclaw/plugin-sdk/text-runtime", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@benchagi/openclaw/plugin-sdk/text-runtime")>();
   return {
     ...actual,
     convertMarkdownTables: mockConvertMarkdownTables,

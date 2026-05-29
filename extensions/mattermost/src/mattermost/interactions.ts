@@ -1,10 +1,10 @@
 import { createHmac } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { safeEqualSecret } from "openclaw/plugin-sdk/browser-security-runtime";
+import { safeEqualSecret } from "@benchagi/openclaw/plugin-sdk/browser-security-runtime";
 import {
   normalizeOptionalString,
   normalizeStringifiedOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { getMattermostRuntime } from "../runtime.js";
 import { updateMattermostPost, type MattermostClient, type MattermostPost } from "./client.js";
 import { isTrustedProxyAddress, resolveClientIp, type OpenClawConfig } from "./runtime-api.js";

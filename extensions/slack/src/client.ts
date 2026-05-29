@@ -1,6 +1,6 @@
 import { type RetryOptions, type WebClientOptions, WebClient } from "@slack/web-api";
 import { HttpsProxyAgent } from "https-proxy-agent";
-import { resolveEnvHttpProxyUrl } from "openclaw/plugin-sdk/infra-runtime";
+import { resolveEnvHttpProxyUrl } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
 
 export const SLACK_DEFAULT_RETRY_OPTIONS: RetryOptions = {
   retries: 2,

@@ -167,8 +167,8 @@ function createContext(overrides?: {
 
 describe("registerSlackInteractionEvents", () => {
   beforeAll(async () => {
-    const channelRuntime = await import("openclaw/plugin-sdk/infra-runtime");
-    const pluginRuntime = await import("openclaw/plugin-sdk/plugin-runtime");
+    const channelRuntime = await import("@benchagi/openclaw/plugin-sdk/infra-runtime");
+    const pluginRuntime = await import("@benchagi/openclaw/plugin-sdk/plugin-runtime");
     const conversationBinding = await import("../../../../../src/plugins/conversation-binding.js");
     enqueueSystemEventSpy = vi
       .spyOn(channelRuntime, "enqueueSystemEvent")

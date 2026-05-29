@@ -261,7 +261,7 @@ else
 <key>KeepAlive</key><true/>
 <key>ProgramArguments</key><array>
 <string>/opt/homebrew/opt/node/bin/node</string>
-<string>/opt/homebrew/lib/node_modules/openclaw/dist/entry.js</string>
+<string>/opt/homebrew/lib/node_modules/@benchagi/openclaw/dist/entry.js</string>
 <string>gateway</string><string>--port</string><string>18789</string>
 </array>
 </dict></plist>

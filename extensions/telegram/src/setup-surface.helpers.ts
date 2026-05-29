@@ -5,9 +5,9 @@ import {
   DEFAULT_ACCOUNT_ID,
   type OpenClawConfig,
   patchChannelConfigForAccount,
-} from "openclaw/plugin-sdk/setup";
-import { formatCliCommand, formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/setup";
+import { formatCliCommand, formatDocsLink } from "@benchagi/openclaw/plugin-sdk/setup-tools";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   mergeTelegramAccountConfig,
   resolveDefaultTelegramAccountId,

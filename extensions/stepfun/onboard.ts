@@ -3,7 +3,7 @@ import {
   type ModelProviderConfig,
   type OpenClawConfig,
   type ProviderOnboardPresetAppliers,
-} from "openclaw/plugin-sdk/provider-onboard";
+} from "@benchagi/openclaw/plugin-sdk/provider-onboard";
 import {
   buildStepFunPlanProvider,
   buildStepFunProvider,

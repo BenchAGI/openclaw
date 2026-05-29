@@ -1,5 +1,5 @@
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
-import { NATIVE_ANTHROPIC_REPLAY_HOOKS } from "openclaw/plugin-sdk/provider-model-shared";
+import { definePluginEntry } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { NATIVE_ANTHROPIC_REPLAY_HOOKS } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
 import {
   mergeImplicitAnthropicVertexProvider,
   resolveAnthropicVertexConfigApiKey,

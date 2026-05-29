@@ -180,13 +180,13 @@ function installDiscoveryHooks(
 ) {
   beforeAll(async () => {
     vi.resetModules();
-    vi.doMock("openclaw/plugin-sdk/agent-runtime", () => {
+    vi.doMock("@benchagi/openclaw/plugin-sdk/agent-runtime", () => {
       return {
         ensureAuthProfileStore: ensureAuthProfileStoreMock,
         listProfilesForProvider: listProfilesForProviderMock,
       };
     });
-    vi.doMock("openclaw/plugin-sdk/provider-auth", () => {
+    vi.doMock("@benchagi/openclaw/plugin-sdk/provider-auth", () => {
       return {
         MINIMAX_OAUTH_MARKER: "minimax-oauth",
         applyAuthProfileConfig: (config: OpenClawConfig) => config,

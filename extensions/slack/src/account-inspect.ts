@@ -2,12 +2,12 @@ import {
   DEFAULT_ACCOUNT_ID,
   normalizeAccountId,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/account-resolution";
+} from "@benchagi/openclaw/plugin-sdk/account-resolution";
 import {
   hasConfiguredSecretInput,
   normalizeSecretInputString,
-} from "openclaw/plugin-sdk/secret-input";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/secret-input";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import type { SlackAccountSurfaceFields } from "./account-surface-fields.js";
 import {
   mergeSlackAccountConfig,

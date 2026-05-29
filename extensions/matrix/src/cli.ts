@@ -1,7 +1,7 @@
 import type { Command } from "commander";
-import { normalizeAccountId } from "openclaw/plugin-sdk/account-id";
-import { formatZonedTimestamp } from "openclaw/plugin-sdk/matrix-runtime-shared";
-import type { ChannelSetupInput } from "openclaw/plugin-sdk/setup";
+import { normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/account-id";
+import { formatZonedTimestamp } from "@benchagi/openclaw/plugin-sdk/matrix-runtime-shared";
+import type { ChannelSetupInput } from "@benchagi/openclaw/plugin-sdk/setup";
 import { resolveMatrixAccount, resolveMatrixAccountConfig } from "./matrix/accounts.js";
 import { listMatrixOwnDevices, pruneMatrixStaleGatewayDevices } from "./matrix/actions/devices.js";
 import { updateMatrixOwnProfile } from "./matrix/actions/profile.js";

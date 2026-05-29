@@ -1,9 +1,9 @@
-export type { OpenClawConfig } from "openclaw/plugin-sdk/memory-core";
+export type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/memory-core";
 export type {
   MemoryEmbeddingProbeResult,
   MemoryProviderStatus,
   MemorySyncProgressUpdate,
-} from "openclaw/plugin-sdk/memory-core-host-engine-storage";
+} from "@benchagi/openclaw/plugin-sdk/memory-core-host-engine-storage";
 export {
   dedupeDreamDiaryEntries,
   removeBackfillDiaryEntries,

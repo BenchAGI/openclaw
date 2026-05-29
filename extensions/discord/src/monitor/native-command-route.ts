@@ -1,7 +1,7 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import * as conversationRuntime from "openclaw/plugin-sdk/conversation-binding-runtime";
-import type { ResolvedAgentRoute } from "openclaw/plugin-sdk/routing";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import * as conversationRuntime from "@benchagi/openclaw/plugin-sdk/conversation-binding-runtime";
+import type { ResolvedAgentRoute } from "@benchagi/openclaw/plugin-sdk/routing";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   resolveDiscordBoundConversationRoute,
   resolveDiscordEffectiveRoute,

@@ -1,8 +1,8 @@
-import type { getReplyFromConfig } from "openclaw/plugin-sdk/reply-runtime";
-import type { MsgContext } from "openclaw/plugin-sdk/reply-runtime";
-import { resolveAgentRoute } from "openclaw/plugin-sdk/routing";
-import { buildGroupHistoryKey } from "openclaw/plugin-sdk/routing";
-import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
+import type { getReplyFromConfig } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+import type { MsgContext } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+import { resolveAgentRoute } from "@benchagi/openclaw/plugin-sdk/routing";
+import { buildGroupHistoryKey } from "@benchagi/openclaw/plugin-sdk/routing";
+import { logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { resolveWhatsAppGroupSessionRoute } from "../../group-session-key.js";
 import { getPrimaryIdentityId, getSenderIdentity } from "../../identity.js";
 import { normalizeE164 } from "../../text-runtime.js";
@@ -28,7 +28,7 @@ export function createWebOnMessageHandler(params: {
   echoTracker: EchoTracker;
   backgroundTasks: Set<Promise<unknown>>;
   replyResolver: typeof getReplyFromConfig;
-  replyLogger: ReturnType<(typeof import("openclaw/plugin-sdk/runtime-env"))["getChildLogger"]>;
+  replyLogger: ReturnType<(typeof import("@benchagi/openclaw/plugin-sdk/runtime-env"))["getChildLogger"]>;
   baseMentionConfig: MentionConfig;
   account: { authDir?: string; accountId?: string; selfChatMode?: boolean };
 }) {

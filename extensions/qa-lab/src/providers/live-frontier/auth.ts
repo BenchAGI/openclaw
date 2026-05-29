@@ -1,11 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   applyAuthProfileConfig,
   upsertAuthProfile,
   validateAnthropicSetupToken,
-} from "openclaw/plugin-sdk/provider-auth";
+} from "@benchagi/openclaw/plugin-sdk/provider-auth";
 
 export const QA_LIVE_ANTHROPIC_SETUP_TOKEN_ENV = "OPENCLAW_QA_LIVE_ANTHROPIC_SETUP_TOKEN";
 export const QA_LIVE_SETUP_TOKEN_VALUE_ENV = "OPENCLAW_LIVE_SETUP_TOKEN_VALUE";

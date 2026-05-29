@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { OpenClawPluginApi } from "@benchagi/openclaw/plugin-sdk/plugin-runtime";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_TAVILY_BASE_URL,

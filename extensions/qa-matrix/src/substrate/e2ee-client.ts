@@ -119,7 +119,7 @@ export type MatrixQaE2eeScenarioClient = {
 
 async function loadMatrixQaE2eeRuntime(): Promise<MatrixQaE2eeRuntime> {
   const { loadQaRunnerBundledPluginTestApi } =
-    await import("openclaw/plugin-sdk/qa-runner-runtime");
+    await import("@benchagi/openclaw/plugin-sdk/qa-runner-runtime");
   return loadQaRunnerBundledPluginTestApi<MatrixQaE2eeRuntime>("matrix");
 }
 

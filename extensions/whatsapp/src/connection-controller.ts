@@ -1,6 +1,6 @@
 import { DisconnectReason, type WASocket } from "@whiskeysockets/baileys";
-import { info } from "openclaw/plugin-sdk/runtime-env";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
+import { info } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   registerWhatsAppConnectionController,
   unregisterWhatsAppConnectionController,

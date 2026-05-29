@@ -1,10 +1,10 @@
-import { parseFiniteNumber } from "openclaw/plugin-sdk/infra-runtime";
+import { parseFiniteNumber } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
 import {
   asNullableRecord,
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
   readStringField,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { extractHandleFromChatGuid, normalizeBlueBubblesHandle } from "./targets.js";
 import type { BlueBubblesAttachment } from "./types.js";
 

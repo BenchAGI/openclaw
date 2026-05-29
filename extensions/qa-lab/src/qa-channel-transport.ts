@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import type { QaBusState } from "./bus-state.js";
 import { getQaProvider } from "./providers/index.js";
 import { QaStateBackedTransportAdapter, waitForQaTransportCondition } from "./qa-transport.js";

@@ -1,5 +1,5 @@
-import { resolveHumanDelayConfig } from "openclaw/plugin-sdk/agent-runtime";
-import { logTypingFailure } from "openclaw/plugin-sdk/channel-feedback";
+import { resolveHumanDelayConfig } from "@benchagi/openclaw/plugin-sdk/agent-runtime";
+import { logTypingFailure } from "@benchagi/openclaw/plugin-sdk/channel-feedback";
 import {
   buildMentionRegexes,
   createChannelInboundDebouncer,
@@ -9,40 +9,40 @@ import {
   resolveInboundMentionDecision,
   resolveEnvelopeFormatOptions,
   shouldDebounceTextInbound,
-} from "openclaw/plugin-sdk/channel-inbound";
-import { logInboundDrop } from "openclaw/plugin-sdk/channel-inbound";
-import { createChannelReplyPipeline } from "openclaw/plugin-sdk/channel-reply-pipeline";
-import { resolveControlCommandGate } from "openclaw/plugin-sdk/command-auth";
-import { hasControlCommand } from "openclaw/plugin-sdk/command-auth";
+} from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+import { logInboundDrop } from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+import { createChannelReplyPipeline } from "@benchagi/openclaw/plugin-sdk/channel-reply-pipeline";
+import { resolveControlCommandGate } from "@benchagi/openclaw/plugin-sdk/command-auth";
+import { hasControlCommand } from "@benchagi/openclaw/plugin-sdk/command-auth";
 import {
   resolveChannelGroupPolicy,
   resolveChannelGroupRequireMention,
-} from "openclaw/plugin-sdk/config-runtime";
-import { readSessionUpdatedAt, resolveStorePath } from "openclaw/plugin-sdk/config-runtime";
-import { recordInboundSession } from "openclaw/plugin-sdk/conversation-runtime";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { readSessionUpdatedAt, resolveStorePath } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { recordInboundSession } from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
 import {
   createInternalHookEvent,
   fireAndForgetHook,
   toInternalMessageReceivedContext,
   triggerInternalHook,
-} from "openclaw/plugin-sdk/hook-runtime";
-import { enqueueSystemEvent } from "openclaw/plugin-sdk/infra-runtime";
-import { kindFromMime } from "openclaw/plugin-sdk/media-runtime";
+} from "@benchagi/openclaw/plugin-sdk/hook-runtime";
+import { enqueueSystemEvent } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
+import { kindFromMime } from "@benchagi/openclaw/plugin-sdk/media-runtime";
 import {
   buildPendingHistoryContextFromMap,
   clearHistoryEntriesIfEnabled,
   recordPendingHistoryEntryIfEnabled,
-} from "openclaw/plugin-sdk/reply-history";
-import { dispatchInboundMessage } from "openclaw/plugin-sdk/reply-runtime";
-import { finalizeInboundContext } from "openclaw/plugin-sdk/reply-runtime";
-import { createReplyDispatcherWithTyping } from "openclaw/plugin-sdk/reply-runtime";
-import { resolveAgentRoute } from "openclaw/plugin-sdk/routing";
-import { danger, logVerbose, shouldLogVerbose } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/reply-history";
+import { dispatchInboundMessage } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+import { finalizeInboundContext } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+import { createReplyDispatcherWithTyping } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+import { resolveAgentRoute } from "@benchagi/openclaw/plugin-sdk/routing";
+import { danger, logVerbose, shouldLogVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   DM_GROUP_ACCESS_REASON,
   resolvePinnedMainDmOwnerFromAllowlist,
-} from "openclaw/plugin-sdk/security-runtime";
-import { normalizeE164, normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/security-runtime";
+import { normalizeE164, normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   formatSignalPairingIdLine,
   formatSignalSenderDisplay,

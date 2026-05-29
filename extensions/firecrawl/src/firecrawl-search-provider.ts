@@ -1,7 +1,7 @@
 import {
   createWebSearchProviderContractFields,
   type WebSearchProviderPlugin,
-} from "openclaw/plugin-sdk/provider-web-search-contract";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-search-contract";
 
 const FIRECRAWL_CREDENTIAL_PATH = "plugins.entries.firecrawl.config.webSearch.apiKey";
 const GenericFirecrawlSearchSchema = {

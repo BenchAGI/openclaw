@@ -1,5 +1,5 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import type { OpenClawPluginApi } from "@benchagi/openclaw/plugin-sdk/core";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import { getAccessToken } from "../api.js";
 import { listQQBotAccountIds, resolveQQBotAccount } from "../config.js";
 import { debugError, debugLog } from "../utils/debug-log.js";

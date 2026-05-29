@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { ModelProviderConfig } from "openclaw/plugin-sdk/provider-model-shared";
+import type { ModelProviderConfig } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
 
 const QA_ALWAYS_STAGE_RUNTIME_PLUGIN_IDS = Object.freeze([
   "image-generation-core",

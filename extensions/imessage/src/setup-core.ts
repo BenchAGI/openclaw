@@ -2,7 +2,7 @@ import type {
   ChannelSetupAdapter,
   ChannelSetupWizard,
   ChannelSetupWizardTextInput,
-} from "openclaw/plugin-sdk/setup-runtime";
+} from "@benchagi/openclaw/plugin-sdk/setup-runtime";
 import {
   createCliPathTextInput,
   createDelegatedSetupWizardProxy,
@@ -16,9 +16,9 @@ import {
   setSetupChannelEnabled,
   type OpenClawConfig,
   type WizardPrompter,
-} from "openclaw/plugin-sdk/setup-runtime";
-import { formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/setup-runtime";
+import { formatDocsLink } from "@benchagi/openclaw/plugin-sdk/setup-tools";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveDefaultIMessageAccountId, resolveIMessageAccount } from "./accounts.js";
 import { normalizeIMessageHandle } from "./targets.js";
 

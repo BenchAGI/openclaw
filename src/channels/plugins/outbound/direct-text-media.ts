@@ -1,11 +1,11 @@
-import { sanitizeForPlainText } from "openclaw/plugin-sdk/outbound-runtime";
+import { sanitizeForPlainText } from "@benchagi/openclaw/plugin-sdk/outbound-runtime";
 import {
   resolvePayloadMediaUrls,
   sendPayloadMediaSequence,
   sendPayloadMediaSequenceAndFinalize,
   sendPayloadMediaSequenceOrFallback,
   sendTextMediaPayload,
-} from "openclaw/plugin-sdk/reply-payload";
+} from "@benchagi/openclaw/plugin-sdk/reply-payload";
 import { chunkText } from "../../../auto-reply/chunk.js";
 import type { OpenClawConfig } from "../../../config/types.openclaw.js";
 import type { OutboundSendDeps } from "../../../infra/outbound/deliver.js";
@@ -37,7 +37,7 @@ export {
   sendPayloadMediaSequenceAndFinalize,
   sendPayloadMediaSequenceOrFallback,
   sendTextMediaPayload,
-} from "openclaw/plugin-sdk/reply-payload";
+} from "@benchagi/openclaw/plugin-sdk/reply-payload";
 
 export function resolveScopedChannelMediaMaxBytes(params: {
   cfg: OpenClawConfig;

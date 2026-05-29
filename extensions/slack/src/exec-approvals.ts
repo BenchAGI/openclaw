@@ -1,11 +1,11 @@
-import { resolveApprovalApprovers } from "openclaw/plugin-sdk/approval-auth-runtime";
+import { resolveApprovalApprovers } from "@benchagi/openclaw/plugin-sdk/approval-auth-runtime";
 import {
   createChannelExecApprovalProfile,
   isChannelExecApprovalTargetRecipient,
-} from "openclaw/plugin-sdk/approval-client-runtime";
-import { doesApprovalRequestMatchChannelAccount } from "openclaw/plugin-sdk/approval-native-runtime";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { normalizeStringifiedOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/approval-client-runtime";
+import { doesApprovalRequestMatchChannelAccount } from "@benchagi/openclaw/plugin-sdk/approval-native-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { normalizeStringifiedOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveSlackAccount } from "./accounts.js";
 
 export function normalizeSlackApproverId(value: string | number): string | undefined {

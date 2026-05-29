@@ -1,8 +1,8 @@
-import { resolveChannelStreamingPreviewChunk } from "openclaw/plugin-sdk/channel-streaming";
-import { type OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { resolveTextChunkLimit } from "openclaw/plugin-sdk/reply-chunking";
-import { resolveAccountEntry } from "openclaw/plugin-sdk/routing";
-import { normalizeAccountId } from "openclaw/plugin-sdk/routing";
+import { resolveChannelStreamingPreviewChunk } from "@benchagi/openclaw/plugin-sdk/channel-streaming";
+import { type OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { resolveTextChunkLimit } from "@benchagi/openclaw/plugin-sdk/reply-chunking";
+import { resolveAccountEntry } from "@benchagi/openclaw/plugin-sdk/routing";
+import { normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/routing";
 import { DISCORD_TEXT_CHUNK_LIMIT } from "./outbound-adapter.js";
 
 const DEFAULT_DISCORD_DRAFT_STREAM_MIN = 200;

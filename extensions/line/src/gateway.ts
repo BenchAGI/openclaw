@@ -1,4 +1,4 @@
-import { createLazyRuntimeModule } from "openclaw/plugin-sdk/lazy-runtime";
+import { createLazyRuntimeModule } from "@benchagi/openclaw/plugin-sdk/lazy-runtime";
 import { resolveLineAccount } from "./accounts.js";
 import {
   clearAccountEntryFields,

@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import * as agentRuntimeModule from "openclaw/plugin-sdk/simple-completion-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import * as agentRuntimeModule from "@benchagi/openclaw/plugin-sdk/simple-completion-runtime";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const completeWithPreparedSimpleCompletionModelMock =

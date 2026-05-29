@@ -1,5 +1,5 @@
-import { resolveProviderRequestCapabilities } from "openclaw/plugin-sdk/provider-http";
-import { normalizeLowercaseStringOrEmpty, readStringValue } from "openclaw/plugin-sdk/text-runtime";
+import { resolveProviderRequestCapabilities } from "@benchagi/openclaw/plugin-sdk/provider-http";
+import { normalizeLowercaseStringOrEmpty, readStringValue } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { MISTRAL_MODEL_TRANSPORT_PATCH } from "./api.js";
 
 const MISTRAL_MODEL_HINTS = [

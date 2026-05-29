@@ -4,11 +4,11 @@ import {
   resolveAccountEntry,
   resolveMergedAccountConfig,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/account-core";
+} from "@benchagi/openclaw/plugin-sdk/account-core";
 import {
   resolveChannelStreamingBlockEnabled,
   resolveChannelStreamingChunkMode,
-} from "openclaw/plugin-sdk/channel-streaming";
+} from "@benchagi/openclaw/plugin-sdk/channel-streaming";
 import type { WhatsAppAccountConfig } from "./account-types.js";
 
 function resolveWhatsAppDefaultAccountSharedConfig(

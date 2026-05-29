@@ -1,10 +1,10 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { resolveRequiredConfiguredSecretRefInputString } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { resolveRequiredConfiguredSecretRefInputString } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   coerceSecretRef,
   ensureAuthProfileStore,
   listProfilesForProvider,
-} from "openclaw/plugin-sdk/provider-auth";
+} from "@benchagi/openclaw/plugin-sdk/provider-auth";
 import { PROVIDER_ID } from "./models.js";
 
 export async function resolveFirstGithubToken(params: {

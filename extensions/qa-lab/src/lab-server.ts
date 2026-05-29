@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import { createServer, type IncomingMessage } from "node:http";
 import path from "node:path";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import {
   getDebugProxyCaptureStore,
   resolveDebugProxySettings,
-} from "openclaw/plugin-sdk/proxy-capture";
+} from "@benchagi/openclaw/plugin-sdk/proxy-capture";
 import { closeQaHttpServer, handleQaBusRequest, writeError, writeJson } from "./bus-server.js";
 import { createQaBusState, type QaBusState } from "./bus-state.js";
 import { createQaRunnerRuntime } from "./harness-runtime.js";

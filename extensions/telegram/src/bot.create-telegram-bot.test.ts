@@ -1,10 +1,10 @@
-import type { GetReplyOptions, MsgContext } from "openclaw/plugin-sdk/reply-runtime";
-import { withEnvAsync } from "openclaw/plugin-sdk/testing";
+import type { GetReplyOptions, MsgContext } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+import { withEnvAsync } from "@benchagi/openclaw/plugin-sdk/testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { escapeRegExp, formatEnvelopeTimestamp } from "../../../test/helpers/envelope-timestamp.js";
 const harness = await import("./bot.create-telegram-bot.test-harness.js");
-const conversationRuntime = await import("openclaw/plugin-sdk/conversation-runtime");
-const configRuntime = await import("openclaw/plugin-sdk/config-runtime");
+const conversationRuntime = await import("@benchagi/openclaw/plugin-sdk/conversation-runtime");
+const configRuntime = await import("@benchagi/openclaw/plugin-sdk/config-runtime");
 const EYES_EMOJI = "\u{1F440}";
 const {
   answerCallbackQuerySpy,

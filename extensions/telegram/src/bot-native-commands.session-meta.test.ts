@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { ResolvedAgentRoute } from "openclaw/plugin-sdk/routing";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ResolvedAgentRoute } from "@benchagi/openclaw/plugin-sdk/routing";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TelegramNativeCommandDeps } from "./bot-native-command-deps.runtime.js";
 import {
@@ -14,9 +14,9 @@ import { type RegisterTelegramHandlerParams } from "./bot-native-commands.js";
 // All mocks scoped to this file only — does not affect bot-native-commands.test.ts
 
 type ResolveConfiguredBindingRouteFn =
-  typeof import("openclaw/plugin-sdk/conversation-runtime").resolveConfiguredBindingRoute;
+  typeof import("@benchagi/openclaw/plugin-sdk/conversation-runtime").resolveConfiguredBindingRoute;
 type EnsureConfiguredBindingRouteReadyFn =
-  typeof import("openclaw/plugin-sdk/conversation-runtime").ensureConfiguredBindingRouteReady;
+  typeof import("@benchagi/openclaw/plugin-sdk/conversation-runtime").ensureConfiguredBindingRouteReady;
 type DispatchReplyWithBufferedBlockDispatcherFn =
   typeof import("../../../src/auto-reply/reply/provider-dispatcher.js").dispatchReplyWithBufferedBlockDispatcher;
 type DispatchReplyWithBufferedBlockDispatcherParams =
@@ -64,9 +64,9 @@ const conversationStoreMocks = vi.hoisted(() => ({
   upsertChannelPairingRequest: vi.fn(async () => ({ code: "PAIRCODE", created: true })),
 }));
 
-vi.mock("openclaw/plugin-sdk/conversation-runtime", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/conversation-runtime")>(
-    "openclaw/plugin-sdk/conversation-runtime",
+vi.mock("@benchagi/openclaw/plugin-sdk/conversation-runtime", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/conversation-runtime")>(
+    "@benchagi/openclaw/plugin-sdk/conversation-runtime",
   );
   return {
     ...actual,

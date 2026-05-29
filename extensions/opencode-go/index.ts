@@ -1,6 +1,6 @@
-import { createOpencodeCatalogApiKeyAuthMethod } from "openclaw/plugin-sdk/opencode";
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
-import { PASSTHROUGH_GEMINI_REPLAY_HOOKS } from "openclaw/plugin-sdk/provider-model-shared";
+import { createOpencodeCatalogApiKeyAuthMethod } from "@benchagi/openclaw/plugin-sdk/opencode";
+import { definePluginEntry } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { PASSTHROUGH_GEMINI_REPLAY_HOOKS } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
 import { applyOpencodeGoConfig, OPENCODE_GO_DEFAULT_MODEL_REF } from "./api.js";
 
 const PROVIDER_ID = "opencode-go";

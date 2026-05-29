@@ -13,8 +13,8 @@ import {
   DEFAULT_ACCOUNT_ID,
   normalizeAccountId,
   resolveNormalizedAccountEntry,
-} from "openclaw/plugin-sdk/account-resolution";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/account-resolution";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 
 export type TwitchTokenSource = "env" | "config" | "none";
 

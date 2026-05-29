@@ -1,4 +1,4 @@
-import { hasConfiguredSecretInput } from "openclaw/plugin-sdk/secret-input";
+import { hasConfiguredSecretInput } from "@benchagi/openclaw/plugin-sdk/secret-input";
 import type { OpenClawConfig } from "../runtime-api.js";
 import { asRecord, hasNonEmptyString } from "./comment-shared.js";
 

@@ -7,7 +7,7 @@ import {
   type EmbeddedRunAttemptParams,
   type EmbeddedRunAttemptResult,
   type MessagingToolSend,
-} from "openclaw/plugin-sdk/agent-harness";
+} from "@benchagi/openclaw/plugin-sdk/agent-harness";
 import {
   isJsonObject,
   type CodexServerNotification,

@@ -1,6 +1,6 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { DiscordExecApprovalConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { ReplyPayload } from "openclaw/plugin-sdk/reply-dispatch-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { DiscordExecApprovalConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ReplyPayload } from "@benchagi/openclaw/plugin-sdk/reply-dispatch-runtime";
 import { resolveDiscordAccount } from "./accounts.js";
 import {
   getExecApprovalReplyMetadata,

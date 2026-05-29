@@ -1,10 +1,10 @@
-import { formatAllowFromLowercase } from "openclaw/plugin-sdk/allow-from";
+import { formatAllowFromLowercase } from "@benchagi/openclaw/plugin-sdk/allow-from";
 import {
   adaptScopedAccountAccessor,
   createScopedChannelConfigAdapter,
   createScopedDmSecurityResolver,
-} from "openclaw/plugin-sdk/channel-config-helpers";
-import { createPairingPrefixStripper } from "openclaw/plugin-sdk/channel-pairing";
+} from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import { createPairingPrefixStripper } from "@benchagi/openclaw/plugin-sdk/channel-pairing";
 import {
   listNextcloudTalkAccountIds,
   resolveDefaultNextcloudTalkAccountId,

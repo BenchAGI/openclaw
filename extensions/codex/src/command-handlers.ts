@@ -1,4 +1,4 @@
-import type { PluginCommandContext } from "openclaw/plugin-sdk/plugin-entry";
+import type { PluginCommandContext } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 import { CODEX_CONTROL_METHODS } from "./app-server/capabilities.js";
 import { listCodexAppServerModels } from "./app-server/models.js";
 import { isJsonObject } from "./app-server/protocol.js";

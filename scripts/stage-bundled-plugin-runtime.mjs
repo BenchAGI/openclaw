@@ -78,7 +78,7 @@ function removeStaleOpenClawSelfReference(sourcePluginNodeModulesDir, repoRoot) 
     return;
   }
 
-  const selfReferencePath = path.join(sourcePluginNodeModulesDir, "openclaw");
+  const selfReferencePath = path.join(sourcePluginNodeModulesDir, "@benchagi", "openclaw");
   try {
     const existing = fs.lstatSync(selfReferencePath);
     if (!existing.isSymbolicLink()) {
@@ -100,11 +100,11 @@ function ensureOpenClawExtensionAlias(params) {
     return;
   }
 
-  const aliasDir = path.join(params.distExtensionsRoot, "node_modules", "openclaw");
+  const aliasDir = path.join(params.distExtensionsRoot, "node_modules", "@benchagi", "openclaw");
   const pluginSdkAliasPath = path.join(aliasDir, "plugin-sdk");
   fs.mkdirSync(aliasDir, { recursive: true });
   writeJsonFile(path.join(aliasDir, "package.json"), {
-    name: "openclaw",
+    name: "@benchagi/openclaw",
     type: "module",
     exports: {
       "./plugin-sdk": "./plugin-sdk/index.js",

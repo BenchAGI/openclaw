@@ -1,4 +1,4 @@
-import { isRecord } from "openclaw/plugin-sdk/text-runtime";
+import { isRecord } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 type UnsupportedSecretRefConfigCandidate = {
   path: string;

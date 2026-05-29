@@ -92,11 +92,11 @@ export const sharedVitestConfig = {
   resolve: {
     alias: [
       {
-        find: "openclaw/extension-api",
+        find: "@benchagi/openclaw/extension-api",
         replacement: path.join(repoRoot, "src", "extensionAPI.ts"),
       },
       ...pluginSdkSubpaths.map((subpath) => ({
-        find: `openclaw/plugin-sdk/${subpath}`,
+        find: `@benchagi/openclaw/plugin-sdk/${subpath}`,
         replacement: path.join(repoRoot, "src", "plugin-sdk", `${subpath}.ts`),
       })),
       ...pluginSdkSubpaths.map((subpath) => ({
@@ -104,7 +104,7 @@ export const sharedVitestConfig = {
         replacement: path.join(repoRoot, "packages", "plugin-sdk", "src", `${subpath}.ts`),
       })),
       {
-        find: "openclaw/plugin-sdk",
+        find: "@benchagi/openclaw/plugin-sdk",
         replacement: path.join(repoRoot, "src", "plugin-sdk", "index.ts"),
       },
     ],

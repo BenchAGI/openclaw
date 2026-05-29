@@ -1,23 +1,23 @@
 import type { RequestClient } from "@buape/carbon";
-import { resolveAgentAvatar } from "openclaw/plugin-sdk/agent-runtime";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { MarkdownTableMode, ReplyToMode } from "openclaw/plugin-sdk/config-runtime";
-import type { ChunkMode } from "openclaw/plugin-sdk/reply-chunking";
-import type { ReplyPayload } from "openclaw/plugin-sdk/reply-dispatch-runtime";
+import { resolveAgentAvatar } from "@benchagi/openclaw/plugin-sdk/agent-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { MarkdownTableMode, ReplyToMode } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ChunkMode } from "@benchagi/openclaw/plugin-sdk/reply-chunking";
+import type { ReplyPayload } from "@benchagi/openclaw/plugin-sdk/reply-dispatch-runtime";
 import {
   resolveSendableOutboundReplyParts,
   resolveTextChunksWithFallback,
   sendMediaWithLeadingCaption,
-} from "openclaw/plugin-sdk/reply-payload";
-import { isSingleUseReplyToMode } from "openclaw/plugin-sdk/reply-reference";
+} from "@benchagi/openclaw/plugin-sdk/reply-payload";
+import { isSingleUseReplyToMode } from "@benchagi/openclaw/plugin-sdk/reply-reference";
 import {
   resolveRetryConfig,
   retryAsync,
   type RetryConfig,
   type RetryRunner,
-} from "openclaw/plugin-sdk/retry-runtime";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
-import { convertMarkdownTables, normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/retry-runtime";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { convertMarkdownTables, normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveDiscordAccount } from "../accounts.js";
 import { chunkDiscordTextWithMode } from "../chunk.js";
 import { isLikelyDiscordVideoMedia } from "../media-detection.js";

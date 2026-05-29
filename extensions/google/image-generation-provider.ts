@@ -1,8 +1,8 @@
-import type { ImageGenerationProvider } from "openclaw/plugin-sdk/image-generation";
-import { isProviderApiKeyConfigured } from "openclaw/plugin-sdk/provider-auth";
-import { resolveApiKeyForProvider } from "openclaw/plugin-sdk/provider-auth-runtime";
-import { assertOkOrThrowHttpError, postJsonRequest } from "openclaw/plugin-sdk/provider-http";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+import type { ImageGenerationProvider } from "@benchagi/openclaw/plugin-sdk/image-generation";
+import { isProviderApiKeyConfigured } from "@benchagi/openclaw/plugin-sdk/provider-auth";
+import { resolveApiKeyForProvider } from "@benchagi/openclaw/plugin-sdk/provider-auth-runtime";
+import { assertOkOrThrowHttpError, postJsonRequest } from "@benchagi/openclaw/plugin-sdk/provider-http";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { normalizeGoogleModelId, resolveGoogleGenerativeAiHttpRequestConfig } from "./api.js";
 
 const DEFAULT_GOOGLE_IMAGE_MODEL = "gemini-3.1-flash-image-preview";

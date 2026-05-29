@@ -1,5 +1,5 @@
-import { ToolAuthorizationError } from "openclaw/plugin-sdk/channel-actions";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import { ToolAuthorizationError } from "@benchagi/openclaw/plugin-sdk/channel-actions";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import { resolveWhatsAppAccount } from "./accounts.js";
 import { resolveWhatsAppOutboundTarget } from "./resolve-outbound-target.js";
 

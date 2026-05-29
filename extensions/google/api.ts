@@ -1,7 +1,7 @@
 import {
   resolveProviderHttpRequestConfig,
   type ProviderRequestTransportOverrides,
-} from "openclaw/plugin-sdk/provider-http";
+} from "@benchagi/openclaw/plugin-sdk/provider-http";
 import { parseGoogleOauthApiKey } from "./oauth-token-shared.js";
 export { applyGoogleGeminiModelDefault, GOOGLE_GEMINI_DEFAULT_MODEL } from "./onboard.js";
 import {

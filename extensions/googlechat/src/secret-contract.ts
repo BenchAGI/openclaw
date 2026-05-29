@@ -8,8 +8,8 @@ import {
   type ResolverContext,
   type SecretDefaults,
   type SecretTargetRegistryEntry,
-} from "openclaw/plugin-sdk/channel-secret-basic-runtime";
-import { coerceSecretRef } from "openclaw/plugin-sdk/secret-ref-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-secret-basic-runtime";
+import { coerceSecretRef } from "@benchagi/openclaw/plugin-sdk/secret-ref-runtime";
 
 type GoogleChatAccountLike = {
   serviceAccount?: unknown;

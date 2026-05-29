@@ -1,4 +1,4 @@
-import { normalizeOptionalLowercaseString } from "openclaw/plugin-sdk/text-runtime";
+import { normalizeOptionalLowercaseString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { newConnectionId } from "../reconnect.js";
 import {
   DEFAULT_HEARTBEAT_ACK_MAX_CHARS,

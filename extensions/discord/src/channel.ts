@@ -3,33 +3,33 @@ import {
   buildLegacyDmAccountAllowlistAdapter,
   createAccountScopedAllowlistNameResolver,
   createNestedAllowlistOverrideResolver,
-} from "openclaw/plugin-sdk/allowlist-config-edit";
-import { createScopedDmSecurityResolver } from "openclaw/plugin-sdk/channel-config-helpers";
+} from "@benchagi/openclaw/plugin-sdk/allowlist-config-edit";
+import { createScopedDmSecurityResolver } from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
 import type {
   ChannelMessageActionAdapter,
   ChannelMessageToolDiscovery,
-} from "openclaw/plugin-sdk/channel-contract";
-import { createChatChannelPlugin } from "openclaw/plugin-sdk/channel-core";
-import { createPairingPrefixStripper } from "openclaw/plugin-sdk/channel-pairing";
-import { createOpenProviderConfiguredRouteWarningCollector } from "openclaw/plugin-sdk/channel-policy";
+} from "@benchagi/openclaw/plugin-sdk/channel-contract";
+import { createChatChannelPlugin } from "@benchagi/openclaw/plugin-sdk/channel-core";
+import { createPairingPrefixStripper } from "@benchagi/openclaw/plugin-sdk/channel-pairing";
+import { createOpenProviderConfiguredRouteWarningCollector } from "@benchagi/openclaw/plugin-sdk/channel-policy";
 import {
   createChannelDirectoryAdapter,
   createRuntimeDirectoryLiveAdapter,
-} from "openclaw/plugin-sdk/directory-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
-import { createLazyRuntimeModule } from "openclaw/plugin-sdk/lazy-runtime";
-import { resolveOutboundSendDep } from "openclaw/plugin-sdk/outbound-runtime";
-import { sleepWithAbort } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/directory-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
+import { createLazyRuntimeModule } from "@benchagi/openclaw/plugin-sdk/lazy-runtime";
+import { resolveOutboundSendDep } from "@benchagi/openclaw/plugin-sdk/outbound-runtime";
+import { sleepWithAbort } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   createComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
-} from "openclaw/plugin-sdk/status-helpers";
-import { resolveTargetsWithOptionalToken } from "openclaw/plugin-sdk/target-resolver-runtime";
+} from "@benchagi/openclaw/plugin-sdk/status-helpers";
+import { resolveTargetsWithOptionalToken } from "@benchagi/openclaw/plugin-sdk/target-resolver-runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
   normalizeOptionalStringifiedId,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   listDiscordAccountIds,
   resolveDiscordAccount,

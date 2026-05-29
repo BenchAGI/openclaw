@@ -1,4 +1,4 @@
-import { normalizeOptionalString } from "openclaw/plugin-sdk/string-coerce-runtime";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/string-coerce-runtime";
 import { getMatrixRuntime } from "../../runtime.js";
 import type { CoreConfig } from "../../types.js";
 import { formatMatrixEncryptionUnavailableError } from "../encryption-guidance.js";

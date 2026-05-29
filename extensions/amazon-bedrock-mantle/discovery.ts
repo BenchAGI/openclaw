@@ -1,10 +1,10 @@
-import { createSubsystemLogger } from "openclaw/plugin-sdk/core";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { createSubsystemLogger } from "@benchagi/openclaw/plugin-sdk/core";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import type {
   ModelDefinitionConfig,
   ModelProviderConfig,
-} from "openclaw/plugin-sdk/provider-model-shared";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 const log = createSubsystemLogger("bedrock-mantle-discovery");
 

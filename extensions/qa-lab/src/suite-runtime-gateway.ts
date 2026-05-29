@@ -1,6 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
-import { fetchWithSsrFGuard } from "openclaw/plugin-sdk/ssrf-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
+import { fetchWithSsrFGuard } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 import type { QaConfigSnapshot, QaSuiteRuntimeEnv } from "./suite-runtime-types.js";
 
 async function fetchJson<T>(url: string): Promise<T> {

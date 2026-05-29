@@ -205,21 +205,21 @@ export async function resolveSenderCommandAuthorization(
   };
 }
 
-/** @deprecated Use `openclaw/plugin-sdk/command-status` instead. */
+/** @deprecated Use `@benchagi/openclaw/plugin-sdk/command-status` instead. */
 export function buildCommandsMessage(
   ...args: Parameters<typeof buildCommandsMessageCompat>
 ): ReturnType<typeof buildCommandsMessageCompat> {
   return buildCommandsMessageCompat(...args);
 }
 
-/** @deprecated Use `openclaw/plugin-sdk/command-status` instead. */
+/** @deprecated Use `@benchagi/openclaw/plugin-sdk/command-status` instead. */
 export function buildCommandsMessagePaginated(
   ...args: Parameters<typeof buildCommandsMessagePaginatedCompat>
 ): ReturnType<typeof buildCommandsMessagePaginatedCompat> {
   return buildCommandsMessagePaginatedCompat(...args);
 }
 
-/** @deprecated Use `openclaw/plugin-sdk/command-status` instead. */
+/** @deprecated Use `@benchagi/openclaw/plugin-sdk/command-status` instead. */
 export function buildHelpMessage(
   ...args: Parameters<typeof buildHelpMessageCompat>
 ): ReturnType<typeof buildHelpMessageCompat> {

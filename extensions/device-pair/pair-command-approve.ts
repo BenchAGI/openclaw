@@ -1,7 +1,7 @@
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { approveDevicePairing, listDevicePairing } from "./api.js";
 import { formatPendingRequests } from "./notify.js";
 

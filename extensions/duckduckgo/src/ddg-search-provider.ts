@@ -1,7 +1,7 @@
 import {
   createWebSearchProviderContractFields,
   type WebSearchProviderPlugin,
-} from "openclaw/plugin-sdk/provider-web-search-contract";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-search-contract";
 
 const DuckDuckGoSearchSchema = {
   type: "object",
@@ -49,7 +49,7 @@ export function createDuckDuckGoWebSearchProvider(): WebSearchProviderPlugin {
       execute: async (args) => {
         const [{ runDuckDuckGoSearch }, { readNumberParam, readStringParam }] = await Promise.all([
           import("./ddg-client.js"),
-          import("openclaw/plugin-sdk/provider-web-search"),
+          import("@benchagi/openclaw/plugin-sdk/provider-web-search"),
         ]);
         return await runDuckDuckGoSearch({
           config: ctx.config,

@@ -4,15 +4,15 @@ import {
   resolveChannelModelOverride,
   type OpenClawConfig,
   type ReplyToMode,
-} from "openclaw/plugin-sdk/config-runtime";
-import { createReplyReferencePlanner } from "openclaw/plugin-sdk/reply-reference";
-import { buildAgentSessionKey } from "openclaw/plugin-sdk/routing";
-import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { createReplyReferencePlanner } from "@benchagi/openclaw/plugin-sdk/reply-reference";
+import { buildAgentSessionKey } from "@benchagi/openclaw/plugin-sdk/routing";
+import { logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   normalizeOptionalString,
   normalizeOptionalStringifiedId,
   truncateUtf16Safe,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import type { DiscordChannelConfigResolved } from "./allow-list.js";
 import type { DiscordMessageEvent } from "./listeners.js";
 import {

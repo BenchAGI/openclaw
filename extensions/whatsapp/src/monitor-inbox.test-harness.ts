@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import fsSync from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resetLogger, setLoggerOverride } from "openclaw/plugin-sdk/runtime-env";
+import { resetLogger, setLoggerOverride } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import {
   loadConfigMock,

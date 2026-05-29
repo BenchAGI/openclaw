@@ -1,4 +1,4 @@
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import type { NormalizedWebhookMessage } from "./monitor-normalize.js";
 import type { BlueBubblesCoreRuntime, WebhookTarget } from "./monitor-shared.js";
 import type { OpenClawConfig } from "./runtime-api.js";

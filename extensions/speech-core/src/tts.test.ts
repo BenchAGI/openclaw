@@ -1,8 +1,8 @@
 import { rmSync } from "node:fs";
 import path from "node:path";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { ReplyPayload } from "openclaw/plugin-sdk/reply-payload";
-import type { SpeechProviderPlugin, SpeechSynthesisRequest } from "openclaw/plugin-sdk/speech-core";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ReplyPayload } from "@benchagi/openclaw/plugin-sdk/reply-payload";
+import type { SpeechProviderPlugin, SpeechSynthesisRequest } from "@benchagi/openclaw/plugin-sdk/speech-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 type MockSpeechSynthesisResult = Awaited<ReturnType<SpeechProviderPlugin["synthesize"]>>;
@@ -21,7 +21,7 @@ const synthesizeMock = vi.hoisted(() =>
 const listSpeechProvidersMock = vi.hoisted(() => vi.fn());
 const getSpeechProviderMock = vi.hoisted(() => vi.fn());
 
-vi.mock("openclaw/plugin-sdk/channel-targets", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/channel-targets", () => ({
   normalizeChannelId: (channel: string | undefined) => channel?.trim().toLowerCase() ?? null,
 }));
 

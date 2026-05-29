@@ -1,7 +1,7 @@
 import type { Agent } from "node:https";
 import { createRequire } from "node:module";
 import * as Lark from "@larksuiteoapi/node-sdk";
-import { resolveAmbientNodeProxyAgent } from "openclaw/plugin-sdk/extension-shared";
+import { resolveAmbientNodeProxyAgent } from "@benchagi/openclaw/plugin-sdk/extension-shared";
 import type { FeishuConfig, FeishuDomain, ResolvedFeishuAccount } from "./types.js";
 
 const require = createRequire(import.meta.url);

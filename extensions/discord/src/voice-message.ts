@@ -14,17 +14,17 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { RateLimitError, type RequestClient } from "@buape/carbon";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import {
   parseFfprobeCodecAndSampleRate,
   runFfmpeg,
   runFfprobe,
-} from "openclaw/plugin-sdk/media-runtime";
-import { MEDIA_FFMPEG_MAX_AUDIO_DURATION_SECS } from "openclaw/plugin-sdk/media-runtime";
-import { unlinkIfExists } from "openclaw/plugin-sdk/media-runtime";
-import type { RetryRunner } from "openclaw/plugin-sdk/retry-runtime";
-import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/media-runtime";
+import { MEDIA_FFMPEG_MAX_AUDIO_DURATION_SECS } from "@benchagi/openclaw/plugin-sdk/media-runtime";
+import { unlinkIfExists } from "@benchagi/openclaw/plugin-sdk/media-runtime";
+import type { RetryRunner } from "@benchagi/openclaw/plugin-sdk/retry-runtime";
+import { resolvePreferredOpenClawTmpDir } from "@benchagi/openclaw/plugin-sdk/temp-path";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 const DISCORD_VOICE_MESSAGE_FLAG = 1 << 13;
 const SUPPRESS_NOTIFICATIONS_FLAG = 1 << 12;

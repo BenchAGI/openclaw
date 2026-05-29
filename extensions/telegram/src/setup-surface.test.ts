@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/setup";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/setup";
 import { describe, expect, it, vi } from "vitest";
 import { resolveTelegramAllowFromEntries } from "./setup-core.js";
 import {

@@ -1,12 +1,12 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { findCatalogTemplate } from "openclaw/plugin-sdk/provider-catalog-shared";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { findCatalogTemplate } from "@benchagi/openclaw/plugin-sdk/provider-catalog-shared";
 import {
   cloneFirstTemplateModel,
   matchesExactOrPrefix,
   type ProviderPlugin,
-} from "openclaw/plugin-sdk/provider-model-shared";
-import { OPENAI_RESPONSES_STREAM_HOOKS } from "openclaw/plugin-sdk/provider-stream-family";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { OPENAI_RESPONSES_STREAM_HOOKS } from "@benchagi/openclaw/plugin-sdk/provider-stream-family";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { buildOpenAIReplayPolicy } from "./replay-policy.js";
 import {
   resolveOpenAITransportTurnState,

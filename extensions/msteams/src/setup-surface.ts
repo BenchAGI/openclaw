@@ -9,7 +9,7 @@ import {
   type ChannelSetupWizard,
   type OpenClawConfig,
   type WizardPrompter,
-} from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/setup";
 import type { MSTeamsTeamConfig } from "../runtime-api.js";
 import { formatUnknownError } from "./errors.js";
 import {

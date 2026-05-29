@@ -37,7 +37,7 @@ publish_cmd=(npm publish)
 if [[ -n "${publish_target}" ]]; then
   publish_cmd+=("${publish_target}")
 fi
-publish_cmd+=(--access public --tag "${publish_tag}" --provenance)
+publish_cmd+=(--access restricted --tag "${publish_tag}" --provenance)
 
 echo "Resolved package version: ${package_version}"
 echo "Resolved release channel: ${release_channel}"

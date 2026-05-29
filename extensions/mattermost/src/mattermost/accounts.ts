@@ -1,12 +1,12 @@
-import { createAccountListHelpers } from "openclaw/plugin-sdk/account-helpers";
-import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk/account-id";
-import { resolveMergedAccountConfig } from "openclaw/plugin-sdk/account-resolution";
+import { createAccountListHelpers } from "@benchagi/openclaw/plugin-sdk/account-helpers";
+import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/account-id";
+import { resolveMergedAccountConfig } from "@benchagi/openclaw/plugin-sdk/account-resolution";
 import {
   resolveChannelStreamingBlockCoalesce,
   resolveChannelStreamingBlockEnabled,
   resolveChannelStreamingChunkMode,
-} from "openclaw/plugin-sdk/channel-streaming";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-streaming";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { normalizeResolvedSecretInputString, normalizeSecretInputString } from "../secret-input.js";
 import type {
   MattermostAccountConfig,

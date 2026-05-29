@@ -1,10 +1,10 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { dispatchInboundReplyWithBase } from "openclaw/plugin-sdk/inbound-reply-dispatch";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { dispatchInboundReplyWithBase } from "@benchagi/openclaw/plugin-sdk/inbound-reply-dispatch";
 import {
   buildAgentMediaPayload,
   saveMediaBuffer,
   saveMediaSource,
-} from "openclaw/plugin-sdk/media-runtime";
+} from "@benchagi/openclaw/plugin-sdk/media-runtime";
 import { buildQaTarget, sendQaBusMessage, type QaBusMessage } from "./bus-client.js";
 import { getQaChannelRuntime } from "./runtime.js";
 import type { CoreConfig, ResolvedQaChannelAccount } from "./types.js";

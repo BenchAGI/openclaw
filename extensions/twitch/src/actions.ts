@@ -4,7 +4,7 @@
  * Handles tool-based actions for Twitch, such as sending messages.
  */
 
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import { resolveTwitchAccountContext } from "./config.js";
 import { twitchOutbound } from "./outbound.js";
 import type { ChannelMessageActionAdapter, ChannelMessageActionContext } from "./types.js";

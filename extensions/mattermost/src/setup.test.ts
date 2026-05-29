@@ -1,4 +1,4 @@
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/setup";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/setup";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestPluginApi } from "../../../test/helpers/plugins/plugin-api.js";
 import type { OpenClawConfig, OpenClawPluginApi } from "../runtime-api.js";

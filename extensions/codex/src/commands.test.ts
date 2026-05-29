@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { PluginCommandContext } from "openclaw/plugin-sdk/plugin-entry";
+import type { PluginCommandContext } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CODEX_CONTROL_METHODS } from "./app-server/capabilities.js";
 import type { CodexAppServerStartOptions } from "./app-server/config.js";

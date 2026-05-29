@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalLowercaseString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   definePluginEntry,
   type OpenClawPluginApi,

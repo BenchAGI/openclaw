@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import {
   normalizeOptionalString,
   normalizeStringifiedOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import type { MattermostInteractiveButtonInput } from "./interactions.js";
 import {
   loadSessionStore,

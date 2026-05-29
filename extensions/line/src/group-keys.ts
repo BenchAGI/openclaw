@@ -1,6 +1,6 @@
-import { normalizeAccountId } from "openclaw/plugin-sdk/account-id";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/account-resolution";
-import { resolveAccountEntry } from "openclaw/plugin-sdk/account-resolution";
+import { normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/account-id";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/account-resolution";
+import { resolveAccountEntry } from "@benchagi/openclaw/plugin-sdk/account-resolution";
 import type { LineConfig, LineGroupConfig } from "./types.js";
 
 export function resolveLineGroupLookupIds(groupId?: string | null): string[] {

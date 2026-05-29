@@ -5,9 +5,9 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
   formatMemoryDreamingDay,
   resolveSessionTranscriptsDirForAgent,
-} from "openclaw/plugin-sdk/memory-core";
-import { buildAgentSessionKey } from "openclaw/plugin-sdk/routing";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/memory-core";
+import { buildAgentSessionKey } from "@benchagi/openclaw/plugin-sdk/routing";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   callQaBrowserRequest,
   qaBrowserAct,

@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   DEFAULT_CACHE_TTL_MINUTES,
   markdownToText,
@@ -9,9 +9,9 @@ import {
   truncateText,
   withStrictWebToolsEndpoint,
   writeCache,
-} from "openclaw/plugin-sdk/provider-web-fetch";
-import { normalizeSecretInput } from "openclaw/plugin-sdk/secret-input";
-import { wrapExternalContent, wrapWebContent } from "openclaw/plugin-sdk/security-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-fetch";
+import { normalizeSecretInput } from "@benchagi/openclaw/plugin-sdk/secret-input";
+import { wrapExternalContent, wrapWebContent } from "@benchagi/openclaw/plugin-sdk/security-runtime";
 import {
   resolveFirecrawlApiKey,
   resolveFirecrawlBaseUrl,

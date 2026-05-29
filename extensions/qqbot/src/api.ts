@@ -1,8 +1,8 @@
 import { createRequire } from "node:module";
 import os from "node:os";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
-import { fetchWithSsrFGuard } from "openclaw/plugin-sdk/ssrf-runtime";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
+import { fetchWithSsrFGuard } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { debugLog, debugError } from "./utils/debug-log.js";
 import { sanitizeFileName } from "./utils/platform.js";
 import { computeFileHash, getCachedFileInfo, setCachedFileInfo } from "./utils/upload-cache.js";

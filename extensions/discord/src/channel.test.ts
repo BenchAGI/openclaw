@@ -17,9 +17,9 @@ const collectDiscordAuditChannelIdsMock = vi.hoisted(() =>
 );
 const sleepWithAbortMock = vi.hoisted(() => vi.fn(async () => undefined));
 
-vi.mock("openclaw/plugin-sdk/runtime-env", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/runtime-env")>(
-    "openclaw/plugin-sdk/runtime-env",
+vi.mock("@benchagi/openclaw/plugin-sdk/runtime-env", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/runtime-env")>(
+    "@benchagi/openclaw/plugin-sdk/runtime-env",
   );
   return {
     ...actual,

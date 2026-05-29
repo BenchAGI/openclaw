@@ -5,8 +5,8 @@ import {
   resolveRequiredHomeDir,
   type AuthProfileStore,
   type OAuthCredential,
-} from "openclaw/plugin-sdk/provider-auth";
-import { createSubsystemLogger } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/provider-auth";
+import { createSubsystemLogger } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   resolveCodexAccessTokenExpiry,
   resolveCodexAuthIdentity,

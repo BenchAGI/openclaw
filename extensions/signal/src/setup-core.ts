@@ -16,13 +16,13 @@ import {
   type ChannelSetupWizardTextInput,
   type OpenClawConfig,
   type WizardPrompter,
-} from "openclaw/plugin-sdk/setup-runtime";
-import { formatCliCommand, formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
+} from "@benchagi/openclaw/plugin-sdk/setup-runtime";
+import { formatCliCommand, formatDocsLink } from "@benchagi/openclaw/plugin-sdk/setup-tools";
 import {
   normalizeE164,
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveDefaultSignalAccountId, resolveSignalAccount } from "./accounts.js";
 
 const channel = "signal" as const;

@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   LIVE_TRANSPORT_BASELINE_STANDARD_SCENARIO_IDS,
@@ -16,9 +16,9 @@ const fetchWithSsrFGuardMock = vi.hoisted(() =>
   })),
 );
 
-vi.mock("openclaw/plugin-sdk/ssrf-runtime", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/ssrf-runtime")>(
-    "openclaw/plugin-sdk/ssrf-runtime",
+vi.mock("@benchagi/openclaw/plugin-sdk/ssrf-runtime", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/ssrf-runtime")>(
+    "@benchagi/openclaw/plugin-sdk/ssrf-runtime",
   );
   return {
     ...actual,

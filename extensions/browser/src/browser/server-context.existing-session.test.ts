@@ -2,10 +2,10 @@ import fs from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserServerState } from "./server-context.js";
 
-vi.mock("openclaw/plugin-sdk/browser-security-runtime", async () => {
+vi.mock("@benchagi/openclaw/plugin-sdk/browser-security-runtime", async () => {
   const actual = await vi.importActual<
-    typeof import("openclaw/plugin-sdk/browser-security-runtime")
-  >("openclaw/plugin-sdk/browser-security-runtime");
+    typeof import("@benchagi/openclaw/plugin-sdk/browser-security-runtime")
+  >("@benchagi/openclaw/plugin-sdk/browser-security-runtime");
   const lookupFn = async (_hostname: string, options?: { all?: boolean }) => {
     const result = { address: "93.184.216.34", family: 4 };
     return options?.all === true ? [result] : result;

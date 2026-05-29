@@ -38,7 +38,7 @@ const distExtensionsRoot = path.join(packageRoot, "dist", "extensions");
 const installedLayoutEnv = "OPENCLAW_BUNDLED_CHANNEL_SMOKE_INSTALLED_LAYOUT";
 
 function packageRootLooksInstalled(root) {
-  return root.replaceAll("\\", "/").endsWith("/node_modules/openclaw");
+  return root.replaceAll("\\", "/").endsWith("/node_modules/@benchagi/openclaw");
 }
 
 function smokeInInstalledLayoutIfNeeded() {
@@ -49,7 +49,7 @@ function smokeInInstalledLayoutIfNeeded() {
   // Pack + install the package into a throwaway prefix so the smoke runs
   // against the EXACT layout `npm i openclaw` produces. Symlinking the dev tree
   // here would be unfaithful: it retains the build-time-only shim
-  // dist/extensions/node_modules/openclaw (excluded from the published tarball
+  // dist/extensions/node_modules/@benchagi/openclaw (excluded from the published tarball
   // by the package.json `files` allowlist), which shadows the real package root
   // and breaks bundled-channel-entry chunk resolution under --preserve-symlinks.
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-channel-entry-smoke-"));

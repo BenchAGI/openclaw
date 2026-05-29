@@ -3,15 +3,15 @@ import {
   captureWsEvent,
   createDebugProxyWebSocketAgent,
   resolveDebugProxySettings,
-} from "openclaw/plugin-sdk/proxy-capture";
+} from "@benchagi/openclaw/plugin-sdk/proxy-capture";
 import type {
   RealtimeVoiceBridge,
   RealtimeVoiceBridgeCreateRequest,
   RealtimeVoiceProviderConfig,
   RealtimeVoiceProviderPlugin,
   RealtimeVoiceTool,
-} from "openclaw/plugin-sdk/realtime-voice";
-import { normalizeResolvedSecretInputString } from "openclaw/plugin-sdk/secret-input";
+} from "@benchagi/openclaw/plugin-sdk/realtime-voice";
+import { normalizeResolvedSecretInputString } from "@benchagi/openclaw/plugin-sdk/secret-input";
 import WebSocket from "ws";
 import {
   asFiniteNumber,

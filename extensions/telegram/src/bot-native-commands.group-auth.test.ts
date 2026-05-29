@@ -1,6 +1,6 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { ChannelGroupPolicy } from "openclaw/plugin-sdk/config-runtime";
-import type { TelegramAccountConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ChannelGroupPolicy } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { TelegramAccountConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import { describe, expect, it } from "vitest";
 import {
   createNativeCommandsHarness,

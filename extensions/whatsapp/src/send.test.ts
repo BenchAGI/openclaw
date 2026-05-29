@@ -2,8 +2,8 @@ import crypto from "node:crypto";
 import fsSync from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { redactIdentifier } from "openclaw/plugin-sdk/logging-core";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { redactIdentifier } from "@benchagi/openclaw/plugin-sdk/logging-core";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActiveWebListener } from "./inbound/types.js";
 
@@ -15,8 +15,8 @@ const loadWebMediaMock = vi.fn();
 let sendMessageWhatsApp: typeof import("./send.js").sendMessageWhatsApp;
 let sendPollWhatsApp: typeof import("./send.js").sendPollWhatsApp;
 let sendReactionWhatsApp: typeof import("./send.js").sendReactionWhatsApp;
-let resetLogger: typeof import("openclaw/plugin-sdk/runtime-env").resetLogger;
-let setLoggerOverride: typeof import("openclaw/plugin-sdk/runtime-env").setLoggerOverride;
+let resetLogger: typeof import("@benchagi/openclaw/plugin-sdk/runtime-env").resetLogger;
+let setLoggerOverride: typeof import("@benchagi/openclaw/plugin-sdk/runtime-env").setLoggerOverride;
 
 vi.mock("./connection-controller-registry.js", async () => {
   const actual = await vi.importActual<typeof import("./connection-controller-registry.js")>(
@@ -53,7 +53,7 @@ describe("web outbound", () => {
 
   beforeAll(async () => {
     ({ sendMessageWhatsApp, sendPollWhatsApp, sendReactionWhatsApp } = await import("./send.js"));
-    ({ resetLogger, setLoggerOverride } = await import("openclaw/plugin-sdk/runtime-env"));
+    ({ resetLogger, setLoggerOverride } = await import("@benchagi/openclaw/plugin-sdk/runtime-env"));
   });
 
   beforeEach(() => {

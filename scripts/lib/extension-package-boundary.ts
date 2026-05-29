@@ -15,51 +15,51 @@ export const EXTENSION_PACKAGE_BOUNDARY_EXCLUDE = [
   "./src/**/*test-support.ts",
 ] as const;
 export const EXTENSION_PACKAGE_BOUNDARY_BASE_PATHS = {
-  "openclaw/extension-api": ["../src/extensionAPI.ts"],
-  "openclaw/plugin-sdk": ["../dist/plugin-sdk/src/plugin-sdk/index.d.ts"],
-  "openclaw/plugin-sdk/*": ["../dist/plugin-sdk/src/plugin-sdk/*.d.ts"],
-  "openclaw/plugin-sdk/account-id": ["../dist/plugin-sdk/src/plugin-sdk/account-id.d.ts"],
-  "openclaw/plugin-sdk/channel-entry-contract": [
+  "@benchagi/openclaw/extension-api": ["../src/extensionAPI.ts"],
+  "@benchagi/openclaw/plugin-sdk": ["../dist/plugin-sdk/src/plugin-sdk/index.d.ts"],
+  "@benchagi/openclaw/plugin-sdk/*": ["../dist/plugin-sdk/src/plugin-sdk/*.d.ts"],
+  "@benchagi/openclaw/plugin-sdk/account-id": ["../dist/plugin-sdk/src/plugin-sdk/account-id.d.ts"],
+  "@benchagi/openclaw/plugin-sdk/channel-entry-contract": [
     "../packages/plugin-sdk/dist/src/plugin-sdk/channel-entry-contract.d.ts",
   ],
-  "openclaw/plugin-sdk/browser-maintenance": [
+  "@benchagi/openclaw/plugin-sdk/browser-maintenance": [
     "../packages/plugin-sdk/dist/extensions/browser/browser-maintenance.d.ts",
   ],
-  "openclaw/plugin-sdk/browser-config-runtime": [
+  "@benchagi/openclaw/plugin-sdk/browser-config-runtime": [
     "../dist/plugin-sdk/src/plugin-sdk/browser-config-runtime.d.ts",
   ],
-  "openclaw/plugin-sdk/browser-node-runtime": [
+  "@benchagi/openclaw/plugin-sdk/browser-node-runtime": [
     "../dist/plugin-sdk/src/plugin-sdk/browser-node-runtime.d.ts",
   ],
-  "openclaw/plugin-sdk/browser-setup-tools": [
+  "@benchagi/openclaw/plugin-sdk/browser-setup-tools": [
     "../dist/plugin-sdk/src/plugin-sdk/browser-setup-tools.d.ts",
   ],
-  "openclaw/plugin-sdk/browser-security-runtime": [
+  "@benchagi/openclaw/plugin-sdk/browser-security-runtime": [
     "../dist/plugin-sdk/src/plugin-sdk/browser-security-runtime.d.ts",
   ],
-  "openclaw/plugin-sdk/channel-secret-basic-runtime": [
+  "@benchagi/openclaw/plugin-sdk/channel-secret-basic-runtime": [
     "../packages/plugin-sdk/dist/src/plugin-sdk/channel-secret-basic-runtime.d.ts",
   ],
-  "openclaw/plugin-sdk/channel-secret-runtime": [
+  "@benchagi/openclaw/plugin-sdk/channel-secret-runtime": [
     "../dist/plugin-sdk/src/plugin-sdk/channel-secret-runtime.d.ts",
   ],
-  "openclaw/plugin-sdk/channel-secret-tts-runtime": [
+  "@benchagi/openclaw/plugin-sdk/channel-secret-tts-runtime": [
     "../packages/plugin-sdk/dist/src/plugin-sdk/channel-secret-tts-runtime.d.ts",
   ],
-  "openclaw/plugin-sdk/channel-streaming": [
+  "@benchagi/openclaw/plugin-sdk/channel-streaming": [
     "../dist/plugin-sdk/src/plugin-sdk/channel-streaming.d.ts",
   ],
-  "openclaw/plugin-sdk/error-runtime": ["../dist/plugin-sdk/src/plugin-sdk/error-runtime.d.ts"],
-  "openclaw/plugin-sdk/provider-catalog-shared": [
+  "@benchagi/openclaw/plugin-sdk/error-runtime": ["../dist/plugin-sdk/src/plugin-sdk/error-runtime.d.ts"],
+  "@benchagi/openclaw/plugin-sdk/provider-catalog-shared": [
     "../packages/plugin-sdk/dist/src/plugin-sdk/provider-catalog-shared.d.ts",
   ],
-  "openclaw/plugin-sdk/provider-entry": [
+  "@benchagi/openclaw/plugin-sdk/provider-entry": [
     "../packages/plugin-sdk/dist/src/plugin-sdk/provider-entry.d.ts",
   ],
-  "openclaw/plugin-sdk/secret-ref-runtime": [
+  "@benchagi/openclaw/plugin-sdk/secret-ref-runtime": [
     "../dist/plugin-sdk/src/plugin-sdk/secret-ref-runtime.d.ts",
   ],
-  "openclaw/plugin-sdk/ssrf-runtime": ["../dist/plugin-sdk/src/plugin-sdk/ssrf-runtime.d.ts"],
+  "@benchagi/openclaw/plugin-sdk/ssrf-runtime": ["../dist/plugin-sdk/src/plugin-sdk/ssrf-runtime.d.ts"],
   "@openclaw/qa-channel/api.js": ["../dist/plugin-sdk/extensions/qa-channel/api.d.ts"],
   "@openclaw/*.js": ["../packages/plugin-sdk/dist/extensions/*.d.ts", "../extensions/*"],
   "@openclaw/*": ["../packages/plugin-sdk/dist/extensions/*", "../extensions/*"],
@@ -81,29 +81,29 @@ function prefixExtensionPackageBoundaryPaths(
 export const EXTENSION_PACKAGE_BOUNDARY_XAI_PATHS = {
   ...prefixExtensionPackageBoundaryPaths(
     (({
-      "openclaw/plugin-sdk/channel-secret-basic-runtime": _omitBasic,
-      "openclaw/plugin-sdk/channel-secret-tts-runtime": _omitTts,
+      "@benchagi/openclaw/plugin-sdk/channel-secret-basic-runtime": _omitBasic,
+      "@benchagi/openclaw/plugin-sdk/channel-secret-tts-runtime": _omitTts,
       ...rest
     }) => rest)(EXTENSION_PACKAGE_BOUNDARY_BASE_PATHS),
     "../",
   ),
-  "openclaw/plugin-sdk/channel-entry-contract": [
+  "@benchagi/openclaw/plugin-sdk/channel-entry-contract": [
     "../../dist/plugin-sdk/src/plugin-sdk/channel-entry-contract.d.ts",
   ],
-  "openclaw/plugin-sdk/browser-maintenance": [
+  "@benchagi/openclaw/plugin-sdk/browser-maintenance": [
     "../../dist/plugin-sdk/src/plugin-sdk/browser-maintenance.d.ts",
   ],
-  "openclaw/plugin-sdk/cli-runtime": ["../../dist/plugin-sdk/src/plugin-sdk/cli-runtime.d.ts"],
-  "openclaw/plugin-sdk/provider-catalog-shared": [
+  "@benchagi/openclaw/plugin-sdk/cli-runtime": ["../../dist/plugin-sdk/src/plugin-sdk/cli-runtime.d.ts"],
+  "@benchagi/openclaw/plugin-sdk/provider-catalog-shared": [
     "../../dist/plugin-sdk/src/plugin-sdk/provider-catalog-shared.d.ts",
   ],
-  "openclaw/plugin-sdk/provider-env-vars": [
+  "@benchagi/openclaw/plugin-sdk/provider-env-vars": [
     "../../dist/plugin-sdk/src/plugin-sdk/provider-env-vars.d.ts",
   ],
-  "openclaw/plugin-sdk/provider-entry": [
+  "@benchagi/openclaw/plugin-sdk/provider-entry": [
     "../../dist/plugin-sdk/src/plugin-sdk/provider-entry.d.ts",
   ],
-  "openclaw/plugin-sdk/provider-web-search-contract": [
+  "@benchagi/openclaw/plugin-sdk/provider-web-search-contract": [
     "../../dist/plugin-sdk/src/plugin-sdk/provider-web-search-contract.d.ts",
   ],
   "@openclaw/qa-channel/api.js": ["../../dist/plugin-sdk/extensions/qa-channel/api.d.ts"],

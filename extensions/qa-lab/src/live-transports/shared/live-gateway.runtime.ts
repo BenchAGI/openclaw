@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import { startQaGatewayChild, type QaCliBackendAuthMode } from "../../gateway-child.js";
 import type { QaProviderMode } from "../../model-selection.js";
 import { startQaProviderServer } from "../../providers/server-runtime.js";

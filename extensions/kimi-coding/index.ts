@@ -1,8 +1,8 @@
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
-import { createProviderApiKeyAuthMethod } from "openclaw/plugin-sdk/provider-auth-api-key";
-import { normalizeProviderId } from "openclaw/plugin-sdk/provider-model-shared";
-import type { SecretInput } from "openclaw/plugin-sdk/secret-input";
-import { isRecord, normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { definePluginEntry } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { createProviderApiKeyAuthMethod } from "@benchagi/openclaw/plugin-sdk/provider-auth-api-key";
+import { normalizeProviderId } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import type { SecretInput } from "@benchagi/openclaw/plugin-sdk/secret-input";
+import { isRecord, normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { applyKimiCodeConfig, KIMI_CODING_MODEL_REF } from "./onboard.js";
 import { buildKimiCodingProvider } from "./provider-catalog.js";
 import { KIMI_REPLAY_POLICY } from "./replay-policy.js";

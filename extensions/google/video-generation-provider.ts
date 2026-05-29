@@ -1,19 +1,19 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { GoogleGenAI } from "@google/genai";
-import { resolveApiKeyForProvider } from "openclaw/plugin-sdk/provider-auth-runtime";
+import { resolveApiKeyForProvider } from "@benchagi/openclaw/plugin-sdk/provider-auth-runtime";
 import {
   createProviderOperationDeadline,
   resolveProviderOperationTimeoutMs,
   waitProviderOperationPollInterval,
-} from "openclaw/plugin-sdk/provider-http";
-import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-http";
+import { resolvePreferredOpenClawTmpDir } from "@benchagi/openclaw/plugin-sdk/temp-path";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import type {
   GeneratedVideoAsset,
   VideoGenerationProvider,
   VideoGenerationRequest,
-} from "openclaw/plugin-sdk/video-generation";
+} from "@benchagi/openclaw/plugin-sdk/video-generation";
 import { normalizeGoogleApiBaseUrl } from "./api.js";
 import {
   createGoogleVideoGenerationProviderMetadata,

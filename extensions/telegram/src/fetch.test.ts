@@ -56,7 +56,7 @@ vi.mock("undici", () => ({
   setGlobalDispatcher,
 }));
 
-vi.mock("openclaw/plugin-sdk/runtime-env", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/runtime-env", () => ({
   createSubsystemLogger: () => ({
     info: loggerInfo,
     debug: loggerDebug,

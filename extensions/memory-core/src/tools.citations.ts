@@ -2,9 +2,9 @@ import {
   parseAgentSessionKey,
   type MemoryCitationsMode,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/memory-core-host-runtime-core";
-import type { MemorySearchResult } from "openclaw/plugin-sdk/memory-core-host-runtime-files";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/memory-core-host-runtime-core";
+import type { MemorySearchResult } from "@benchagi/openclaw/plugin-sdk/memory-core-host-runtime-files";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 export function resolveMemoryCitationsMode(cfg: OpenClawConfig): MemoryCitationsMode {
   const mode = cfg.memory?.citations;

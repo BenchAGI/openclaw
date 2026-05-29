@@ -1,4 +1,4 @@
-import { isAbortRequestText, isBtwRequestText } from "openclaw/plugin-sdk/reply-runtime";
+import { isAbortRequestText, isBtwRequestText } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
 import { parseFeishuMessageEvent, type FeishuMessageEvent } from "./bot.js";
 
 export function getFeishuSequentialKey(params: {

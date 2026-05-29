@@ -204,7 +204,7 @@ describe("git commit resolution", () => {
       { cwd: hostRepo },
     );
 
-    const packageRoot = path.join(hostRepo, "node_modules", "openclaw");
+    const packageRoot = path.join(hostRepo, "node_modules", "@benchagi", "openclaw");
     await fs.mkdir(path.join(packageRoot, "dist"), { recursive: true });
     await fs.writeFile(
       path.join(packageRoot, "package.json"),

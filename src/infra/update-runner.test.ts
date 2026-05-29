@@ -266,7 +266,7 @@ describe("runGatewayUpdate", () => {
 
   async function createGlobalPackageFixture(rootDir: string) {
     const nodeModules = path.join(rootDir, "node_modules");
-    const pkgRoot = path.join(nodeModules, "openclaw");
+    const pkgRoot = path.join(nodeModules, "@benchagi", "openclaw");
     await seedGlobalPackageRoot(pkgRoot);
     return { nodeModules, pkgRoot };
   }
@@ -277,9 +277,9 @@ describe("runGatewayUpdate", () => {
     onBaseInstall?: () => Promise<CommandResult>;
     onOmitOptionalInstall?: () => Promise<CommandResult>;
   }) {
-    const baseInstallKey = "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error";
+    const baseInstallKey = "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error --force";
     const omitOptionalInstallKey =
-      "npm i -g openclaw@latest --omit=optional --no-fund --no-audit --loglevel=error";
+      "npm i -g openclaw@latest --omit=optional --no-fund --no-audit --loglevel=error --force";
 
     return async (argv: string[]): Promise<CommandResult> => {
       const key = argv.join(" ");
@@ -1229,7 +1229,7 @@ describe("runGatewayUpdate", () => {
     tag?: string;
   }): Promise<{ calls: string[]; result: Awaited<ReturnType<typeof runGatewayUpdate>> }> {
     const nodeModules = path.join(tempDir, "node_modules");
-    const pkgRoot = path.join(nodeModules, "openclaw");
+    const pkgRoot = path.join(nodeModules, "@benchagi", "openclaw");
     await seedGlobalPackageRoot(pkgRoot);
 
     const { calls, runCommand } = createGlobalInstallHarness({
@@ -1292,16 +1292,17 @@ describe("runGatewayUpdate", () => {
   it.each([
     {
       title: "updates global npm installs when detected",
-      expectedInstallCommand: "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error",
+      expectedInstallCommand:
+        "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error --force",
     },
     {
       title: "uses update channel for global npm installs when tag is omitted",
-      expectedInstallCommand: "npm i -g openclaw@beta --no-fund --no-audit --loglevel=error",
+      expectedInstallCommand: "npm i -g openclaw@beta --no-fund --no-audit --loglevel=error --force",
       channel: "beta" as const,
     },
     {
       title: "updates global npm installs with tag override",
-      expectedInstallCommand: "npm i -g openclaw@beta --no-fund --no-audit --loglevel=error",
+      expectedInstallCommand: "npm i -g openclaw@beta --no-fund --no-audit --loglevel=error --force",
       tag: "beta",
     },
   ])("$title", async ({ expectedInstallCommand, channel, tag }) => {
@@ -1321,14 +1322,14 @@ describe("runGatewayUpdate", () => {
   it("updates global npm installs from the GitHub main package spec", async () => {
     const { calls, result } = await runNpmGlobalUpdateCase({
       expectedInstallCommand:
-        "npm i -g github:openclaw/openclaw#main --no-fund --no-audit --loglevel=error",
+        "npm i -g github:openclaw/openclaw#main --no-fund --no-audit --loglevel=error --force",
       tag: "main",
     });
 
     expect(result.status).toBe("ok");
     expect(result.mode).toBe("npm");
     expect(calls).toContain(
-      "npm i -g github:openclaw/openclaw#main --no-fund --no-audit --loglevel=error",
+      "npm i -g github:openclaw/openclaw#main --no-fund --no-audit --loglevel=error --force",
     );
   });
 
@@ -1337,7 +1338,7 @@ describe("runGatewayUpdate", () => {
     const { calls, runCommand } = createGlobalInstallHarness({
       pkgRoot,
       npmRootOutput: nodeModules,
-      installCommand: "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error",
+      installCommand: "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error --force",
       gitRootMode: "missing",
       onInstall: async () => writeGlobalPackageVersion(pkgRoot),
     });
@@ -1346,13 +1347,15 @@ describe("runGatewayUpdate", () => {
 
     expect(result.status).toBe("ok");
     expect(result.mode).toBe("npm");
-    expect(calls).toContain("npm i -g openclaw@latest --no-fund --no-audit --loglevel=error");
+    expect(calls).toContain(
+      "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error --force",
+    );
   });
 
   it("cleans stale npm rename dirs before global update", async () => {
     const nodeModules = path.join(tempDir, "node_modules");
-    const pkgRoot = path.join(nodeModules, "openclaw");
-    const staleDir = path.join(nodeModules, ".openclaw-stale");
+    const pkgRoot = path.join(nodeModules, "@benchagi", "openclaw");
+    const staleDir = path.join(path.dirname(pkgRoot), ".openclaw-stale");
     await fs.mkdir(staleDir, { recursive: true });
     await seedGlobalPackageRoot(pkgRoot);
 
@@ -1375,7 +1378,7 @@ describe("runGatewayUpdate", () => {
 
   it("retries global npm update with --omit=optional when initial install fails", async () => {
     const nodeModules = path.join(tempDir, "node_modules");
-    const pkgRoot = path.join(nodeModules, "openclaw");
+    const pkgRoot = path.join(nodeModules, "@benchagi", "openclaw");
     await seedGlobalPackageRoot(pkgRoot);
 
     let firstAttempt = true;
@@ -1405,7 +1408,8 @@ describe("runGatewayUpdate", () => {
 
   it("fails global npm update when the installed version misses the requested correction", async () => {
     const { calls, result } = await runNpmGlobalUpdateCase({
-      expectedInstallCommand: "npm i -g openclaw@2026.3.23-2 --no-fund --no-audit --loglevel=error",
+      expectedInstallCommand:
+        "npm i -g openclaw@2026.3.23-2 --no-fund --no-audit --loglevel=error --force",
       tag: "2026.3.23-2",
     });
 
@@ -1415,12 +1419,15 @@ describe("runGatewayUpdate", () => {
     expect(result.steps.at(-1)?.stderrTail).toContain(
       "expected installed version 2026.3.23-2, found 2.0.0",
     );
-    expect(calls).toContain("npm i -g openclaw@2026.3.23-2 --no-fund --no-audit --loglevel=error");
+    expect(calls).toContain(
+      "npm i -g openclaw@2026.3.23-2 --no-fund --no-audit --loglevel=error --force",
+    );
   });
 
   it("fails global npm update when bundled runtime sidecars are missing after install", async () => {
     const { nodeModules, pkgRoot } = await createGlobalPackageFixture(tempDir);
-    const expectedInstallCommand = "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error";
+    const expectedInstallCommand =
+      "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error --force";
     const { runCommand } = createGlobalInstallHarness({
       pkgRoot,
       npmRootOutput: nodeModules,
@@ -1473,7 +1480,7 @@ describe("runGatewayUpdate", () => {
     const { runCommand } = createGlobalInstallHarness({
       pkgRoot,
       npmRootOutput: nodeModules,
-      installCommand: "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error",
+      installCommand: "npm i -g openclaw@latest --no-fund --no-audit --loglevel=error --force",
       onInstall: async (options) => {
         installEnv = options?.env;
         await writeGlobalPackageVersion(pkgRoot);
@@ -1499,7 +1506,7 @@ describe("runGatewayUpdate", () => {
   it("uses OPENCLAW_UPDATE_PACKAGE_SPEC for global package updates", async () => {
     const { nodeModules, pkgRoot } = await createGlobalPackageFixture(tempDir);
     const expectedInstallCommand =
-      "npm i -g http://10.211.55.2:8138/openclaw-next.tgz --no-fund --no-audit --loglevel=error";
+      "npm i -g http://10.211.55.2:8138/openclaw-next.tgz --no-fund --no-audit --loglevel=error --force";
     const { calls, runCommand } = createGlobalInstallHarness({
       pkgRoot,
       npmRootOutput: nodeModules,

@@ -1,18 +1,18 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   readConfigFileSnapshotForWrite,
   writeConfigFile,
-} from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   loadCronStore,
   resolveCronStorePath,
   saveCronStore,
-} from "openclaw/plugin-sdk/config-runtime";
-import { createSubsystemLogger } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { createSubsystemLogger } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   normalizeTelegramChatId,
   normalizeTelegramLookupTarget,

@@ -88,14 +88,14 @@ function main() {
 
   if (monolithicOffenders.length > 0 || legacyCompatOffenders.length > 0) {
     if (monolithicOffenders.length > 0) {
-      console.error("Bundled plugin source files must not import monolithic openclaw/plugin-sdk.");
+      console.error("Bundled plugin source files must not import monolithic @benchagi/openclaw/plugin-sdk.");
       for (const file of monolithicOffenders.toSorted()) {
         console.error(`- ${relativeToCwd(file)}`);
       }
     }
     if (legacyCompatOffenders.length > 0) {
       console.error(
-        "Bundled plugin source files must not import legacy openclaw/plugin-sdk/compat.",
+        "Bundled plugin source files must not import legacy @benchagi/openclaw/plugin-sdk/compat.",
       );
       for (const file of legacyCompatOffenders.toSorted()) {
         console.error(`- ${relativeToCwd(file)}`);
@@ -103,7 +103,7 @@ function main() {
     }
     if (monolithicOffenders.length > 0 || legacyCompatOffenders.length > 0) {
       console.error(
-        "Use openclaw/plugin-sdk/<domain> or openclaw/plugin-sdk/<channel> subpaths for bundled plugins; root and compat are legacy surfaces only.",
+        "Use @benchagi/openclaw/plugin-sdk/<domain> or @benchagi/openclaw/plugin-sdk/<channel> subpaths for bundled plugins; root and compat are legacy surfaces only.",
       );
     }
     process.exit(1);

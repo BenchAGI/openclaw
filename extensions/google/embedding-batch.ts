@@ -8,7 +8,7 @@ import {
   normalizeBatchBaseUrl,
   sanitizeAndNormalizeEmbedding,
   withRemoteHttpResponse,
-} from "openclaw/plugin-sdk/memory-core-host-engine-embeddings";
+} from "@benchagi/openclaw/plugin-sdk/memory-core-host-engine-embeddings";
 import type { GeminiEmbeddingClient, GeminiTextEmbeddingRequest } from "./embedding-provider.js";
 
 export type GeminiBatchRequest = {

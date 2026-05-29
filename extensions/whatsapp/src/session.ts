@@ -3,12 +3,12 @@ import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import type { Agent } from "node:https";
 import path from "node:path";
-import { formatCliCommand } from "openclaw/plugin-sdk/cli-runtime";
-import { VERSION } from "openclaw/plugin-sdk/cli-runtime";
-import { resolveAmbientNodeProxyAgent } from "openclaw/plugin-sdk/extension-shared";
-import { danger, success } from "openclaw/plugin-sdk/runtime-env";
-import { getChildLogger, toPinoLikeLogger } from "openclaw/plugin-sdk/runtime-env";
-import { ensureDir, resolveUserPath } from "openclaw/plugin-sdk/text-runtime";
+import { formatCliCommand } from "@benchagi/openclaw/plugin-sdk/cli-runtime";
+import { VERSION } from "@benchagi/openclaw/plugin-sdk/cli-runtime";
+import { resolveAmbientNodeProxyAgent } from "@benchagi/openclaw/plugin-sdk/extension-shared";
+import { danger, success } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { getChildLogger, toPinoLikeLogger } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { ensureDir, resolveUserPath } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   maybeRestoreCredsFromBackup,
   readCredsJsonRaw,

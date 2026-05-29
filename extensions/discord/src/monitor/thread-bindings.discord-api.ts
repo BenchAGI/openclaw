@@ -1,7 +1,7 @@
 import { ChannelType, Routes } from "discord-api-types/v10";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { createDiscordRestClient } from "../client.js";
 import { sendMessageDiscord, sendWebhookMessageDiscord } from "../send.js";
 import { createThreadDiscord } from "../send.messages.js";

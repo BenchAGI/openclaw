@@ -1,7 +1,7 @@
 import type {
   OpenClawPluginCommandDefinition,
   PluginCommandContext,
-} from "openclaw/plugin-sdk/plugin-entry";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 import { handleCodexSubcommand, type CodexCommandDeps } from "./command-handlers.js";
 
 export function createCodexCommand(options: {

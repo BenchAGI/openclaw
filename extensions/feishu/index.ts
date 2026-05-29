@@ -1,8 +1,8 @@
 import {
   defineBundledChannelEntry,
   loadBundledEntryExportSync,
-} from "openclaw/plugin-sdk/channel-entry-contract";
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/channel-entry-contract";
+} from "@benchagi/openclaw/plugin-sdk/channel-entry-contract";
+import type { OpenClawPluginApi } from "@benchagi/openclaw/plugin-sdk/channel-entry-contract";
 
 type FeishuSubagentHooksModule = typeof import("./api.js");
 

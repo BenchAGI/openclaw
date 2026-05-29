@@ -156,7 +156,7 @@ describe("plugin-sdk package contract guardrails", () => {
         continue;
       }
       failures.push(
-        `${reference.file} references openclaw/plugin-sdk/${reference.subpath}, but ${reference.subpath} is missing from ${missingFrom.join(" and ")}`,
+        `${reference.file} references @benchagi/openclaw/plugin-sdk/${reference.subpath}, but ${reference.subpath} is missing from ${missingFrom.join(" and ")}`,
       );
     }
 

@@ -1,11 +1,11 @@
 import {
   deleteAccountFromConfigSection,
   setAccountEnabledInConfigSection,
-} from "openclaw/plugin-sdk/channel-plugin-common";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { hasConfiguredSecretInput } from "openclaw/plugin-sdk/secret-input";
-import { applyAccountNameToChannelSection } from "openclaw/plugin-sdk/setup";
-import type { ChannelSetupInput } from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/channel-plugin-common";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { hasConfiguredSecretInput } from "@benchagi/openclaw/plugin-sdk/secret-input";
+import { applyAccountNameToChannelSection } from "@benchagi/openclaw/plugin-sdk/setup";
+import type { ChannelSetupInput } from "@benchagi/openclaw/plugin-sdk/setup";
 import {
   DEFAULT_ACCOUNT_ID,
   applyQQBotAccountConfig,

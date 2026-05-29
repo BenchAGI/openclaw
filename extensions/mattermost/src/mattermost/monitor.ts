@@ -1,9 +1,9 @@
-import { createClaimableDedupe, type ClaimableDedupe } from "openclaw/plugin-sdk/persistent-dedupe";
-import { isPrivateNetworkOptInEnabled } from "openclaw/plugin-sdk/ssrf-runtime";
+import { createClaimableDedupe, type ClaimableDedupe } from "@benchagi/openclaw/plugin-sdk/persistent-dedupe";
+import { isPrivateNetworkOptInEnabled } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { getMattermostRuntime } from "../runtime.js";
 import { resolveMattermostAccount, resolveMattermostReplyToMode } from "./accounts.js";
 import {

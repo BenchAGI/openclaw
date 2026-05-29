@@ -1,24 +1,24 @@
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import type {
   ProviderAuthContext,
   ProviderResolveDynamicModelContext,
   ProviderRuntimeModel,
-} from "openclaw/plugin-sdk/plugin-entry";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 import {
   ensureAuthProfileStore,
   listProfilesForProvider,
   type OAuthCredential,
-} from "openclaw/plugin-sdk/provider-auth";
-import { buildOauthProviderAuthResult } from "openclaw/plugin-sdk/provider-auth";
-import { loginOpenAICodexOAuth } from "openclaw/plugin-sdk/provider-auth-login";
+} from "@benchagi/openclaw/plugin-sdk/provider-auth";
+import { buildOauthProviderAuthResult } from "@benchagi/openclaw/plugin-sdk/provider-auth";
+import { loginOpenAICodexOAuth } from "@benchagi/openclaw/plugin-sdk/provider-auth-login";
 import {
   DEFAULT_CONTEXT_TOKENS,
   normalizeModelCompat,
   normalizeProviderId,
   type ProviderPlugin,
-} from "openclaw/plugin-sdk/provider-model-shared";
-import { fetchCodexUsage } from "openclaw/plugin-sdk/provider-usage";
-import { normalizeLowercaseStringOrEmpty, readStringValue } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { fetchCodexUsage } from "@benchagi/openclaw/plugin-sdk/provider-usage";
+import { normalizeLowercaseStringOrEmpty, readStringValue } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { isOpenAIApiBaseUrl, isOpenAICodexBaseUrl } from "./base-url.js";
 import { OPENAI_CODEX_DEFAULT_MODEL } from "./default-models.js";
 import { resolveCodexAuthIdentity } from "./openai-codex-auth-identity.js";

@@ -12,9 +12,9 @@ import type {
   MSTeamsFederatedCredentials,
 } from "./token.js";
 
-vi.mock("openclaw/plugin-sdk/ssrf-runtime", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/ssrf-runtime")>(
-    "openclaw/plugin-sdk/ssrf-runtime",
+vi.mock("@benchagi/openclaw/plugin-sdk/ssrf-runtime", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/ssrf-runtime")>(
+    "@benchagi/openclaw/plugin-sdk/ssrf-runtime",
   );
   return {
     ...actual,

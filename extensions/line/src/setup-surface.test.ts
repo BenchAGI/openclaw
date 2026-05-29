@@ -115,7 +115,7 @@ function collectRuntimeApiPreExports(runtimeApiPath: string): string[] {
     if (!moduleSpecifier) {
       continue;
     }
-    if (moduleSpecifier === "openclaw/plugin-sdk/line-runtime") {
+    if (moduleSpecifier === "@benchagi/openclaw/plugin-sdk/line-runtime") {
       pluginSdkLineRuntimeSeen = true;
       break;
     }
@@ -388,7 +388,7 @@ describe("line runtime api", () => {
           "probeLineBot",
           "pushMessageLine",
         ],
-        realPluginSdkSpecifiers: ["openclaw/plugin-sdk/line-runtime"],
+        realPluginSdkSpecifiers: ["@benchagi/openclaw/plugin-sdk/line-runtime"],
       }),
     ).toEqual({
       buildTemplateMessageFromPayload: "function",
@@ -404,7 +404,7 @@ describe("line runtime api", () => {
     expect(collectRuntimeApiPreExports(runtimeApiPath)).toEqual([]);
     const runtimeApiSource = readFileSync(runtimeApiPath, "utf8");
 
-    expect(runtimeApiSource).not.toContain("openclaw/plugin-sdk/line-runtime");
+    expect(runtimeApiSource).not.toContain("@benchagi/openclaw/plugin-sdk/line-runtime");
     expect(collectRuntimeApiPreExports(runtimeApiPath)).toEqual([]);
   });
 });

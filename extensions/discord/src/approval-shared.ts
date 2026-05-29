@@ -1,6 +1,6 @@
-import { doesApprovalRequestMatchChannelAccount } from "openclaw/plugin-sdk/approval-native-runtime";
-import type { DiscordExecApprovalConfig, OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { ExecApprovalRequest, PluginApprovalRequest } from "openclaw/plugin-sdk/infra-runtime";
+import { doesApprovalRequestMatchChannelAccount } from "@benchagi/openclaw/plugin-sdk/approval-native-runtime";
+import type { DiscordExecApprovalConfig, OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ExecApprovalRequest, PluginApprovalRequest } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
 import { resolveDiscordAccount } from "./accounts.js";
 import {
   isChannelExecApprovalClientEnabledFromConfig,

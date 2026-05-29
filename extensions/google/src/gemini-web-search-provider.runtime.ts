@@ -15,7 +15,7 @@ import {
   withTrustedWebSearchEndpoint,
   wrapWebContent,
   writeCachedSearchPayload,
-} from "openclaw/plugin-sdk/provider-web-search";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-search";
 import { DEFAULT_GOOGLE_API_BASE_URL } from "../api.js";
 import {
   resolveGeminiConfig,

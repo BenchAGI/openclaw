@@ -1,5 +1,5 @@
-import { isPrivateNetworkOptInEnabled } from "openclaw/plugin-sdk/ssrf-runtime";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+import { isPrivateNetworkOptInEnabled } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { listMattermostAccountIds, resolveMattermostAccount } from "./accounts.js";
 import {
   createMattermostClient,

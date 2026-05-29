@@ -5,7 +5,7 @@ import {
   type MessagingTarget,
   type MessagingTargetKind,
   type MessagingTargetParseOptions,
-} from "openclaw/plugin-sdk/messaging-targets";
+} from "@benchagi/openclaw/plugin-sdk/messaging-targets";
 
 export type DiscordTargetKind = MessagingTargetKind;
 

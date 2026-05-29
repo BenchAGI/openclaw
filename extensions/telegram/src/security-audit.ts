@@ -1,5 +1,5 @@
-import { readChannelAllowFromStore } from "openclaw/plugin-sdk/conversation-runtime";
-import { resolveNativeSkillsEnabled } from "openclaw/plugin-sdk/native-command-config-runtime";
+import { readChannelAllowFromStore } from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
+import { resolveNativeSkillsEnabled } from "@benchagi/openclaw/plugin-sdk/native-command-config-runtime";
 import type { OpenClawConfig } from "../runtime-api.js";
 import type { ResolvedTelegramAccount } from "./accounts.js";
 import { isNumericTelegramSenderUserId, normalizeTelegramAllowFromEntry } from "./allow-from.js";

@@ -4,8 +4,8 @@ import {
   normalizeAccountId,
   resolveAccountWithDefaultFallback,
   resolveMergedAccountConfig,
-} from "openclaw/plugin-sdk/account-core";
-import { tryReadSecretFileSync } from "openclaw/plugin-sdk/secret-file-runtime";
+} from "@benchagi/openclaw/plugin-sdk/account-core";
+import { tryReadSecretFileSync } from "@benchagi/openclaw/plugin-sdk/secret-file-runtime";
 import { normalizeResolvedSecretInputString } from "./secret-input.js";
 import type { CoreConfig, NextcloudTalkAccountConfig } from "./types.js";
 

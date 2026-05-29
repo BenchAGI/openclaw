@@ -224,7 +224,7 @@ function runPackedBundledChannelEntrySmoke(): void {
     const prefixDir = join(tmpRoot, "prefix");
     installPackedTarball(prefixDir, tarballPath, tmpRoot);
 
-    const packageRoot = join(resolveGlobalRoot(prefixDir, tmpRoot), "openclaw");
+    const packageRoot = join(resolveGlobalRoot(prefixDir, tmpRoot), "@benchagi", "openclaw");
     execFileSync(
       process.execPath,
       [
@@ -399,7 +399,7 @@ function checkAppcastSparkleVersions() {
   }
 }
 
-// Critical functions that channel extension plugins import from openclaw/plugin-sdk.
+// Critical functions that channel extension plugins import from @benchagi/openclaw/plugin-sdk.
 // If any are missing from the compiled output, plugins crash at runtime (#27569).
 const requiredPluginSdkExports = [
   "isDangerousNameMatchingEnabled",

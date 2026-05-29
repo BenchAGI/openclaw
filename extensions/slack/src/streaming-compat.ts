@@ -1,11 +1,11 @@
 import {
   getChannelStreamingConfigObject,
   resolveChannelStreamingNativeTransport,
-} from "openclaw/plugin-sdk/channel-streaming";
+} from "@benchagi/openclaw/plugin-sdk/channel-streaming";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 export type StreamingMode = "off" | "partial" | "block" | "progress";
 export type SlackLegacyDraftStreamMode = "replace" | "status_final" | "append";

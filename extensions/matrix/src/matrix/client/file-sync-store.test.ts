@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { ISyncResponse } from "matrix-js-sdk";
-import * as jsonStore from "openclaw/plugin-sdk/json-store";
+import * as jsonStore from "@benchagi/openclaw/plugin-sdk/json-store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FileBackedMatrixSyncStore } from "./file-sync-store.js";
 

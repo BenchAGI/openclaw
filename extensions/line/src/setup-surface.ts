@@ -2,8 +2,8 @@ import {
   createAllowFromSection,
   createStandardChannelSetupStatus,
   mergeAllowFromEntries,
-} from "openclaw/plugin-sdk/setup";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/setup";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveDefaultLineAccountId } from "./accounts.js";
 import {
   isLineConfigured,

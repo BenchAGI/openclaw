@@ -1,4 +1,4 @@
-import { defineSingleProviderPluginEntry } from "openclaw/plugin-sdk/provider-entry";
+import { defineSingleProviderPluginEntry } from "@benchagi/openclaw/plugin-sdk/provider-entry";
 import { applyMistralModelCompat } from "./api.js";
 import { mistralMediaUnderstandingProvider } from "./media-understanding-provider.js";
 import { mistralMemoryEmbeddingProviderAdapter } from "./memory-embedding-adapter.js";

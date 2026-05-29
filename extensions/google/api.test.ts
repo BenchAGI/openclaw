@@ -1,4 +1,4 @@
-import type { ProviderRequestTransportOverrides } from "openclaw/plugin-sdk/provider-http";
+import type { ProviderRequestTransportOverrides } from "@benchagi/openclaw/plugin-sdk/provider-http";
 import { describe, expect, it } from "vitest";
 import {
   isGoogleGenerativeAiApi,

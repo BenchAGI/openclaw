@@ -1,4 +1,4 @@
-import { z } from "openclaw/plugin-sdk/zod";
+import { z } from "@benchagi/openclaw/plugin-sdk/zod";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MatrixRoomInfo } from "./room-info.js";
 

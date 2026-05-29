@@ -176,7 +176,9 @@ function isPluginSdkSelfReference(id: string): boolean {
     id === "openclaw/plugin-sdk" ||
     id.startsWith("openclaw/plugin-sdk/") ||
     id === "@openclaw/plugin-sdk" ||
-    id.startsWith("@openclaw/plugin-sdk/")
+    id.startsWith("@openclaw/plugin-sdk/") ||
+    id === "@benchagi/openclaw/plugin-sdk" ||
+    id.startsWith("@benchagi/openclaw/plugin-sdk/")
   );
 }
 

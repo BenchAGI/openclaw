@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 // IHttpServerAdapter is re-exported via the public barrel (`export * from './http'`)
 // but tsgo cannot resolve the chain. Use the dist subpath directly (type-only import).
 import type { IHttpServerAdapter } from "@microsoft/teams.apps/dist/http/index.js";
-import { fetchWithSsrFGuard } from "openclaw/plugin-sdk/ssrf-runtime";
+import { fetchWithSsrFGuard } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 import { formatUnknownError } from "./errors.js";
 import type { MSTeamsAdapter } from "./messenger.js";
 import type { MSTeamsCredentials, MSTeamsFederatedCredentials } from "./token.js";

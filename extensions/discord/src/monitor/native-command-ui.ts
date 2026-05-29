@@ -12,7 +12,7 @@ import {
   type StringSelectMenuInteraction,
 } from "@buape/carbon";
 import { ButtonStyle } from "discord-api-types/v10";
-import { resolveDefaultModelForAgent } from "openclaw/plugin-sdk/agent-runtime";
+import { resolveDefaultModelForAgent } from "@benchagi/openclaw/plugin-sdk/agent-runtime";
 import {
   buildCommandTextFromArgs,
   findCommandByNativeName,
@@ -23,17 +23,17 @@ import {
   type CommandArgDefinition,
   type CommandArgValues,
   type CommandArgs,
-} from "openclaw/plugin-sdk/command-auth";
-import type { OpenClawConfig, loadConfig } from "openclaw/plugin-sdk/config-runtime";
-import { loadSessionStore, resolveStorePath } from "openclaw/plugin-sdk/config-runtime";
-import type { ResolvedAgentRoute } from "openclaw/plugin-sdk/routing";
-import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/command-auth";
+import type { OpenClawConfig, loadConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { loadSessionStore, resolveStorePath } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ResolvedAgentRoute } from "@benchagi/openclaw/plugin-sdk/routing";
+import { logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   chunkItems,
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
   withTimeout,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveDiscordChannelInfo } from "./message-utils.js";
 import {
   readDiscordModelPickerRecentModels,

@@ -7,25 +7,25 @@ export type {
   OpenClawConfig,
   OpenClawPluginApi,
   PluginRuntime,
-} from "openclaw/plugin-sdk/core";
+} from "@benchagi/openclaw/plugin-sdk/core";
 export type {
   ChannelGatewayContext,
   ChannelStatusIssue,
-} from "openclaw/plugin-sdk/channel-contract";
-export { clearAccountEntryFields } from "openclaw/plugin-sdk/core";
-export { buildChannelConfigSchema } from "openclaw/plugin-sdk/channel-config-schema";
-export type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
-export type { ChannelSetupDmPolicy, ChannelSetupWizard } from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/channel-contract";
+export { clearAccountEntryFields } from "@benchagi/openclaw/plugin-sdk/core";
+export { buildChannelConfigSchema } from "@benchagi/openclaw/plugin-sdk/channel-config-schema";
+export type { ReplyPayload } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+export type { ChannelSetupDmPolicy, ChannelSetupWizard } from "@benchagi/openclaw/plugin-sdk/setup";
 export {
   buildComputedAccountStatusSnapshot,
   buildTokenChannelStatusSummary,
-} from "openclaw/plugin-sdk/status-helpers";
+} from "@benchagi/openclaw/plugin-sdk/status-helpers";
 export {
   DEFAULT_ACCOUNT_ID,
   formatDocsLink,
   setSetupChannelEnabled,
   splitSetupEntries,
-} from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/setup";
 export { setLineRuntime } from "./src/runtime.js";
 export {
   firstDefined,

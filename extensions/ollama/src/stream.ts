@@ -10,25 +10,25 @@ import type {
   Usage,
 } from "@mariozechner/pi-ai";
 import { createAssistantMessageEventStream, streamSimple } from "@mariozechner/pi-ai";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import type {
   OpenClawConfig,
   ProviderRuntimeModel,
   ProviderWrapStreamFnContext,
-} from "openclaw/plugin-sdk/plugin-entry";
-import { isNonSecretApiKeyMarker } from "openclaw/plugin-sdk/provider-auth";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { isNonSecretApiKeyMarker } from "@benchagi/openclaw/plugin-sdk/provider-auth";
 import {
   DEFAULT_CONTEXT_TOKENS,
   normalizeProviderId,
-} from "openclaw/plugin-sdk/provider-model-shared";
+} from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
 import {
   createMoonshotThinkingWrapper,
   resolveMoonshotThinkingType,
   streamWithPayloadPatch,
-} from "openclaw/plugin-sdk/provider-stream-shared";
-import { createSubsystemLogger } from "openclaw/plugin-sdk/runtime-env";
-import { fetchWithSsrFGuard } from "openclaw/plugin-sdk/ssrf-runtime";
-import { normalizeLowercaseStringOrEmpty, readStringValue } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-stream-shared";
+import { createSubsystemLogger } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { fetchWithSsrFGuard } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
+import { normalizeLowercaseStringOrEmpty, readStringValue } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { OLLAMA_DEFAULT_BASE_URL } from "./defaults.js";
 import {
   parseJsonObjectPreservingUnsafeIntegers,

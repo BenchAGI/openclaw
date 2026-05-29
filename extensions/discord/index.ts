@@ -1,4 +1,4 @@
-import { defineBundledChannelEntry } from "openclaw/plugin-sdk/channel-entry-contract";
+import { defineBundledChannelEntry } from "@benchagi/openclaw/plugin-sdk/channel-entry-contract";
 
 type DiscordSubagentHooksModule = typeof import("./subagent-hooks-api.js");
 

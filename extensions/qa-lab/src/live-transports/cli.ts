@@ -1,4 +1,4 @@
-import { listQaRunnerCliContributions } from "openclaw/plugin-sdk/qa-runner-runtime";
+import { listQaRunnerCliContributions } from "@benchagi/openclaw/plugin-sdk/qa-runner-runtime";
 import type { LiveTransportQaCliRegistration } from "./shared/live-transport-cli.js";
 import { telegramQaCliRegistration } from "./telegram/cli.js";
 

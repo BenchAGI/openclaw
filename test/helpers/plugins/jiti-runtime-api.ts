@@ -16,7 +16,7 @@ const JITI_EXTENSIONS = [
   ".json",
 ] as const;
 
-const PLUGIN_SDK_SPECIFIER_PREFIX = "openclaw/plugin-sdk/";
+const PLUGIN_SDK_SPECIFIER_PREFIX = "@benchagi/openclaw/plugin-sdk/";
 const SOURCE_MODULE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts"] as const;
 
 type SourceModuleRef = {

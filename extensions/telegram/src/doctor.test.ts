@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   collectTelegramInvalidAllowFromWarnings,
@@ -14,7 +14,7 @@ const listTelegramAccountIdsMock = vi.hoisted(() => vi.fn());
 const inspectTelegramAccountMock = vi.hoisted(() => vi.fn());
 const lookupTelegramChatIdMock = vi.hoisted(() => vi.fn());
 
-vi.mock("openclaw/plugin-sdk/runtime-secret-resolution", () => {
+vi.mock("@benchagi/openclaw/plugin-sdk/runtime-secret-resolution", () => {
   return {
     getChannelsCommandSecretTargetIds: () => ["channels"],
     resolveCommandSecretRefsViaGateway: resolveCommandSecretRefsViaGatewayMock,

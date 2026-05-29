@@ -1,4 +1,4 @@
-import { resolveSendableOutboundReplyParts } from "openclaw/plugin-sdk/reply-payload";
+import { resolveSendableOutboundReplyParts } from "@benchagi/openclaw/plugin-sdk/reply-payload";
 import { describe, expect, it } from "vitest";
 import type { ReplyPayload } from "../../auto-reply/types.js";
 import { typedCases } from "../../test-utils/typed-cases.js";

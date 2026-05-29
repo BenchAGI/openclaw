@@ -15,7 +15,7 @@ const internalHookMocks = vi.hoisted(() => ({
   triggerInternalHook: vi.fn(async () => undefined),
 }));
 
-vi.mock("openclaw/plugin-sdk/hook-runtime", () => {
+vi.mock("@benchagi/openclaw/plugin-sdk/hook-runtime", () => {
   return {
     createInternalHookEvent: internalHookMocks.createInternalHookEvent,
     fireAndForgetHook: (task: Promise<unknown>) => void task,

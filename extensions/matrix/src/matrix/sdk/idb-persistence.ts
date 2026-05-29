@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { indexedDB as fakeIndexedDB } from "fake-indexeddb";
-import { withFileLock } from "openclaw/plugin-sdk/file-lock";
+import { withFileLock } from "@benchagi/openclaw/plugin-sdk/file-lock";
 import { MATRIX_IDB_SNAPSHOT_LOCK_OPTIONS } from "./idb-persistence-lock.js";
 import { LogService } from "./logger.js";
 

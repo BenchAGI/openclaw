@@ -1,40 +1,40 @@
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/account-id";
 import {
   buildDmGroupAccountAllowlistAdapter,
   createNestedAllowlistOverrideResolver,
-} from "openclaw/plugin-sdk/allowlist-config-edit";
-import type { ChannelMessageActionAdapter } from "openclaw/plugin-sdk/channel-contract";
-import { clearAccountEntryFields, createChatChannelPlugin } from "openclaw/plugin-sdk/channel-core";
-import { createPairingPrefixStripper } from "openclaw/plugin-sdk/channel-pairing";
-import { createAllowlistProviderRouteAllowlistWarningCollector } from "openclaw/plugin-sdk/channel-policy";
-import { attachChannelToResult } from "openclaw/plugin-sdk/channel-send-result";
+} from "@benchagi/openclaw/plugin-sdk/allowlist-config-edit";
+import type { ChannelMessageActionAdapter } from "@benchagi/openclaw/plugin-sdk/channel-contract";
+import { clearAccountEntryFields, createChatChannelPlugin } from "@benchagi/openclaw/plugin-sdk/channel-core";
+import { createPairingPrefixStripper } from "@benchagi/openclaw/plugin-sdk/channel-pairing";
+import { createAllowlistProviderRouteAllowlistWarningCollector } from "@benchagi/openclaw/plugin-sdk/channel-policy";
+import { attachChannelToResult } from "@benchagi/openclaw/plugin-sdk/channel-send-result";
 import {
   PAIRING_APPROVED_MESSAGE,
   buildTokenChannelStatusSummary,
   projectCredentialSnapshotFields,
   resolveConfiguredFromCredentialStatuses,
-} from "openclaw/plugin-sdk/channel-status";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { createChannelDirectoryAdapter } from "openclaw/plugin-sdk/directory-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-status";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { createChannelDirectoryAdapter } from "@benchagi/openclaw/plugin-sdk/directory-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import {
   resolveOutboundSendDep,
   type OutboundSendDeps,
-} from "openclaw/plugin-sdk/outbound-runtime";
+} from "@benchagi/openclaw/plugin-sdk/outbound-runtime";
 import {
   buildOutboundBaseSessionKey,
   normalizeOutboundThreadId,
   resolveThreadSessionKeys,
   type RoutePeer,
-} from "openclaw/plugin-sdk/routing";
+} from "@benchagi/openclaw/plugin-sdk/routing";
 import {
   createComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
-} from "openclaw/plugin-sdk/status-helpers";
+} from "@benchagi/openclaw/plugin-sdk/status-helpers";
 import {
   normalizeOptionalLowercaseString,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveTelegramAccount, type ResolvedTelegramAccount } from "./accounts.js";
 import { resolveTelegramAutoThreadId } from "./action-threading.js";
 import { lookupTelegramChatId } from "./api-fetch.js";

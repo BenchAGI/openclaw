@@ -3,20 +3,20 @@ import {
   logAckFailure,
   logTypingFailure,
   removeAckReactionAfterReply,
-} from "openclaw/plugin-sdk/channel-feedback";
-import { createChannelReplyPipeline } from "openclaw/plugin-sdk/channel-reply-pipeline";
-import { resolveChannelStreamingBlockEnabled } from "openclaw/plugin-sdk/channel-streaming";
+} from "@benchagi/openclaw/plugin-sdk/channel-feedback";
+import { createChannelReplyPipeline } from "@benchagi/openclaw/plugin-sdk/channel-reply-pipeline";
+import { resolveChannelStreamingBlockEnabled } from "@benchagi/openclaw/plugin-sdk/channel-streaming";
 import type {
   OpenClawConfig,
   ReplyToMode,
   TelegramAccountConfig,
-} from "openclaw/plugin-sdk/config-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
-import { clearHistoryEntriesIfEnabled } from "openclaw/plugin-sdk/reply-history";
-import { resolveSendableOutboundReplyParts } from "openclaw/plugin-sdk/reply-payload";
-import { isAbortRequestText, type ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
-import { danger, logVerbose } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
+import { clearHistoryEntriesIfEnabled } from "@benchagi/openclaw/plugin-sdk/reply-history";
+import { resolveSendableOutboundReplyParts } from "@benchagi/openclaw/plugin-sdk/reply-payload";
+import { isAbortRequestText, type ReplyPayload } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { danger, logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { defaultTelegramBotDeps, type TelegramBotDeps } from "./bot-deps.js";
 import type { TelegramMessageContext } from "./bot-message-context.js";
 import {

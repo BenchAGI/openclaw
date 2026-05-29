@@ -2,12 +2,12 @@ import type { ReactionTypeEmoji } from "@grammyjs/types";
 import {
   resolveAckReaction,
   shouldAckReaction as shouldAckReactionGate,
-} from "openclaw/plugin-sdk/channel-feedback";
-import { logInboundDrop } from "openclaw/plugin-sdk/channel-inbound";
-import type { TelegramDirectConfig, TelegramGroupConfig } from "openclaw/plugin-sdk/config-runtime";
-import { deriveLastRoutePolicy } from "openclaw/plugin-sdk/routing";
-import { DEFAULT_ACCOUNT_ID, resolveThreadSessionKeys } from "openclaw/plugin-sdk/routing";
-import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/channel-feedback";
+import { logInboundDrop } from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+import type { TelegramDirectConfig, TelegramGroupConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { deriveLastRoutePolicy } from "@benchagi/openclaw/plugin-sdk/routing";
+import { DEFAULT_ACCOUNT_ID, resolveThreadSessionKeys } from "@benchagi/openclaw/plugin-sdk/routing";
+import { logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
 import { firstDefined, normalizeAllowFrom, normalizeDmAllowFromWithStore } from "./bot-access.js";
 import { resolveTelegramInboundBody } from "./bot-message-context.body.js";

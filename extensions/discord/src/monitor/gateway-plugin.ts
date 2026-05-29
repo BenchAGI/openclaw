@@ -2,17 +2,17 @@ import { randomUUID } from "node:crypto";
 import * as carbonGateway from "@buape/carbon/gateway";
 import type { APIGatewayBotInfo } from "discord-api-types/v10";
 import * as httpsProxyAgent from "https-proxy-agent";
-import type { DiscordAccountConfig } from "openclaw/plugin-sdk/config-runtime";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import type { DiscordAccountConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import {
   captureHttpExchange,
   captureWsEvent,
   resolveEffectiveDebugProxyUrl,
   resolveDebugProxySettings,
-} from "openclaw/plugin-sdk/proxy-capture";
-import { danger } from "openclaw/plugin-sdk/runtime-env";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/proxy-capture";
+import { danger } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import * as undici from "undici";
 import * as ws from "ws";
 import { validateDiscordProxyUrl } from "../proxy-fetch.js";
@@ -34,7 +34,7 @@ type DiscordGatewayMetadataError = Error & { transient?: boolean };
 type DiscordGatewayWebSocketCtor = new (url: string, options?: { agent?: unknown }) => ws.WebSocket;
 
 export function resolveDiscordGatewayIntents(
-  intentsConfig?: import("openclaw/plugin-sdk/config-runtime").DiscordIntentsConfig,
+  intentsConfig?: import("@benchagi/openclaw/plugin-sdk/config-runtime").DiscordIntentsConfig,
 ): number {
   let intents =
     carbonGateway.GatewayIntents.Guilds |

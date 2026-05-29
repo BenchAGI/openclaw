@@ -1,5 +1,5 @@
-import { buildChannelConfigSchema } from "openclaw/plugin-sdk/channel-config-schema";
-import { z } from "openclaw/plugin-sdk/zod";
+import { buildChannelConfigSchema } from "@benchagi/openclaw/plugin-sdk/channel-config-schema";
+import { z } from "@benchagi/openclaw/plugin-sdk/zod";
 
 const QaChannelActionConfigSchema = z
   .object({

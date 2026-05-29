@@ -1,15 +1,15 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   getSessionBindingService,
   isPluginOwnedSessionBindingRecord,
   resolveConfiguredBindingRoute,
-} from "openclaw/plugin-sdk/conversation-runtime";
+} from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
 import {
   deriveLastRoutePolicy,
   resolveAgentIdFromSessionKey,
   resolveAgentRoute,
-} from "openclaw/plugin-sdk/routing";
-import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/routing";
+import { logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { resolveIMessageInboundConversationId } from "./conversation-id.js";
 
 export function resolveIMessageConversationRoute(params: {

@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   resolveThreadBindingIdleTimeoutMsForChannel,
   resolveThreadBindingMaxAgeMsForChannel,
@@ -8,9 +8,9 @@ import {
   type BindingTargetKind,
   type SessionBindingAdapter,
   type SessionBindingRecord,
-} from "openclaw/plugin-sdk/conversation-runtime";
-import { normalizeAccountId, resolveAgentIdFromSessionKey } from "openclaw/plugin-sdk/routing";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
+import { normalizeAccountId, resolveAgentIdFromSessionKey } from "@benchagi/openclaw/plugin-sdk/routing";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 type FeishuBindingTargetKind = "subagent" | "acp";
 

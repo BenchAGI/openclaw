@@ -1,20 +1,20 @@
-import { adaptScopedAccountAccessor } from "openclaw/plugin-sdk/channel-config-helpers";
+import { adaptScopedAccountAccessor } from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
 import {
   composeAccountWarningCollectors,
   createAllowlistProviderOpenWarningCollector,
-} from "openclaw/plugin-sdk/channel-policy";
+} from "@benchagi/openclaw/plugin-sdk/channel-policy";
 import {
   createChannelDirectoryAdapter,
   listResolvedDirectoryGroupEntriesFromMapKeys,
   listResolvedDirectoryUserEntriesFromAllowFrom,
-} from "openclaw/plugin-sdk/directory-runtime";
-import { createLazyRuntimeNamedExport } from "openclaw/plugin-sdk/lazy-runtime";
-import type { OutboundMediaLoadOptions } from "openclaw/plugin-sdk/outbound-media";
-import { sanitizeForPlainText } from "openclaw/plugin-sdk/outbound-runtime";
+} from "@benchagi/openclaw/plugin-sdk/directory-runtime";
+import { createLazyRuntimeNamedExport } from "@benchagi/openclaw/plugin-sdk/lazy-runtime";
+import type { OutboundMediaLoadOptions } from "@benchagi/openclaw/plugin-sdk/outbound-media";
+import { sanitizeForPlainText } from "@benchagi/openclaw/plugin-sdk/outbound-runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   type ResolvedGoogleChatAccount,
   chunkTextForOutbound,

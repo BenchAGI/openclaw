@@ -1,12 +1,12 @@
 import type {
   ChannelDirectoryEntry,
   DirectoryConfigParams,
-} from "openclaw/plugin-sdk/directory-runtime";
+} from "@benchagi/openclaw/plugin-sdk/directory-runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
   normalizeOptionalLowercaseString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveSlackAccount } from "./accounts.js";
 import { createSlackWebClient } from "./client.js";
 

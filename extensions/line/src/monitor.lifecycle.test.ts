@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
-import { WEBHOOK_IN_FLIGHT_DEFAULTS } from "openclaw/plugin-sdk/webhook-request-guards";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { WEBHOOK_IN_FLIGHT_DEFAULTS } from "@benchagi/openclaw/plugin-sdk/webhook-request-guards";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 type LineNodeWebhookHandler = (req: IncomingMessage, res: ServerResponse) => Promise<void>;
@@ -32,14 +32,14 @@ vi.mock("./bot.js", () => ({
   createLineBot: createLineBotMock,
 }));
 
-vi.mock("openclaw/plugin-sdk/reply-runtime", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/reply-runtime", () => ({
   chunkMarkdownText: vi.fn(),
   dispatchReplyWithBufferedBlockDispatcher: vi.fn(),
 }));
 
-vi.mock("openclaw/plugin-sdk/runtime-env", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/runtime-env")>(
-    "openclaw/plugin-sdk/runtime-env",
+vi.mock("@benchagi/openclaw/plugin-sdk/runtime-env", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/runtime-env")>(
+    "@benchagi/openclaw/plugin-sdk/runtime-env",
   );
   return {
     ...actual,
@@ -49,11 +49,11 @@ vi.mock("openclaw/plugin-sdk/runtime-env", async () => {
   };
 });
 
-vi.mock("openclaw/plugin-sdk/channel-reply-pipeline", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/channel-reply-pipeline", () => ({
   createChannelReplyPipeline: vi.fn(() => ({})),
 }));
 
-vi.mock("openclaw/plugin-sdk/webhook-ingress", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/webhook-ingress", () => ({
   normalizePluginHttpPath: (_path: string | undefined, fallback: string) => fallback,
   registerPluginHttpRoute: registerPluginHttpRouteMock,
 }));

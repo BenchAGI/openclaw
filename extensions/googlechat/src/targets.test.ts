@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
   getGoogleChatAccessToken: vi.fn().mockResolvedValue("token"),
 }));
 
-vi.mock("openclaw/plugin-sdk/ssrf-runtime", () => {
+vi.mock("@benchagi/openclaw/plugin-sdk/ssrf-runtime", () => {
   return {
     fetchWithSsrFGuard: mocks.fetchWithSsrFGuard,
   };

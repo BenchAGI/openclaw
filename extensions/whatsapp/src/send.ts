@@ -1,12 +1,12 @@
-import { formatCliCommand } from "openclaw/plugin-sdk/cli-runtime";
-import { loadConfig, type OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { resolveMarkdownTableMode } from "openclaw/plugin-sdk/config-runtime";
-import { generateSecureUuid } from "openclaw/plugin-sdk/core";
-import { normalizePollInput, type PollInput } from "openclaw/plugin-sdk/media-runtime";
-import { createSubsystemLogger } from "openclaw/plugin-sdk/runtime-env";
-import { getChildLogger } from "openclaw/plugin-sdk/text-runtime";
-import { redactIdentifier } from "openclaw/plugin-sdk/text-runtime";
-import { convertMarkdownTables } from "openclaw/plugin-sdk/text-runtime";
+import { formatCliCommand } from "@benchagi/openclaw/plugin-sdk/cli-runtime";
+import { loadConfig, type OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { resolveMarkdownTableMode } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { generateSecureUuid } from "@benchagi/openclaw/plugin-sdk/core";
+import { normalizePollInput, type PollInput } from "@benchagi/openclaw/plugin-sdk/media-runtime";
+import { createSubsystemLogger } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { getChildLogger } from "@benchagi/openclaw/plugin-sdk/text-runtime";
+import { redactIdentifier } from "@benchagi/openclaw/plugin-sdk/text-runtime";
+import { convertMarkdownTables } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   resolveDefaultWhatsAppAccountId,
   resolveWhatsAppAccount,

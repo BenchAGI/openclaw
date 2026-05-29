@@ -8,7 +8,7 @@ import {
   type ChannelSetupWizard,
   type OpenClawConfig,
   type SecretInput,
-} from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/setup";
 import { resolveZaloAccount } from "./accounts.js";
 import { noteZaloTokenHelp, promptZaloAllowFrom } from "./setup-allow-from.js";
 import { zaloDmPolicy } from "./setup-core.js";

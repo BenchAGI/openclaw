@@ -3,12 +3,12 @@ import {
   listCombinedAccountIds,
   normalizeAccountId,
   resolveMergedAccountConfig,
-} from "openclaw/plugin-sdk/account-resolution";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/account-resolution";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   hasLegacyFlatAllowPrivateNetworkAlias,
   isPrivateNetworkOptInEnabled,
-} from "openclaw/plugin-sdk/ssrf-runtime";
+} from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 
 type TlonAccountConfig = {
   name?: string;

@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { format } from "node:util";
 import type { Command } from "commander";
-import { normalizeOptionalLowercaseString } from "openclaw/plugin-sdk/text-runtime";
+import { normalizeOptionalLowercaseString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { sleep } from "../api.js";
 import type { VoiceCallConfig } from "./config.js";
 import type { VoiceCallRuntime } from "./runtime.js";

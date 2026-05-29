@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { withEnvAsync } from "openclaw/plugin-sdk/testing";
+import { withEnvAsync } from "@benchagi/openclaw/plugin-sdk/testing";
 import { describe, expect, it } from "vitest";
 import { createPluginSetupWizardStatus } from "../../../test/helpers/plugins/setup-wizard.js";
 import "./zalo-js.test-mocks.js";

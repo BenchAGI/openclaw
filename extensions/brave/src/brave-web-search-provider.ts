@@ -2,8 +2,8 @@ import type {
   SearchConfigRecord,
   WebSearchProviderPlugin,
   WebSearchProviderToolDefinition,
-} from "openclaw/plugin-sdk/provider-web-search";
-import { createWebSearchProviderContractFields } from "openclaw/plugin-sdk/provider-web-search-config-contract";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-search";
+import { createWebSearchProviderContractFields } from "@benchagi/openclaw/plugin-sdk/provider-web-search-config-contract";
 
 const BRAVE_CREDENTIAL_PATH = "plugins.entries.brave.config.webSearch.apiKey";
 const BraveSearchSchema = {

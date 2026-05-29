@@ -1,13 +1,13 @@
-import { resolveControlCommandGate } from "openclaw/plugin-sdk/command-gating";
+import { resolveControlCommandGate } from "@benchagi/openclaw/plugin-sdk/command-gating";
 import {
   evaluateSupplementalContextVisibility,
   resolveChannelContextVisibilityMode,
-} from "openclaw/plugin-sdk/context-visibility-runtime";
+} from "@benchagi/openclaw/plugin-sdk/context-visibility-runtime";
 import {
   loadSessionStore,
   resolveSessionStoreEntry,
-} from "openclaw/plugin-sdk/session-store-runtime";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/string-coerce-runtime";
+} from "@benchagi/openclaw/plugin-sdk/session-store-runtime";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/string-coerce-runtime";
 import type {
   CoreConfig,
   MatrixRoomConfig,
@@ -73,10 +73,10 @@ const ALLOW_FROM_STORE_CACHE_TTL_MS = 30_000;
 const PAIRING_REPLY_COOLDOWN_MS = 5 * 60_000;
 let matrixSendModulePromise: Promise<typeof import("../send.js")> | undefined;
 let acpBindingRuntimePromise:
-  | Promise<typeof import("openclaw/plugin-sdk/acp-binding-runtime")>
+  | Promise<typeof import("@benchagi/openclaw/plugin-sdk/acp-binding-runtime")>
   | undefined;
 let sessionBindingRuntimePromise:
-  | Promise<typeof import("openclaw/plugin-sdk/session-binding-runtime")>
+  | Promise<typeof import("@benchagi/openclaw/plugin-sdk/session-binding-runtime")>
   | undefined;
 
 function loadMatrixSendModule(): Promise<typeof import("../send.js")> {
@@ -85,16 +85,16 @@ function loadMatrixSendModule(): Promise<typeof import("../send.js")> {
 }
 
 function loadAcpBindingRuntime(): Promise<
-  typeof import("openclaw/plugin-sdk/acp-binding-runtime")
+  typeof import("@benchagi/openclaw/plugin-sdk/acp-binding-runtime")
 > {
-  acpBindingRuntimePromise ??= import("openclaw/plugin-sdk/acp-binding-runtime");
+  acpBindingRuntimePromise ??= import("@benchagi/openclaw/plugin-sdk/acp-binding-runtime");
   return acpBindingRuntimePromise;
 }
 
 function loadSessionBindingRuntime(): Promise<
-  typeof import("openclaw/plugin-sdk/session-binding-runtime")
+  typeof import("@benchagi/openclaw/plugin-sdk/session-binding-runtime")
 > {
-  sessionBindingRuntimePromise ??= import("openclaw/plugin-sdk/session-binding-runtime");
+  sessionBindingRuntimePromise ??= import("@benchagi/openclaw/plugin-sdk/session-binding-runtime");
   return sessionBindingRuntimePromise;
 }
 const MAX_TRACKED_PAIRING_REPLY_SENDERS = 512;

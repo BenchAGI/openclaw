@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { DirectoryConfigParams } from "openclaw/plugin-sdk/directory-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { DirectoryConfigParams } from "@benchagi/openclaw/plugin-sdk/directory-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listDiscordDirectoryGroupsLive, listDiscordDirectoryPeersLive } from "./directory-live.js";
 

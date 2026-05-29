@@ -1,34 +1,34 @@
-import { describeAccountSnapshot } from "openclaw/plugin-sdk/account-helpers";
+import { describeAccountSnapshot } from "@benchagi/openclaw/plugin-sdk/account-helpers";
 import {
   adaptScopedAccountAccessor,
   createScopedDmSecurityResolver,
-} from "openclaw/plugin-sdk/channel-config-helpers";
-import { buildChannelConfigSchema } from "openclaw/plugin-sdk/channel-config-primitives";
-import { createChatChannelPlugin, type ChannelPlugin } from "openclaw/plugin-sdk/channel-core";
+} from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import { buildChannelConfigSchema } from "@benchagi/openclaw/plugin-sdk/channel-config-primitives";
+import { createChatChannelPlugin, type ChannelPlugin } from "@benchagi/openclaw/plugin-sdk/channel-core";
 import {
   createAllowlistProviderOpenWarningCollector,
   projectAccountConfigWarningCollector,
-} from "openclaw/plugin-sdk/channel-policy";
-import { createScopedAccountReplyToModeResolver } from "openclaw/plugin-sdk/conversation-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-policy";
+import { createScopedAccountReplyToModeResolver } from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
 import {
   createChannelDirectoryAdapter,
   createResolvedDirectoryEntriesLister,
   createRuntimeDirectoryLiveAdapter,
-} from "openclaw/plugin-sdk/directory-runtime";
-import { buildTrafficStatusSummary } from "openclaw/plugin-sdk/extension-shared";
-import { createLazyRuntimeNamedExport } from "openclaw/plugin-sdk/lazy-runtime";
-import { createRuntimeOutboundDelegates } from "openclaw/plugin-sdk/outbound-runtime";
+} from "@benchagi/openclaw/plugin-sdk/directory-runtime";
+import { buildTrafficStatusSummary } from "@benchagi/openclaw/plugin-sdk/extension-shared";
+import { createLazyRuntimeNamedExport } from "@benchagi/openclaw/plugin-sdk/lazy-runtime";
+import { createRuntimeOutboundDelegates } from "@benchagi/openclaw/plugin-sdk/outbound-runtime";
 import {
   buildProbeChannelStatusSummary,
   collectStatusIssuesFromLastError,
   createComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
-} from "openclaw/plugin-sdk/status-helpers";
+} from "@benchagi/openclaw/plugin-sdk/status-helpers";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/string-coerce-runtime";
-import { chunkTextForOutbound } from "openclaw/plugin-sdk/text-chunking";
+} from "@benchagi/openclaw/plugin-sdk/string-coerce-runtime";
+import { chunkTextForOutbound } from "@benchagi/openclaw/plugin-sdk/text-chunking";
 import { matrixMessageActions } from "./actions.js";
 import { matrixApprovalCapability } from "./approval-native.js";
 import { createMatrixPairingText, createMatrixProbeAccount } from "./channel-account-paths.js";

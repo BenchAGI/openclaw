@@ -1,8 +1,8 @@
-import type { BaseTokenResolution } from "openclaw/plugin-sdk/channel-contract";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk/routing";
-import { resolveAccountEntry } from "openclaw/plugin-sdk/routing";
-import { normalizeResolvedSecretInputString } from "openclaw/plugin-sdk/secret-input";
+import type { BaseTokenResolution } from "@benchagi/openclaw/plugin-sdk/channel-contract";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/routing";
+import { resolveAccountEntry } from "@benchagi/openclaw/plugin-sdk/routing";
+import { normalizeResolvedSecretInputString } from "@benchagi/openclaw/plugin-sdk/secret-input";
 
 export type DiscordTokenSource = "env" | "config" | "none";
 

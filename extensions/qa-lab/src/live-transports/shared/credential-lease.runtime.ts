@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import { z } from "zod";
 
 const DEFAULT_ACQUIRE_TIMEOUT_MS = 90_000;

@@ -115,7 +115,7 @@ vi.mock("ws", () => ({
   },
 }));
 
-vi.mock("openclaw/plugin-sdk/proxy-capture", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/proxy-capture", () => ({
   captureHttpExchange: captureHttpExchangeSpy,
   captureWsEvent: captureWsEventSpy,
   resolveEffectiveDebugProxyUrl: (configuredProxyUrl?: string) =>

@@ -1,5 +1,5 @@
-import type { ProviderCatalogContext } from "openclaw/plugin-sdk/provider-catalog-shared";
-import type { ModelProviderConfig } from "openclaw/plugin-sdk/provider-model-shared";
+import type { ProviderCatalogContext } from "@benchagi/openclaw/plugin-sdk/provider-catalog-shared";
+import type { ModelProviderConfig } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
 import { OLLAMA_DEFAULT_BASE_URL } from "./src/defaults.js";
 import {
   buildOllamaModelDefinition,

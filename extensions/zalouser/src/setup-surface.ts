@@ -11,7 +11,7 @@ import {
   type ChannelSetupWizard,
   type DmPolicy,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/setup";
 import {
   listZalouserAccountIds,
   resolveDefaultZalouserAccountId,

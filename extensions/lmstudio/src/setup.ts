@@ -6,12 +6,12 @@ import {
   type OpenClawConfig,
   type SecretInput,
   type SecretInputMode,
-} from "openclaw/plugin-sdk/provider-auth";
+} from "@benchagi/openclaw/plugin-sdk/provider-auth";
 import type {
   ModelDefinitionConfig,
   ModelProviderConfig,
-} from "openclaw/plugin-sdk/provider-model-shared";
-import { withAgentModelAliases } from "openclaw/plugin-sdk/provider-onboard";
+} from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { withAgentModelAliases } from "@benchagi/openclaw/plugin-sdk/provider-onboard";
 import {
   applyProviderDefaultModel,
   configureOpenAICompatibleSelfHostedProviderNonInteractive,
@@ -20,8 +20,8 @@ import {
   type ProviderCatalogContext,
   type ProviderPrepareDynamicModelContext,
   type ProviderRuntimeModel,
-} from "openclaw/plugin-sdk/provider-setup";
-import { WizardCancelledError, type WizardPrompter } from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/provider-setup";
+import { WizardCancelledError, type WizardPrompter } from "@benchagi/openclaw/plugin-sdk/setup";
 import {
   LMSTUDIO_DEFAULT_API_KEY_ENV_VAR,
   LMSTUDIO_DEFAULT_INFERENCE_BASE_URL,

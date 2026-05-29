@@ -1,5 +1,5 @@
-import { readConfiguredProviderCatalogEntries } from "openclaw/plugin-sdk/provider-catalog-shared";
-import { defineSingleProviderPluginEntry } from "openclaw/plugin-sdk/provider-entry";
+import { readConfiguredProviderCatalogEntries } from "@benchagi/openclaw/plugin-sdk/provider-catalog-shared";
+import { defineSingleProviderPluginEntry } from "@benchagi/openclaw/plugin-sdk/provider-entry";
 import { applyDeepSeekConfig, DEEPSEEK_DEFAULT_MODEL_REF } from "./onboard.js";
 import { buildDeepSeekProvider } from "./provider-catalog.js";
 

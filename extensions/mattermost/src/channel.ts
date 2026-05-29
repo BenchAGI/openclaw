@@ -1,22 +1,22 @@
 import { Type } from "@sinclair/typebox";
-import { createMessageToolButtonsSchema } from "openclaw/plugin-sdk/channel-actions";
+import { createMessageToolButtonsSchema } from "@benchagi/openclaw/plugin-sdk/channel-actions";
 import type {
   ChannelMessageActionAdapter,
   ChannelMessageActionName,
   ChannelMessageToolDiscovery,
-} from "openclaw/plugin-sdk/channel-contract";
-import { createChatChannelPlugin } from "openclaw/plugin-sdk/channel-core";
-import { createLoggedPairingApprovalNotifier } from "openclaw/plugin-sdk/channel-pairing";
-import { createRestrictSendersChannelSecurity } from "openclaw/plugin-sdk/channel-policy";
-import { createChannelDirectoryAdapter } from "openclaw/plugin-sdk/directory-runtime";
-import { buildPassiveProbedChannelStatusSummary } from "openclaw/plugin-sdk/extension-shared";
-import { createLazyRuntimeModule } from "openclaw/plugin-sdk/lazy-runtime";
-import { isPrivateNetworkOptInEnabled } from "openclaw/plugin-sdk/ssrf-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-contract";
+import { createChatChannelPlugin } from "@benchagi/openclaw/plugin-sdk/channel-core";
+import { createLoggedPairingApprovalNotifier } from "@benchagi/openclaw/plugin-sdk/channel-pairing";
+import { createRestrictSendersChannelSecurity } from "@benchagi/openclaw/plugin-sdk/channel-policy";
+import { createChannelDirectoryAdapter } from "@benchagi/openclaw/plugin-sdk/directory-runtime";
+import { buildPassiveProbedChannelStatusSummary } from "@benchagi/openclaw/plugin-sdk/extension-shared";
+import { createLazyRuntimeModule } from "@benchagi/openclaw/plugin-sdk/lazy-runtime";
+import { isPrivateNetworkOptInEnabled } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 import {
   createComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
-} from "openclaw/plugin-sdk/status-helpers";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/status-helpers";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { mattermostApprovalAuth } from "./approval-auth.js";
 import {
   chunkTextForOutbound,

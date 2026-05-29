@@ -6,9 +6,9 @@ let authorizeSlackSystemEventSender: typeof import("./auth.js").authorizeSlackSy
 let clearSlackAllowFromCacheForTest: typeof import("./auth.js").clearSlackAllowFromCacheForTest;
 let resolveSlackEffectiveAllowFrom: typeof import("./auth.js").resolveSlackEffectiveAllowFrom;
 
-vi.mock("openclaw/plugin-sdk/security-runtime", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/security-runtime")>(
-    "openclaw/plugin-sdk/security-runtime",
+vi.mock("@benchagi/openclaw/plugin-sdk/security-runtime", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/security-runtime")>(
+    "@benchagi/openclaw/plugin-sdk/security-runtime",
   );
   return {
     ...actual,

@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { ModelProviderConfig } from "openclaw/plugin-sdk/provider-model-shared";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ModelProviderConfig } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
 import {
   defaultQaModelForMode,
   normalizeQaProviderMode,

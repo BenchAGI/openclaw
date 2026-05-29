@@ -2,13 +2,13 @@ import {
   resolveOutboundMediaUrls,
   resolveTextChunksWithFallback,
   sendMediaWithLeadingCaption,
-} from "openclaw/plugin-sdk/reply-payload";
-import { isPrivateNetworkOptInEnabled } from "openclaw/plugin-sdk/ssrf-runtime";
+} from "@benchagi/openclaw/plugin-sdk/reply-payload";
+import { isPrivateNetworkOptInEnabled } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalLowercaseString,
   normalizeOptionalString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   downloadBlueBubblesAttachment,
   fetchBlueBubblesMessageAttachments,

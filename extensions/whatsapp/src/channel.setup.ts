@@ -1,4 +1,4 @@
-import type { ChannelPlugin } from "openclaw/plugin-sdk/core";
+import type { ChannelPlugin } from "@benchagi/openclaw/plugin-sdk/core";
 import { type ResolvedWhatsAppAccount } from "./accounts.js";
 import { webAuthExists } from "./auth-store.js";
 import { resolveWhatsAppGroupIntroHint } from "./group-intro.js";

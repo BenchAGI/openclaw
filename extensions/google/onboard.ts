@@ -1,7 +1,7 @@
 import {
   applyAgentDefaultModelPrimary,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/provider-onboard";
+} from "@benchagi/openclaw/plugin-sdk/provider-onboard";
 
 export const GOOGLE_GEMINI_DEFAULT_MODEL = "google/gemini-3.1-pro-preview";
 

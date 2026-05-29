@@ -1,14 +1,14 @@
-import { resolveNormalizedAccountEntry } from "openclaw/plugin-sdk/account-core";
-import { normalizeAccountId } from "openclaw/plugin-sdk/account-id";
-import { formatAllowFromLowercase } from "openclaw/plugin-sdk/allow-from";
+import { resolveNormalizedAccountEntry } from "@benchagi/openclaw/plugin-sdk/account-core";
+import { normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/account-id";
+import { formatAllowFromLowercase } from "@benchagi/openclaw/plugin-sdk/allow-from";
 import {
   adaptScopedAccountAccessor,
   createScopedChannelConfigAdapter,
-} from "openclaw/plugin-sdk/channel-config-helpers";
-import { createChannelPluginBase, type ChannelPlugin } from "openclaw/plugin-sdk/channel-core";
-import { getChatChannelMeta } from "openclaw/plugin-sdk/channel-plugin-common";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/routing";
+} from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import { createChannelPluginBase, type ChannelPlugin } from "@benchagi/openclaw/plugin-sdk/channel-core";
+import { getChatChannelMeta } from "@benchagi/openclaw/plugin-sdk/channel-plugin-common";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/routing";
 import { inspectTelegramAccount } from "./account-inspect.js";
 import {
   listTelegramAccountIds,

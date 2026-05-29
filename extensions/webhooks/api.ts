@@ -3,4 +3,4 @@ export {
   type OpenClawPluginApi,
   type PluginLogger,
   type PluginRuntime,
-} from "openclaw/plugin-sdk/core";
+} from "@benchagi/openclaw/plugin-sdk/core";

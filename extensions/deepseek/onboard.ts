@@ -2,7 +2,7 @@ import {
   applyAgentDefaultModelPrimary,
   applyProviderConfigWithModelCatalog,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/provider-onboard";
+} from "@benchagi/openclaw/plugin-sdk/provider-onboard";
 import { buildDeepSeekModelDefinition, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL_CATALOG } from "./api.js";
 
 export const DEEPSEEK_DEFAULT_MODEL_REF = "deepseek/deepseek-chat";

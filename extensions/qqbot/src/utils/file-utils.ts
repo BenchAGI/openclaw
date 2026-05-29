@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
-import type { SsrFPolicy } from "openclaw/plugin-sdk/ssrf-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
+import type { SsrFPolicy } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 import { fetchRemoteMedia } from "./file-utils-runtime.js";
 
 function normalizeOptionalString(value: unknown): string | undefined {

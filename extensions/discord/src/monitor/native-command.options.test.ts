@@ -1,5 +1,5 @@
 import { ChannelType } from "discord-api-types/v10";
-import type { OpenClawConfig, loadConfig } from "openclaw/plugin-sdk/config-runtime";
+import type { OpenClawConfig, loadConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { logVerboseMock } = vi.hoisted(() => ({
@@ -9,9 +9,9 @@ const { loggerWarnMock } = vi.hoisted(() => ({
   loggerWarnMock: vi.fn(),
 }));
 
-vi.mock("openclaw/plugin-sdk/runtime-env", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/runtime-env")>(
-    "openclaw/plugin-sdk/runtime-env",
+vi.mock("@benchagi/openclaw/plugin-sdk/runtime-env", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/runtime-env")>(
+    "@benchagi/openclaw/plugin-sdk/runtime-env",
   );
   return {
     ...actual,
@@ -26,11 +26,11 @@ vi.mock("openclaw/plugin-sdk/runtime-env", async () => {
   };
 });
 
-vi.mock("openclaw/plugin-sdk/agent-runtime", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/agent-runtime", () => ({
   resolveHumanDelayConfig: () => undefined,
 }));
 
-let listNativeCommandSpecs: typeof import("openclaw/plugin-sdk/command-auth").listNativeCommandSpecs;
+let listNativeCommandSpecs: typeof import("@benchagi/openclaw/plugin-sdk/command-auth").listNativeCommandSpecs;
 let createDiscordNativeCommand: typeof import("./native-command.js").createDiscordNativeCommand;
 let createNoopThreadBindingManager: typeof import("./thread-bindings.js").createNoopThreadBindingManager;
 
@@ -158,7 +158,7 @@ async function runAutocomplete(
 
 describe("createDiscordNativeCommand option wiring", () => {
   beforeAll(async () => {
-    ({ listNativeCommandSpecs } = await import("openclaw/plugin-sdk/command-auth"));
+    ({ listNativeCommandSpecs } = await import("@benchagi/openclaw/plugin-sdk/command-auth"));
     ({ createDiscordNativeCommand } = await import("./native-command.js"));
     ({ createNoopThreadBindingManager } = await import("./thread-bindings.js"));
   });

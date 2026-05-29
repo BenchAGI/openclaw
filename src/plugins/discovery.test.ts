@@ -406,6 +406,7 @@ describe("discoverOpenClawPlugins", () => {
     const nestedDiffsDir = path.join(
       pluginDir,
       "node_modules",
+      "@benchagi",
       "openclaw",
       "dist",
       "extensions",
@@ -427,7 +428,7 @@ describe("discoverOpenClawPlugins", () => {
     );
 
     writePluginPackageManifest({
-      packageDir: path.join(pluginDir, "node_modules", "openclaw"),
+      packageDir: path.join(pluginDir, "node_modules", "@benchagi", "openclaw"),
       packageName: "openclaw",
       extensions: [`./${bundledDistPluginFile("diffs", "index.js")}`],
     });
@@ -447,7 +448,7 @@ describe("discoverOpenClawPlugins", () => {
     const workspaceDir = path.join(stateDir, "workspace");
     const workspaceRoot = path.join(workspaceDir, ".openclaw", "extensions");
     const workspacePluginDir = path.join(workspaceRoot, "workspace-plugin");
-    const nestedNodeModulesDir = path.join(workspaceRoot, "node_modules", "openclaw");
+    const nestedNodeModulesDir = path.join(workspaceRoot, "node_modules", "@benchagi", "openclaw");
     const nestedDistDir = path.join(workspaceRoot, "dist", "extensions", "diffs");
     mkdirSafe(path.join(workspacePluginDir, "src"));
     mkdirSafe(path.join(nestedNodeModulesDir, "src"));

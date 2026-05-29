@@ -22,7 +22,7 @@ vi.mock("./api-logging.js", () => ({
   withTelegramApiErrorLogging: async ({ fn }: { fn: () => Promise<unknown> }) => await fn(),
 }));
 
-vi.mock("openclaw/plugin-sdk/runtime-env", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/runtime-env", () => ({
   computeBackoff: computeBackoffMock,
   formatDurationPrecise: vi.fn((ms: number) => `${ms}ms`),
   sleepWithAbort: sleepWithAbortMock,

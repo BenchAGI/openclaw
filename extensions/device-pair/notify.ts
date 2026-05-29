@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import type { OpenClawPluginApi } from "./api.js";
 import { listDevicePairing } from "./api.js";
 

@@ -1,8 +1,8 @@
 import type {
   OpenClawPluginCommandDefinition,
   PluginCommandContext,
-} from "openclaw/plugin-sdk/core";
-import type { OpenClawConfig, OpenClawPluginApi } from "openclaw/plugin-sdk/memory-core";
+} from "@benchagi/openclaw/plugin-sdk/core";
+import type { OpenClawConfig, OpenClawPluginApi } from "@benchagi/openclaw/plugin-sdk/memory-core";
 import { describe, expect, it, vi } from "vitest";
 import { registerDreamingCommand } from "./dreaming-command.js";
 

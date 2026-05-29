@@ -1,4 +1,4 @@
-import { postTrustedWebToolsJson } from "openclaw/plugin-sdk/provider-web-search";
+import { postTrustedWebToolsJson } from "@benchagi/openclaw/plugin-sdk/provider-web-search";
 import {
   buildXaiResponsesToolBody,
   resolveXaiResponseTextAndCitations,

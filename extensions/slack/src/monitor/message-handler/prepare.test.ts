@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import type { App } from "@slack/bolt";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { resolveAgentRoute } from "openclaw/plugin-sdk/routing";
-import { resolveThreadSessionKeys } from "openclaw/plugin-sdk/routing";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { resolveAgentRoute } from "@benchagi/openclaw/plugin-sdk/routing";
+import { resolveThreadSessionKeys } from "@benchagi/openclaw/plugin-sdk/routing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { expectChannelInboundContextContract as expectInboundContextContract } from "../../../../../src/channels/plugins/contracts/test-helpers.js";
 import type { ResolvedSlackAccount } from "../../accounts.js";
@@ -729,7 +729,7 @@ describe("slack thread.requireExplicitMention", () => {
     const ctx = createCtxWithExplicitMention(true);
     const { storePath } = storeFixture.makeTmpStorePath();
     vi.spyOn(
-      await import("openclaw/plugin-sdk/config-runtime"),
+      await import("@benchagi/openclaw/plugin-sdk/config-runtime"),
       "resolveStorePath",
     ).mockReturnValue(storePath);
     const account = createSlackTestAccount();
@@ -756,7 +756,7 @@ describe("slack thread.requireExplicitMention", () => {
     const ctx = createCtxWithExplicitMention(true);
     const { storePath } = storeFixture.makeTmpStorePath();
     vi.spyOn(
-      await import("openclaw/plugin-sdk/config-runtime"),
+      await import("@benchagi/openclaw/plugin-sdk/config-runtime"),
       "resolveStorePath",
     ).mockReturnValue(storePath);
     const account = createSlackTestAccount();
@@ -783,7 +783,7 @@ describe("slack thread.requireExplicitMention", () => {
     const ctx = createCtxWithExplicitMention(false);
     const { storePath } = storeFixture.makeTmpStorePath();
     vi.spyOn(
-      await import("openclaw/plugin-sdk/config-runtime"),
+      await import("@benchagi/openclaw/plugin-sdk/config-runtime"),
       "resolveStorePath",
     ).mockReturnValue(storePath);
     const account = createSlackTestAccount();
