@@ -20,7 +20,7 @@ env:
 jobs:
   preflight:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: blacksmith-16vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     outputs:
       docs_only: ${{ steps.manifest.outputs.docs_only }}
       run_install_smoke: ${{ steps.manifest.outputs.run_install_smoke }}
@@ -86,7 +86,7 @@ jobs:
   install-smoke:
     needs: [preflight]
     if: needs.preflight.outputs.run_install_smoke == 'true'
-    runs-on: blacksmith-16vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     env:
       DOCKER_BUILD_SUMMARY: "false"
       DOCKER_BUILD_RECORD_UPLOAD: "false"
@@ -100,7 +100,7 @@ jobs:
       # Blacksmith can fall back to the local docker driver, which rejects gha
       # cache export/import. Keep smoke builds driver-agnostic.
       - name: Build root Dockerfile smoke image
-        uses: useblacksmith/build-push-action@cbd1f60d194a98cb3be5523b15134501eaf0fbf3 # v2
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile
@@ -119,7 +119,7 @@ jobs:
       # runtime deps declared by the plugin and that matrix discovery stays
       # healthy in the final runtime image.
       - name: Build extension Dockerfile smoke image
-        uses: useblacksmith/build-push-action@cbd1f60d194a98cb3be5523b15134501eaf0fbf3 # v2
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile
@@ -177,7 +177,7 @@ jobs:
           '
 
       - name: Build installer smoke image
-        uses: useblacksmith/build-push-action@cbd1f60d194a98cb3be5523b15134501eaf0fbf3 # v2
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./scripts/docker
           file: ./scripts/docker/install-sh-smoke/Dockerfile
@@ -188,7 +188,7 @@ jobs:
 
       - name: Build installer non-root image
         if: github.event_name != 'pull_request'
-        uses: useblacksmith/build-push-action@cbd1f60d194a98cb3be5523b15134501eaf0fbf3 # v2
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./scripts/docker
           file: ./scripts/docker/install-sh-nonroot/Dockerfile
