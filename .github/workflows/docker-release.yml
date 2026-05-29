@@ -24,7 +24,9 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # GHCR rejects non-lowercase image paths. github.repository is "BenchAGI/openclaw"
+  # and GitHub Actions expressions have no lowercase function, so pin the lowercase path.
+  IMAGE_NAME: benchagi/openclaw
 
 jobs:
   validate_manual_backfill:
