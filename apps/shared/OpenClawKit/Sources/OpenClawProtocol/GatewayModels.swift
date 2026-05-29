@@ -4209,27 +4209,27 @@ public struct DevicePairResolvedEvent: Codable, Sendable {
 
 public struct ChatHistoryParams: Codable, Sendable {
     public let sessionkey: String
+    public let sinceseq: Int?
     public let limit: Int?
     public let maxchars: Int?
-    public let sinceseq: Int?
 
     public init(
         sessionkey: String,
+        sinceseq: Int? = nil,
         limit: Int?,
-        maxchars: Int?,
-        sinceseq: Int? = nil)
+        maxchars: Int?)
     {
         self.sessionkey = sessionkey
+        self.sinceseq = sinceseq
         self.limit = limit
         self.maxchars = maxchars
-        self.sinceseq = sinceseq
     }
 
     private enum CodingKeys: String, CodingKey {
         case sessionkey = "sessionKey"
+        case sinceseq = "sinceSeq"
         case limit
         case maxchars = "maxChars"
-        case sinceseq = "sinceSeq"
     }
 }
 
@@ -4246,6 +4246,7 @@ public struct ChatSendParams: Codable, Sendable {
     public let timeoutms: Int?
     public let systeminputprovenance: [String: AnyCodable]?
     public let systemprovenancereceipt: String?
+    public let cloudauth: [String: AnyCodable]?
     public let idempotencykey: String
 
     public init(
@@ -4261,6 +4262,7 @@ public struct ChatSendParams: Codable, Sendable {
         timeoutms: Int?,
         systeminputprovenance: [String: AnyCodable]?,
         systemprovenancereceipt: String?,
+        cloudauth: [String: AnyCodable]?,
         idempotencykey: String)
     {
         self.sessionkey = sessionkey
@@ -4275,6 +4277,7 @@ public struct ChatSendParams: Codable, Sendable {
         self.timeoutms = timeoutms
         self.systeminputprovenance = systeminputprovenance
         self.systemprovenancereceipt = systemprovenancereceipt
+        self.cloudauth = cloudauth
         self.idempotencykey = idempotencykey
     }
 
@@ -4291,6 +4294,7 @@ public struct ChatSendParams: Codable, Sendable {
         case timeoutms = "timeoutMs"
         case systeminputprovenance = "systemInputProvenance"
         case systemprovenancereceipt = "systemProvenanceReceipt"
+        case cloudauth = "cloudAuth"
         case idempotencykey = "idempotencyKey"
     }
 }
