@@ -1653,6 +1653,21 @@ jobs:
           persist-credentials: false
           submodules: false
 
+      - name: Select Xcode with Swift 6.2
+        run: |
+          set -euo pipefail
+          # GitHub macos runners default to Xcode 16.x (Swift 6.1); apps/macos
+          # Package.swift requires swift-tools-version 6.2 (Xcode 26.x).
+          xcode_app="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)"
+          if [[ -z "$xcode_app" ]]; then
+            echo "No Xcode 26.x (Swift 6.2) on runner:" >&2
+            ls -d /Applications/Xcode_*.app || true
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode_app/Contents/Developer"
+          echo "Selected $xcode_app"
+          swift --version
+
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
         with:
@@ -1728,6 +1743,21 @@ jobs:
         with:
           persist-credentials: false
           submodules: false
+
+      - name: Select Xcode with Swift 6.2
+        run: |
+          set -euo pipefail
+          # GitHub macos runners default to Xcode 16.x (Swift 6.1); apps/macos
+          # Package.swift requires swift-tools-version 6.2 (Xcode 26.x).
+          xcode_app="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)"
+          if [[ -z "$xcode_app" ]]; then
+            echo "No Xcode 26.x (Swift 6.2) on runner:" >&2
+            ls -d /Applications/Xcode_*.app || true
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode_app/Contents/Developer"
+          echo "Selected $xcode_app"
+          swift --version
 
       - name: Install XcodeGen / SwiftLint / SwiftFormat
         run: brew install xcodegen swiftlint swiftformat
