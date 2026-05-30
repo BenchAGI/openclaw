@@ -112,6 +112,10 @@ run_with_heartbeat() {
 npm_install_global() {
   local label="$1"
   shift
+  # --force overwrites a global `openclaw` bin owned by a *different* package.
+  # Migrating between the legacy unscoped `openclaw` and scoped
+  # `@benchagi/openclaw` otherwise EEXISTs on the shared bin; the shipped
+  # self-updater (src/infra/update-global.ts) uses --force for the same reason.
   run_with_heartbeat "$label" \
     timeout --foreground "${INSTALL_COMMAND_TIMEOUT}s" \
       npm \
@@ -121,6 +125,7 @@ npm_install_global() {
       --no-fund \
       --no-audit \
       --no-progress \
+      --force \
       install -g "$@"
 }
 
@@ -226,67 +231,33 @@ run_update_smoke() {
   print_install_audit "baseline install"
   verify_installed_cli "$PACKAGE_NAME" "$UPDATE_BASELINE_VERSION"
 
-  echo "==> Run openclaw update from host-served tgz"
-  local update_status
-  local update_stderr_file
-  local update_stderr
-  update_stderr_file="$(mktemp)"
+  # Migrate baseline -> candidate by re-running the public installer one-liner
+  # pointed at the host-served candidate tarball. This is the real customer
+  # upgrade path (curl install.sh), and it exercises install.sh's
+  # legacy-unscoped -> scoped migration. The old `openclaw update --tag` route
+  # cannot work cross-package: it runs the *baseline* binary, whose npm install
+  # lacks --force and EEXISTs on the shared `openclaw` bin.
+  if [[ -z "$INSTALL_URL" || "$INSTALL_URL" == https://openclaw.* ]]; then
+    echo "ERROR: update smoke needs a host-served local install.sh via OPENCLAW_INSTALL_URL, got '${INSTALL_URL:-<unset>}'" >&2
+    return 1
+  fi
+  echo "==> Migrate via install.sh (legacy openclaw -> @benchagi/openclaw)"
+  echo "    installer=$INSTALL_URL candidate=$UPDATE_TAG_URL"
+  export OPENCLAW_VERSION="$UPDATE_TAG_URL"
+  export OPENCLAW_INSTALL_METHOD="npm"
+  export OPENCLAW_NO_ONBOARD="${OPENCLAW_NO_ONBOARD:-1}"
+  export OPENCLAW_NO_PROMPT="${OPENCLAW_NO_PROMPT:-1}"
+  local migrate_status
   set +e
-  UPDATE_JSON="$(
-    run_with_heartbeat "openclaw update" \
-      env npm_config_omit=optional NPM_CONFIG_OMIT=optional \
-      openclaw update --tag "$UPDATE_TAG_URL" --yes --json 2>"$update_stderr_file"
-  )"
-  update_status=$?
+  run_with_heartbeat "install.sh migrate" \
+    bash -c 'set -o pipefail; curl -fsSL "$1" | bash -s -- --no-prompt --no-onboard' _ "$INSTALL_URL"
+  migrate_status=$?
   set -e
-  update_stderr="$(cat "$update_stderr_file")"
-  rm -f "$update_stderr_file"
-  printf "%s\n" "$UPDATE_JSON"
-  if [[ -n "$update_stderr" ]]; then
-    printf "%s\n" "$update_stderr" >&2
+  unset OPENCLAW_VERSION
+  if [[ "$migrate_status" -ne 0 ]]; then
+    echo "ERROR: install.sh migration failed with exit code $migrate_status" >&2
+    return "$migrate_status"
   fi
-  if [[ "$update_status" -ne 0 ]]; then
-    echo "ERROR: openclaw update failed with exit code $update_status" >&2
-    return "$update_status"
-  fi
-
-  UPDATE_JSON="$UPDATE_JSON" \
-    UPDATE_EXPECT_VERSION="$UPDATE_EXPECT_VERSION" \
-    UPDATE_BASELINE_VERSION="$UPDATE_BASELINE_VERSION" \
-    UPDATE_TAG_URL="$UPDATE_TAG_URL" \
-    node - <<'NODE'
-const payload = JSON.parse(process.env.UPDATE_JSON || "{}");
-const expectedVersion = String(process.env.UPDATE_EXPECT_VERSION || "");
-const baselineVersion = String(process.env.UPDATE_BASELINE_VERSION || "");
-const expectedUrl = String(process.env.UPDATE_TAG_URL || "");
-if (payload.status !== "ok") {
-  throw new Error(`expected update status ok, got ${JSON.stringify(payload.status)}`);
-}
-if ((payload.before?.version ?? null) !== baselineVersion) {
-  throw new Error(
-    `expected before.version ${baselineVersion}, got ${JSON.stringify(payload.before?.version)}`,
-  );
-}
-if ((payload.after?.version ?? null) !== expectedVersion) {
-  throw new Error(
-    `expected after.version ${expectedVersion}, got ${JSON.stringify(payload.after?.version)}`,
-  );
-}
-if (payload.reason != null) {
-  throw new Error(`expected no failure reason, got ${JSON.stringify(payload.reason)}`);
-}
-const steps = Array.isArray(payload.steps) ? payload.steps : [];
-const updateStep = steps.find((step) => step?.name === "global update");
-if (!updateStep) {
-  throw new Error("missing global update step in update JSON");
-}
-if (Number(updateStep.exitCode ?? 1) !== 0) {
-  throw new Error(`global update step failed: ${JSON.stringify(updateStep)}`);
-}
-if (typeof updateStep.command !== "string" || !updateStep.command.includes(expectedUrl)) {
-  throw new Error(`global update step missing expected tgz URL: ${JSON.stringify(updateStep)}`);
-}
-NODE
 
   echo "==> Verify updated version"
   print_install_audit "updated install"

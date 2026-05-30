@@ -484,6 +484,25 @@ cleanup_npm_openclaw_paths() {
     rm -rf "$npm_root"/.openclaw-* "$npm_root"/openclaw 2>/dev/null || true
 }
 
+# Detect a legacy *unscoped* `openclaw` global package (steipete's upstream),
+# distinct from our scoped `@benchagi/openclaw`. Both ship an `openclaw` bin, so
+# npm refuses to overwrite it (EEXIST) when migrating across the two packages.
+legacy_unscoped_openclaw_installed() {
+    local npm_root=""
+    npm_root="$(npm root -g 2>/dev/null || true)"
+    [[ -n "$npm_root" && "$npm_root" == *node_modules* ]] || return 1
+    local manifest="$npm_root/openclaw/package.json"
+    [[ -f "$manifest" ]] || return 1
+    if command -v node > /dev/null 2>&1; then
+        local name=""
+        name="$(node -e 'try { process.stdout.write(String(require(process.argv[1]).name || "")); } catch { process.stdout.write(""); }' "$manifest" 2>/dev/null || true)"
+        [[ "$name" == "openclaw" ]]
+    else
+        # No node to introspect; the bare unscoped manifest dir is signal enough.
+        return 0
+    fi
+}
+
 extract_openclaw_conflict_path() {
     local log="$1"
     local path=""
@@ -2018,6 +2037,15 @@ install_openclaw() {
     fi
     local install_spec=""
     install_spec="$(resolve_package_install_spec "${package_name}" "${OPENCLAW_VERSION}")"
+
+    # Migrate from the legacy unscoped `openclaw` (upstream) to the scoped
+    # `@benchagi/openclaw`: they share the `openclaw` bin, so npm would EEXIST.
+    # Remove the legacy global package first so the scoped package can claim it.
+    if [[ "$package_name" == "@benchagi/openclaw" ]] && legacy_unscoped_openclaw_installed; then
+        ui_info "Removing legacy unscoped 'openclaw' global package (migrating to @benchagi/openclaw)"
+        npm uninstall -g openclaw > /dev/null 2>&1 || true
+        cleanup_npm_openclaw_paths || true
+    fi
 
     if ! install_openclaw_npm "${install_spec}"; then
         ui_warn "npm install failed; retrying"
