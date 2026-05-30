@@ -1,4 +1,4 @@
-import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk/routing";
+import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/routing";
 
 export const matrixSingleAccountKeysToMove = [
   "deviceId",

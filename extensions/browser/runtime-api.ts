@@ -9,4 +9,4 @@ export {
   type OpenClawPluginApi,
   type OpenClawPluginToolContext,
   type OpenClawPluginToolFactory,
-} from "openclaw/plugin-sdk/plugin-entry";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";

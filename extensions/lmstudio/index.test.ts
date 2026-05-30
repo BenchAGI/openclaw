@@ -1,7 +1,7 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/plugin-entry";
-import { CUSTOM_LOCAL_AUTH_MARKER } from "openclaw/plugin-sdk/provider-auth";
-import type { ModelProviderConfig } from "openclaw/plugin-sdk/provider-model-shared";
-import { capturePluginRegistration } from "openclaw/plugin-sdk/testing";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { CUSTOM_LOCAL_AUTH_MARKER } from "@benchagi/openclaw/plugin-sdk/provider-auth";
+import type { ModelProviderConfig } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { capturePluginRegistration } from "@benchagi/openclaw/plugin-sdk/testing";
 import { describe, expect, it } from "vitest";
 import plugin from "./index.js";
 import { LMSTUDIO_LOCAL_API_KEY_PLACEHOLDER } from "./src/defaults.js";

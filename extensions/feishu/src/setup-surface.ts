@@ -11,7 +11,7 @@ import {
   type DmPolicy,
   type OpenClawConfig,
   type SecretInput,
-} from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/setup";
 import { inspectFeishuCredentials, resolveDefaultFeishuAccountId } from "./accounts.js";
 import {
   beginAppRegistration,

@@ -1,4 +1,4 @@
-import { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
+import { resolveConfiguredSecretInputString } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   CUSTOM_LOCAL_AUTH_MARKER,
   isKnownEnvApiKeyMarker,
@@ -6,8 +6,8 @@ import {
   normalizeApiKeyConfig,
   normalizeOptionalSecretInput,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/provider-auth";
-import { resolveApiKeyForProvider } from "openclaw/plugin-sdk/provider-auth-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-auth";
+import { resolveApiKeyForProvider } from "@benchagi/openclaw/plugin-sdk/provider-auth-runtime";
 import {
   LMSTUDIO_DEFAULT_API_KEY_ENV_VAR,
   LMSTUDIO_LOCAL_API_KEY_PLACEHOLDER,

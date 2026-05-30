@@ -1,7 +1,7 @@
-export { clearAccountEntryFields } from "openclaw/plugin-sdk/core";
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/account-resolution";
-import type { ChannelPlugin } from "openclaw/plugin-sdk/core";
+export { clearAccountEntryFields } from "@benchagi/openclaw/plugin-sdk/core";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/account-id";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/account-resolution";
+import type { ChannelPlugin } from "@benchagi/openclaw/plugin-sdk/core";
 import {
   listLineAccountIds,
   normalizeAccountId,

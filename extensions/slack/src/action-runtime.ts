@@ -1,5 +1,5 @@
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import { isSingleUseReplyToMode } from "openclaw/plugin-sdk/reply-reference";
+import { isSingleUseReplyToMode } from "@benchagi/openclaw/plugin-sdk/reply-reference";
 import { parseSlackBlocksInput } from "./blocks-input.js";
 import {
   createActionGate,

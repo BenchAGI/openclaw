@@ -1,12 +1,12 @@
-import { describeAccountSnapshot } from "openclaw/plugin-sdk/account-helpers";
-import { formatAllowFromLowercase } from "openclaw/plugin-sdk/allow-from";
+import { describeAccountSnapshot } from "@benchagi/openclaw/plugin-sdk/account-helpers";
+import { formatAllowFromLowercase } from "@benchagi/openclaw/plugin-sdk/allow-from";
 import {
   adaptScopedAccountAccessor,
   createScopedChannelConfigAdapter,
-} from "openclaw/plugin-sdk/channel-config-helpers";
-import { hasConfiguredSecretInput } from "openclaw/plugin-sdk/secret-input";
-import { patchChannelConfigForAccount } from "openclaw/plugin-sdk/setup-runtime";
-import { formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
+} from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import { hasConfiguredSecretInput } from "@benchagi/openclaw/plugin-sdk/secret-input";
+import { patchChannelConfigForAccount } from "@benchagi/openclaw/plugin-sdk/setup-runtime";
+import { formatDocsLink } from "@benchagi/openclaw/plugin-sdk/setup-tools";
 import { inspectSlackAccount } from "./account-inspect.js";
 import {
   listSlackAccountIds,

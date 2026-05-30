@@ -20,8 +20,8 @@ vi.mock("./mattermost/send.js", () => ({
   sendMessageMattermost: sendMessageMattermostMock,
 }));
 
-vi.mock("openclaw/plugin-sdk/ssrf-runtime", async () => {
-  const original = (await vi.importActual("openclaw/plugin-sdk/ssrf-runtime")) as Record<
+vi.mock("@benchagi/openclaw/plugin-sdk/ssrf-runtime", async () => {
+  const original = (await vi.importActual("@benchagi/openclaw/plugin-sdk/ssrf-runtime")) as Record<
     string,
     unknown
   >;

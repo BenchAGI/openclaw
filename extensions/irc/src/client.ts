@@ -1,6 +1,6 @@
 import net from "node:net";
 import tls from "node:tls";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   parseIrcLine,
   parseIrcPrefix,

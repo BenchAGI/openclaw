@@ -14,7 +14,7 @@ import {
   resolveWebSearchProviderCredential,
   type WebSearchProviderSetupContext,
   writeCache,
-} from "openclaw/plugin-sdk/provider-web-search";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-search";
 import {
   buildXaiWebSearchPayload,
   extractXaiWebSearchContent,

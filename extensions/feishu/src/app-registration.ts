@@ -6,7 +6,7 @@
  * the openclaw WizardPrompter surface.
  */
 
-import { fetchWithSsrFGuard } from "openclaw/plugin-sdk/ssrf-runtime";
+import { fetchWithSsrFGuard } from "@benchagi/openclaw/plugin-sdk/ssrf-runtime";
 import type { FeishuDomain } from "./types.js";
 
 // ---------------------------------------------------------------------------

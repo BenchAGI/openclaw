@@ -1,6 +1,6 @@
 import path from "node:path";
-import { buildPluginConfigSchema, type OpenClawPluginConfigSchema } from "openclaw/plugin-sdk/core";
-import { z } from "openclaw/plugin-sdk/zod";
+import { buildPluginConfigSchema, type OpenClawPluginConfigSchema } from "@benchagi/openclaw/plugin-sdk/core";
+import { z } from "@benchagi/openclaw/plugin-sdk/zod";
 
 export type OpenShellPluginConfig = {
   mode?: "mirror" | "remote";

@@ -1,6 +1,6 @@
 import fs from "node:fs";
-import type { PinnedDispatcherPolicy } from "openclaw/plugin-sdk/ssrf-dispatcher";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/string-coerce-runtime";
+import type { PinnedDispatcherPolicy } from "@benchagi/openclaw/plugin-sdk/ssrf-dispatcher";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/string-coerce-runtime";
 import {
   ssrfPolicyFromDangerouslyAllowPrivateNetwork,
   type SsrFPolicy,

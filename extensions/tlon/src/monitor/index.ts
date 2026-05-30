@@ -1,5 +1,5 @@
-import type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime";
+import type { ReplyPayload } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime";
 import { createLoggerBackedRuntime } from "../../runtime-api.js";
 import { getTlonRuntime } from "../runtime.js";
 import { createSettingsManager, type TlonSettingsStore } from "../settings.js";

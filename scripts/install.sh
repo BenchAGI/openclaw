@@ -484,6 +484,25 @@ cleanup_npm_openclaw_paths() {
     rm -rf "$npm_root"/.openclaw-* "$npm_root"/openclaw 2>/dev/null || true
 }
 
+# Detect a legacy *unscoped* `openclaw` global package (steipete's upstream),
+# distinct from our scoped `@benchagi/openclaw`. Both ship an `openclaw` bin, so
+# npm refuses to overwrite it (EEXIST) when migrating across the two packages.
+legacy_unscoped_openclaw_installed() {
+    local npm_root=""
+    npm_root="$(npm root -g 2>/dev/null || true)"
+    [[ -n "$npm_root" && "$npm_root" == *node_modules* ]] || return 1
+    local manifest="$npm_root/openclaw/package.json"
+    [[ -f "$manifest" ]] || return 1
+    if command -v node > /dev/null 2>&1; then
+        local name=""
+        name="$(node -e 'try { process.stdout.write(String(require(process.argv[1]).name || "")); } catch { process.stdout.write(""); }' "$manifest" 2>/dev/null || true)"
+        [[ "$name" == "openclaw" ]]
+    else
+        # No node to introspect; the bare unscoped manifest dir is signal enough.
+        return 0
+    fi
+}
+
 extract_openclaw_conflict_path() {
     local log="$1"
     local path=""
@@ -517,7 +536,7 @@ cleanup_openclaw_bin_conflict() {
     if [[ -L "$bin_path" ]]; then
         local target=""
         target="$(readlink "$bin_path" 2>/dev/null || true)"
-        if [[ "$target" == *"/node_modules/openclaw/"* ]]; then
+        if [[ "$target" == *"/node_modules/@benchagi/openclaw/"* ]]; then
             rm -f "$bin_path"
             ui_info "Removed stale openclaw symlink at ${bin_path}"
             return 0
@@ -1183,7 +1202,7 @@ detect_openclaw_checkout() {
     if [[ ! -f "$dir/pnpm-workspace.yaml" ]]; then
         return 1
     fi
-    if ! grep -q '"name"[[:space:]]*:[[:space:]]*"openclaw"' "$dir/package.json" 2>/dev/null; then
+    if ! grep -q '"name"[[:space:]]*:[[:space:]]*"@benchagi/openclaw"' "$dir/package.json" 2>/dev/null; then
         return 1
     fi
     echo "$dir"
@@ -1935,7 +1954,7 @@ EOF
 # Install OpenClaw
 resolve_beta_version() {
     local beta=""
-    beta="$(npm view openclaw dist-tags.beta 2>/dev/null || true)"
+    beta="$(npm view @benchagi/openclaw dist-tags.beta 2>/dev/null || true)"
     if [[ -z "$beta" || "$beta" == "undefined" || "$beta" == "null" ]]; then
         return 1
     fi
@@ -1989,14 +2008,14 @@ resolve_package_install_spec() {
 }
 
 install_openclaw() {
-    local package_name="openclaw"
+    local package_name="@benchagi/openclaw"
     if [[ "$USE_BETA" == "1" ]]; then
         local beta_version=""
         beta_version="$(resolve_beta_version || true)"
         if [[ -n "$beta_version" ]]; then
             OPENCLAW_VERSION="$beta_version"
             ui_info "Beta tag detected (${beta_version})"
-            package_name="openclaw"
+            package_name="@benchagi/openclaw"
         else
             OPENCLAW_VERSION="latest"
             ui_info "No beta tag found; using latest"
@@ -2019,17 +2038,26 @@ install_openclaw() {
     local install_spec=""
     install_spec="$(resolve_package_install_spec "${package_name}" "${OPENCLAW_VERSION}")"
 
+    # Migrate from the legacy unscoped `openclaw` (upstream) to the scoped
+    # `@benchagi/openclaw`: they share the `openclaw` bin, so npm would EEXIST.
+    # Remove the legacy global package first so the scoped package can claim it.
+    if [[ "$package_name" == "@benchagi/openclaw" ]] && legacy_unscoped_openclaw_installed; then
+        ui_info "Removing legacy unscoped 'openclaw' global package (migrating to @benchagi/openclaw)"
+        npm uninstall -g openclaw > /dev/null 2>&1 || true
+        cleanup_npm_openclaw_paths || true
+    fi
+
     if ! install_openclaw_npm "${install_spec}"; then
         ui_warn "npm install failed; retrying"
         cleanup_npm_openclaw_paths
         install_openclaw_npm "${install_spec}"
     fi
 
-    if [[ "${OPENCLAW_VERSION}" == "latest" && "${package_name}" == "openclaw" ]]; then
+    if [[ "${OPENCLAW_VERSION}" == "latest" && "${package_name}" == "@benchagi/openclaw" ]]; then
         if ! resolve_openclaw_bin &> /dev/null; then
-            ui_warn "npm install openclaw@latest failed; retrying openclaw@next"
+            ui_warn "npm install @benchagi/openclaw@latest failed; retrying @benchagi/openclaw@next"
             cleanup_npm_openclaw_paths
-            install_openclaw_npm "openclaw@next"
+            install_openclaw_npm "@benchagi/openclaw@next"
         fi
     fi
 
@@ -2167,8 +2195,8 @@ resolve_openclaw_version() {
     if [[ -z "$version" ]]; then
         local npm_root=""
         npm_root=$(npm root -g 2>/dev/null || true)
-        if [[ -n "$npm_root" && -f "$npm_root/openclaw/package.json" ]]; then
-            version=$(node -e "console.log(require('${npm_root}/openclaw/package.json').version)" 2>/dev/null || true)
+        if [[ -n "$npm_root" && -f "$npm_root/@benchagi/openclaw/package.json" ]]; then
+            version=$(node -e "console.log(require('${npm_root}/@benchagi/openclaw/package.json').version)" 2>/dev/null || true)
         fi
     fi
     echo "$version"
@@ -2339,9 +2367,9 @@ main() {
     local final_git_dir=""
     if [[ "$INSTALL_METHOD" == "git" ]]; then
         # Clean up npm global install if switching to git
-        if npm list -g openclaw &>/dev/null; then
+        if npm list -g @benchagi/openclaw &>/dev/null; then
             ui_info "Removing npm global install (switching to git)"
-            npm uninstall -g openclaw 2>/dev/null || true
+            npm uninstall -g @benchagi/openclaw 2>/dev/null || true
             ui_success "npm global install removed"
         fi
 

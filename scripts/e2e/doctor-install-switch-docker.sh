@@ -88,7 +88,7 @@ LOGINCTL
   fi
 
 	  npm_bin="/tmp/npm-prefix/bin/openclaw"
-	  npm_root="/tmp/npm-prefix/lib/node_modules/openclaw"
+	  npm_root="/tmp/npm-prefix/lib/node_modules/@benchagi/openclaw"
 	  if [ -f "$npm_root/dist/index.mjs" ]; then
 	    npm_entry="$npm_root/dist/index.mjs"
 	  else

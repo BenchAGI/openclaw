@@ -1,7 +1,7 @@
 import {
   createModelCatalogPresetAppliers,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/provider-onboard";
+} from "@benchagi/openclaw/plugin-sdk/provider-onboard";
 import { ARCEE_BASE_URL } from "./models.js";
 import {
   buildArceeCatalogModels,

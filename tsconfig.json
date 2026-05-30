@@ -25,6 +25,10 @@
       "@openclaw/plugin-sdk": ["./src/plugin-sdk/index.ts"],
       "@openclaw/plugin-sdk/*": ["./src/plugin-sdk/*.ts"],
       "openclaw/plugin-sdk/account-id": ["./src/plugin-sdk/account-id.ts"],
+      "@benchagi/openclaw/extension-api": ["./src/extensionAPI.ts"],
+      "@benchagi/openclaw/plugin-sdk": ["./src/plugin-sdk/index.ts"],
+      "@benchagi/openclaw/plugin-sdk/*": ["./src/plugin-sdk/*.ts"],
+      "@benchagi/openclaw/plugin-sdk/account-id": ["./src/plugin-sdk/account-id.ts"],
       "@openclaw/*": ["./extensions/*"]
     }
   },

@@ -1,4 +1,4 @@
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import { definePluginEntry } from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 
 // bench-reflective-dreaming is a scripts-runtime plugin. Real behavior lives in
 // scripts/install.mjs + scripts/uninstall.mjs, which register nightly launchd

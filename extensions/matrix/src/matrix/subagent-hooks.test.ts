@@ -10,7 +10,7 @@ const removeBindingRecordMock = vi.hoisted(() => vi.fn(() => false));
 const resolveMatrixBaseConfigMock = vi.hoisted(() => vi.fn((): any => ({})));
 const findMatrixAccountConfigMock = vi.hoisted(() => vi.fn((): any => undefined));
 
-vi.mock("openclaw/plugin-sdk/conversation-binding-runtime", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/conversation-binding-runtime", () => ({
   getSessionBindingService: () => ({ bind: bindMock, unbind: unbindMock }),
 }));
 

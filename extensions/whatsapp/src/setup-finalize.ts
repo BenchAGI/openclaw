@@ -7,9 +7,9 @@ import {
   splitSetupEntries,
   type DmPolicy,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/setup";
-import type { ChannelSetupWizard } from "openclaw/plugin-sdk/setup";
-import { formatCliCommand, formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
+} from "@benchagi/openclaw/plugin-sdk/setup";
+import type { ChannelSetupWizard } from "@benchagi/openclaw/plugin-sdk/setup";
+import { formatCliCommand, formatDocsLink } from "@benchagi/openclaw/plugin-sdk/setup-tools";
 import {
   resolveDefaultWhatsAppAccountId,
   resolveWhatsAppAccount,

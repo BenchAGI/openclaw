@@ -1,12 +1,12 @@
-import type { MarkdownTableMode } from "openclaw/plugin-sdk/config-runtime";
-import { chunkMarkdownTextWithMode, type ChunkMode } from "openclaw/plugin-sdk/reply-chunking";
-import type { ReplyPayload } from "openclaw/plugin-sdk/reply-chunking";
+import type { MarkdownTableMode } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { chunkMarkdownTextWithMode, type ChunkMode } from "@benchagi/openclaw/plugin-sdk/reply-chunking";
+import type { ReplyPayload } from "@benchagi/openclaw/plugin-sdk/reply-chunking";
 import {
   resolveOutboundMediaUrls,
   sendMediaWithLeadingCaption,
-} from "openclaw/plugin-sdk/reply-payload";
-import { logVerbose, shouldLogVerbose } from "openclaw/plugin-sdk/runtime-env";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/reply-payload";
+import { logVerbose, shouldLogVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { loadWebMedia } from "../media.js";
 import { newConnectionId } from "../reconnect.js";
 import { formatError } from "../session.js";

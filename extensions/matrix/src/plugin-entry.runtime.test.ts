@@ -265,7 +265,7 @@ it("resolves extension-api aliases through the same source extension family", as
 
   expect(matrixWrapperGlobal.__openclawMatrixWrapperJitiOptions).toMatchObject({
     alias: {
-      "openclaw/extension-api": path.join(fixtureRoot, "src", "extensionAPI.mts"),
+      "@benchagi/openclaw/extension-api": path.join(fixtureRoot, "src", "extensionAPI.mts"),
     },
   });
 }, 240_000);

@@ -1,7 +1,7 @@
 import {
   deliverTextOrMediaReply,
   resolveSendableOutboundReplyParts,
-} from "openclaw/plugin-sdk/reply-payload";
+} from "@benchagi/openclaw/plugin-sdk/reply-payload";
 import {
   getAgentScopedMediaLocalRoots,
   type OpenClawConfig,

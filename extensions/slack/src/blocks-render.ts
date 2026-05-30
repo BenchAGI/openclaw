@@ -1,7 +1,7 @@
 import type { Block, KnownBlock } from "@slack/web-api";
-import { reduceInteractiveReply } from "openclaw/plugin-sdk/interactive-runtime";
-import type { InteractiveReply } from "openclaw/plugin-sdk/interactive-runtime";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { reduceInteractiveReply } from "@benchagi/openclaw/plugin-sdk/interactive-runtime";
+import type { InteractiveReply } from "@benchagi/openclaw/plugin-sdk/interactive-runtime";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { truncateSlackText } from "./truncate.js";
 
 export const SLACK_REPLY_BUTTON_ACTION_ID = "openclaw:reply_button";

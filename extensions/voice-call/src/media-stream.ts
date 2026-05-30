@@ -13,7 +13,7 @@ import type {
   RealtimeTranscriptionProviderConfig,
   RealtimeTranscriptionProviderPlugin,
   RealtimeTranscriptionSession,
-} from "openclaw/plugin-sdk/realtime-transcription";
+} from "@benchagi/openclaw/plugin-sdk/realtime-transcription";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
 
 /**

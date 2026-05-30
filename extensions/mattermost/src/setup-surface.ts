@@ -2,7 +2,7 @@ import {
   createStandardChannelSetupStatus,
   formatDocsLink,
   type ChannelSetupWizard,
-} from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/setup";
 import {
   applySetupAccountConfigPatch,
   DEFAULT_ACCOUNT_ID,

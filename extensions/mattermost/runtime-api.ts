@@ -13,15 +13,15 @@ export type {
   OpenClawConfig,
   OpenClawPluginApi,
   PluginRuntime,
-} from "openclaw/plugin-sdk/core";
-export type { RuntimeEnv } from "openclaw/plugin-sdk/runtime";
-export type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
-export type { ModelsProviderData } from "openclaw/plugin-sdk/command-auth";
+} from "@benchagi/openclaw/plugin-sdk/core";
+export type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime";
+export type { ReplyPayload } from "@benchagi/openclaw/plugin-sdk/reply-runtime";
+export type { ModelsProviderData } from "@benchagi/openclaw/plugin-sdk/command-auth";
 export type {
   BlockStreamingCoalesceConfig,
   DmPolicy,
   GroupPolicy,
-} from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
 export {
   DEFAULT_ACCOUNT_ID,
   buildChannelConfigSchema,
@@ -29,16 +29,16 @@ export {
   parseStrictPositiveInteger,
   resolveClientIp,
   isTrustedProxyAddress,
-} from "openclaw/plugin-sdk/core";
-export { buildComputedAccountStatusSnapshot } from "openclaw/plugin-sdk/channel-status";
-export { createAccountStatusSink } from "openclaw/plugin-sdk/channel-lifecycle";
-export { buildAgentMediaPayload } from "openclaw/plugin-sdk/agent-media-payload";
+} from "@benchagi/openclaw/plugin-sdk/core";
+export { buildComputedAccountStatusSnapshot } from "@benchagi/openclaw/plugin-sdk/channel-status";
+export { createAccountStatusSink } from "@benchagi/openclaw/plugin-sdk/channel-lifecycle";
+export { buildAgentMediaPayload } from "@benchagi/openclaw/plugin-sdk/agent-media-payload";
 export {
   buildModelsProviderData,
   listSkillCommandsForAgents,
   resolveControlCommandGate,
   resolveStoredModelOverride,
-} from "openclaw/plugin-sdk/command-auth";
+} from "@benchagi/openclaw/plugin-sdk/command-auth";
 export {
   GROUP_POLICY_BLOCKED_LABEL,
   isDangerousNameMatchingEnabled,
@@ -47,43 +47,43 @@ export {
   resolveDefaultGroupPolicy,
   resolveStorePath,
   warnMissingProviderGroupPolicyFallbackOnce,
-} from "openclaw/plugin-sdk/config-runtime";
-export { formatInboundFromLabel } from "openclaw/plugin-sdk/channel-inbound";
-export { logInboundDrop } from "openclaw/plugin-sdk/channel-inbound";
-export { createChannelPairingController } from "openclaw/plugin-sdk/channel-pairing";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
+export { formatInboundFromLabel } from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+export { logInboundDrop } from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+export { createChannelPairingController } from "@benchagi/openclaw/plugin-sdk/channel-pairing";
 export {
   DM_GROUP_ACCESS_REASON,
   readStoreAllowFromForDmPolicy,
   resolveDmGroupAccessWithLists,
   resolveEffectiveAllowFromLists,
-} from "openclaw/plugin-sdk/channel-policy";
-export { evaluateSenderGroupAccessForPolicy } from "openclaw/plugin-sdk/group-access";
-export { createChannelReplyPipeline } from "openclaw/plugin-sdk/channel-reply-pipeline";
-export { logTypingFailure } from "openclaw/plugin-sdk/channel-feedback";
-export { loadOutboundMediaFromUrl } from "openclaw/plugin-sdk/outbound-media";
-export { rawDataToString } from "openclaw/plugin-sdk/browser-node-runtime";
-export { chunkTextForOutbound } from "openclaw/plugin-sdk/text-chunking";
+} from "@benchagi/openclaw/plugin-sdk/channel-policy";
+export { evaluateSenderGroupAccessForPolicy } from "@benchagi/openclaw/plugin-sdk/group-access";
+export { createChannelReplyPipeline } from "@benchagi/openclaw/plugin-sdk/channel-reply-pipeline";
+export { logTypingFailure } from "@benchagi/openclaw/plugin-sdk/channel-feedback";
+export { loadOutboundMediaFromUrl } from "@benchagi/openclaw/plugin-sdk/outbound-media";
+export { rawDataToString } from "@benchagi/openclaw/plugin-sdk/browser-node-runtime";
+export { chunkTextForOutbound } from "@benchagi/openclaw/plugin-sdk/text-chunking";
 export {
   DEFAULT_GROUP_HISTORY_LIMIT,
   buildPendingHistoryContextFromMap,
   clearHistoryEntriesIfEnabled,
   recordPendingHistoryEntryIfEnabled,
-} from "openclaw/plugin-sdk/reply-history";
-export { normalizeAccountId, resolveThreadSessionKeys } from "openclaw/plugin-sdk/routing";
-export { resolveAllowlistMatchSimple } from "openclaw/plugin-sdk/allow-from";
-export { registerPluginHttpRoute } from "openclaw/plugin-sdk/webhook-targets";
+} from "@benchagi/openclaw/plugin-sdk/reply-history";
+export { normalizeAccountId, resolveThreadSessionKeys } from "@benchagi/openclaw/plugin-sdk/routing";
+export { resolveAllowlistMatchSimple } from "@benchagi/openclaw/plugin-sdk/allow-from";
+export { registerPluginHttpRoute } from "@benchagi/openclaw/plugin-sdk/webhook-targets";
 export {
   isRequestBodyLimitError,
   readRequestBodyWithLimit,
-} from "openclaw/plugin-sdk/webhook-ingress";
+} from "@benchagi/openclaw/plugin-sdk/webhook-ingress";
 export {
   applyAccountNameToChannelSection,
   applySetupAccountConfigPatch,
   migrateBaseNameToDefaultAccount,
-} from "openclaw/plugin-sdk/setup";
+} from "@benchagi/openclaw/plugin-sdk/setup";
 export {
   getAgentScopedMediaLocalRoots,
   resolveChannelMediaMaxBytes,
-} from "openclaw/plugin-sdk/media-runtime";
-export { normalizeProviderId } from "openclaw/plugin-sdk/provider-model-shared";
+} from "@benchagi/openclaw/plugin-sdk/media-runtime";
+export { normalizeProviderId } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
 export { setMattermostRuntime } from "./src/runtime.js";

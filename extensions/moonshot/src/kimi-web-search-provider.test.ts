@@ -1,5 +1,5 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/provider-onboard";
-import { withEnv } from "openclaw/plugin-sdk/testing";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/provider-onboard";
+import { withEnv } from "@benchagi/openclaw/plugin-sdk/testing";
 import { describe, expect, it } from "vitest";
 import { __testing } from "../test-api.js";
 

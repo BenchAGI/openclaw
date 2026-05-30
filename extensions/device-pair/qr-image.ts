@@ -1,1 +1,1 @@
-export { renderQrPngBase64 } from "openclaw/plugin-sdk/media-runtime";
+export { renderQrPngBase64 } from "@benchagi/openclaw/plugin-sdk/media-runtime";

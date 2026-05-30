@@ -1,4 +1,4 @@
-import { adaptScopedAccountAccessor } from "openclaw/plugin-sdk/channel-config-helpers";
+import { adaptScopedAccountAccessor } from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
 import { describe, expect, it, vi } from "vitest";
 import {
   createPluginSetupWizardConfigure,

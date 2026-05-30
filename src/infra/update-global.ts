@@ -35,12 +35,22 @@ export type ResolvedGlobalInstallTarget = ResolvedGlobalInstallCommand & {
   packageRoot: string | null;
 };
 
-const PRIMARY_PACKAGE_NAME = "openclaw";
-const ALL_PACKAGE_NAMES = [PRIMARY_PACKAGE_NAME] as const;
+const PRIMARY_PACKAGE_NAME = "@benchagi/openclaw";
+// Include the legacy unscoped "openclaw" so cross-package migration (upstream openclaw
+// -> @benchagi/openclaw, same `openclaw` bin) is detected and cleaned up.
+const ALL_PACKAGE_NAMES = [PRIMARY_PACKAGE_NAME, "openclaw"] as const;
 const GLOBAL_RENAME_PREFIX = ".";
 export const OPENCLAW_MAIN_PACKAGE_SPEC = "github:openclaw/openclaw#main";
 const COREPACK_ENABLE_DOWNLOAD_PROMPT_DEFAULT = "0";
-const NPM_GLOBAL_INSTALL_QUIET_FLAGS = ["--no-fund", "--no-audit", "--loglevel=error"] as const;
+// `--force` lets a global install overwrite the `openclaw` bin when it is still owned
+// by the legacy unscoped `openclaw` package (cross-package rename migration); npm
+// otherwise fails with EEXIST on the shared bin path.
+const NPM_GLOBAL_INSTALL_QUIET_FLAGS = [
+  "--no-fund",
+  "--no-audit",
+  "--loglevel=error",
+  "--force",
+] as const;
 const NPM_GLOBAL_INSTALL_OMIT_OPTIONAL_FLAGS = [
   "--omit=optional",
   ...NPM_GLOBAL_INSTALL_QUIET_FLAGS,

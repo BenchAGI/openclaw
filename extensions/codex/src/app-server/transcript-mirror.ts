@@ -5,7 +5,7 @@ import { SessionManager } from "@mariozechner/pi-coding-agent";
 import {
   acquireSessionWriteLock,
   emitSessionTranscriptUpdate,
-} from "openclaw/plugin-sdk/agent-harness";
+} from "@benchagi/openclaw/plugin-sdk/agent-harness";
 
 export async function mirrorCodexAppServerTranscript(params: {
   sessionFile: string;

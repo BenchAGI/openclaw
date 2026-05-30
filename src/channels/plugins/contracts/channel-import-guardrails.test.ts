@@ -485,10 +485,10 @@ function expectNoCrossPluginSdkFacadeImports(file: string, imports: string[]): v
     return;
   }
   for (const specifier of imports) {
-    if (!specifier.startsWith("openclaw/plugin-sdk/")) {
+    if (!specifier.startsWith("@benchagi/openclaw/plugin-sdk/")) {
       continue;
     }
-    const targetSubpath = specifier.slice("openclaw/plugin-sdk/".length);
+    const targetSubpath = specifier.slice("@benchagi/openclaw/plugin-sdk/".length);
     const targetExtensionId =
       BUNDLED_EXTENSION_IDS.find(
         (extensionId) =>
@@ -559,10 +559,10 @@ describe("channel import guardrails", () => {
   it("keeps bundled extension source files off root and compat plugin-sdk imports", () => {
     for (const file of collectExtensionSourceFiles()) {
       const text = readSource(file);
-      expect(text, `${file} should not import openclaw/plugin-sdk root`).not.toMatch(
+      expect(text, `${file} should not import @benchagi/openclaw/plugin-sdk root`).not.toMatch(
         /["']openclaw\/plugin-sdk["']/,
       );
-      expect(text, `${file} should not import openclaw/plugin-sdk/compat`).not.toMatch(
+      expect(text, `${file} should not import @benchagi/openclaw/plugin-sdk/compat`).not.toMatch(
         /["']openclaw\/plugin-sdk\/compat["']/,
       );
     }
@@ -639,7 +639,7 @@ describe("channel import guardrails", () => {
         expect(
           text,
           `${normalized} should import ${extensionId} helpers via the local api barrel`,
-        ).not.toMatch(new RegExp(`["']openclaw/plugin-sdk/${extensionId}(?:["'/])`, "u"));
+        ).not.toMatch(new RegExp(`["']@benchagi/openclaw/plugin-sdk/${extensionId}(?:["'/])`, "u"));
       }
     }
   });

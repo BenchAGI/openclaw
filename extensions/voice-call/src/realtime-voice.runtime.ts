@@ -1,4 +1,4 @@
 export {
   getRealtimeVoiceProvider,
   listRealtimeVoiceProviders,
-} from "openclaw/plugin-sdk/realtime-voice";
+} from "@benchagi/openclaw/plugin-sdk/realtime-voice";

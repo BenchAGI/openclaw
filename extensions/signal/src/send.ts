@@ -1,8 +1,8 @@
-import { loadConfig, type OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import { resolveMarkdownTableMode } from "openclaw/plugin-sdk/config-runtime";
-import { kindFromMime } from "openclaw/plugin-sdk/media-runtime";
-import { resolveOutboundAttachmentFromUrl } from "openclaw/plugin-sdk/media-runtime";
-import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
+import { loadConfig, type OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { resolveMarkdownTableMode } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { kindFromMime } from "@benchagi/openclaw/plugin-sdk/media-runtime";
+import { resolveOutboundAttachmentFromUrl } from "@benchagi/openclaw/plugin-sdk/media-runtime";
+import { normalizeLowercaseStringOrEmpty } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { resolveSignalAccount } from "./accounts.js";
 import { signalRpcRequest } from "./client.js";
 import { markdownToSignalText, type SignalTextStyleRange } from "./format.js";
@@ -41,11 +41,11 @@ type SignalTarget =
   | { type: "username"; username: string };
 
 let signalConfigRuntimePromise:
-  | Promise<typeof import("openclaw/plugin-sdk/config-runtime")>
+  | Promise<typeof import("@benchagi/openclaw/plugin-sdk/config-runtime")>
   | undefined;
 
 async function loadSignalConfigRuntime() {
-  signalConfigRuntimePromise ??= import("openclaw/plugin-sdk/config-runtime");
+  signalConfigRuntimePromise ??= import("@benchagi/openclaw/plugin-sdk/config-runtime");
   return await signalConfigRuntimePromise;
 }
 

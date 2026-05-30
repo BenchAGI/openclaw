@@ -1,9 +1,9 @@
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
-import type { DiscordGuildEntry, OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import type { ChannelSetupDmPolicy, ChannelSetupWizard } from "openclaw/plugin-sdk/setup-runtime";
-import { createStandardChannelSetupStatus } from "openclaw/plugin-sdk/setup-runtime";
-import { formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/account-id";
+import type { DiscordGuildEntry, OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { ChannelSetupDmPolicy, ChannelSetupWizard } from "@benchagi/openclaw/plugin-sdk/setup-runtime";
+import { createStandardChannelSetupStatus } from "@benchagi/openclaw/plugin-sdk/setup-runtime";
+import { formatDocsLink } from "@benchagi/openclaw/plugin-sdk/setup-tools";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   inspectDiscordSetupAccount,
   resolveDiscordSetupAccountConfig,

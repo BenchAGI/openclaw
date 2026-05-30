@@ -517,9 +517,9 @@ describe("bundled channel entry shape guards", () => {
           continue;
         }
         if (
-          !source.includes('from "openclaw/plugin-sdk/channel-entry-contract"') ||
-          source.includes('from "openclaw/plugin-sdk/core"') ||
-          source.includes('from "openclaw/plugin-sdk/channel-core"')
+          !source.includes('from "@benchagi/openclaw/plugin-sdk/channel-entry-contract"') ||
+          source.includes('from "@benchagi/openclaw/plugin-sdk/core"') ||
+          source.includes('from "@benchagi/openclaw/plugin-sdk/channel-core"')
         ) {
           offenders.push(path.relative(process.cwd(), filePath));
         }
@@ -594,7 +594,7 @@ describe("bundled channel entry shape guards", () => {
         if (!source.includes("createChatChannelPlugin")) {
           continue;
         }
-        if (source.includes('from "openclaw/plugin-sdk/core"')) {
+        if (source.includes('from "@benchagi/openclaw/plugin-sdk/core"')) {
           offenders.push(path.relative(process.cwd(), filePath));
         }
       }
@@ -616,7 +616,7 @@ describe("bundled channel entry shape guards", () => {
       "extensions/irc/src/runtime-api.ts",
       "extensions/matrix/src/runtime-api.ts",
     ].filter((filePath) =>
-      fs.readFileSync(path.resolve(filePath), "utf8").includes("openclaw/plugin-sdk/core"),
+      fs.readFileSync(path.resolve(filePath), "utf8").includes("@benchagi/openclaw/plugin-sdk/core"),
     );
 
     expect(offenders).toEqual([]);
@@ -657,7 +657,7 @@ describe("bundled channel entry shape guards", () => {
     ].filter((filePath) =>
       fs
         .readFileSync(path.resolve(filePath), "utf8")
-        .includes('from "openclaw/plugin-sdk/runtime"'),
+        .includes('from "@benchagi/openclaw/plugin-sdk/runtime"'),
     );
 
     expect(offenders).toEqual([]);

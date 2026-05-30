@@ -1,7 +1,7 @@
-import { normalizeAccountId } from "openclaw/plugin-sdk/account-core";
-import { mapAllowFromEntries } from "openclaw/plugin-sdk/channel-config-helpers";
-import type { OpenClawConfig, TelegramAccountConfig } from "openclaw/plugin-sdk/config-runtime";
-import { createResolvedDirectoryEntriesLister } from "openclaw/plugin-sdk/directory-config-runtime";
+import { normalizeAccountId } from "@benchagi/openclaw/plugin-sdk/account-core";
+import { mapAllowFromEntries } from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import type { OpenClawConfig, TelegramAccountConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { createResolvedDirectoryEntriesLister } from "@benchagi/openclaw/plugin-sdk/directory-config-runtime";
 import { mergeTelegramAccountConfig } from "./account-config.js";
 import { resolveDefaultTelegramAccountSelection } from "./account-selection.js";
 

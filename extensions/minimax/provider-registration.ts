@@ -1,21 +1,21 @@
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import type {
   OpenClawPluginApi,
   ProviderAuthContext,
   ProviderAuthResult,
   ProviderCatalogContext,
-} from "openclaw/plugin-sdk/plugin-entry";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
 import {
   MINIMAX_OAUTH_MARKER,
   ensureAuthProfileStore,
   listProfilesForProvider,
-} from "openclaw/plugin-sdk/provider-auth";
-import { buildOauthProviderAuthResult } from "openclaw/plugin-sdk/provider-auth";
-import { createProviderApiKeyAuthMethod } from "openclaw/plugin-sdk/provider-auth-api-key";
-import { buildProviderReplayFamilyHooks } from "openclaw/plugin-sdk/provider-model-shared";
-import { MINIMAX_FAST_MODE_STREAM_HOOKS } from "openclaw/plugin-sdk/provider-stream-family";
-import { fetchMinimaxUsage } from "openclaw/plugin-sdk/provider-usage";
-import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-auth";
+import { buildOauthProviderAuthResult } from "@benchagi/openclaw/plugin-sdk/provider-auth";
+import { createProviderApiKeyAuthMethod } from "@benchagi/openclaw/plugin-sdk/provider-auth-api-key";
+import { buildProviderReplayFamilyHooks } from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { MINIMAX_FAST_MODE_STREAM_HOOKS } from "@benchagi/openclaw/plugin-sdk/provider-stream-family";
+import { fetchMinimaxUsage } from "@benchagi/openclaw/plugin-sdk/provider-usage";
+import { normalizeOptionalString } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { isMiniMaxModernModelId, MINIMAX_DEFAULT_MODEL_ID } from "./api.js";
 import type { MiniMaxRegion } from "./oauth.js";
 import { applyMinimaxApiConfig, applyMinimaxApiConfigCn } from "./onboard.js";

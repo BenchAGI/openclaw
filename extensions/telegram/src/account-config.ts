@@ -2,8 +2,8 @@ import {
   normalizeAccountId,
   resolveAccountEntry,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/account-core";
-import type { TelegramAccountConfig } from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/account-core";
+import type { TelegramAccountConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 
 export function resolveTelegramAccountConfig(
   cfg: OpenClawConfig,

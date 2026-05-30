@@ -106,28 +106,28 @@ describe("stageBundledPluginRuntime", () => {
     expect(
       fs
         .lstatSync(
-          path.join(repoRoot, "dist", "extensions", "node_modules", "openclaw", "plugin-sdk"),
+          path.join(repoRoot, "dist", "extensions", "node_modules", "@benchagi", "openclaw", "plugin-sdk"),
         )
         .isSymbolicLink(),
     ).toBe(true);
     expect(
       fs.readFileSync(
-        path.join(repoRoot, "dist", "extensions", "node_modules", "openclaw", "package.json"),
+        path.join(repoRoot, "dist", "extensions", "node_modules", "@benchagi", "openclaw", "package.json"),
         "utf8",
       ),
     ).toContain('"./plugin-sdk": "./plugin-sdk/index.js"');
     expect(
       fs.readFileSync(
-        path.join(repoRoot, "dist", "extensions", "node_modules", "openclaw", "package.json"),
+        path.join(repoRoot, "dist", "extensions", "node_modules", "@benchagi", "openclaw", "package.json"),
         "utf8",
       ),
     ).toContain('"./plugin-sdk/*": "./plugin-sdk/*.js"');
     expect(
       fs.realpathSync(
-        path.join(repoRoot, "dist", "extensions", "node_modules", "openclaw", "plugin-sdk"),
+        path.join(repoRoot, "dist", "extensions", "node_modules", "@benchagi", "openclaw", "plugin-sdk"),
       ),
     ).toBe(fs.realpathSync(path.join(repoRoot, "dist", "plugin-sdk")));
-    expect(fs.existsSync(path.join(runtimePluginDir, "node_modules", "openclaw"))).toBe(false);
+    expect(fs.existsSync(path.join(runtimePluginDir, "node_modules", "@benchagi", "openclaw"))).toBe(false);
   });
 
   it("writes wrappers that forward plugin entry imports into canonical dist files", async () => {

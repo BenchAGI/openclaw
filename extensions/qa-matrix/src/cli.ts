@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { formatErrorMessage } from "@benchagi/openclaw/plugin-sdk/error-runtime";
 import {
   createLazyCliRuntimeLoader,
   createLiveTransportQaCliRegistration,

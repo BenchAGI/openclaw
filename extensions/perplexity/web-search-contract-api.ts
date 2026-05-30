@@ -3,7 +3,7 @@ import {
   mergeScopedSearchConfig,
   resolveProviderWebSearchPluginConfig,
   type WebSearchProviderPlugin,
-} from "openclaw/plugin-sdk/provider-web-search-config-contract";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-search-config-contract";
 import { resolvePerplexityRuntimeTransport } from "./src/perplexity-web-search-provider.shared.js";
 
 export function createPerplexityWebSearchProvider(): WebSearchProviderPlugin {

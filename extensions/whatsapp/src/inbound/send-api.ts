@@ -1,5 +1,5 @@
 import type { AnyMessageContent, WAPresence } from "@whiskeysockets/baileys";
-import { recordChannelActivity } from "openclaw/plugin-sdk/infra-runtime";
+import { recordChannelActivity } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
 import { toWhatsappJid } from "../text-runtime.js";
 import type { ActiveWebSendOptions } from "./types.js";
 

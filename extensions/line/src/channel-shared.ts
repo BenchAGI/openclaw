@@ -1,4 +1,4 @@
-import { describeWebhookAccountSnapshot } from "openclaw/plugin-sdk/account-helpers";
+import { describeWebhookAccountSnapshot } from "@benchagi/openclaw/plugin-sdk/account-helpers";
 import { hasLineCredentials, parseLineAllowFromId } from "./account-helpers.js";
 import {
   resolveLineAccount,

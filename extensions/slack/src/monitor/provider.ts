@@ -6,23 +6,23 @@ import {
   mergeAllowlist,
   patchAllowlistUsersInConfigEntries,
   summarizeMapping,
-} from "openclaw/plugin-sdk/allow-from";
-import { CHANNEL_APPROVAL_NATIVE_RUNTIME_CONTEXT_CAPABILITY } from "openclaw/plugin-sdk/approval-handler-adapter-runtime";
-import { registerChannelRuntimeContext } from "openclaw/plugin-sdk/channel-runtime-context";
-import type { SessionScope } from "openclaw/plugin-sdk/config-runtime";
-import { createConnectedChannelStatusPatch } from "openclaw/plugin-sdk/gateway-runtime";
-import { DEFAULT_GROUP_HISTORY_LIMIT } from "openclaw/plugin-sdk/reply-history";
-import { normalizeMainKey } from "openclaw/plugin-sdk/routing";
-import { warn } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/allow-from";
+import { CHANNEL_APPROVAL_NATIVE_RUNTIME_CONTEXT_CAPABILITY } from "@benchagi/openclaw/plugin-sdk/approval-handler-adapter-runtime";
+import { registerChannelRuntimeContext } from "@benchagi/openclaw/plugin-sdk/channel-runtime-context";
+import type { SessionScope } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { createConnectedChannelStatusPatch } from "@benchagi/openclaw/plugin-sdk/gateway-runtime";
+import { DEFAULT_GROUP_HISTORY_LIMIT } from "@benchagi/openclaw/plugin-sdk/reply-history";
+import { normalizeMainKey } from "@benchagi/openclaw/plugin-sdk/routing";
+import { warn } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   computeBackoff,
   createNonExitingRuntime,
   sleepWithAbort,
   type RuntimeEnv,
-} from "openclaw/plugin-sdk/runtime-env";
-import { normalizeResolvedSecretInputString } from "openclaw/plugin-sdk/secret-input";
-import { normalizeStringEntries } from "openclaw/plugin-sdk/text-runtime";
-import { installRequestBodyLimitGuard } from "openclaw/plugin-sdk/webhook-request-guards";
+} from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { normalizeResolvedSecretInputString } from "@benchagi/openclaw/plugin-sdk/secret-input";
+import { normalizeStringEntries } from "@benchagi/openclaw/plugin-sdk/text-runtime";
+import { installRequestBodyLimitGuard } from "@benchagi/openclaw/plugin-sdk/webhook-request-guards";
 import { resolveSlackAccount } from "../accounts.js";
 import { resolveSlackWebClientOptions } from "../client.js";
 import { isSlackExecApprovalClientEnabled } from "../exec-approvals.js";

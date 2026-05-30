@@ -1,5 +1,5 @@
-import { resolveAckReaction } from "openclaw/plugin-sdk/channel-feedback";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+import { resolveAckReaction } from "@benchagi/openclaw/plugin-sdk/channel-feedback";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import type { CoreConfig } from "../../types.js";
 import { resolveMatrixAccountConfig } from "../account-config.js";
 

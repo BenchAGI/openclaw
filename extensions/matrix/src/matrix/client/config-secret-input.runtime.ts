@@ -1,1 +1,1 @@
-export { resolveConfiguredSecretInputString } from "openclaw/plugin-sdk/config-runtime";
+export { resolveConfiguredSecretInputString } from "@benchagi/openclaw/plugin-sdk/config-runtime";

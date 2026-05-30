@@ -2,8 +2,8 @@ import {
   DEFAULT_ACCOUNT_ID,
   normalizeAccountId,
   normalizeOptionalAccountId,
-} from "openclaw/plugin-sdk/account-id";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/account-id";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 
 const DEFAULT_AGENT_ID = "main";
 

@@ -1,4 +1,4 @@
-import { embeddedAgentLog, type EmbeddedRunAttemptParams } from "openclaw/plugin-sdk/agent-harness";
+import { embeddedAgentLog, type EmbeddedRunAttemptParams } from "@benchagi/openclaw/plugin-sdk/agent-harness";
 import type { CodexAppServerClient } from "./client.js";
 import type { CodexAppServerRuntimeOptions } from "./config.js";
 import {

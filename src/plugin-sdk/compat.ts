@@ -8,7 +8,7 @@ const shouldWarnCompatImport =
 
 if (shouldWarnCompatImport) {
   process.emitWarning(
-    "openclaw/plugin-sdk/compat is deprecated for new plugins. Migrate to focused openclaw/plugin-sdk/<subpath> imports. See https://docs.openclaw.ai/plugins/sdk-migration",
+    "@benchagi/openclaw/plugin-sdk/compat is deprecated for new plugins. Migrate to focused @benchagi/openclaw/plugin-sdk/<subpath> imports. See https://docs.openclaw.ai/plugins/sdk-migration",
     {
       code: "OPENCLAW_PLUGIN_SDK_COMPAT_DEPRECATED",
       detail:

@@ -1,4 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-runtime";
+import type { OpenClawPluginApi } from "@benchagi/openclaw/plugin-sdk/plugin-runtime";
 
 type TestPluginApiInput = Partial<OpenClawPluginApi>;
 

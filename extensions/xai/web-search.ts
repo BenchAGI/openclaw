@@ -2,7 +2,7 @@ import {
   createWebSearchProviderContractFields,
   type WebSearchProviderPlugin,
   type WebSearchProviderSetupContext,
-} from "openclaw/plugin-sdk/provider-web-search-config-contract";
+} from "@benchagi/openclaw/plugin-sdk/provider-web-search-config-contract";
 
 const XAI_CREDENTIAL_PATH = "plugins.entries.xai.config.webSearch.apiKey";
 const GenericXaiSearchSchema = {

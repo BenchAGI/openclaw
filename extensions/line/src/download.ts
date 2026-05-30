@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import { messagingApi } from "@line/bot-sdk";
-import { logVerbose } from "openclaw/plugin-sdk/runtime-env";
-import { buildRandomTempFilePath } from "openclaw/plugin-sdk/temp-path";
-import { lowercasePreservingWhitespace } from "openclaw/plugin-sdk/text-runtime";
+import { logVerbose } from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import { buildRandomTempFilePath } from "@benchagi/openclaw/plugin-sdk/temp-path";
+import { lowercasePreservingWhitespace } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 
 interface DownloadResult {
   path: string;

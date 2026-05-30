@@ -1,10 +1,10 @@
 import { ChannelType } from "discord-api-types/v10";
-import * as commandRegistryModule from "openclaw/plugin-sdk/command-auth";
-import type { ChatCommandDefinition, CommandArgsParsing } from "openclaw/plugin-sdk/command-auth";
-import type { ModelsProviderData } from "openclaw/plugin-sdk/command-auth";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
-import * as globalsModule from "openclaw/plugin-sdk/runtime-env";
-import * as commandTextModule from "openclaw/plugin-sdk/text-runtime";
+import * as commandRegistryModule from "@benchagi/openclaw/plugin-sdk/command-auth";
+import type { ChatCommandDefinition, CommandArgsParsing } from "@benchagi/openclaw/plugin-sdk/command-auth";
+import type { ModelsProviderData } from "@benchagi/openclaw/plugin-sdk/command-auth";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import * as globalsModule from "@benchagi/openclaw/plugin-sdk/runtime-env";
+import * as commandTextModule from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as modelPickerPreferencesModule from "./model-picker-preferences.js";
 import * as modelPickerModule from "./model-picker.js";

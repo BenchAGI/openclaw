@@ -1,5 +1,5 @@
-import type { ChannelSetupAdapter } from "openclaw/plugin-sdk/channel-setup";
-import { createSetupInputPresenceValidator } from "openclaw/plugin-sdk/setup-runtime";
+import type { ChannelSetupAdapter } from "@benchagi/openclaw/plugin-sdk/channel-setup";
+import { createSetupInputPresenceValidator } from "@benchagi/openclaw/plugin-sdk/setup-runtime";
 import {
   applyAccountNameToChannelSection,
   applySetupAccountConfigPatch,

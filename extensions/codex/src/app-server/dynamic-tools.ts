@@ -7,7 +7,7 @@ import {
   isMessagingToolSendAction,
   type AnyAgentTool,
   type MessagingToolSend,
-} from "openclaw/plugin-sdk/agent-harness";
+} from "@benchagi/openclaw/plugin-sdk/agent-harness";
 import {
   type CodexDynamicToolCallOutputContentItem,
   type CodexDynamicToolCallParams,

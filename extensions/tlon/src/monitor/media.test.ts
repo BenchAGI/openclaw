@@ -2,11 +2,11 @@ import {
   fetchRemoteMedia,
   MAX_IMAGE_BYTES,
   saveMediaBuffer,
-} from "openclaw/plugin-sdk/media-runtime";
+} from "@benchagi/openclaw/plugin-sdk/media-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { downloadMedia, extractImageBlocks } from "./media.js";
 
-vi.mock("openclaw/plugin-sdk/media-runtime", () => ({
+vi.mock("@benchagi/openclaw/plugin-sdk/media-runtime", () => ({
   MAX_IMAGE_BYTES: 6 * 1024 * 1024,
   fetchRemoteMedia: vi.fn(),
   saveMediaBuffer: vi.fn(),

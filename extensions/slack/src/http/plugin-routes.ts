@@ -1,5 +1,5 @@
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/channel-plugin-common";
+import { DEFAULT_ACCOUNT_ID } from "@benchagi/openclaw/plugin-sdk/account-id";
+import type { OpenClawPluginApi } from "@benchagi/openclaw/plugin-sdk/channel-plugin-common";
 import { listSlackAccountIds, mergeSlackAccountConfig } from "../accounts.js";
 import { normalizeSlackWebhookPath } from "./paths.js";
 

@@ -165,6 +165,7 @@ BASELINE_TGZ_FILE=""
 BASELINE_TAG_URL=""
 FRESH_TAG_URL=""
 UPDATE_TAG_URL=""
+LOCAL_INSTALL_URL=""
 UPDATE_DOCKER_HOST_ARGS=()
 
 cleanup() {
@@ -295,8 +296,13 @@ start_update_server() {
   BASELINE_TAG_URL="http://${UPDATE_HOST_ALIAS}:${UPDATE_PORT}/${BASELINE_TGZ_FILE}"
   FRESH_TAG_URL="http://${UPDATE_HOST_ALIAS}:${UPDATE_PORT}/${UPDATE_TGZ_FILE}"
   UPDATE_TAG_URL="http://${UPDATE_HOST_ALIAS}:${UPDATE_PORT}/${UPDATE_TGZ_FILE}"
+  # Serve the *local* install.sh so the update smoke exercises this PR's
+  # legacy->scoped migration rather than the published installer.
+  cp "$ROOT_DIR/scripts/install.sh" "$UPDATE_DIR/install.sh"
+  LOCAL_INSTALL_URL="http://${UPDATE_HOST_ALIAS}:${UPDATE_PORT}/install.sh"
   echo "==> Serve baseline tgz: $BASELINE_TAG_URL"
   echo "==> Serve latest tgz: $FRESH_TAG_URL"
+  echo "==> Serve local install.sh: $LOCAL_INSTALL_URL"
   (
     cd "$UPDATE_DIR"
     exec python3 -m http.server "$UPDATE_PORT" --bind 0.0.0.0
@@ -355,6 +361,8 @@ else
     "${UPDATE_DOCKER_HOST_ARGS[@]}" \
     -e OPENCLAW_INSTALL_PACKAGE="$PACKAGE_NAME" \
     -e OPENCLAW_INSTALL_SMOKE_MODE=update \
+    -e OPENCLAW_INSTALL_URL="$LOCAL_INSTALL_URL" \
+    -e OPENCLAW_INSTALL_METHOD=npm \
     -e OPENCLAW_INSTALL_UPDATE_BASELINE="$UPDATE_BASELINE_VERSION" \
     -e OPENCLAW_INSTALL_UPDATE_BASELINE_TAG_URL="$BASELINE_TAG_URL" \
     -e OPENCLAW_INSTALL_UPDATE_EXPECT_VERSION="$UPDATE_EXPECT_VERSION" \

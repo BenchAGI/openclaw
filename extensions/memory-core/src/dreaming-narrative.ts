@@ -7,17 +7,17 @@ import {
   loadSessionStore,
   resolveStorePath,
   updateSessionStore,
-} from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   extractErrorCode,
   formatErrorMessage,
   RequestScopedSubagentRuntimeError,
   readErrorName,
   SUBAGENT_RUNTIME_REQUEST_SCOPE_ERROR_CODE,
-} from "openclaw/plugin-sdk/error-runtime";
-import { resolveGlobalMap } from "openclaw/plugin-sdk/global-singleton";
-import { createAsyncLock } from "openclaw/plugin-sdk/infra-runtime";
-import { resolveStateDir } from "openclaw/plugin-sdk/memory-core-host-runtime-core";
+} from "@benchagi/openclaw/plugin-sdk/error-runtime";
+import { resolveGlobalMap } from "@benchagi/openclaw/plugin-sdk/global-singleton";
+import { createAsyncLock } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
+import { resolveStateDir } from "@benchagi/openclaw/plugin-sdk/memory-core-host-runtime-core";
 
 // ── Types ──────────────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { readJsonFileWithFallback, writeJsonFileAtomically } from "openclaw/plugin-sdk/json-store";
-import { resolveStateDir } from "openclaw/plugin-sdk/state-paths";
-import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
+import { readJsonFileWithFallback, writeJsonFileAtomically } from "@benchagi/openclaw/plugin-sdk/json-store";
+import { resolveStateDir } from "@benchagi/openclaw/plugin-sdk/state-paths";
+import { resolvePreferredOpenClawTmpDir } from "@benchagi/openclaw/plugin-sdk/temp-path";
 import { resolveBlueBubblesServerAccount } from "./account-resolve.js";
 import { warmupBlueBubblesInboundDedupe } from "./inbound-dedupe.js";
 import { asRecord, normalizeWebhookMessage } from "./monitor-normalize.js";

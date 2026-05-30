@@ -278,9 +278,9 @@ describe("plugin-sdk root alias", () => {
 
     expect((lazyModule.moduleExports.slowHelper as () => string)()).toBe("loaded");
     expect(lazyModule.createJitiOptions.at(-1)?.alias).toMatchObject({
-      "openclaw/plugin-sdk": rootAliasPath,
+      "@benchagi/openclaw/plugin-sdk": rootAliasPath,
       "@openclaw/plugin-sdk": rootAliasPath,
-      "openclaw/plugin-sdk/group-access": expect.stringContaining(
+      "@benchagi/openclaw/plugin-sdk/group-access": expect.stringContaining(
         path.join("src", "plugin-sdk", "group-access.ts"),
       ),
       "@openclaw/plugin-sdk/group-access": expect.stringContaining(
@@ -307,13 +307,13 @@ describe("plugin-sdk root alias", () => {
       (lazyModule.createJitiOptions.at(-1)?.alias ?? {}) as Record<string, string>,
     );
     expect(aliasKeys).toEqual([
-      "openclaw/plugin-sdk/alpha",
+      "@benchagi/openclaw/plugin-sdk/alpha",
       "@openclaw/plugin-sdk/alpha",
-      "openclaw/plugin-sdk/group-access",
+      "@benchagi/openclaw/plugin-sdk/group-access",
       "@openclaw/plugin-sdk/group-access",
-      "openclaw/plugin-sdk/zeta",
+      "@benchagi/openclaw/plugin-sdk/zeta",
       "@openclaw/plugin-sdk/zeta",
-      "openclaw/plugin-sdk",
+      "@benchagi/openclaw/plugin-sdk",
       "@openclaw/plugin-sdk",
     ]);
   });
@@ -331,14 +331,14 @@ describe("plugin-sdk root alias", () => {
 
     expect((lazyModule.moduleExports.slowHelper as () => string)()).toBe("loaded");
     const aliasMap = (lazyModule.createJitiOptions.at(-1)?.alias ?? {}) as Record<string, string>;
-    expect(aliasMap["openclaw/plugin-sdk/qa-lab"]).toBe(
+    expect(aliasMap["@benchagi/openclaw/plugin-sdk/qa-lab"]).toBe(
       path.join(packageRoot, "src", "plugin-sdk", "qa-lab.ts"),
     );
     expect(aliasMap["@openclaw/plugin-sdk/qa-lab"]).toBe(
       path.join(packageRoot, "src", "plugin-sdk", "qa-lab.ts"),
     );
-    expect(aliasMap).not.toHaveProperty("openclaw/plugin-sdk/../escape");
-    expect(aliasMap).not.toHaveProperty("openclaw/plugin-sdk/nested/path");
+    expect(aliasMap).not.toHaveProperty("@benchagi/openclaw/plugin-sdk/../escape");
+    expect(aliasMap).not.toHaveProperty("@benchagi/openclaw/plugin-sdk/nested/path");
   });
 
   it("builds source plugin-sdk subpath aliases through the wider source extension family", () => {
@@ -355,7 +355,7 @@ describe("plugin-sdk root alias", () => {
 
     expect((lazyModule.moduleExports.slowHelper as () => string)()).toBe("loaded");
     expect(lazyModule.createJitiOptions.at(-1)?.alias).toMatchObject({
-      "openclaw/plugin-sdk/channel-runtime": path.join(
+      "@benchagi/openclaw/plugin-sdk/channel-runtime": path.join(
         packageRoot,
         "src",
         "plugin-sdk",

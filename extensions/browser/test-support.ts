@@ -11,4 +11,4 @@ export {
   withFetchPreconnect,
   isLiveTestEnabled,
   type OpenClawConfig,
-} from "openclaw/plugin-sdk/testing";
+} from "@benchagi/openclaw/plugin-sdk/testing";

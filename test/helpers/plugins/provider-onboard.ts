@@ -1,8 +1,8 @@
 import {
   resolveAgentModelFallbackValues,
   resolveAgentModelPrimaryValue,
-} from "openclaw/plugin-sdk/provider-onboard";
-import type { ModelApi } from "openclaw/plugin-sdk/provider-onboard";
+} from "@benchagi/openclaw/plugin-sdk/provider-onboard";
+import type { ModelApi } from "@benchagi/openclaw/plugin-sdk/provider-onboard";
 import { expect } from "vitest";
 import type { OpenClawConfig } from "../../../src/config/config.js";
 import {

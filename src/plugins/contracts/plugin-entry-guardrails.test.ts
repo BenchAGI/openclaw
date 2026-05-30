@@ -125,7 +125,7 @@ function analyzeSourceModule(params: { filePath: string; source: string }): {
     }
     specifiers.add(specifier);
 
-    if (specifier === "openclaw/plugin-sdk/core" && importsDefinePluginEntry(importClause)) {
+    if (specifier === "@benchagi/openclaw/plugin-sdk/core" && importsDefinePluginEntry(importClause)) {
       importsDefinePluginEntryFromCore = true;
     }
   }
@@ -304,7 +304,7 @@ describe("plugin entry guardrails", () => {
         import "./setup.js";
         export { x };
         export * from "./barrel.js";
-        import { y } from "openclaw/plugin-sdk/testing";
+        import { y } from "@benchagi/openclaw/plugin-sdk/testing";
       `,
       }).relativeSpecifiers.toSorted(),
     ).toEqual(["./barrel.js", "./safe.js", "./setup.js"]);
@@ -334,8 +334,8 @@ describe("plugin entry guardrails", () => {
       analyzeSourceModule({
         filePath: "aliased-plugin-entry.ts",
         source: `
-          import { definePluginEntry as dpe } from "openclaw/plugin-sdk/core";
-          import { somethingElse } from "openclaw/plugin-sdk/core";
+          import { definePluginEntry as dpe } from "@benchagi/openclaw/plugin-sdk/core";
+          import { somethingElse } from "@benchagi/openclaw/plugin-sdk/core";
         `,
       }).importsDefinePluginEntryFromCore,
     ).toBe(true);

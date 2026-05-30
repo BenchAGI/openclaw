@@ -40,8 +40,8 @@ vi.mock("./protocol.js", async () => {
   };
 });
 
-vi.mock("openclaw/plugin-sdk/config-runtime", async () => {
-  const original = (await vi.importActual("openclaw/plugin-sdk/config-runtime")) as Record<
+vi.mock("@benchagi/openclaw/plugin-sdk/config-runtime", async () => {
+  const original = (await vi.importActual("@benchagi/openclaw/plugin-sdk/config-runtime")) as Record<
     string,
     unknown
   >;
@@ -51,8 +51,8 @@ vi.mock("openclaw/plugin-sdk/config-runtime", async () => {
   };
 });
 
-vi.mock("openclaw/plugin-sdk/text-runtime", async () => {
-  const original = (await vi.importActual("openclaw/plugin-sdk/text-runtime")) as Record<
+vi.mock("@benchagi/openclaw/plugin-sdk/text-runtime", async () => {
+  const original = (await vi.importActual("@benchagi/openclaw/plugin-sdk/text-runtime")) as Record<
     string,
     unknown
   >;

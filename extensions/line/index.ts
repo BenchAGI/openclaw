@@ -1,7 +1,7 @@
 import {
   defineBundledChannelEntry,
   type OpenClawPluginApi,
-} from "openclaw/plugin-sdk/channel-entry-contract";
+} from "@benchagi/openclaw/plugin-sdk/channel-entry-contract";
 
 type RegisteredLineCardCommand = Parameters<OpenClawPluginApi["registerCommand"]>[0];
 

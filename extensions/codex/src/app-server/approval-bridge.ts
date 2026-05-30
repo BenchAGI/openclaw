@@ -3,7 +3,7 @@ import {
   type AgentApprovalEventData,
   type EmbeddedRunAttemptParams,
   type ExecApprovalDecision,
-} from "openclaw/plugin-sdk/agent-harness";
+} from "@benchagi/openclaw/plugin-sdk/agent-harness";
 import { isJsonObject, type JsonObject, type JsonValue } from "./protocol.js";
 
 const DEFAULT_CODEX_APPROVAL_TIMEOUT_MS = 120_000;

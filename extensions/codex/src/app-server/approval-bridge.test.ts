@@ -1,9 +1,9 @@
-import { callGatewayTool, type EmbeddedRunAttemptParams } from "openclaw/plugin-sdk/agent-harness";
+import { callGatewayTool, type EmbeddedRunAttemptParams } from "@benchagi/openclaw/plugin-sdk/agent-harness";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApprovalResponse, handleCodexAppServerApprovalRequest } from "./approval-bridge.js";
 
-vi.mock("openclaw/plugin-sdk/agent-harness", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("openclaw/plugin-sdk/agent-harness")>()),
+vi.mock("@benchagi/openclaw/plugin-sdk/agent-harness", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@benchagi/openclaw/plugin-sdk/agent-harness")>()),
   callGatewayTool: vi.fn(),
 }));
 

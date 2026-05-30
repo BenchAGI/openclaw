@@ -10,7 +10,7 @@ describe("zalo runtime api", () => {
       loadRuntimeApiExportTypesViaJiti({
         modulePath: runtimeApiPath,
         exportNames: ["setZaloRuntime"],
-        realPluginSdkSpecifiers: ["openclaw/plugin-sdk/runtime-store"],
+        realPluginSdkSpecifiers: ["@benchagi/openclaw/plugin-sdk/runtime-store"],
       }),
     ).toEqual({
       setZaloRuntime: "function",

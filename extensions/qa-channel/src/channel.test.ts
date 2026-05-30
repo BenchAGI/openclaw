@@ -1,8 +1,8 @@
-import type { PluginRuntime } from "openclaw/plugin-sdk/core";
+import type { PluginRuntime } from "@benchagi/openclaw/plugin-sdk/core";
 import {
   resetPluginRuntimeStateForTest,
   setActivePluginRegistry,
-} from "openclaw/plugin-sdk/testing";
+} from "@benchagi/openclaw/plugin-sdk/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { extractToolPayload } from "../../../src/infra/outbound/tool-payload.js";
 import { createTestRegistry } from "../../../test/helpers/plugins/plugin-registry.js";

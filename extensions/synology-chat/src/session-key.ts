@@ -1,4 +1,4 @@
-import { buildAgentSessionKey } from "openclaw/plugin-sdk/routing";
+import { buildAgentSessionKey } from "@benchagi/openclaw/plugin-sdk/routing";
 
 const CHANNEL_ID = "synology-chat";
 

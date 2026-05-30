@@ -1,1 +1,1 @@
-export { rawDataToString } from "openclaw/plugin-sdk/browser-node-runtime";
+export { rawDataToString } from "@benchagi/openclaw/plugin-sdk/browser-node-runtime";

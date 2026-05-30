@@ -1,12 +1,12 @@
-import { createChannelPairingChallengeIssuer } from "openclaw/plugin-sdk/channel-pairing";
-import { loadConfig } from "openclaw/plugin-sdk/config-runtime";
-import { warnMissingProviderGroupPolicyFallbackOnce } from "openclaw/plugin-sdk/config-runtime";
-import { upsertChannelPairingRequest } from "openclaw/plugin-sdk/conversation-runtime";
-import { defaultRuntime } from "openclaw/plugin-sdk/runtime-env";
+import { createChannelPairingChallengeIssuer } from "@benchagi/openclaw/plugin-sdk/channel-pairing";
+import { loadConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { warnMissingProviderGroupPolicyFallbackOnce } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { upsertChannelPairingRequest } from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
+import { defaultRuntime } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import {
   readStoreAllowFromForDmPolicy,
   resolveDmGroupAccessWithLists,
-} from "openclaw/plugin-sdk/security-runtime";
+} from "@benchagi/openclaw/plugin-sdk/security-runtime";
 import { resolveWhatsAppInboundPolicy } from "../inbound-policy.js";
 
 export type InboundAccessControlResult = {

@@ -4,8 +4,8 @@ import type {
   SandboxFsBridge,
   SandboxFsStat,
   SandboxResolvedPath,
-} from "openclaw/plugin-sdk/sandbox";
-import { createWritableRenameTargetResolver } from "openclaw/plugin-sdk/sandbox";
+} from "@benchagi/openclaw/plugin-sdk/sandbox";
+import { createWritableRenameTargetResolver } from "@benchagi/openclaw/plugin-sdk/sandbox";
 import type { OpenShellFsBridgeContext, OpenShellSandboxBackend } from "./backend.types.js";
 import { movePathWithCopyFallback } from "./mirror.js";
 

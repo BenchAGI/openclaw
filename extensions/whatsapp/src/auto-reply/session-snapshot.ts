@@ -1,4 +1,4 @@
-import { normalizeMainKey } from "openclaw/plugin-sdk/routing";
+import { normalizeMainKey } from "@benchagi/openclaw/plugin-sdk/routing";
 import {
   evaluateSessionFreshness,
   loadSessionStore,

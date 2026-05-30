@@ -1,10 +1,10 @@
-export { loadConfig, resolveMarkdownTableMode } from "openclaw/plugin-sdk/config-runtime";
-export type { PollInput, MediaKind } from "openclaw/plugin-sdk/media-runtime";
+export { loadConfig, resolveMarkdownTableMode } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+export type { PollInput, MediaKind } from "@benchagi/openclaw/plugin-sdk/media-runtime";
 export {
   buildOutboundMediaLoadOptions,
   getImageMetadata,
   isGifMedia,
   kindFromMime,
   normalizePollInput,
-} from "openclaw/plugin-sdk/media-runtime";
-export { loadWebMedia } from "openclaw/plugin-sdk/web-media";
+} from "@benchagi/openclaw/plugin-sdk/media-runtime";
+export { loadWebMedia } from "@benchagi/openclaw/plugin-sdk/web-media";

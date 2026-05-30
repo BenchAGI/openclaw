@@ -1,1 +1,1 @@
-export * from "openclaw/plugin-sdk/speech-core";
+export * from "@benchagi/openclaw/plugin-sdk/speech-core";

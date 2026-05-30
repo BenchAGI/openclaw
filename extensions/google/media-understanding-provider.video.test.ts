@@ -1,4 +1,4 @@
-import { withFetchPreconnect } from "openclaw/plugin-sdk/testing";
+import { withFetchPreconnect } from "@benchagi/openclaw/plugin-sdk/testing";
 import { describe, expect, it } from "vitest";
 import {
   createRequestCaptureJsonFetch,

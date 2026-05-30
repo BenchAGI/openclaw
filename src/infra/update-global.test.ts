@@ -75,7 +75,7 @@ describe("update global helpers", () => {
       path.join(".bun", "install", "global", "node_modules"),
     );
     await expect(resolveGlobalPackageRoot("npm", runCommand, 1000)).resolves.toBe(
-      path.join("/tmp/npm-root", "openclaw"),
+      path.join("/tmp/npm-root", "@benchagi", "openclaw"),
     );
   });
 
@@ -169,6 +169,7 @@ describe("update global helpers", () => {
         const brewBin = path.join(brewPrefix, "bin");
         const brewRoot = path.join(brewPrefix, "lib", "node_modules");
         const pkgRoot = path.join(brewRoot, "openclaw");
+        const scopedPkgRoot = path.join(brewRoot, "@benchagi", "openclaw");
         const pathNpmRoot = path.join(base, "nvm", "lib", "node_modules");
         const brewNpm = path.join(brewBin, "npm");
         await fs.mkdir(pkgRoot, { recursive: true });
@@ -193,7 +194,7 @@ describe("update global helpers", () => {
         );
         await expect(resolveGlobalRoot("npm", runCommand, 1000, pkgRoot)).resolves.toBe(brewRoot);
         await expect(resolveGlobalPackageRoot("npm", runCommand, 1000, pkgRoot)).resolves.toBe(
-          pkgRoot,
+          scopedPkgRoot,
         );
         await expect(
           resolveGlobalInstallTarget({
@@ -206,7 +207,7 @@ describe("update global helpers", () => {
           manager: "npm",
           command: brewNpm,
           globalRoot: brewRoot,
-          packageRoot: pkgRoot,
+          packageRoot: scopedPkgRoot,
         });
         expect(globalInstallArgs("npm", "openclaw@latest", pkgRoot)).toEqual([
           brewNpm,
@@ -216,6 +217,7 @@ describe("update global helpers", () => {
           "--no-fund",
           "--no-audit",
           "--loglevel=error",
+          "--force",
         ]);
         expect(globalInstallFallbackArgs("npm", "openclaw@latest", pkgRoot)).toEqual([
           brewNpm,
@@ -226,6 +228,7 @@ describe("update global helpers", () => {
           "--no-fund",
           "--no-audit",
           "--loglevel=error",
+          "--force",
         ]);
       });
     } finally {
@@ -261,6 +264,7 @@ describe("update global helpers", () => {
         "--no-fund",
         "--no-audit",
         "--loglevel=error",
+        "--force",
       ]);
     });
   });
@@ -302,6 +306,7 @@ describe("update global helpers", () => {
           "--no-fund",
           "--no-audit",
           "--loglevel=error",
+          "--force",
         ]);
       });
     } finally {
@@ -322,6 +327,7 @@ describe("update global helpers", () => {
       "--no-fund",
       "--no-audit",
       "--loglevel=error",
+      "--force",
     ]);
     expect(globalInstallArgs("pnpm", "openclaw@latest")).toEqual([
       "pnpm",
@@ -345,6 +351,7 @@ describe("update global helpers", () => {
       "--no-fund",
       "--no-audit",
       "--loglevel=error",
+      "--force",
     ]);
     expect(globalInstallFallbackArgs("pnpm", "openclaw@latest")).toBeNull();
     expect(
@@ -376,7 +383,7 @@ describe("update global helpers", () => {
     await withTempDir({ prefix: "openclaw-update-global-pkg-" }, async (packageRoot) => {
       await fs.writeFile(
         path.join(packageRoot, "package.json"),
-        JSON.stringify({ name: "openclaw", version: "1.0.0" }),
+        JSON.stringify({ name: "@benchagi/openclaw", version: "1.0.0" }),
         "utf-8",
       );
       for (const relativePath of NPM_UPDATE_COMPAT_SIDECAR_PATHS) {
@@ -413,7 +420,7 @@ describe("update global helpers", () => {
     await withTempDir({ prefix: "openclaw-update-global-legacy-" }, async (packageRoot) => {
       await fs.writeFile(
         path.join(packageRoot, "package.json"),
-        JSON.stringify({ name: "openclaw", version: "1.0.0" }),
+        JSON.stringify({ name: "@benchagi/openclaw", version: "1.0.0" }),
         "utf-8",
       );
       for (const relativePath of NPM_UPDATE_COMPAT_SIDECAR_PATHS) {
@@ -443,7 +450,7 @@ describe("update global helpers", () => {
       async (packageRoot) => {
         await fs.writeFile(
           path.join(packageRoot, "package.json"),
-          JSON.stringify({ name: "openclaw", version: "2026.4.15" }),
+          JSON.stringify({ name: "@benchagi/openclaw", version: "2026.4.15" }),
           "utf-8",
         );
         for (const relativePath of NPM_UPDATE_COMPAT_SIDECAR_PATHS) {
@@ -465,7 +472,7 @@ describe("update global helpers", () => {
       async (packageRoot) => {
         await fs.writeFile(
           path.join(packageRoot, "package.json"),
-          JSON.stringify({ name: "openclaw", version: "2026.4.15" }),
+          JSON.stringify({ name: "@benchagi/openclaw", version: "2026.4.15" }),
           "utf-8",
         );
         await fs.mkdir(path.join(packageRoot, "dist"), { recursive: true });
@@ -486,7 +493,7 @@ describe("update global helpers", () => {
     await withTempDir({ prefix: "openclaw-update-global-legacy-plugin-" }, async (packageRoot) => {
       await fs.writeFile(
         path.join(packageRoot, "package.json"),
-        JSON.stringify({ name: "openclaw", version: "1.0.0" }),
+        JSON.stringify({ name: "@benchagi/openclaw", version: "1.0.0" }),
         "utf-8",
       );
       const matrixPackageJson = path.join(
@@ -511,7 +518,7 @@ describe("update global helpers", () => {
       async (packageRoot) => {
         await fs.writeFile(
           path.join(packageRoot, "package.json"),
-          JSON.stringify({ name: "openclaw", version: "2026.4.15" }),
+          JSON.stringify({ name: "@benchagi/openclaw", version: "2026.4.15" }),
           "utf-8",
         );
         for (const relativePath of NPM_UPDATE_COMPAT_SIDECAR_PATHS) {
@@ -547,7 +554,7 @@ describe("update global helpers", () => {
       async (packageRoot) => {
         await fs.writeFile(
           path.join(packageRoot, "package.json"),
-          JSON.stringify({ name: "openclaw", version: "2026.4.15" }),
+          JSON.stringify({ name: "@benchagi/openclaw", version: "2026.4.15" }),
           "utf-8",
         );
         for (const relativePath of NPM_UPDATE_COMPAT_SIDECAR_PATHS) {

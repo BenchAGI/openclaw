@@ -5,13 +5,13 @@ import {
   type ProviderAuthMethodNonInteractiveContext,
   type ProviderAuthResult,
   type ProviderDiscoveryContext,
-} from "openclaw/plugin-sdk/plugin-entry";
-import { buildApiKeyCredential } from "openclaw/plugin-sdk/provider-auth";
+} from "@benchagi/openclaw/plugin-sdk/plugin-entry";
+import { buildApiKeyCredential } from "@benchagi/openclaw/plugin-sdk/provider-auth";
 import {
   OPENAI_COMPATIBLE_REPLAY_HOOKS,
   type ModelProviderConfig,
-} from "openclaw/plugin-sdk/provider-model-shared";
-import { normalizeOptionalString, readStringValue } from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/provider-model-shared";
+import { normalizeOptionalString, readStringValue } from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   buildOllamaProvider,
   configureOllamaNonInteractive,

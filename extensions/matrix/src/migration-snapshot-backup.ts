@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { writeJsonFileAtomically } from "openclaw/plugin-sdk/json-store";
-import { resolveRequiredHomeDir, resolveStateDir } from "openclaw/plugin-sdk/state-paths";
+import { writeJsonFileAtomically } from "@benchagi/openclaw/plugin-sdk/json-store";
+import { resolveRequiredHomeDir, resolveStateDir } from "@benchagi/openclaw/plugin-sdk/state-paths";
 
 const MATRIX_MIGRATION_SNAPSHOT_DIRNAME = "openclaw-migrations";
 
@@ -66,12 +66,12 @@ export async function maybeCreateMatrixMigrationSnapshot(params: {
   trigger: string;
   env?: NodeJS.ProcessEnv;
   outputDir?: string;
-  createBackupArchive?: typeof import("openclaw/plugin-sdk/runtime").createBackupArchive;
+  createBackupArchive?: typeof import("@benchagi/openclaw/plugin-sdk/runtime").createBackupArchive;
   log?: { info?: (message: string) => void; warn?: (message: string) => void };
 }): Promise<MatrixMigrationSnapshotResult> {
   const env = params.env ?? process.env;
   const createBackupArchive =
-    params.createBackupArchive ?? (await import("openclaw/plugin-sdk/runtime")).createBackupArchive;
+    params.createBackupArchive ?? (await import("@benchagi/openclaw/plugin-sdk/runtime")).createBackupArchive;
   const markerPath = resolveMatrixMigrationSnapshotMarkerPath(env);
   const existingMarker = loadSnapshotMarker(markerPath);
   if (existingMarker?.archivePath && fs.existsSync(existingMarker.archivePath)) {

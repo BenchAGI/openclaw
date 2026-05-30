@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserDispatchResponse } from "./routes/dispatcher.js";
 
-vi.mock("openclaw/plugin-sdk/browser-security-runtime", async () => {
+vi.mock("@benchagi/openclaw/plugin-sdk/browser-security-runtime", async () => {
   const actual = await vi.importActual<
-    typeof import("openclaw/plugin-sdk/browser-security-runtime")
-  >("openclaw/plugin-sdk/browser-security-runtime");
+    typeof import("@benchagi/openclaw/plugin-sdk/browser-security-runtime")
+  >("@benchagi/openclaw/plugin-sdk/browser-security-runtime");
   const lookupFn = async (_hostname: string, options?: { all?: boolean }) => {
     const result = { address: "93.184.216.34", family: 4 };
     return options?.all === true ? [result] : result;
@@ -16,9 +16,9 @@ vi.mock("openclaw/plugin-sdk/browser-security-runtime", async () => {
   };
 });
 
-vi.mock("openclaw/plugin-sdk/ssrf-runtime", async () => {
-  const actual = await vi.importActual<typeof import("openclaw/plugin-sdk/ssrf-runtime")>(
-    "openclaw/plugin-sdk/ssrf-runtime",
+vi.mock("@benchagi/openclaw/plugin-sdk/ssrf-runtime", async () => {
+  const actual = await vi.importActual<typeof import("@benchagi/openclaw/plugin-sdk/ssrf-runtime")>(
+    "@benchagi/openclaw/plugin-sdk/ssrf-runtime",
   );
   return {
     ...actual,

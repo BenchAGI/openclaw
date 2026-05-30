@@ -2606,8 +2606,8 @@ function verifyInstalledCandidate(installed, build) {
 
 function installedPackageRoot(prefixDir) {
   return process.platform === "win32"
-    ? join(prefixDir, "node_modules", "openclaw")
-    : join(prefixDir, "lib", "node_modules", "openclaw");
+    ? join(prefixDir, "node_modules", "@benchagi", "openclaw")
+    : join(prefixDir, "lib", "node_modules", "@benchagi", "openclaw");
 }
 
 function installedEntryPath(prefixDir) {

@@ -1,15 +1,15 @@
-import { mergeAllowlist, summarizeMapping } from "openclaw/plugin-sdk/allow-from";
+import { mergeAllowlist, summarizeMapping } from "@benchagi/openclaw/plugin-sdk/allow-from";
 import {
   implicitMentionKindWhen,
   resolveInboundMentionDecision,
-} from "openclaw/plugin-sdk/channel-inbound";
-import { createChannelPairingController } from "openclaw/plugin-sdk/channel-pairing";
+} from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+import { createChannelPairingController } from "@benchagi/openclaw/plugin-sdk/channel-pairing";
 import {
   DM_GROUP_ACCESS_REASON,
   resolveDmGroupAccessWithLists,
-} from "openclaw/plugin-sdk/channel-policy";
-import { createChannelReplyPipeline } from "openclaw/plugin-sdk/channel-reply-pipeline";
-import { resolveSenderCommandAuthorization } from "openclaw/plugin-sdk/command-auth";
+} from "@benchagi/openclaw/plugin-sdk/channel-policy";
+import { createChannelReplyPipeline } from "@benchagi/openclaw/plugin-sdk/channel-reply-pipeline";
+import { resolveSenderCommandAuthorization } from "@benchagi/openclaw/plugin-sdk/command-auth";
 import {
   isDangerousNameMatchingEnabled,
   resolveDefaultGroupPolicy,
@@ -17,30 +17,30 @@ import {
   type MarkdownTableMode,
   type OpenClawConfig,
   warnMissingProviderGroupPolicyFallbackOnce,
-} from "openclaw/plugin-sdk/config-runtime";
-import { KeyedAsyncQueue } from "openclaw/plugin-sdk/core";
-import { createDeferred } from "openclaw/plugin-sdk/extension-shared";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { KeyedAsyncQueue } from "@benchagi/openclaw/plugin-sdk/core";
+import { createDeferred } from "@benchagi/openclaw/plugin-sdk/extension-shared";
 import {
   evaluateGroupRouteAccessForPolicy,
   resolveSenderScopedGroupPolicy,
-} from "openclaw/plugin-sdk/group-access";
+} from "@benchagi/openclaw/plugin-sdk/group-access";
 import {
   DEFAULT_GROUP_HISTORY_LIMIT,
   type HistoryEntry,
   buildPendingHistoryContextFromMap,
   clearHistoryEntriesIfEnabled,
   recordPendingHistoryEntryIfEnabled,
-} from "openclaw/plugin-sdk/reply-history";
+} from "@benchagi/openclaw/plugin-sdk/reply-history";
 import {
   deliverTextOrMediaReply,
   resolveSendableOutboundReplyParts,
   type OutboundReplyPayload,
-} from "openclaw/plugin-sdk/reply-payload";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime";
+} from "@benchagi/openclaw/plugin-sdk/reply-payload";
+import type { RuntimeEnv } from "@benchagi/openclaw/plugin-sdk/runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalLowercaseString,
-} from "openclaw/plugin-sdk/text-runtime";
+} from "@benchagi/openclaw/plugin-sdk/text-runtime";
 import {
   buildZalouserGroupCandidates,
   findZalouserGroupEntry,

@@ -1,31 +1,31 @@
 import type { Message, ReactionTypeEmoji } from "@grammyjs/types";
-import { resolveChannelConfigWrites } from "openclaw/plugin-sdk/channel-config-helpers";
-import { shouldDebounceTextInbound } from "openclaw/plugin-sdk/channel-inbound";
+import { resolveChannelConfigWrites } from "@benchagi/openclaw/plugin-sdk/channel-config-helpers";
+import { shouldDebounceTextInbound } from "@benchagi/openclaw/plugin-sdk/channel-inbound";
 import {
   createInboundDebouncer,
   resolveInboundDebounceMs,
-} from "openclaw/plugin-sdk/channel-inbound";
-import { resolveStoredModelOverride } from "openclaw/plugin-sdk/command-auth";
-import { buildCommandsMessagePaginated } from "openclaw/plugin-sdk/command-status";
-import { writeConfigFile } from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/channel-inbound";
+import { resolveStoredModelOverride } from "@benchagi/openclaw/plugin-sdk/command-auth";
+import { buildCommandsMessagePaginated } from "@benchagi/openclaw/plugin-sdk/command-status";
+import { writeConfigFile } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   loadSessionStore,
   resolveSessionStoreEntry,
   updateSessionStore,
-} from "openclaw/plugin-sdk/config-runtime";
-import type { DmPolicy } from "openclaw/plugin-sdk/config-runtime";
-import type { TelegramGroupConfig, TelegramTopicConfig } from "openclaw/plugin-sdk/config-runtime";
-import { applyModelOverrideToSessionEntry } from "openclaw/plugin-sdk/config-runtime";
+} from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { DmPolicy } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import type { TelegramGroupConfig, TelegramTopicConfig } from "@benchagi/openclaw/plugin-sdk/config-runtime";
+import { applyModelOverrideToSessionEntry } from "@benchagi/openclaw/plugin-sdk/config-runtime";
 import {
   buildPluginBindingResolvedText,
   parsePluginBindingApprovalCustomId,
   resolvePluginConversationBindingApproval,
-} from "openclaw/plugin-sdk/conversation-runtime";
-import { parseExecApprovalCommandText } from "openclaw/plugin-sdk/infra-runtime";
-import { formatModelsAvailableHeader } from "openclaw/plugin-sdk/models-provider-runtime";
-import { resolveAgentRoute } from "openclaw/plugin-sdk/routing";
-import { resolveThreadSessionKeys } from "openclaw/plugin-sdk/routing";
-import { danger, logVerbose, warn } from "openclaw/plugin-sdk/runtime-env";
+} from "@benchagi/openclaw/plugin-sdk/conversation-runtime";
+import { parseExecApprovalCommandText } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
+import { formatModelsAvailableHeader } from "@benchagi/openclaw/plugin-sdk/models-provider-runtime";
+import { resolveAgentRoute } from "@benchagi/openclaw/plugin-sdk/routing";
+import { resolveThreadSessionKeys } from "@benchagi/openclaw/plugin-sdk/routing";
+import { danger, logVerbose, warn } from "@benchagi/openclaw/plugin-sdk/runtime-env";
 import { resolveTelegramMediaRuntimeOptions } from "./accounts.js";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
 import {

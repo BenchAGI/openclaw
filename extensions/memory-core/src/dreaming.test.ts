@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { enqueueSystemEvent, resetSystemEventsForTest } from "openclaw/plugin-sdk/infra-runtime";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/memory-core";
+import { enqueueSystemEvent, resetSystemEventsForTest } from "@benchagi/openclaw/plugin-sdk/infra-runtime";
+import type { OpenClawConfig } from "@benchagi/openclaw/plugin-sdk/memory-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearInternalHooks,

@@ -1,5 +1,5 @@
-import * as providerAuth from "openclaw/plugin-sdk/provider-auth-runtime";
-import { installPinnedHostnameTestHooks } from "openclaw/plugin-sdk/testing";
+import * as providerAuth from "@benchagi/openclaw/plugin-sdk/provider-auth-runtime";
+import { installPinnedHostnameTestHooks } from "@benchagi/openclaw/plugin-sdk/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildVydraImageGenerationProvider } from "./image-generation-provider.js";
 
