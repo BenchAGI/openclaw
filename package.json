@@ -1,9 +1,6 @@
 {
   "name": "@benchagi/openclaw",
   "version": "2026.5.28",
-  "publishConfig": {
-    "access": "restricted"
-  },
   "description": "Multi-channel AI gateway with extensible messaging integrations",
   "keywords": [],
   "homepage": "https://github.com/openclaw/openclaw#readme",
@@ -1211,6 +1208,9 @@
     "./extension-api": "./dist/extensionAPI.js",
     "./cli-entry": "./openclaw.mjs"
   },
+  "publishConfig": {
+    "access": "restricted"
+  },
   "scripts": {
     "android:assemble": "cd apps/android && ./gradlew :app:assemblePlayDebug",
     "android:assemble:third-party": "cd apps/android && ./gradlew :app:assembleThirdPartyDebug",
@@ -1590,7 +1590,7 @@
     "music-metadata": "^11.12.3"
   },
   "overrides": {
-    "axios": "1.15.2",
+    "axios": "1.16.0",
     "follow-redirects": "1.16.0"
   },
   "engines": {
@@ -1602,7 +1602,7 @@
       "@anthropic-ai/sdk": "0.91.1",
       "hono": "4.12.18",
       "@hono/node-server": "1.19.14",
-      "axios": "1.15.2",
+      "axios": "1.16.0",
       "follow-redirects": "1.16.0",
       "defu": "6.1.5",
       "fast-xml-parser": "5.5.7",
