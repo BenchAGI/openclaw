@@ -943,7 +943,7 @@ function buildServer() {
     "openclaw_lcm_grep",
     {
       description:
-        "Full-text search the LCM transcript store via FTS5. Returns matching message excerpts with conversation_id, seq, role, source session_id, and per-row excerpt. Reads ~/.openclaw/lcm.db directly (no gateway round-trip). Quote phrases with double-quotes for exact-phrase matching; supports AND/OR/NOT; # and - are special, quote them.",
+        "Full-text search the LCM transcript store via FTS5. Returns matching message excerpts with conversation_id, seq, role, source session_id, and per-row excerpt. Reads the resolved lcm.db directly (LCM_DATABASE_PATH, OPENCLAW_STATE_DIR/lcm.db, then ~/.openclaw/lcm.db; no gateway round-trip). Quote phrases with double-quotes for exact-phrase matching; supports AND/OR/NOT; # and - are special, quote them.",
       inputSchema: {
         pattern: z
           .string()
@@ -975,7 +975,7 @@ function buildServer() {
     "openclaw_lcm_describe",
     {
       description:
-        "Describe an LCM conversation by sessionId. Returns the conversation row + message_count + first/last seq + total tokens + recent message tail. Reads ~/.openclaw/lcm.db directly.",
+        "Describe an LCM conversation by sessionId. Returns the conversation row + message_count + first/last seq + total tokens + recent message tail. Reads the resolved lcm.db directly (LCM_DATABASE_PATH, OPENCLAW_STATE_DIR/lcm.db, then ~/.openclaw/lcm.db).",
       inputSchema: {
         sessionId: z
           .string()
