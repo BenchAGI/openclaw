@@ -365,10 +365,43 @@ describe("projectSkillProposal", () => {
       targetHash: "abc",
       proposalMarkdown: "# PROPOSAL body",
       createdByActor: "cole",
-      supportFiles: [{ path: "templates/w.md", bytes: 12, hash: "deadbeef" }],
+      supportFiles: [{ path: "templates/w.md", folder: "templates", bytes: 12, hash: "deadbeef" }],
     });
     // The support-file content must never appear — only metadata.
     expect(JSON.stringify(projected)).not.toContain("body of template");
+  });
+
+  it("maps workshop scanner states into the cloud scanner enum", () => {
+    expect(
+      projectSkillProposal(
+        proposalRecord({
+          scan: {
+            state: "clean",
+            scannedAt: "2026-06-04T00:00:00.000Z",
+            critical: 0,
+            warn: 1,
+            info: 0,
+            findings: [{ ruleId: "WARN", severity: "warn", message: "review this" }],
+          },
+        }),
+        "# PROPOSAL",
+      ).scanner.status,
+    ).toBe("flagged");
+    expect(
+      projectSkillProposal(
+        proposalRecord({
+          scan: {
+            state: "quarantined",
+            scannedAt: "2026-06-04T00:00:00.000Z",
+            critical: 1,
+            warn: 0,
+            info: 0,
+            findings: [{ ruleId: "CRIT", severity: "critical", message: "unsafe" }],
+          },
+        }),
+        "# PROPOSAL",
+      ).scanner.status,
+    ).toBe("failed");
   });
 });
 
@@ -474,6 +507,7 @@ describe("runProposalMirrorTick", () => {
       mirrorPendingUp: true,
     });
     expect(posted).toContain("scripts/run.sh");
+    expect(posted).toContain("\"folder\":\"scripts\"");
     expect(posted).toContain("h99");
     expect(posted).not.toContain("SECRET_SCRIPT_CONTENT");
   });

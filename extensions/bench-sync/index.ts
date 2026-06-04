@@ -14,7 +14,7 @@ import {
   quarantineSkillProposal,
   rejectSkillProposal,
 } from "openclaw/plugin-sdk/skill-workshop-runtime";
-import { WorkboardStore } from "../workboard/src/store.js";
+import { WorkboardStore } from "@openclaw/workboard/runtime-api.js";
 import { definePluginEntry } from "./api.js";
 import { resolveBenchSyncRuntimeConfig } from "./src/config.js";
 import {

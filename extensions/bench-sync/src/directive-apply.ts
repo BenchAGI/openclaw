@@ -266,14 +266,33 @@ export type ProjectedSkillProposal = {
   targetSkillRef: string | null;
   targetHash: string | null;
   proposalMarkdown: string;
-  supportFiles: Array<{ path: string; bytes: number; hash: string }>;
+  supportFiles: Array<{
+    path: string;
+    folder: SkillProposalSupportFolder;
+    bytes: number;
+    hash: string;
+  }>;
   scanner: {
-    status: string;
+    status: "clean" | "flagged" | "failed";
     findings: Array<{ ruleId: string; severity: string; message: string }>;
   };
   createdByActor: string | null;
   gatewayUpdatedAt: number;
 };
+
+const SKILL_PROPOSAL_SUPPORT_FOLDERS = [
+  "assets",
+  "examples",
+  "references",
+  "scripts",
+  "templates",
+] as const;
+
+type SkillProposalSupportFolder = (typeof SKILL_PROPOSAL_SUPPORT_FOLDERS)[number];
+
+function isSkillProposalSupportFolder(value: string): value is SkillProposalSupportFolder {
+  return (SKILL_PROPOSAL_SUPPORT_FOLDERS as readonly string[]).includes(value);
+}
 
 function boundBytes(value: string, maxBytes: number): string {
   if (Buffer.byteLength(value, "utf8") <= maxBytes) {
@@ -284,8 +303,14 @@ function boundBytes(value: string, maxBytes: number): string {
 }
 
 function projectScanner(scan: SkillProposalScan): ProjectedSkillProposal["scanner"] {
+  const status =
+    scan.state === "failed" || (scan.state === "quarantined" && scan.critical > 0)
+      ? "failed"
+      : scan.state === "pending" || scan.state === "quarantined" || scan.findings.length > 0
+        ? "flagged"
+        : "clean";
   return {
-    status: scan.state,
+    status,
     // Findings carry rule + severity + message only — no file paths/evidence,
     // which could leak workspace structure.
     findings: scan.findings.map((finding) => ({
@@ -303,7 +328,13 @@ function projectSupportFiles(
     return [];
   }
   // METADATA ONLY — path/size/hash. File bytes NEVER cross the wire.
-  return files.map((file) => ({ path: file.path, bytes: file.sizeBytes, hash: file.hash }));
+  return files.flatMap((file) => {
+    const folder = file.path.split("/", 1)[0] ?? "";
+    if (!isSkillProposalSupportFolder(folder)) {
+      return [];
+    }
+    return [{ path: file.path, folder, bytes: file.sizeBytes, hash: file.hash }];
+  });
 }
 
 /** Project a workshop record (+ PROPOSAL.md) into the cloud mirror payload. */

@@ -3497,7 +3497,7 @@ export const chatHandlers: GatewayRequestHandlers = {
                 errorMessage,
               });
             })
-            .catch((err) => {
+            .catch((err: unknown) => {
               if (remoteAbortSignal.aborted) {
                 return;
               }

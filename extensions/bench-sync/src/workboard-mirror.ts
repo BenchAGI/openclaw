@@ -17,7 +17,11 @@
 // every interval.
 
 import { createHash } from "node:crypto";
-import type { WorkboardCard, WorkboardComment, WorkboardLink } from "../../workboard/src/types.js";
+import type {
+  WorkboardCard,
+  WorkboardComment,
+  WorkboardLink,
+} from "@openclaw/workboard/runtime-api.js";
 import type { BenchSyncClient } from "./client.js";
 import { BenchSyncClientError } from "./client.js";
 import {
