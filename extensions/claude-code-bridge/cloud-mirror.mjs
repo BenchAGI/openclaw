@@ -398,8 +398,9 @@ function startWatcher() {
     hasKey: Boolean(INGEST_KEY),
   });
   startWatcher();
-  // oxlint-disable-next-line typescript/use-unknown-in-catch-callback-variable -- plain-JS startup guard; message access is best-effort.
-})().catch(async (err) => {
-  await log("error", "fatal startup error", { error: err.message ?? String(err) });
+})().catch(async (/** @type {unknown} */ err) => {
+  await log("error", "fatal startup error", {
+    error: err instanceof Error ? err.message : String(err),
+  });
   process.exit(1);
 });
