@@ -9,7 +9,7 @@ import type {
   PluginStateKeyedStore,
 } from "openclaw/plugin-sdk/plugin-state-runtime";
 import { createTestPluginApi } from "openclaw/plugin-sdk/plugin-test-api";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawPluginApi } from "./api.js";
 import benchSyncPlugin from "./index.js";
 import { CURSOR_STATE_MAX_ENTRIES, CURSOR_STATE_NAMESPACE } from "./src/cursor.js";
@@ -43,6 +43,8 @@ function activeConfig(): OpenClawConfig {
     gateway: {
       benchCloud: {
         enabled: true,
+        instanceId: "jBA5cCK6fyMCzIk3SoWF",
+        apiKeyRef: { source: "env", provider: "default", id: "BENCH_INSTANCE_API_KEY" },
         workboardSync: { enabled: true, pollIntervalMs: 15_000 },
       },
     },
@@ -88,6 +90,10 @@ function registerPlugin(openKeyedStore: OpenClawPluginApi["runtime"]["state"]["o
 }
 
 describe("bench-sync plugin service", () => {
+  afterEach(() => {
+    delete process.env.BENCH_INSTANCE_API_KEY;
+  });
+
   it("does not open cursor state when the sync loop is inactive", () => {
     const logger = makeLogger();
     const openKeyedStore = vi.fn(<T>(_options: OpenKeyedStoreOptions) => createStore<T>());
@@ -99,14 +105,15 @@ describe("bench-sync plugin service", () => {
     expect(logger.debugLines.some((line) => line.includes("inactive"))).toBe(true);
   });
 
-  it("opens the SQLite plugin-state cursor namespace before starting the active loop", () => {
+  it("opens the SQLite plugin-state cursor namespace before starting the active loop", async () => {
+    process.env.BENCH_INSTANCE_API_KEY = "bench_test_secret";
     const logger = makeLogger();
     const openKeyedStore = vi.fn(<T>(_options: OpenKeyedStoreOptions) => createStore<T>());
     const service = registerPlugin(openKeyedStore);
     const ctx = makeServiceContext(activeConfig(), logger);
 
-    service.start(ctx);
-    service.stop?.(ctx);
+    await service.start(ctx);
+    await service.stop?.(ctx);
 
     expect(openKeyedStore).toHaveBeenCalledWith({
       namespace: CURSOR_STATE_NAMESPACE,

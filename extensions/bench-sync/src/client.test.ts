@@ -140,7 +140,7 @@ describe("BenchSyncClient request construction", () => {
     const { url, init } = callAt(fetchMock, 0);
     expect(url).toBe(`${BASE}/api/v1/instances/${INSTANCE}/sync/directives/dir-9/ack`);
     expect(init?.method).toBe("POST");
-    expect(JSON.parse(String(init?.body))).toEqual({
+    expect(JSON.parse(init?.body as string)).toEqual({
       status: "applied",
       result: { proposalId: "proposal-1" },
     });
@@ -150,7 +150,7 @@ describe("BenchSyncClient request construction", () => {
     const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }));
     const client = makeClient(fetchMock);
 
-    await client.ackDirective("a/b c", { status: "skipped", reason: "already applied" });
+    await client.ackDirective("a/b c", { status: "skipped", reason: "unsupported" });
 
     const { url } = callAt(fetchMock, 0);
     expect(url).toBe(`${BASE}/api/v1/instances/${INSTANCE}/sync/directives/a%2Fb%20c/ack`);
