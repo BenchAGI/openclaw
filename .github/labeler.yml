@@ -289,6 +289,11 @@
   - changed-files:
       - any-glob-to-any-file:
           - "extensions/memory-lancedb/**"
+"extensions: session-digest":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/session-digest/**"
+          - "docs/plugins/session-digest.md"
 "extensions: memory-wiki":
   - changed-files:
       - any-glob-to-any-file:

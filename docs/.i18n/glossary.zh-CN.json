@@ -500,6 +500,10 @@
     "target": "Memory Wiki"
   },
   {
+    "source": "Memory wiki",
+    "target": "Memory Wiki"
+  },
+  {
     "source": "Memory overview",
     "target": "记忆概览"
   },
@@ -750,6 +754,10 @@
   {
     "source": "Plugin hooks",
     "target": "插件钩子"
+  },
+  {
+    "source": "Hooks",
+    "target": "钩子"
   },
   {
     "source": "Internal hooks",
@@ -1086,5 +1094,9 @@
   {
     "source": "Z.AI (GLM)",
     "target": "Z.AI (GLM)"
+  },
+  {
+    "source": "Session Digest plugin",
+    "target": "Session Digest 插件"
   }
 ]

@@ -1,0 +1,23 @@
+{
+  "id": "session-digest",
+  "name": "Session Digest",
+  "description": "Emit a structured SessionDigest JSON line into the agent workspace when a gateway session ends, feeding workspace-local memory reconciliation.",
+  "activation": {
+    "onStartup": false,
+    "onCapabilities": ["hook"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "digestDir": {
+        "type": "string",
+        "description": "Directory for digest output, relative to the agent workspace (default: state/session-digests)."
+      },
+      "captureIntent": {
+        "type": "boolean",
+        "description": "Read the head of the session transcript to extract the first user message as the digest intent (default: true)."
+      }
+    }
+  }
+}
