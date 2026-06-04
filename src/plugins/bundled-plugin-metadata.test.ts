@@ -32,6 +32,7 @@ const BUNDLED_PLUGIN_METADATA_TEST_TIMEOUT_MS = 300_000;
 const EXPECTED_BUNDLED_STARTUP_PLUGIN_IDS = [
   "acpx",
   "active-memory",
+  "bench-sync",
   "bonjour",
   "browser",
   "canvas",

@@ -451,6 +451,22 @@ export type GatewayWebchatConfig = {
   chatHistoryMaxChars?: number;
 };
 
+/** Bench cloud Workboard up-mirror settings consumed by the bench-sync plugin. */
+export type GatewayBenchCloudWorkboardSyncConfig = {
+  /** Enable mirroring local Workboard cards up to the Bench cloud. Default: false. */
+  enabled?: boolean;
+  /** Poll interval for the bench-sync background loop in milliseconds. Default: 15000. */
+  pollIntervalMs?: number;
+};
+
+/** Bench cloud skill-proposal sync settings consumed by the bench-sync plugin. */
+export type GatewayBenchCloudSkillSyncConfig = {
+  /** Enable skill-proposal directive pull/apply via the bench-sync plugin. Default: false. */
+  enabled?: boolean;
+  /** Mirror pending (undecided) skill proposals up to the Bench cloud. Default: false. */
+  mirrorPendingUp?: boolean;
+};
+
 export type GatewayBenchCloudConfig = {
   /** Enable routing eligible chat.send turns through the Bench cloud bridge. Default: false. */
   enabled?: boolean;
@@ -466,6 +482,15 @@ export type GatewayBenchCloudConfig = {
   pollIntervalMs?: number;
   /** Poll timeout for remote-brain turn status checks in milliseconds. Default: 300000. */
   pollTimeoutMs?: number;
+  /**
+   * SecretRef for the Bench instance API key used by the bench-sync plugin's
+   * X-API-Key auth. Never stored as plaintext in config.
+   */
+  apiKeyRef?: SecretInput;
+  /** Workboard card up-mirror settings for the bench-sync plugin. */
+  workboardSync?: GatewayBenchCloudWorkboardSyncConfig;
+  /** Skill-proposal sync settings for the bench-sync plugin. */
+  skillSync?: GatewayBenchCloudSkillSyncConfig;
 };
 
 export type GatewayConfig = {
