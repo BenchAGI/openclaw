@@ -162,6 +162,112 @@ describe("session-digest plugin", () => {
     expect(JSON.parse(stream.trim()).intent).toBe("");
   });
 
+  test("captures intent from input_text transcript blocks", async () => {
+    const { workspace, handler } = await setupPlugin();
+    const sessionFile = await writeTranscript([
+      {
+        type: "message",
+        id: "m1",
+        timestamp: "2026-06-04T01:00:01.000Z",
+        message: {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: "data:image/png;base64,abc" } },
+            { type: "input_text", text: "Inspect the OpenResponses" },
+            { type: "input_text", text: "transcript path" },
+          ],
+        },
+      },
+    ]);
+
+    await handler(
+      { sessionId: "input-text", messageCount: 1, reason: "idle", sessionFile },
+      { agentId: "aurelius", sessionId: "input-text" },
+    );
+
+    const stream = await readFile(
+      path.join(workspace, "state", "session-digests", "session-digests.jsonl"),
+      "utf8",
+    );
+    expect(JSON.parse(stream.trim()).intent).toBe("Inspect the OpenResponses transcript path");
+  });
+
+  test("strips inbound metadata envelopes from captured intent", async () => {
+    const { workspace, handler } = await setupPlugin();
+    const sessionFile = await writeTranscript([
+      {
+        type: "message",
+        id: "m1",
+        timestamp: "2026-06-04T01:00:01.000Z",
+        message: {
+          role: "user",
+          content: [
+            { type: "text", text: "Conversation info (untrusted metadata):" },
+            { type: "text", text: '```json\n{"channel":"telegram","message_id":"msg-abc"}\n```' },
+            { type: "text", text: "Sender (untrusted metadata):" },
+            { type: "text", text: '```json\n{"id":"user-1","name":"Ada"}\n```' },
+            {
+              type: "text",
+              text: "Reply chain of current user message (untrusted, nearest first):",
+            },
+            { type: "text", text: '```json\n[{"body":"quoted private context"}]\n```' },
+            { type: "text", text: "Location (untrusted metadata):" },
+            { type: "text", text: '```json\n{"latitude":37.77,"longitude":-122.42}\n```' },
+            { type: "text", text: "WhatsApp contact (untrusted metadata):" },
+            { type: "text", text: '```json\n{"phone":"+15551234567"}\n```' },
+            { type: "text", text: "Summarize the roof inspection notes" },
+          ],
+        },
+      },
+    ]);
+
+    await handler(
+      { sessionId: "metadata", messageCount: 1, reason: "idle", sessionFile },
+      { agentId: "aurelius", sessionId: "metadata" },
+    );
+
+    const stream = await readFile(
+      path.join(workspace, "state", "session-digests", "session-digests.jsonl"),
+      "utf8",
+    );
+    const intent = JSON.parse(stream.trim()).intent;
+    expect(intent).toBe("Summarize the roof inspection notes");
+    expect(intent).not.toContain("msg-abc");
+    expect(intent).not.toContain("user-1");
+    expect(intent).not.toContain("private context");
+    expect(intent).not.toContain("+15551234567");
+  });
+
+  test("captures timestamped user text after inbound metadata envelopes", async () => {
+    const { workspace, handler } = await setupPlugin();
+    const sessionFile = await writeTranscript([
+      {
+        type: "message",
+        id: "m1",
+        timestamp: "2026-06-04T01:00:01.000Z",
+        message: {
+          role: "user",
+          content: [
+            { type: "input_text", text: "Sender (untrusted metadata):" },
+            { type: "input_text", text: '```json\n{"label":"openclaw-control-ui"}\n```' },
+            { type: "input_text", text: "[Thu 2026-03-26 16:29 GMT] Check the gutters" },
+          ],
+        },
+      },
+    ]);
+
+    await handler(
+      { sessionId: "metadata-timestamp", messageCount: 1, reason: "idle", sessionFile },
+      { agentId: "aurelius", sessionId: "metadata-timestamp" },
+    );
+
+    const stream = await readFile(
+      path.join(workspace, "state", "session-digests", "session-digests.jsonl"),
+      "utf8",
+    );
+    expect(JSON.parse(stream.trim()).intent).toBe("Check the gutters");
+  });
+
   test("emits a stub digest when the transcript is missing", async () => {
     const { workspace, handler } = await setupPlugin();
     await handler(

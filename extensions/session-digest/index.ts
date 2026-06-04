@@ -42,6 +42,19 @@ const WINDOWS_ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\\\\)/u;
 
 const META_PROMPT_PATTERN =
   /^(<command-name>|<command-message>|<local-command|<system-reminder>|Caveat:|\[Request interrupted|Continue this conversation|Read HEARTBEAT\.md|\[[A-Z][a-z]{2} \d{4}-\d{2}-\d{2})/;
+const TEXT_CONTENT_BLOCK_TYPES = new Set(["text", "input_text", "output_text", "user_text"]);
+const LEADING_TIMESTAMP_PREFIX_RE = /^\[[A-Za-z]{3} \d{4}-\d{2}-\d{2} \d{2}:\d{2}[^\]]*\] */;
+const INBOUND_METADATA_SENTINELS = new Set([
+  "Conversation info (untrusted metadata):",
+  "Sender (untrusted metadata):",
+  "Thread starter (untrusted, for context):",
+  "Reply chain of current user message (untrusted, nearest first):",
+  "Reply target of current user message (untrusted, for context):",
+  "Forwarded message context (untrusted metadata):",
+  "Location (untrusted metadata):",
+  "Chat history since last reply (untrusted, for context):",
+]);
+const DYNAMIC_UNTRUSTED_METADATA_SENTINEL_RE = /^.{1,120} \(untrusted metadata\):$/u;
 
 type SessionDigestConfig = {
   digestDir: string;
@@ -202,19 +215,7 @@ async function extractIntent(sessionFile?: string): Promise<string> {
       if (!message || message.role !== "user") {
         continue;
       }
-      const textBlock =
-        typeof message.content === "string"
-          ? message.content
-          : Array.isArray(message.content)
-            ? ((
-                message.content.find(
-                  (block) =>
-                    typeof block === "object" &&
-                    block !== null &&
-                    (block as { type?: string }).type === "text",
-                ) as { text?: string } | undefined
-              )?.text ?? "")
-            : "";
+      const textBlock = stripInboundMetadataBlocks(extractTextContent(message.content));
       const cleaned = textBlock.replace(/\s+/g, " ").trim();
       if (!cleaned || META_PROMPT_PATTERN.test(cleaned)) {
         continue;
@@ -225,6 +226,64 @@ async function extractIntent(sessionFile?: string): Promise<string> {
   } finally {
     await handle.close();
   }
+}
+
+function stripInboundMetadataBlocks(text: string): string {
+  if (!text) {
+    return text;
+  }
+  const lines = text.replace(LEADING_TIMESTAMP_PREFIX_RE, "").split(/\r?\n/u);
+  const result: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (!isInboundMetadataSentinel(line)) {
+      result.push(line);
+      continue;
+    }
+
+    // Mirrors the OpenClaw inbound metadata contract: sentinel line, fenced JSON,
+    // then user-visible text. Dynamic labels cover structured context entries.
+    if (lines[index + 1]?.trim() !== "```json") {
+      result.push(line);
+      continue;
+    }
+    index += 2;
+    while (index < lines.length && lines[index]?.trim() !== "```") {
+      index += 1;
+    }
+    while (index + 1 < lines.length && lines[index + 1]?.trim() === "") {
+      index += 1;
+    }
+  }
+  return result.join("\n").trim().replace(LEADING_TIMESTAMP_PREFIX_RE, "").trim();
+}
+
+function isInboundMetadataSentinel(line: string): boolean {
+  const trimmed = line.trim();
+  return (
+    INBOUND_METADATA_SENTINELS.has(trimmed) || DYNAMIC_UNTRUSTED_METADATA_SENTINEL_RE.test(trimmed)
+  );
+}
+
+function extractTextContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return "";
+  }
+  return content
+    .map((block) => {
+      if (!block || typeof block !== "object") {
+        return "";
+      }
+      const typedBlock = block as { text?: unknown; type?: unknown };
+      const type = typeof typedBlock.type === "string" ? typedBlock.type.toLowerCase() : "text";
+      return TEXT_CONTENT_BLOCK_TYPES.has(type) && typeof typedBlock.text === "string"
+        ? typedBlock.text
+        : "";
+    })
+    .join("\n");
 }
 
 function newDigestId(): string {
