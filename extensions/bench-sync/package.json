@@ -1,0 +1,24 @@
+{
+  "name": "@openclaw/bench-sync",
+  "version": "2026.6.1",
+  "private": true,
+  "description": "OpenClaw Bench cloud sync plugin (Workboard + skill-proposal mirror)",
+  "type": "module",
+  "devDependencies": {
+    "@openclaw/plugin-sdk": "workspace:*",
+    "openclaw": "2026.5.28"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.6.1"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

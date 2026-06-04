@@ -70,6 +70,22 @@ const GatewayRemoteSchemaShape = {
 
 const GatewayRemoteConfigSchema = z.object(GatewayRemoteSchemaShape).strict().optional();
 
+const GatewayBenchCloudWorkboardSyncSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    pollIntervalMs: z.number().int().positive().optional(),
+  })
+  .strict()
+  .optional();
+
+const GatewayBenchCloudSkillSyncSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    mirrorPendingUp: z.boolean().optional(),
+  })
+  .strict()
+  .optional();
+
 const GatewayBenchCloudSchemaShape = {
   enabled: z.boolean().optional(),
   apiBaseUrl: z.string().min(1).optional(),
@@ -86,6 +102,9 @@ const GatewayBenchCloudSchemaShape = {
   agentIdAliases: z.record(z.string().min(1), z.string().min(1)).optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional(),
+  apiKeyRef: SecretInputSchema.optional().register(sensitive),
+  workboardSync: GatewayBenchCloudWorkboardSyncSchema,
+  skillSync: GatewayBenchCloudSkillSyncSchema,
 } satisfies ConfigSchemaShape<GatewayBenchCloudConfig>;
 
 const GatewayBenchCloudConfigSchema = z.object(GatewayBenchCloudSchemaShape).strict().optional();

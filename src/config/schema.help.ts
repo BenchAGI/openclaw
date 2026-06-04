@@ -115,6 +115,20 @@ export const FIELD_HELP: Record<string, string> = {
     "Interval in milliseconds between Bench cloud remote-brain status checks. Keep conservative to avoid unnecessary cloud/API load.",
   "gateway.benchCloud.pollTimeoutMs":
     "Maximum time in milliseconds to wait for a Bench cloud remote-brain turn before surfacing an unavailable error.",
+  "gateway.benchCloud.apiKeyRef":
+    "SecretRef for the Bench instance API key used by the bench-sync plugin for X-API-Key auth on cloud sync calls. Store it as an env/file/exec SecretRef; never put the plaintext key in config. Leave unset to keep bench-sync inactive.",
+  "gateway.benchCloud.workboardSync":
+    "Workboard card up-mirror settings for the bench-sync plugin. Keep disabled unless this instance should publish its local Workboard cards to the Bench cloud.",
+  "gateway.benchCloud.workboardSync.enabled":
+    "Enables mirroring local Workboard cards up to the Bench cloud via the bench-sync plugin. Default is false; the bench-sync background loop stays idle unless this or skillSync is enabled.",
+  "gateway.benchCloud.workboardSync.pollIntervalMs":
+    "Interval in milliseconds for the bench-sync background sync loop. Default is 15000; increase it to reduce cloud/API load or lower it for faster mirror latency.",
+  "gateway.benchCloud.skillSync":
+    "Skill-proposal sync settings for the bench-sync plugin. Keep disabled unless this instance should pull governed skill decisions from the Bench cloud.",
+  "gateway.benchCloud.skillSync.enabled":
+    "Enables pulling and applying skill-proposal decision directives from the Bench cloud via the bench-sync plugin. Default is false; enable it to let operators govern this instance's skills from the web.",
+  "gateway.benchCloud.skillSync.mirrorPendingUp":
+    "Controls whether pending (undecided) local skill proposals are mirrored up to the Bench cloud for review. Default is false; enable it to surface this instance's pending proposals to web reviewers.",
   "gateway.handshakeTimeoutMs":
     "Pre-auth Gateway WebSocket handshake timeout in milliseconds. Use higher values on loaded or low-powered hosts where local clients can connect during startup warmup. OPENCLAW_HANDSHAKE_TIMEOUT_MS still takes precedence.",
   "gateway.channelHealthCheckMinutes":
