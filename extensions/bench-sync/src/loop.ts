@@ -8,10 +8,12 @@
 
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import type { PluginLogger } from "openclaw/plugin-sdk/plugin-entry";
+import type { BenchSyncCursorStore } from "./cursor.js";
 
 export type BenchSyncTickContext = {
   config: OpenClawConfig;
   stateDir: string;
+  cursorStore: BenchSyncCursorStore;
   logger: PluginLogger;
   /** Aborted when the service stops; handlers should honor it for I/O. */
   signal: AbortSignal;
@@ -28,6 +30,7 @@ export type BenchSyncTickHandler = {
 export type BenchSyncLoopStartOptions = {
   config: OpenClawConfig;
   stateDir: string;
+  cursorStore: BenchSyncCursorStore;
   logger: PluginLogger;
   pollIntervalMs: number;
 };
@@ -66,6 +69,7 @@ export function createBenchSyncLoop(initialHandlers: BenchSyncTickHandler[] = []
     const ctx: BenchSyncTickContext = {
       config: options.config,
       stateDir: options.stateDir,
+      cursorStore: options.cursorStore,
       logger: options.logger,
       signal: abort.signal,
       tick: tickCount,

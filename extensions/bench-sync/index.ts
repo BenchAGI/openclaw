@@ -8,6 +8,11 @@
 
 import { definePluginEntry } from "./api.js";
 import { resolveBenchSyncRuntimeConfig } from "./src/config.js";
+import {
+  CURSOR_STATE_MAX_ENTRIES,
+  CURSOR_STATE_NAMESPACE,
+  type BenchSyncCursorRow,
+} from "./src/cursor.js";
 import { createBenchSyncLoop } from "./src/loop.js";
 
 export default definePluginEntry({
@@ -25,9 +30,14 @@ export default definePluginEntry({
           ctx.logger.debug?.(`bench-sync: inactive (${runtime.inactiveReason}); loop not started`);
           return;
         }
+        const cursorStore = api.runtime.state.openKeyedStore<BenchSyncCursorRow>({
+          namespace: CURSOR_STATE_NAMESPACE,
+          maxEntries: CURSOR_STATE_MAX_ENTRIES,
+        });
         loop.start({
           config: ctx.config,
           stateDir: ctx.stateDir,
+          cursorStore,
           logger: ctx.logger,
           pollIntervalMs: runtime.pollIntervalMs,
         });

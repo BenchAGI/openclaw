@@ -1,13 +1,11 @@
 // Durable sync cursor for the bench-sync plugin.
 //
-// Stored as JSON at <stateDir>/bench-sync/cursor.json. Writes are atomic
-// (tmp file + rename, via the plugin-sdk json-store helper). Loads fall back
-// to a fresh default when the file is missing; a corrupt file is renamed aside
-// to cursor.json.bak and a fresh cursor is started (with a warn log).
+// Stored in OpenClaw SQLite plugin state. The meta row tracks the directive
+// pull cursor + applied-directive ring; card hash cursors are separate rows so
+// large Workboards do not hit the per-value plugin-state size limit.
 
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { writeJsonFileAtomically } from "openclaw/plugin-sdk/json-store";
+import crypto from "node:crypto";
+import type { PluginStateKeyedStore } from "openclaw/plugin-sdk/plugin-state-runtime";
 
 /** Per-card sync bookkeeping: content hash + monotonically increasing seq. */
 export type BenchSyncCardCursor = {
@@ -24,11 +22,33 @@ export type BenchSyncCursorState = {
   appliedDirectiveIds: string[];
 };
 
+export type BenchSyncCursorMetaRow = {
+  kind: "meta";
+  directiveCursor: string | null;
+  appliedDirectiveIds: string[];
+};
+
+export type BenchSyncCardCursorRow = {
+  kind: "card";
+  cardId: string;
+  cursor: BenchSyncCardCursor;
+};
+
+export type BenchSyncCursorRow = BenchSyncCursorMetaRow | BenchSyncCardCursorRow;
+
+export type BenchSyncCursorStore = Pick<
+  PluginStateKeyedStore<BenchSyncCursorRow>,
+  "delete" | "entries" | "register"
+>;
+
 /** Max retained applied-directive ids (bounded ring). */
 export const MAX_APPLIED_DIRECTIVE_IDS = 500;
 
-const CURSOR_DIR_NAME = "bench-sync";
-const CURSOR_FILE_NAME = "cursor.json";
+export const CURSOR_STATE_NAMESPACE = "cursor";
+export const CURSOR_STATE_MAX_ENTRIES = 5_000;
+
+const CURSOR_META_KEY = "meta";
+const CARD_KEY_PREFIX = "card:";
 
 export function defaultCursorState(): BenchSyncCursorState {
   return {
@@ -36,10 +56,6 @@ export function defaultCursorState(): BenchSyncCursorState {
     directiveCursor: null,
     appliedDirectiveIds: [],
   };
-}
-
-export function cursorFilePath(stateDir: string): string {
-  return path.join(stateDir, CURSOR_DIR_NAME, CURSOR_FILE_NAME);
 }
 
 type CursorLogger = {
@@ -62,25 +78,10 @@ function coerceCardCursor(value: unknown): BenchSyncCardCursor | null {
   return { hash, seq };
 }
 
-/** Validate/normalize a parsed value into a cursor state, or null if invalid. */
-export function normalizeCursorState(value: unknown): BenchSyncCursorState | null {
-  if (!isRecord(value)) {
+function normalizeCursorMetaRow(value: unknown): BenchSyncCursorMetaRow | null {
+  if (!isRecord(value) || value.kind !== "meta") {
     return null;
   }
-  const cards: Record<string, BenchSyncCardCursor> = {};
-  if (value.cards !== undefined) {
-    if (!isRecord(value.cards)) {
-      return null;
-    }
-    for (const [cardId, raw] of Object.entries(value.cards)) {
-      const card = coerceCardCursor(raw);
-      if (!card) {
-        return null;
-      }
-      cards[cardId] = card;
-    }
-  }
-
   let directiveCursor: string | null = null;
   if (value.directiveCursor !== undefined && value.directiveCursor !== null) {
     if (typeof value.directiveCursor !== "string") {
@@ -88,19 +89,32 @@ export function normalizeCursorState(value: unknown): BenchSyncCursorState | nul
     }
     directiveCursor = value.directiveCursor;
   }
-
-  let appliedDirectiveIds: string[] = [];
-  if (value.appliedDirectiveIds !== undefined) {
-    if (
-      !Array.isArray(value.appliedDirectiveIds) ||
-      value.appliedDirectiveIds.some((id) => typeof id !== "string")
-    ) {
-      return null;
-    }
-    appliedDirectiveIds = boundAppliedRing(value.appliedDirectiveIds as string[]);
+  if (
+    !Array.isArray(value.appliedDirectiveIds) ||
+    value.appliedDirectiveIds.some((id) => typeof id !== "string")
+  ) {
+    return null;
   }
+  return {
+    kind: "meta",
+    directiveCursor,
+    appliedDirectiveIds: boundAppliedRing(value.appliedDirectiveIds as string[]),
+  };
+}
 
-  return { cards, directiveCursor, appliedDirectiveIds };
+function normalizeCardCursorRow(value: unknown): BenchSyncCardCursorRow | null {
+  if (!isRecord(value) || value.kind !== "card" || typeof value.cardId !== "string") {
+    return null;
+  }
+  const cursor = coerceCardCursor(value.cursor);
+  if (!cursor) {
+    return null;
+  }
+  return {
+    kind: "card",
+    cardId: value.cardId,
+    cursor,
+  };
 }
 
 /** Keep only the most recent MAX_APPLIED_DIRECTIVE_IDS ids. */
@@ -129,73 +143,81 @@ export function hasAppliedDirective(state: BenchSyncCursorState, id: string): bo
 }
 
 /**
- * Load the cursor from disk.
+ * Load the cursor from SQLite plugin state.
  *
- * - Missing file → fresh default.
- * - Corrupt/invalid file → rename aside to cursor.json.bak, log a warning,
- *   and return a fresh default.
+ * - Missing state rows -> fresh default.
+ * - Invalid rows -> delete the bad row, log a warning, and continue with the
+ *   valid rows. Plugin state is the canonical store for this cursor.
  */
 export async function loadCursor(
-  stateDir: string,
+  store: BenchSyncCursorStore,
   logger?: CursorLogger,
 ): Promise<BenchSyncCursorState> {
-  const filePath = cursorFilePath(stateDir);
-  let raw: string;
-  try {
-    raw = await fs.readFile(filePath, "utf8");
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
-      return defaultCursorState();
+  let directiveCursor: string | null = null;
+  let appliedDirectiveIds: string[] = [];
+  const cards: Record<string, BenchSyncCardCursor> = {};
+  const invalidKeys: string[] = [];
+
+  for (const entry of await store.entries()) {
+    if (entry.key === CURSOR_META_KEY) {
+      const meta = normalizeCursorMetaRow(entry.value);
+      if (!meta) {
+        invalidKeys.push(entry.key);
+        continue;
+      }
+      directiveCursor = meta.directiveCursor;
+      appliedDirectiveIds = meta.appliedDirectiveIds;
+      continue;
     }
-    // Unreadable for some other reason — start fresh rather than crash the loop.
-    logger?.warn?.(`bench-sync: failed to read cursor; starting fresh: ${describeError(err)}`);
-    return defaultCursorState();
+    if (!entry.key.startsWith(CARD_KEY_PREFIX)) {
+      continue;
+    }
+    const card = normalizeCardCursorRow(entry.value);
+    if (!card) {
+      invalidKeys.push(entry.key);
+      continue;
+    }
+    cards[card.cardId] = card.cursor;
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    await quarantineCorruptCursor(filePath, logger, "invalid JSON");
-    return defaultCursorState();
+  if (invalidKeys.length > 0) {
+    logger?.warn?.(
+      `bench-sync: ignored ${invalidKeys.length} invalid cursor plugin-state row(s); clearing them`,
+    );
+    await Promise.all(invalidKeys.map((key) => store.delete(key).catch(() => false)));
   }
 
-  const normalized = normalizeCursorState(parsed);
-  if (!normalized) {
-    await quarantineCorruptCursor(filePath, logger, "invalid shape");
-    return defaultCursorState();
-  }
-  return normalized;
+  return { cards, directiveCursor, appliedDirectiveIds };
 }
 
-/** Persist the cursor atomically (tmp file + rename, 0600 perms). */
-export async function saveCursor(stateDir: string, state: BenchSyncCursorState): Promise<void> {
-  const filePath = cursorFilePath(stateDir);
-  await fs.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
-  await writeJsonFileAtomically(filePath, {
-    ...state,
+/** Persist the cursor in SQLite plugin state. */
+export async function saveCursor(
+  store: BenchSyncCursorStore,
+  state: BenchSyncCursorState,
+): Promise<void> {
+  const retainedCardKeys = new Set<string>();
+  for (const [cardId, cursor] of Object.entries(state.cards)) {
+    const key = cardRowKey(cardId);
+    retainedCardKeys.add(key);
+    await store.register(key, {
+      kind: "card",
+      cardId,
+      cursor,
+    });
+  }
+
+  await store.register(CURSOR_META_KEY, {
+    kind: "meta",
+    directiveCursor: state.directiveCursor,
     appliedDirectiveIds: boundAppliedRing(state.appliedDirectiveIds),
   });
+
+  const staleKeys = (await store.entries())
+    .filter((entry) => entry.key.startsWith(CARD_KEY_PREFIX) && !retainedCardKeys.has(entry.key))
+    .map((entry) => entry.key);
+  await Promise.all(staleKeys.map((key) => store.delete(key)));
 }
 
-async function quarantineCorruptCursor(
-  filePath: string,
-  logger: CursorLogger | undefined,
-  why: string,
-): Promise<void> {
-  const backupPath = `${filePath}.bak`;
-  try {
-    await fs.rename(filePath, backupPath);
-    logger?.warn?.(
-      `bench-sync: corrupt cursor (${why}); moved aside to ${backupPath} and starting fresh`,
-    );
-  } catch (err) {
-    logger?.warn?.(
-      `bench-sync: corrupt cursor (${why}); failed to move aside (${describeError(err)}); starting fresh`,
-    );
-  }
-}
-
-function describeError(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+function cardRowKey(cardId: string): string {
+  return `${CARD_KEY_PREFIX}${crypto.createHash("sha256").update(cardId).digest("hex")}`;
 }

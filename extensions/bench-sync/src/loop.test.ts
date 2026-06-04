@@ -1,6 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import type { PluginLogger } from "openclaw/plugin-sdk/plugin-entry";
 import { describe, expect, it, vi } from "vitest";
+import type { BenchSyncCursorStore } from "./cursor.js";
 import { createBenchSyncLoop } from "./loop.js";
 
 function makeLogger(): PluginLogger & { debugLines: string[]; warnLines: string[] } {
@@ -16,10 +17,19 @@ function makeLogger(): PluginLogger & { debugLines: string[]; warnLines: string[
   };
 }
 
+function makeCursorStore(): BenchSyncCursorStore {
+  return {
+    delete: vi.fn(async () => true),
+    entries: vi.fn(async () => []),
+    register: vi.fn(async () => {}),
+  };
+}
+
 function startOptions(logger: PluginLogger) {
   return {
     config: {} as OpenClawConfig,
     stateDir: "/tmp/does-not-matter",
+    cursorStore: makeCursorStore(),
     logger,
     pollIntervalMs: 15_000,
   };
@@ -47,6 +57,19 @@ describe("createBenchSyncLoop", () => {
     await loop.runTickOnce(startOptions(logger), abort);
 
     expect(calls).toEqual(["a", "b"]);
+  });
+
+  it("passes the cursor store through the shared tick context", async () => {
+    const logger = makeLogger();
+    const loop = createBenchSyncLoop();
+    const options = startOptions(logger);
+    const seenStores: BenchSyncCursorStore[] = [];
+    loop.addTickHandler({ name: "store", run: (ctx) => void seenStores.push(ctx.cursorStore) });
+    const abort = new AbortController();
+
+    await loop.runTickOnce(options, abort);
+
+    expect(seenStores).toEqual([options.cursorStore]);
   });
 
   it("isolates a failing handler so others still run and the loop survives", async () => {
