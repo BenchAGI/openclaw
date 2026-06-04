@@ -37,12 +37,12 @@ export class BenchSyncClientError extends Error {
 }
 
 /** Directive types this gateway knows how to pull/apply. */
-export type BenchSyncDirectiveType = "skill_proposal_decision" | "workboard_create_card";
+export type BenchSyncDirectiveType = "skill_proposal_decision";
 
-export type BenchSyncDirectiveAck = {
-  status: "applied" | "failed" | "skipped";
-  reason?: string;
-};
+export type BenchSyncDirectiveAck =
+  | { status: "applied"; result?: { proposalId?: string; cardId?: string } }
+  | { status: "failed"; error: { code: string; message: string } }
+  | { status: "skipped"; reason: string };
 
 export type BenchSyncPullDirectivesQuery = {
   types: BenchSyncDirectiveType[];

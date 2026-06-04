@@ -1,11 +1,17 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  createPluginStateKeyedStoreForTests,
+  resetPluginStateStoreForTests,
+} from "openclaw/plugin-sdk/plugin-state-test-runtime";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { BenchSyncCursorRow, BenchSyncCursorStore } from "./cursor.js";
+import {
+  CURSOR_STATE_MAX_ENTRIES,
+  CURSOR_STATE_NAMESPACE,
   MAX_APPLIED_DIRECTIVE_IDS,
   boundAppliedRing,
-  cursorFilePath,
   defaultCursorState,
   hasAppliedDirective,
   loadCursor,
@@ -14,73 +20,130 @@ import {
 } from "./cursor.js";
 
 let stateDir: string;
+let env: NodeJS.ProcessEnv;
+
+function createStore(): BenchSyncCursorStore {
+  return createPluginStateKeyedStoreForTests<BenchSyncCursorRow>("bench-sync", {
+    namespace: CURSOR_STATE_NAMESPACE,
+    maxEntries: CURSOR_STATE_MAX_ENTRIES,
+    env,
+  });
+}
 
 beforeEach(async () => {
+  resetPluginStateStoreForTests();
   stateDir = await fs.mkdtemp(path.join(os.tmpdir(), "bench-sync-cursor-"));
+  env = { ...process.env, OPENCLAW_STATE_DIR: stateDir };
 });
 
 afterEach(async () => {
+  resetPluginStateStoreForTests();
   await fs.rm(stateDir, { recursive: true, force: true });
 });
 
 describe("cursor load defaults", () => {
-  it("returns a fresh default when the file is missing", async () => {
-    const state = await loadCursor(stateDir);
+  it("returns a fresh default when plugin state is empty", async () => {
+    const state = await loadCursor(createStore());
     expect(state).toEqual(defaultCursorState());
   });
 
-  it("places the cursor under <stateDir>/bench-sync/cursor.json", () => {
-    expect(cursorFilePath(stateDir)).toBe(path.join(stateDir, "bench-sync", "cursor.json"));
+  it("stores cursor data in the shared SQLite plugin-state database", async () => {
+    const store = createStore();
+    await saveCursor(store, defaultCursorState());
+
+    await expect(
+      fs.access(path.join(stateDir, "state", "openclaw.sqlite")),
+    ).resolves.toBeUndefined();
+    await expect(fs.access(path.join(stateDir, "bench-sync"))).rejects.toThrow();
   });
 });
 
 describe("cursor save + load round trip", () => {
   it("persists and reloads a populated cursor", async () => {
+    const store = createStore();
     const state = {
       cards: { "card-1": { hash: "abc", seq: 3 }, "card-2": { hash: "def", seq: 7 } },
       directiveCursor: "cursor-42",
       appliedDirectiveIds: ["d1", "d2"],
     };
-    await saveCursor(stateDir, state);
-    const loaded = await loadCursor(stateDir);
-    expect(loaded).toEqual(state);
+
+    await saveCursor(store, state);
+
+    await expect(loadCursor(store)).resolves.toEqual(state);
   });
 
-  it("writes the file with 0600 permissions (atomic helper)", async () => {
-    await saveCursor(stateDir, defaultCursorState());
-    const stat = await fs.stat(cursorFilePath(stateDir));
-    expect(stat.mode & 0o777).toBe(0o600);
+  it("stores card cursors as separate rows and prunes stale rows", async () => {
+    const store = createStore();
+    await saveCursor(store, {
+      cards: { "card-1": { hash: "abc", seq: 3 }, "card-2": { hash: "def", seq: 7 } },
+      directiveCursor: "cursor-42",
+      appliedDirectiveIds: ["d1"],
+    });
+
+    await saveCursor(store, {
+      cards: { "card-2": { hash: "def", seq: 8 } },
+      directiveCursor: "cursor-43",
+      appliedDirectiveIds: ["d2"],
+    });
+
+    expect(await loadCursor(store)).toEqual({
+      cards: { "card-2": { hash: "def", seq: 8 } },
+      directiveCursor: "cursor-43",
+      appliedDirectiveIds: ["d2"],
+    });
+    const cardRows = (await store.entries()).filter((entry) => entry.value.kind === "card");
+    expect(cardRows).toHaveLength(1);
   });
 
-  it("leaves no leftover temp files in the cursor directory", async () => {
-    await saveCursor(stateDir, defaultCursorState());
-    const entries = await fs.readdir(path.join(stateDir, "bench-sync"));
-    expect(entries).toEqual(["cursor.json"]);
+  it("hashes card ids before using them as plugin-state keys", async () => {
+    const store = createStore();
+    const longCardId = `agent/card/${"x".repeat(700)}`;
+
+    await saveCursor(store, {
+      ...defaultCursorState(),
+      cards: { [longCardId]: { hash: "abc", seq: 1 } },
+    });
+
+    const cardKey = (await store.entries()).find((entry) => entry.value.kind === "card")?.key;
+    expect(cardKey).toBeDefined();
+    expect(cardKey).not.toContain(longCardId);
+    expect(Buffer.byteLength(cardKey ?? "", "utf8")).toBeLessThanOrEqual(512);
   });
 });
 
 describe("cursor corrupt recovery", () => {
-  it("renames invalid JSON aside to .bak and starts fresh", async () => {
-    const filePath = cursorFilePath(stateDir);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, "{ not valid json", "utf8");
+  it("clears an invalid meta row and starts with default meta", async () => {
+    const store = createStore();
+    await store.register("meta", {
+      kind: "meta",
+      directiveCursor: 123,
+      appliedDirectiveIds: [],
+    } as unknown as BenchSyncCursorRow);
 
     const warnings: string[] = [];
-    const state = await loadCursor(stateDir, { warn: (m) => warnings.push(m) });
+    const state = await loadCursor(store, { warn: (m) => warnings.push(m) });
 
     expect(state).toEqual(defaultCursorState());
-    expect(warnings.some((w) => /corrupt cursor/i.test(w))).toBe(true);
-    await expect(fs.readFile(`${filePath}.bak`, "utf8")).resolves.toContain("not valid json");
+    expect(warnings.some((w) => /invalid cursor plugin-state row/i.test(w))).toBe(true);
+    expect((await store.entries()).map((entry) => entry.key)).not.toContain("meta");
   });
 
-  it("renames a structurally invalid cursor aside and starts fresh", async () => {
-    const filePath = cursorFilePath(stateDir);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, JSON.stringify({ cards: { x: { hash: 1 } } }), "utf8");
+  it("keeps valid rows while clearing invalid card rows", async () => {
+    const store = createStore();
+    await saveCursor(store, {
+      ...defaultCursorState(),
+      cards: { "good-card": { hash: "ok", seq: 2 } },
+    });
+    await store.register("card:bad", {
+      kind: "card",
+      cardId: "bad-card",
+      cursor: { hash: 1 },
+    } as unknown as BenchSyncCursorRow);
 
-    const state = await loadCursor(stateDir);
-    expect(state).toEqual(defaultCursorState());
-    await expect(fs.stat(`${filePath}.bak`)).resolves.toBeDefined();
+    const state = await loadCursor(store);
+
+    expect(state.cards).toEqual({ "good-card": { hash: "ok", seq: 2 } });
+    expect((await store.entries()).map((entry) => entry.key)).not.toContain("card:bad");
   });
 });
 
@@ -107,6 +170,7 @@ describe("applied-directive ring", () => {
   });
 
   it("bounds the ring on save even if state exceeds the cap", async () => {
+    const store = createStore();
     const oversized = {
       ...defaultCursorState(),
       appliedDirectiveIds: Array.from(
@@ -114,8 +178,10 @@ describe("applied-directive ring", () => {
         (_, i) => `d${i}`,
       ),
     };
-    await saveCursor(stateDir, oversized);
-    const loaded = await loadCursor(stateDir);
+
+    await saveCursor(store, oversized);
+
+    const loaded = await loadCursor(store);
     expect(loaded.appliedDirectiveIds).toHaveLength(MAX_APPLIED_DIRECTIVE_IDS);
   });
 

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BenchSyncClient, BenchSyncClientError, resolveBenchSyncUrl } from "./client.js";
 
 const BASE = "https://benchagi.example";
@@ -19,7 +19,21 @@ function makeClient(fetchFn: typeof fetch, apiBaseUrl = BASE): BenchSyncClient {
   );
 }
 
+function makeClientWithConfig(
+  fetchFn: typeof fetch,
+  config: Partial<ConstructorParameters<typeof BenchSyncClient>[0]>,
+): BenchSyncClient {
+  return new BenchSyncClient(
+    { apiBaseUrl: BASE, instanceId: INSTANCE, apiKey: "bench_test_secret", ...config },
+    { fetchFn },
+  );
+}
+
 type FetchMock = ReturnType<typeof vi.fn<typeof fetch>>;
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 /** Read the resolved request URL + init from the nth fetch mock call. */
 function callAt(mock: FetchMock, index: number): { url: string; init?: RequestInit } {
@@ -86,7 +100,7 @@ describe("BenchSyncClient request construction", () => {
     const client = makeClient(fetchMock);
 
     await client.pullDirectives({
-      types: ["skill_proposal_decision", "workboard_create_card"],
+      types: ["skill_proposal_decision"],
       cursor: "abc123",
     });
 
@@ -95,7 +109,7 @@ describe("BenchSyncClient request construction", () => {
     expect(parsed.origin + parsed.pathname).toBe(
       `${BASE}/api/v1/instances/${INSTANCE}/sync/directives`,
     );
-    expect(parsed.searchParams.get("types")).toBe("skill_proposal_decision,workboard_create_card");
+    expect(parsed.searchParams.get("types")).toBe("skill_proposal_decision");
     expect(parsed.searchParams.get("cursor")).toBe("abc123");
     expect(init?.method).toBe("GET");
     const headers = init?.headers as Record<string, string>;
@@ -118,18 +132,25 @@ describe("BenchSyncClient request construction", () => {
     const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }));
     const client = makeClient(fetchMock);
 
-    await client.ackDirective("dir-9", { status: "applied" });
+    await client.ackDirective("dir-9", {
+      status: "applied",
+      result: { proposalId: "proposal-1" },
+    });
 
     const { url, init } = callAt(fetchMock, 0);
     expect(url).toBe(`${BASE}/api/v1/instances/${INSTANCE}/sync/directives/dir-9/ack`);
     expect(init?.method).toBe("POST");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      status: "applied",
+      result: { proposalId: "proposal-1" },
+    });
   });
 
   it("url-encodes directive ids in the ack path", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }));
     const client = makeClient(fetchMock);
 
-    await client.ackDirective("a/b c", { status: "skipped" });
+    await client.ackDirective("a/b c", { status: "skipped", reason: "unsupported" });
 
     const { url } = callAt(fetchMock, 0);
     expect(url).toBe(`${BASE}/api/v1/instances/${INSTANCE}/sync/directives/a%2Fb%20c/ack`);
@@ -185,6 +206,45 @@ describe("BenchSyncClient error mapping", () => {
     await expect(client.postSkillProposals({ proposals: [] })).rejects.toMatchObject({
       code: "redirect",
     });
+  });
+
+  it("rejects an oversized response declared by content-length", async () => {
+    const fetchMock = vi.fn<typeof fetch>(
+      async () => new Response("{}", { status: 200, headers: { "content-length": "99" } }),
+    );
+    const client = makeClientWithConfig(fetchMock, { maxResponseBytes: 2 });
+
+    await expect(client.pullDirectives({ types: [] })).rejects.toMatchObject({
+      code: "response_too_large",
+    });
+  });
+
+  it("rejects an oversized response after reading the body bytes", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response('{"ok":true}', { status: 200 }));
+    const client = makeClientWithConfig(fetchMock, { maxResponseBytes: 2 });
+
+    await expect(client.pullDirectives({ types: [] })).rejects.toMatchObject({
+      code: "response_too_large",
+    });
+  });
+
+  it("maps request timeouts to an aborted client error", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        }),
+    );
+    const client = makeClientWithConfig(fetchMock, { timeoutMs: 5 });
+
+    const request = client.pullDirectives({ types: [] });
+    const expectation = expect(request).rejects.toMatchObject({ code: "aborted" });
+    await vi.advanceTimersByTimeAsync(5);
+
+    await expectation;
   });
 
   it("requires a non-empty apiKey at construction", () => {
