@@ -1,21 +1,36 @@
 // bench-sync — additive fork plugin that mirrors local Workboard cards and
 // skill proposals up to the Bench cloud and applies governed directives down.
 //
-// B1 (this PR): plugin scaffold. The service registers a background polling
-// loop whose tick handlers are empty for now; the workboard up-mirror (B2) and
-// directive pull/apply (B3) modules slot into the `tick` handler array without
-// changing this file's loop structure.
+// The service registers a background polling loop (B1 scaffold). B2 slots the
+// Workboard up-mirror in as a tick handler; B3 adds the directive pull/apply +
+// proposal mirror-up handler. The loop structure itself is not changed —
+// handlers are appended via addTickHandler.
 
+import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "openclaw/plugin-sdk/agent-runtime";
+import {
+  applySkillProposal,
+  inspectSkillProposal,
+  listSkillProposals,
+  quarantineSkillProposal,
+  rejectSkillProposal,
+} from "openclaw/plugin-sdk/skill-workshop-runtime";
+import { WorkboardStore } from "@openclaw/workboard/runtime-api.js";
 import { definePluginEntry } from "./api.js";
-import { resolveApiKey } from "./src/auth.js";
-import { BenchSyncClient } from "./src/client.js";
 import { resolveBenchSyncRuntimeConfig } from "./src/config.js";
 import {
   CURSOR_STATE_MAX_ENTRIES,
   CURSOR_STATE_NAMESPACE,
+  loadCursor,
   type BenchSyncCursorRow,
 } from "./src/cursor.js";
+import {
+  runDirectiveTick,
+  runProposalMirrorTick,
+  type SkillWorkshopContext,
+} from "./src/directive-apply.js";
 import { createBenchSyncLoop } from "./src/loop.js";
+import { resolveBenchSyncClient } from "./src/runtime-setup.js";
+import { createMirrorBackoffState, runWorkboardMirrorTick } from "./src/workboard-mirror.js";
 
 export default definePluginEntry({
   id: "bench-sync",
@@ -32,28 +47,104 @@ export default definePluginEntry({
           ctx.logger.debug?.(`bench-sync: inactive (${runtime.inactiveReason}); loop not started`);
           return;
         }
-        const auth = await resolveApiKey({ config: ctx.config });
-        if (auth.status !== "ok") {
-          const reason =
-            auth.status === "error"
-              ? auth.reason
-              : "gateway.benchCloud.apiKeyRef did not resolve to a value";
-          ctx.logger.warn(`bench-sync: API key unavailable; loop not started: ${reason}`);
-          return;
-        }
-        const client = new BenchSyncClient({
-          apiBaseUrl: runtime.apiBaseUrl,
-          instanceId: runtime.instanceId,
-          apiKey: auth.apiKey,
-        });
         const cursorStore = api.runtime.state.openKeyedStore<BenchSyncCursorRow>({
           namespace: CURSOR_STATE_NAMESPACE,
           maxEntries: CURSOR_STATE_MAX_ENTRIES,
         });
+
+        // One shared client for every handler (same origin-pin + auth path).
+        const setup = await resolveBenchSyncClient({ config: ctx.config });
+        if (setup.status !== "ok") {
+          ctx.logger.info?.(`bench-sync: not starting loop — ${setup.reason}`);
+          return;
+        }
+
+        // One durable cursor shared by all handlers; loaded once at start from
+        // plugin state, then persisted by each handler after successful work.
+        const runtimeCursor = {
+          store: cursorStore,
+          state: await loadCursor(cursorStore, ctx.logger),
+        };
+
+        if (runtime.workboardSyncEnabled) {
+          // Open the SAME Workboard SQLite store the workboard plugin writes.
+          // If the workboard DB/plugin is absent, opening throws or yields no
+          // cards — either way we log once and skip rather than crash.
+          let store: WorkboardStore | null = null;
+          try {
+            store = WorkboardStore.openSqlite();
+          } catch (err) {
+            ctx.logger.info?.(
+              `bench-sync: workboard store unavailable; skipping workboard mirror (${
+                err instanceof Error ? err.message : String(err)
+              })`,
+            );
+          }
+          if (store) {
+            const backoff = createMirrorBackoffState();
+            loop.addTickHandler({
+              name: "workboard-mirror",
+              run: async (tickCtx) => {
+                await runWorkboardMirrorTick(
+                  {
+                    store,
+                    client: setup.client,
+                    cursorStore: runtimeCursor,
+                    logger: tickCtx.logger,
+                    signal: tickCtx.signal,
+                  },
+                  backoff,
+                );
+              },
+            });
+          }
+        }
+
+        if (runtime.skillSyncEnabled) {
+          // Single-workspace v1: resolve the default agent's workspace dir the
+          // same way the gateway's skills server-methods do. Multi-agent
+          // proposal routing is a future enhancement.
+          const workspaceDir = resolveAgentWorkspaceDir(
+            ctx.config,
+            resolveDefaultAgentId(ctx.config),
+          );
+          const skillsCtx: SkillWorkshopContext = {
+            workspaceDir,
+            applyProposal: applySkillProposal,
+            rejectProposal: rejectSkillProposal,
+            quarantineProposal: quarantineSkillProposal,
+            listProposals: listSkillProposals,
+            inspectProposal: async (proposalId, options) => {
+              const read = await inspectSkillProposal(proposalId, options);
+              return read ? { record: read.record, content: read.content } : null;
+            },
+          };
+          const mirrorPendingUp = runtime.mirrorPendingUp;
+          loop.addTickHandler({
+            name: "skill-directives",
+            run: async (tickCtx) => {
+              await runDirectiveTick({
+                client: setup.client,
+                cursorStore: runtimeCursor,
+                skillsCtx,
+                logger: tickCtx.logger,
+                signal: tickCtx.signal,
+              });
+              await runProposalMirrorTick({
+                client: setup.client,
+                cursorStore: runtimeCursor,
+                skillsCtx,
+                mirrorPendingUp,
+                logger: tickCtx.logger,
+                signal: tickCtx.signal,
+              });
+            },
+          });
+        }
+
         loop.start({
           config: ctx.config,
           stateDir: ctx.stateDir,
-          client,
           cursorStore,
           logger: ctx.logger,
           pollIntervalMs: runtime.pollIntervalMs,

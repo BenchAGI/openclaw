@@ -1173,6 +1173,10 @@
       "types": "./dist/plugin-sdk/skill-commands-runtime.d.ts",
       "default": "./dist/plugin-sdk/skill-commands-runtime.js"
     },
+    "./plugin-sdk/skill-workshop-runtime": {
+      "types": "./dist/plugin-sdk/skill-workshop-runtime.d.ts",
+      "default": "./dist/plugin-sdk/skill-workshop-runtime.js"
+    },
     "./plugin-sdk/native-command-config-runtime": {
       "types": "./dist/plugin-sdk/native-command-config-runtime.d.ts",
       "default": "./dist/plugin-sdk/native-command-config-runtime.js"
