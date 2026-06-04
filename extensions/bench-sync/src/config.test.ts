@@ -6,6 +6,8 @@ function config(benchCloud?: Record<string, unknown>): OpenClawConfig {
   return { gateway: benchCloud ? { benchCloud } : {} } as unknown as OpenClawConfig;
 }
 
+const apiKeyRef = { source: "env", provider: "default", id: "BENCH_INSTANCE_API_KEY" };
+
 describe("resolveBenchSyncRuntimeConfig gating", () => {
   it("is inactive when benchCloud is absent", () => {
     const result = resolveBenchSyncRuntimeConfig(config());
@@ -14,13 +16,23 @@ describe("resolveBenchSyncRuntimeConfig gating", () => {
 
   it("is inactive when benchCloud.enabled is false", () => {
     const result = resolveBenchSyncRuntimeConfig(
-      config({ enabled: false, workboardSync: { enabled: true } }),
+      config({ enabled: false, apiKeyRef, workboardSync: { enabled: true } }),
     );
     expect(result).toMatchObject({ active: false, inactiveReason: "benchCloud.enabled is false" });
   });
 
+  it("is inactive when the API key SecretRef is unset", () => {
+    const result = resolveBenchSyncRuntimeConfig(
+      config({ enabled: true, workboardSync: { enabled: true } }),
+    );
+    expect(result).toMatchObject({
+      active: false,
+      inactiveReason: "gateway.benchCloud.apiKeyRef is unset",
+    });
+  });
+
   it("is inactive when enabled but no sync feature is on", () => {
-    const result = resolveBenchSyncRuntimeConfig(config({ enabled: true }));
+    const result = resolveBenchSyncRuntimeConfig(config({ enabled: true, apiKeyRef }));
     expect(result).toMatchObject({
       active: false,
       inactiveReason: "no sync feature enabled (workboardSync / skillSync)",
@@ -29,7 +41,7 @@ describe("resolveBenchSyncRuntimeConfig gating", () => {
 
   it("is active when workboardSync is enabled", () => {
     const result = resolveBenchSyncRuntimeConfig(
-      config({ enabled: true, workboardSync: { enabled: true } }),
+      config({ enabled: true, apiKeyRef, workboardSync: { enabled: true } }),
     );
     expect(result).toMatchObject({
       active: true,
@@ -41,7 +53,7 @@ describe("resolveBenchSyncRuntimeConfig gating", () => {
 
   it("is active when only skillSync is enabled", () => {
     const result = resolveBenchSyncRuntimeConfig(
-      config({ enabled: true, skillSync: { enabled: true, mirrorPendingUp: true } }),
+      config({ enabled: true, apiKeyRef, skillSync: { enabled: true, mirrorPendingUp: true } }),
     );
     expect(result).toMatchObject({
       active: true,
@@ -52,14 +64,14 @@ describe("resolveBenchSyncRuntimeConfig gating", () => {
 
   it("honors a custom pollIntervalMs", () => {
     const result = resolveBenchSyncRuntimeConfig(
-      config({ enabled: true, workboardSync: { enabled: true, pollIntervalMs: 5000 } }),
+      config({ enabled: true, apiKeyRef, workboardSync: { enabled: true, pollIntervalMs: 5000 } }),
     );
     expect(result).toMatchObject({ active: true, pollIntervalMs: 5000 });
   });
 
   it("falls back to the default for a non-positive pollIntervalMs", () => {
     const result = resolveBenchSyncRuntimeConfig(
-      config({ enabled: true, workboardSync: { enabled: true, pollIntervalMs: 0 } }),
+      config({ enabled: true, apiKeyRef, workboardSync: { enabled: true, pollIntervalMs: 0 } }),
     );
     expect(result).toMatchObject({ active: true, pollIntervalMs: DEFAULT_POLL_INTERVAL_MS });
   });

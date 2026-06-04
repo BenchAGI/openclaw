@@ -11,6 +11,7 @@ import {
   normalizeControlUiChatMessageMaxWidth,
 } from "./control-ui-css.js";
 import type { GatewayBenchCloudConfig, GatewayRemoteConfig } from "./types.gateway.js";
+import { coerceSecretRef } from "./types.secrets.js";
 import { SilentReplyPolicyConfigSchema } from "./zod-schema.agent-defaults.js";
 import { ToolsSchema } from "./zod-schema.agent-runtime.js";
 import { AgentsSchema, AudioSchema, BindingsSchema, BroadcastSchema } from "./zod-schema.agents.js";
@@ -20,6 +21,7 @@ import {
   HexColorSchema,
   ModelsConfigSchema,
   SecretInputSchema,
+  SecretRefSchema,
   SecretsConfigSchema,
 } from "./zod-schema.core.js";
 import { HookMappingSchema, HooksGmailSchema, InternalHooksSchema } from "./zod-schema.hooks.js";
@@ -86,6 +88,19 @@ const GatewayBenchCloudSkillSyncSchema = z
   .strict()
   .optional();
 
+const GatewayBenchCloudApiKeyRefSchema = z
+  .union([
+    SecretRefSchema,
+    z
+      .string()
+      .refine(
+        (value) => coerceSecretRef(value) !== null,
+        "gateway.benchCloud.apiKeyRef must be a SecretRef object or env SecretRef string.",
+      ),
+  ])
+  .optional()
+  .register(sensitive);
+
 const GatewayBenchCloudSchemaShape = {
   enabled: z.boolean().optional(),
   apiBaseUrl: z.string().min(1).optional(),
@@ -102,7 +117,7 @@ const GatewayBenchCloudSchemaShape = {
   agentIdAliases: z.record(z.string().min(1), z.string().min(1)).optional(),
   pollIntervalMs: z.number().int().positive().optional(),
   pollTimeoutMs: z.number().int().positive().optional(),
-  apiKeyRef: SecretInputSchema.optional().register(sensitive),
+  apiKeyRef: GatewayBenchCloudApiKeyRefSchema,
   workboardSync: GatewayBenchCloudWorkboardSyncSchema,
   skillSync: GatewayBenchCloudSkillSyncSchema,
 } satisfies ConfigSchemaShape<GatewayBenchCloudConfig>;

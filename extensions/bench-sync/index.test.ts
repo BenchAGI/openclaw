@@ -43,6 +43,7 @@ function activeConfig(): OpenClawConfig {
     gateway: {
       benchCloud: {
         enabled: true,
+        apiKeyRef: { source: "env", provider: "default", id: "BENCH_INSTANCE_API_KEY" },
         workboardSync: { enabled: true, pollIntervalMs: 15_000 },
       },
     },

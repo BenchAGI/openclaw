@@ -25,6 +25,17 @@ describe("OpenClawSchema gateway.benchCloud sync fields", () => {
     expect(result.success).toBe(true);
   });
 
+  it("rejects apiKeyRef as a plaintext string", () => {
+    const result = OpenClawSchema.safeParse({
+      gateway: {
+        benchCloud: {
+          apiKeyRef: "bench_plaintext_api_key",
+        },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("accepts workboardSync with enabled + pollIntervalMs", () => {
     const result = OpenClawSchema.safeParse({
       gateway: {
