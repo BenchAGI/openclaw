@@ -1,0 +1,33 @@
+{
+  "name": "@openclaw/session-digest",
+  "version": "2026.5.28",
+  "description": "Emit a structured SessionDigest into the agent workspace when a gateway session ends.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openclaw/openclaw"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@openclaw/plugin-sdk": "workspace:*"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "install": {
+      "npmSpec": "@openclaw/session-digest",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.5.28"
+    },
+    "compat": {
+      "pluginApi": ">=2026.5.28"
+    },
+    "build": {
+      "openclawVersion": "2026.5.28"
+    },
+    "release": {
+      "publishToClawHub": false,
+      "publishToNpm": false
+    }
+  }
+}
