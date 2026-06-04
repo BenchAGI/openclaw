@@ -93,7 +93,7 @@ describe("bench-sync plugin service", () => {
     const openKeyedStore = vi.fn(<T>(_options: OpenKeyedStoreOptions) => createStore<T>());
     const service = registerPlugin(openKeyedStore);
 
-    service.start(makeServiceContext(inactiveConfig(), logger));
+    void service.start(makeServiceContext(inactiveConfig(), logger));
 
     expect(openKeyedStore).not.toHaveBeenCalled();
     expect(logger.debugLines.some((line) => line.includes("inactive"))).toBe(true);
@@ -105,8 +105,8 @@ describe("bench-sync plugin service", () => {
     const service = registerPlugin(openKeyedStore);
     const ctx = makeServiceContext(activeConfig(), logger);
 
-    service.start(ctx);
-    service.stop?.(ctx);
+    void service.start(ctx);
+    void service.stop?.(ctx);
 
     expect(openKeyedStore).toHaveBeenCalledWith({
       namespace: CURSOR_STATE_NAMESPACE,
