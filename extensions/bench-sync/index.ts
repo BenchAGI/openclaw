@@ -7,6 +7,8 @@
 // changing this file's loop structure.
 
 import { definePluginEntry } from "./api.js";
+import { resolveApiKey } from "./src/auth.js";
+import { BenchSyncClient } from "./src/client.js";
 import { resolveBenchSyncRuntimeConfig } from "./src/config.js";
 import {
   CURSOR_STATE_MAX_ENTRIES,
@@ -24,12 +26,26 @@ export default definePluginEntry({
     const loop = createBenchSyncLoop();
     api.registerService({
       id: "bench-sync",
-      start(ctx) {
+      async start(ctx) {
         const runtime = resolveBenchSyncRuntimeConfig(ctx.config);
         if (!runtime.active) {
           ctx.logger.debug?.(`bench-sync: inactive (${runtime.inactiveReason}); loop not started`);
           return;
         }
+        const auth = await resolveApiKey({ config: ctx.config });
+        if (auth.status !== "ok") {
+          const reason =
+            auth.status === "error"
+              ? auth.reason
+              : "gateway.benchCloud.apiKeyRef did not resolve to a value";
+          ctx.logger.warn(`bench-sync: API key unavailable; loop not started: ${reason}`);
+          return;
+        }
+        const client = new BenchSyncClient({
+          apiBaseUrl: runtime.apiBaseUrl,
+          instanceId: runtime.instanceId,
+          apiKey: auth.apiKey,
+        });
         const cursorStore = api.runtime.state.openKeyedStore<BenchSyncCursorRow>({
           namespace: CURSOR_STATE_NAMESPACE,
           maxEntries: CURSOR_STATE_MAX_ENTRIES,
@@ -37,6 +53,7 @@ export default definePluginEntry({
         loop.start({
           config: ctx.config,
           stateDir: ctx.stateDir,
+          client,
           cursorStore,
           logger: ctx.logger,
           pollIntervalMs: runtime.pollIntervalMs,

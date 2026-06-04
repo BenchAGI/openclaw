@@ -1,6 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import type { PluginLogger } from "openclaw/plugin-sdk/plugin-entry";
 import { describe, expect, it, vi } from "vitest";
+import type { BenchSyncClient } from "./client.js";
 import type { BenchSyncCursorStore } from "./cursor.js";
 import { createBenchSyncLoop } from "./loop.js";
 
@@ -29,6 +30,7 @@ function startOptions(logger: PluginLogger) {
   return {
     config: {} as OpenClawConfig,
     stateDir: "/tmp/does-not-matter",
+    client: {} as BenchSyncClient,
     cursorStore: makeCursorStore(),
     logger,
     pollIntervalMs: 15_000,
