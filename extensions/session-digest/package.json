@@ -7,6 +7,7 @@
     "url": "https://github.com/openclaw/openclaw"
   },
   "type": "module",
+  "private": true,
   "devDependencies": {
     "@openclaw/plugin-sdk": "workspace:*"
   },
@@ -14,11 +15,6 @@
     "extensions": [
       "./index.ts"
     ],
-    "install": {
-      "npmSpec": "@openclaw/session-digest",
-      "defaultChoice": "npm",
-      "minHostVersion": ">=2026.5.28"
-    },
     "compat": {
       "pluginApi": ">=2026.5.28"
     },
