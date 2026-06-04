@@ -367,7 +367,7 @@ enumeration of `src/gateway/server-methods/*.ts`.
   </Accordion>
 
   <Accordion title="Messaging and logs">
-    - `send` is the direct outbound-delivery RPC for channel/account/thread-targeted sends outside the chat runner.
+    - `send` is the direct outbound-delivery RPC for channel/account/thread-targeted sends outside the chat runner. Optional `context` text is not delivered to the channel; when send mirroring has a session, it is appended to the local transcript for future turns.
     - `logs.tail` returns the configured gateway file-log tail with cursor/limit and max-byte controls.
 
   </Accordion>
