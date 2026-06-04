@@ -1,8 +1,9 @@
 // Durable sync cursor for the bench-sync plugin.
 //
 // Stored in OpenClaw SQLite plugin state. The meta row tracks the directive
-// pull cursor + applied-directive ring; card hash cursors are separate rows so
-// large Workboards do not hit the per-value plugin-state size limit.
+// pull cursor + applied-directive ring; card/proposal hash cursors are separate
+// rows so large Workboards and Skill Workshop manifests do not hit the per-value
+// plugin-state size limit.
 
 import crypto from "node:crypto";
 import type { PluginStateKeyedStore } from "openclaw/plugin-sdk/plugin-state-runtime";
@@ -13,9 +14,16 @@ export type BenchSyncCardCursor = {
   seq: number;
 };
 
+/** Per-proposal mirror-up bookkeeping: last-synced content hash. */
+export type BenchSyncProposalCursor = {
+  hash: string;
+};
+
 export type BenchSyncCursorState = {
   /** Last-synced state per Workboard card id, keyed by gateway card id. */
   cards: Record<string, BenchSyncCardCursor>;
+  /** Last-synced state per skill proposal id (mirror-up hash diff). */
+  proposals: Record<string, BenchSyncProposalCursor>;
   /** Opaque directive pull cursor returned by the cloud. */
   directiveCursor: string | null;
   /** Bounded ring of directive ids already applied (dedupe), most-recent last. */
@@ -34,7 +42,16 @@ export type BenchSyncCardCursorRow = {
   cursor: BenchSyncCardCursor;
 };
 
-export type BenchSyncCursorRow = BenchSyncCursorMetaRow | BenchSyncCardCursorRow;
+export type BenchSyncProposalCursorRow = {
+  kind: "proposal";
+  proposalId: string;
+  cursor: BenchSyncProposalCursor;
+};
+
+export type BenchSyncCursorRow =
+  | BenchSyncCursorMetaRow
+  | BenchSyncCardCursorRow
+  | BenchSyncProposalCursorRow;
 
 export type BenchSyncCursorStore = Pick<
   PluginStateKeyedStore<BenchSyncCursorRow>,
@@ -49,10 +66,12 @@ export const CURSOR_STATE_MAX_ENTRIES = 5_000;
 
 const CURSOR_META_KEY = "meta";
 const CARD_KEY_PREFIX = "card:";
+const PROPOSAL_KEY_PREFIX = "proposal:";
 
 export function defaultCursorState(): BenchSyncCursorState {
   return {
     cards: {},
+    proposals: {},
     directiveCursor: null,
     appliedDirectiveIds: [],
   };
@@ -76,6 +95,13 @@ function coerceCardCursor(value: unknown): BenchSyncCardCursor | null {
     return null;
   }
   return { hash, seq };
+}
+
+function coerceProposalCursor(value: unknown): BenchSyncProposalCursor | null {
+  if (!isRecord(value) || typeof value.hash !== "string") {
+    return null;
+  }
+  return { hash: value.hash };
 }
 
 function normalizeCursorMetaRow(value: unknown): BenchSyncCursorMetaRow | null {
@@ -113,6 +139,21 @@ function normalizeCardCursorRow(value: unknown): BenchSyncCardCursorRow | null {
   return {
     kind: "card",
     cardId: value.cardId,
+    cursor,
+  };
+}
+
+function normalizeProposalCursorRow(value: unknown): BenchSyncProposalCursorRow | null {
+  if (!isRecord(value) || value.kind !== "proposal" || typeof value.proposalId !== "string") {
+    return null;
+  }
+  const cursor = coerceProposalCursor(value.cursor);
+  if (!cursor) {
+    return null;
+  }
+  return {
+    kind: "proposal",
+    proposalId: value.proposalId,
     cursor,
   };
 }
@@ -156,6 +197,7 @@ export async function loadCursor(
   let directiveCursor: string | null = null;
   let appliedDirectiveIds: string[] = [];
   const cards: Record<string, BenchSyncCardCursor> = {};
+  const proposals: Record<string, BenchSyncProposalCursor> = {};
   const invalidKeys: string[] = [];
 
   for (const entry of await store.entries()) {
@@ -169,15 +211,23 @@ export async function loadCursor(
       appliedDirectiveIds = meta.appliedDirectiveIds;
       continue;
     }
-    if (!entry.key.startsWith(CARD_KEY_PREFIX)) {
+    if (entry.key.startsWith(CARD_KEY_PREFIX)) {
+      const card = normalizeCardCursorRow(entry.value);
+      if (!card) {
+        invalidKeys.push(entry.key);
+        continue;
+      }
+      cards[card.cardId] = card.cursor;
       continue;
     }
-    const card = normalizeCardCursorRow(entry.value);
-    if (!card) {
-      invalidKeys.push(entry.key);
-      continue;
+    if (entry.key.startsWith(PROPOSAL_KEY_PREFIX)) {
+      const proposal = normalizeProposalCursorRow(entry.value);
+      if (!proposal) {
+        invalidKeys.push(entry.key);
+        continue;
+      }
+      proposals[proposal.proposalId] = proposal.cursor;
     }
-    cards[card.cardId] = card.cursor;
   }
 
   if (invalidKeys.length > 0) {
@@ -187,7 +237,7 @@ export async function loadCursor(
     await Promise.all(invalidKeys.map((key) => store.delete(key).catch(() => false)));
   }
 
-  return { cards, directiveCursor, appliedDirectiveIds };
+  return { cards, proposals, directiveCursor, appliedDirectiveIds };
 }
 
 /** Persist the cursor in SQLite plugin state. */
@@ -197,11 +247,22 @@ export async function saveCursor(
 ): Promise<void> {
   const retainedCardKeys = new Set<string>();
   for (const [cardId, cursor] of Object.entries(state.cards)) {
-    const key = cardRowKey(cardId);
+    const key = hashedRowKey(CARD_KEY_PREFIX, cardId);
     retainedCardKeys.add(key);
     await store.register(key, {
       kind: "card",
       cardId,
+      cursor,
+    });
+  }
+
+  const retainedProposalKeys = new Set<string>();
+  for (const [proposalId, cursor] of Object.entries(state.proposals)) {
+    const key = hashedRowKey(PROPOSAL_KEY_PREFIX, proposalId);
+    retainedProposalKeys.add(key);
+    await store.register(key, {
+      kind: "proposal",
+      proposalId,
       cursor,
     });
   }
@@ -213,11 +274,15 @@ export async function saveCursor(
   });
 
   const staleKeys = (await store.entries())
-    .filter((entry) => entry.key.startsWith(CARD_KEY_PREFIX) && !retainedCardKeys.has(entry.key))
+    .filter(
+      (entry) =>
+        (entry.key.startsWith(CARD_KEY_PREFIX) && !retainedCardKeys.has(entry.key)) ||
+        (entry.key.startsWith(PROPOSAL_KEY_PREFIX) && !retainedProposalKeys.has(entry.key)),
+    )
     .map((entry) => entry.key);
   await Promise.all(staleKeys.map((key) => store.delete(key)));
 }
 
-function cardRowKey(cardId: string): string {
-  return `${CARD_KEY_PREFIX}${crypto.createHash("sha256").update(cardId).digest("hex")}`;
+function hashedRowKey(prefix: string, id: string): string {
+  return `${prefix}${crypto.createHash("sha256").update(id).digest("hex")}`;
 }

@@ -39,6 +39,12 @@ export class BenchSyncClientError extends Error {
 /** Directive types this gateway knows how to pull/apply. */
 export type BenchSyncDirectiveType = "skill_proposal_decision";
 
+/**
+ * Directive ack — mirrors the cloud SyncDirectiveAck contract:
+ *  - applied: optional result identifiers (no secrets)
+ *  - failed: a code+message error envelope (no secrets)
+ *  - skipped: a reason string
+ */
 export type BenchSyncDirectiveAck =
   | { status: "applied"; result?: { proposalId?: string; cardId?: string } }
   | { status: "failed"; error: { code: string; message: string } }

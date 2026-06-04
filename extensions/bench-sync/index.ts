@@ -6,6 +6,14 @@
 // proposal mirror-up handler. The loop structure itself is not changed —
 // handlers are appended via addTickHandler.
 
+import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "openclaw/plugin-sdk/agent-runtime";
+import {
+  applySkillProposal,
+  inspectSkillProposal,
+  listSkillProposals,
+  quarantineSkillProposal,
+  rejectSkillProposal,
+} from "openclaw/plugin-sdk/skill-workshop-runtime";
 import { WorkboardStore } from "../workboard/src/store.js";
 import { definePluginEntry } from "./api.js";
 import { resolveBenchSyncRuntimeConfig } from "./src/config.js";
@@ -15,6 +23,11 @@ import {
   loadCursor,
   type BenchSyncCursorRow,
 } from "./src/cursor.js";
+import {
+  runDirectiveTick,
+  runProposalMirrorTick,
+  type SkillWorkshopContext,
+} from "./src/directive-apply.js";
 import { createBenchSyncLoop } from "./src/loop.js";
 import { resolveBenchSyncClient } from "./src/runtime-setup.js";
 import { createMirrorBackoffState, runWorkboardMirrorTick } from "./src/workboard-mirror.js";
@@ -85,6 +98,48 @@ export default definePluginEntry({
               },
             });
           }
+        }
+
+        if (runtime.skillSyncEnabled) {
+          // Single-workspace v1: resolve the default agent's workspace dir the
+          // same way the gateway's skills server-methods do. Multi-agent
+          // proposal routing is a future enhancement.
+          const workspaceDir = resolveAgentWorkspaceDir(
+            ctx.config,
+            resolveDefaultAgentId(ctx.config),
+          );
+          const skillsCtx: SkillWorkshopContext = {
+            workspaceDir,
+            applyProposal: applySkillProposal,
+            rejectProposal: rejectSkillProposal,
+            quarantineProposal: quarantineSkillProposal,
+            listProposals: listSkillProposals,
+            inspectProposal: async (proposalId, options) => {
+              const read = await inspectSkillProposal(proposalId, options);
+              return read ? { record: read.record, content: read.content } : null;
+            },
+          };
+          const mirrorPendingUp = runtime.mirrorPendingUp;
+          loop.addTickHandler({
+            name: "skill-directives",
+            run: async (tickCtx) => {
+              await runDirectiveTick({
+                client: setup.client,
+                cursorStore: runtimeCursor,
+                skillsCtx,
+                logger: tickCtx.logger,
+                signal: tickCtx.signal,
+              });
+              await runProposalMirrorTick({
+                client: setup.client,
+                cursorStore: runtimeCursor,
+                skillsCtx,
+                mirrorPendingUp,
+                logger: tickCtx.logger,
+                signal: tickCtx.signal,
+              });
+            },
+          });
         }
 
         loop.start({

@@ -63,6 +63,7 @@ describe("cursor save + load round trip", () => {
     const store = createStore();
     const state = {
       cards: { "card-1": { hash: "abc", seq: 3 }, "card-2": { hash: "def", seq: 7 } },
+      proposals: { "prop-1": { hash: "p1" } },
       directiveCursor: "cursor-42",
       appliedDirectiveIds: ["d1", "d2"],
     };
@@ -76,23 +77,48 @@ describe("cursor save + load round trip", () => {
     const store = createStore();
     await saveCursor(store, {
       cards: { "card-1": { hash: "abc", seq: 3 }, "card-2": { hash: "def", seq: 7 } },
+      proposals: {},
       directiveCursor: "cursor-42",
       appliedDirectiveIds: ["d1"],
     });
 
     await saveCursor(store, {
       cards: { "card-2": { hash: "def", seq: 8 } },
+      proposals: {},
       directiveCursor: "cursor-43",
       appliedDirectiveIds: ["d2"],
     });
 
     expect(await loadCursor(store)).toEqual({
       cards: { "card-2": { hash: "def", seq: 8 } },
+      proposals: {},
       directiveCursor: "cursor-43",
       appliedDirectiveIds: ["d2"],
     });
     const cardRows = (await store.entries()).filter((entry) => entry.value.kind === "card");
     expect(cardRows).toHaveLength(1);
+  });
+
+  it("stores proposal cursors as separate rows and prunes stale rows", async () => {
+    const store = createStore();
+    await saveCursor(store, {
+      ...defaultCursorState(),
+      proposals: { "prop-1": { hash: "abc" }, "prop-2": { hash: "def" } },
+    });
+
+    await saveCursor(store, {
+      ...defaultCursorState(),
+      proposals: { "prop-2": { hash: "next" } },
+    });
+
+    expect(await loadCursor(store)).toEqual({
+      ...defaultCursorState(),
+      proposals: { "prop-2": { hash: "next" } },
+    });
+    const proposalRows = (await store.entries()).filter(
+      (entry) => entry.value.kind === "proposal",
+    );
+    expect(proposalRows).toHaveLength(1);
   });
 
   it("hashes card ids before using them as plugin-state keys", async () => {
@@ -144,6 +170,24 @@ describe("cursor corrupt recovery", () => {
 
     expect(state.cards).toEqual({ "good-card": { hash: "ok", seq: 2 } });
     expect((await store.entries()).map((entry) => entry.key)).not.toContain("card:bad");
+  });
+
+  it("keeps valid rows while clearing invalid proposal rows", async () => {
+    const store = createStore();
+    await saveCursor(store, {
+      ...defaultCursorState(),
+      proposals: { "good-prop": { hash: "ok" } },
+    });
+    await store.register("proposal:bad", {
+      kind: "proposal",
+      proposalId: "bad-prop",
+      cursor: { hash: 1 },
+    } as unknown as BenchSyncCursorRow);
+
+    const state = await loadCursor(store);
+
+    expect(state.proposals).toEqual({ "good-prop": { hash: "ok" } });
+    expect((await store.entries()).map((entry) => entry.key)).not.toContain("proposal:bad");
   });
 });
 

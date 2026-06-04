@@ -150,7 +150,7 @@ describe("BenchSyncClient request construction", () => {
     const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true }));
     const client = makeClient(fetchMock);
 
-    await client.ackDirective("a/b c", { status: "skipped", reason: "unsupported" });
+    await client.ackDirective("a/b c", { status: "skipped", reason: "already applied" });
 
     const { url } = callAt(fetchMock, 0);
     expect(url).toBe(`${BASE}/api/v1/instances/${INSTANCE}/sync/directives/a%2Fb%20c/ack`);

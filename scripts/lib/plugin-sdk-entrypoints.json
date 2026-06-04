@@ -272,6 +272,7 @@
   "memory-host-status",
   "models-provider-runtime",
   "skill-commands-runtime",
+  "skill-workshop-runtime",
   "native-command-config-runtime",
   "native-command-registry",
   "provider-auth",
