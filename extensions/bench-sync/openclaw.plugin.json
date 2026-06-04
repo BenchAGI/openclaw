@@ -1,0 +1,14 @@
+{
+  "id": "bench-sync",
+  "enabledByDefault": false,
+  "activation": {
+    "onStartup": true
+  },
+  "name": "Bench Sync",
+  "description": "Mirror Workboard cards and skill proposals to the Bench cloud and apply governed directives.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

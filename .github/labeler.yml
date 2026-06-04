@@ -53,6 +53,10 @@
           - "extensions/workboard/**"
           - "docs/plugins/workboard.md"
           - "docs/plugins/reference/workboard.md"
+"plugin: bench-sync":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/bench-sync/**"
 "plugin: migrate-hermes":
   - changed-files:
       - any-glob-to-any-file:

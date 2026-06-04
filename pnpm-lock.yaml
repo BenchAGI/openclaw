@@ -402,6 +402,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
+  extensions/bench-sync:
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: 2026.5.28
+        version: 2026.5.28
+
   extensions/bonjour:
     dependencies:
       '@homebridge/ciao':
