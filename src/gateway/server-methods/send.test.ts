@@ -823,6 +823,40 @@ describe("gateway send mirroring", () => {
     expect(deliveryCall()?.mirror?.idempotencyKey).toBe("idem-2");
   });
 
+  it("mirrors gateway send context without adding it to the delivered Slack payload", async () => {
+    mockDeliverySuccess("m-context");
+
+    await runSend({
+      to: "channel:C1",
+      message: "Approval request is posted.",
+      context:
+        "Briggs approval thread. Spec: handoffs/briggs/deck-email-spec.json. File: handoffs/briggs/deck.pdf.",
+      channel: "slack",
+      threadId: "1780605435.302689",
+      idempotencyKey: "idem-send-context",
+      sessionKey: "agent:main:slack:channel:c1",
+    });
+
+    expect(deliveryCall()?.payloads).toEqual([
+      {
+        text: "Approval request is posted.",
+        mediaUrl: undefined,
+        mediaUrls: undefined,
+      },
+    ]);
+    expect(deliveryCall()?.threadId).toBe("1780605435.302689");
+    expect(deliveryCall()?.mirror?.text).toBe(
+      [
+        "Context note for future turns (not sent to the channel):",
+        "Briggs approval thread. Spec: handoffs/briggs/deck-email-spec.json. File: handoffs/briggs/deck.pdf.",
+        "Sent to the channel:",
+        "Approval request is posted.",
+      ].join("\n\n"),
+    );
+    expect(deliveryCall()?.mirror?.sessionKey).toBe("agent:main:slack:channel:c1");
+    expect(deliveryCall()?.mirror?.idempotencyKey).toBe("idem-send-context");
+  });
+
   it("mirrors MEDIA tags as attachments", async () => {
     mockDeliverySuccess("m2");
 
