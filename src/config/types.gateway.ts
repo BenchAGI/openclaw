@@ -52,7 +52,11 @@ export type TalkRealtimeConfig = {
   providers?: Record<string, TalkProviderConfig>;
   /** Provider model override for realtime sessions. */
   model?: string;
-  /** Provider voice override for realtime sessions. */
+  /** Provider speaker voice name override for realtime sessions. */
+  speakerVoice?: string;
+  /** Provider speaker voice id override for realtime sessions. */
+  speakerVoiceId?: string;
+  /** @deprecated Use speakerVoice. */
   voice?: string;
   /** Additional system instructions appended to realtime Talk sessions. */
   instructions?: string;
@@ -212,6 +216,8 @@ export type GatewayTailscaleConfig = {
   mode?: GatewayTailscaleMode;
   /** Reset serve/funnel configuration on shutdown. */
   resetOnExit?: boolean;
+  /** Optional Tailscale Service name, such as `svc:openclaw`, for Serve mode. */
+  serviceName?: string;
   /**
    * When `mode="serve"` and an externally configured Tailscale Funnel route
    * already covers the gateway port, skip re-applying `tailscale serve` on
