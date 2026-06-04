@@ -18,20 +18,40 @@ type SessionEndHandler = (
   ctx: { agentId?: string; sessionId: string; sessionKey?: string },
 ) => Promise<void> | void;
 
-async function setupPlugin(pluginConfig?: Record<string, unknown>) {
+async function setupPlugin(
+  pluginConfig?: Record<string, unknown>,
+  runtimePluginConfig: Record<string, unknown> | undefined = pluginConfig,
+) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "session-digest-ws-"));
   const handlers = new Map<string, SessionEndHandler>();
   const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+  const config = {
+    agents: {
+      defaults: { workspace },
+      list: [{ id: "aurelius", workspace }],
+    },
+    ...(runtimePluginConfig
+      ? {
+          plugins: {
+            entries: {
+              "session-digest": {
+                config: runtimePluginConfig,
+              },
+            },
+          },
+        }
+      : {}),
+  };
   const api = {
     id: "session-digest",
     name: "Session Digest",
-    config: {
-      agents: {
-        defaults: { workspace },
-        list: [{ id: "aurelius", workspace }],
+    config,
+    pluginConfig,
+    runtime: {
+      config: {
+        current: () => config,
       },
     },
-    pluginConfig,
     logger,
     on: (name: string, handler: SessionEndHandler) => {
       handlers.set(name, handler);
@@ -116,6 +136,32 @@ describe("session-digest plugin", () => {
     expect(bySession.digestId).toBe(digest.digestId);
   });
 
+  test("uses live plugin config when handling session_end", async () => {
+    const { workspace, handler } = await setupPlugin(
+      { captureIntent: true },
+      { captureIntent: false, digestDir: "live-digests" },
+    );
+    const sessionFile = await writeTranscript([
+      {
+        type: "message",
+        id: "m1",
+        timestamp: "2026-06-04T01:00:01.000Z",
+        message: { role: "user", content: "should not be captured" },
+      },
+    ]);
+
+    await handler(
+      { sessionId: "live-config", messageCount: 1, reason: "idle", sessionFile },
+      { agentId: "aurelius", sessionId: "live-config" },
+    );
+
+    const stream = await readFile(
+      path.join(workspace, "live-digests", "session-digests.jsonl"),
+      "utf8",
+    );
+    expect(JSON.parse(stream.trim()).intent).toBe("");
+  });
+
   test("emits a stub digest when the transcript is missing", async () => {
     const { workspace, handler } = await setupPlugin();
     await handler(
@@ -163,6 +209,27 @@ describe("session-digest plugin", () => {
       ),
     ).resolves.toBeUndefined();
     expect(logger.warn).toHaveBeenCalled();
+  });
+
+  test("rejects digestDir paths that escape the agent workspace", async () => {
+    const escapedDirName = `session-digest-escaped-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`;
+    const { workspace, handler, logger } = await setupPlugin({
+      digestDir: `../${escapedDirName}`,
+    });
+    await expect(
+      handler(
+        { sessionId: "escape", messageCount: 1, reason: "idle" },
+        { agentId: "aurelius", sessionId: "escape" },
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      readFile(path.join(path.dirname(workspace), escapedDirName, "session-digests.jsonl"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("digestDir must stay within the agent workspace"),
+    );
   });
 
   test("honors captureIntent=false config", async () => {

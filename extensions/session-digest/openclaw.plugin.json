@@ -3,7 +3,8 @@
   "name": "Session Digest",
   "description": "Emit a structured SessionDigest JSON line into the agent workspace when a gateway session ends, feeding workspace-local memory reconciliation.",
   "activation": {
-    "onStartup": false
+    "onStartup": false,
+    "onCapabilities": ["hook"]
   },
   "configSchema": {
     "type": "object",

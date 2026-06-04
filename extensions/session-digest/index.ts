@@ -25,28 +25,34 @@
 import { Buffer } from "node:buffer";
 import { appendFile, mkdir, open, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { definePluginEntry, redactSensitiveText, resolveAgentWorkspaceDir } from "./api.js";
+import {
+  definePluginEntry,
+  redactSensitiveText,
+  resolveAgentWorkspaceDir,
+  resolveLivePluginConfigObject,
+  type OpenClawConfig,
+  type OpenClawPluginApi,
+} from "./api.js";
 
 const DIGEST_VERSION = 1;
 const DEFAULT_DIGEST_DIR = "state/session-digests";
 const INTENT_READ_BYTES = 64 * 1024;
 const INTENT_MAX_CHARS = 240;
+const WINDOWS_ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\\\\)/u;
 
 const META_PROMPT_PATTERN =
   /^(<command-name>|<command-message>|<local-command|<system-reminder>|Caveat:|\[Request interrupted|Continue this conversation|Read HEARTBEAT\.md|\[[A-Z][a-z]{2} \d{4}-\d{2}-\d{2})/;
+
+type SessionDigestConfig = {
+  digestDir: string;
+  captureIntent: boolean;
+};
 
 export default definePluginEntry({
   id: "session-digest",
   name: "Session Digest",
   description: "Emit a structured SessionDigest into the agent workspace when a session ends",
   register(api) {
-    const rawConfig = (api.pluginConfig ?? {}) as { digestDir?: unknown; captureIntent?: unknown };
-    const digestDir =
-      typeof rawConfig.digestDir === "string" && rawConfig.digestDir.trim()
-        ? rawConfig.digestDir.trim()
-        : DEFAULT_DIGEST_DIR;
-    const captureIntent = rawConfig.captureIntent !== false;
-
     api.on("session_end", async (event, ctx) => {
       try {
         if (!event?.sessionId) {
@@ -65,7 +71,9 @@ export default definePluginEntry({
           );
           return;
         }
-        const workspaceDir = resolveAgentWorkspaceDir(api.config, agentId);
+        const runtimeConfig = (api.runtime.config?.current?.() ?? api.config) as OpenClawConfig;
+        const config = resolveSessionDigestConfig(api, runtimeConfig);
+        const workspaceDir = resolveAgentWorkspaceDir(runtimeConfig, agentId);
         if (!workspaceDir) {
           return;
         }
@@ -75,7 +83,7 @@ export default definePluginEntry({
           typeof event.durationMs === "number" && event.durationMs > 0
             ? new Date(endedAt.getTime() - event.durationMs)
             : null;
-        const intent = captureIntent ? await extractIntent(event.sessionFile) : "";
+        const intent = config.captureIntent ? await extractIntent(event.sessionFile) : "";
         const sessionKey = ctx.sessionKey ?? event.sessionKey;
 
         const digest = {
@@ -106,7 +114,7 @@ export default definePluginEntry({
           }).`,
         };
 
-        const outDir = path.join(workspaceDir, digestDir);
+        const outDir = path.join(workspaceDir, config.digestDir);
         const bySessionDir = path.join(outDir, "by-session");
         await mkdir(bySessionDir, { recursive: true, mode: 0o700 });
         await appendFile(
@@ -128,6 +136,37 @@ export default definePluginEntry({
     });
   },
 });
+
+function resolveSessionDigestConfig(
+  api: OpenClawPluginApi,
+  runtimeConfig: OpenClawConfig,
+): SessionDigestConfig {
+  const rawConfig = resolveLivePluginConfigObject(
+    () => runtimeConfig,
+    "session-digest",
+    api.pluginConfig,
+  );
+  return normalizeSessionDigestConfig(rawConfig);
+}
+
+function normalizeSessionDigestConfig(rawConfig?: Record<string, unknown>): SessionDigestConfig {
+  return {
+    digestDir: normalizeDigestDir(rawConfig?.digestDir),
+    captureIntent: rawConfig?.captureIntent !== false,
+  };
+}
+
+function normalizeDigestDir(value: unknown): string {
+  const raw = typeof value === "string" && value.trim() ? value.trim() : DEFAULT_DIGEST_DIR;
+  if (path.isAbsolute(raw) || WINDOWS_ABSOLUTE_PATH.test(raw)) {
+    throw new Error("session-digest digestDir must be relative to the agent workspace");
+  }
+  const parts = raw.split(/[\\/]+/u).filter((part) => part && part !== ".");
+  if (parts.length === 0 || parts.some((part) => part === "..")) {
+    throw new Error("session-digest digestDir must stay within the agent workspace");
+  }
+  return parts.join(path.sep);
+}
 
 /**
  * Extract the first non-meta user message from the head of a session
@@ -176,9 +215,7 @@ async function extractIntent(sessionFile?: string): Promise<string> {
                 ) as { text?: string } | undefined
               )?.text ?? "")
             : "";
-      const cleaned = String(textBlock ?? "")
-        .replace(/\s+/g, " ")
-        .trim();
+      const cleaned = textBlock.replace(/\s+/g, " ").trim();
       if (!cleaned || META_PROMPT_PATTERN.test(cleaned)) {
         continue;
       }
