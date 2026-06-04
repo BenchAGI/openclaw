@@ -43,7 +43,7 @@ function createMemoryCursorStore(): BenchSyncCursorStore {
   const rows = new Map<string, BenchSyncCursorRow>();
   return {
     delete: async (key) => rows.delete(key),
-    entries: async () => [...rows].map(([key, value]) => ({ key, value })),
+    entries: async () => [...rows].map(([key, value]) => ({ key, value, createdAt: 0 })),
     register: async (key, value) => void rows.set(key, value),
   };
 }
@@ -381,7 +381,16 @@ describe("projectSkillProposal", () => {
             critical: 0,
             warn: 1,
             info: 0,
-            findings: [{ ruleId: "WARN", severity: "warn", message: "review this" }],
+            findings: [
+              {
+                ruleId: "WARN",
+                severity: "warn",
+                message: "review this",
+                file: "skill.md",
+                line: 1,
+                evidence: "review this",
+              },
+            ],
           },
         }),
         "# PROPOSAL",
@@ -396,7 +405,16 @@ describe("projectSkillProposal", () => {
             critical: 1,
             warn: 0,
             info: 0,
-            findings: [{ ruleId: "CRIT", severity: "critical", message: "unsafe" }],
+            findings: [
+              {
+                ruleId: "CRIT",
+                severity: "critical",
+                message: "unsafe",
+                file: "skill.md",
+                line: 1,
+                evidence: "unsafe",
+              },
+            ],
           },
         }),
         "# PROPOSAL",

@@ -56,7 +56,7 @@ function createMemoryCursorStore(): BenchSyncCursorStore {
   const rows = new Map<string, BenchSyncCursorRow>();
   return {
     delete: async (key) => rows.delete(key),
-    entries: async () => [...rows].map(([key, value]) => ({ key, value })),
+    entries: async () => [...rows].map(([key, value]) => ({ key, value, createdAt: 0 })),
     register: async (key, value) => void rows.set(key, value),
   };
 }
