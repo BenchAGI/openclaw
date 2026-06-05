@@ -1,4 +1,6 @@
 // Workboard up-mirror (B2).
+// .oxlintrc disables two type-aware rules for this file because tsgolint
+// does not return on this projection module; tsgo + Vitest cover the contracts.
 //
 // Projects local Workboard cards into the Bench cloud agent-tasks contract and
 // pushes changed cards up via the bench-sync client. The projection enforces

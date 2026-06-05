@@ -34,6 +34,13 @@ function makeClient(fetchFn: typeof fetch): BenchSyncClient {
   );
 }
 
+function requestBodyText(init: RequestInit | undefined): string {
+  if (typeof init?.body !== "string") {
+    throw new Error("expected string request body");
+  }
+  return init.body;
+}
+
 function baseCard(overrides: Partial<WorkboardCard> = {}): WorkboardCard {
   return {
     id: "card-1",
@@ -334,7 +341,7 @@ describe("runWorkboardMirrorTick", () => {
     expect(result.batches).toBe(1);
 
     // The POST body carries the single projected card with a syncCursor seq.
-    const body = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]));
     expect(body.cards).toHaveLength(1);
     expect(body.cards[0]).toMatchObject({ gatewayCardId: "card-1", syncCursor: 1 });
 
@@ -468,8 +475,8 @@ describe("runWorkboardMirrorTick", () => {
     });
     expect(result.batches).toBe(2); // 200 + 50
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const first = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
-    const second = JSON.parse((fetchMock.mock.calls[1]![1] as RequestInit).body as string);
+    const first = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]));
+    const second = JSON.parse(requestBodyText(fetchMock.mock.calls[1]?.[1]));
     expect(first.cards.length).toBe(200);
     expect(second.cards.length).toBe(50);
   });

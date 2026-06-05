@@ -94,14 +94,14 @@ describe("bench-sync plugin service", () => {
     delete process.env.BENCH_INSTANCE_API_KEY;
   });
 
-  it("does not open cursor state when the sync loop is inactive", () => {
+  it("does not open cursor state when the sync loop is inactive", async () => {
     const logger = makeLogger();
     const openKeyedStore = vi.fn(<T>(_options: OpenKeyedStoreOptions) => createStore<T>());
     const service = registerPlugin(
       openKeyedStore as unknown as OpenClawPluginApi["runtime"]["state"]["openKeyedStore"],
     );
 
-    service.start(makeServiceContext(inactiveConfig(), logger));
+    await service.start(makeServiceContext(inactiveConfig(), logger));
 
     expect(openKeyedStore).not.toHaveBeenCalled();
     expect(logger.debugLines.some((line) => line.includes("inactive"))).toBe(true);

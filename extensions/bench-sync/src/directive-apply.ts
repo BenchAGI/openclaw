@@ -1,4 +1,6 @@
 // Directive pull/apply + skill-proposal mirror-up (B3).
+// .oxlintrc disables two type-aware rules for this file because tsgolint
+// does not return on this projection module; tsgo + Vitest cover the contracts.
 //
 // Two responsibilities, both gated behind skillSync.enabled:
 //
@@ -17,22 +19,13 @@
 //    Both use the same content-hash diff against the cursor.
 
 import { createHash } from "node:crypto";
-import type {
-  SkillProposalActionInput,
-  SkillProposalApplyResult,
-  SkillProposalManifest,
-  SkillProposalManifestEntry,
-  SkillProposalRecord,
-  SkillProposalScan,
-  SkillProposalStatus,
-  SkillProposalSupportFile,
-} from "openclaw/plugin-sdk/skill-workshop-runtime";
 import {
   BenchSyncClientError,
   type BenchSyncClient,
   type BenchSyncDirectiveAck,
 } from "./client.js";
 import {
+  getAppliedDirectiveAck,
   hasAppliedDirective,
   recordAppliedDirective,
   saveCursor,
@@ -54,6 +47,81 @@ type DirectiveLogger = {
 
 /** Cloud decision action carried by a skill_proposal_decision directive. */
 export type SkillProposalDecisionAction = "apply" | "reject" | "quarantine";
+
+export type SkillProposalKind = "create" | "update";
+export type SkillProposalStatus = "pending" | "applied" | "rejected" | "quarantined" | "stale";
+export type SkillProposalScannerState = "pending" | "clean" | "failed" | "quarantined";
+
+export type SkillProposalActionInput = {
+  workspaceDir: string;
+  proposalId: string;
+  reason?: string;
+};
+
+export type SkillProposalScan = {
+  state: SkillProposalScannerState;
+  scannedAt: string;
+  critical: number;
+  warn: number;
+  info: number;
+  findings: Array<{ ruleId: string; severity: string; message: string }>;
+};
+
+export type SkillProposalSupportFile = {
+  path: string;
+  sizeBytes: number;
+  hash: string;
+};
+
+export type SkillProposalRecord = {
+  schema: "openclaw.skill-workshop.proposal.v1";
+  id: string;
+  kind: SkillProposalKind;
+  status: SkillProposalStatus;
+  title: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  origin?: { agentId?: string };
+  proposedVersion: string;
+  draftFile: "PROPOSAL.md";
+  draftHash: string;
+  supportFiles?: SkillProposalSupportFile[];
+  target: {
+    skillName: string;
+    skillKey: string;
+    skillDir: string;
+    skillFile: string;
+    source?: string;
+    currentContentHash?: string;
+  };
+  scan: SkillProposalScan;
+};
+
+export type SkillProposalManifestEntry = {
+  id: string;
+  kind: SkillProposalKind;
+  status: SkillProposalStatus;
+  title: string;
+  description: string;
+  skillName: string;
+  skillKey: string;
+  createdAt: string;
+  updatedAt: string;
+  scanState: SkillProposalScannerState;
+};
+
+export type SkillProposalManifest = {
+  schema: "openclaw.skill-workshop.proposals-manifest.v1";
+  updatedAt: string;
+  proposals: SkillProposalManifestEntry[];
+};
+
+export type SkillProposalApplyResult = {
+  record: SkillProposalRecord;
+  targetSkillFile: string;
+};
 
 /** Minimal shape of a pulled directive (the cloud SyncDirective contract). */
 export type PulledDirective = {
@@ -178,9 +246,9 @@ export type DirectiveTickResult = {
 /**
  * Pull and enact skill_proposal_decision directives.
  *
- * - A directive already in the dedupe ring is acked 'skipped' and NOT
- *   re-enacted (idempotent re-delivery).
- * - On success the directive is acked 'applied' and ringed.
+ * - A directive already in the dedupe ring is re-acked with its cached outcome
+ *   when available and NOT re-enacted (idempotent re-delivery).
+ * - On success the directive is acked 'applied' and ringed with that ack.
  * - On enact failure the directive is acked 'failed' AND still ringed: the
  *   cloud decision is terminal, so retrying it forever would loop. The failure
  *   is surfaced to the operator via the ack; re-deciding produces a NEW
@@ -213,21 +281,25 @@ export async function runDirectiveTick(args: RunDirectiveTickArgs): Promise<Dire
     result.pulled += 1;
 
     if (hasAppliedDirective(state, directive.id)) {
-      // Already enacted in a prior tick — ack skipped, do NOT call the service.
-      await client.ackDirective(
-        directive.id,
-        { status: "skipped", reason: "already applied" },
-        { signal },
-      );
+      // Already enacted in a prior tick — resend the cached ack if we have it,
+      // otherwise preserve the old ring-only behavior for pre-ack-cache state.
+      const cachedAck = getAppliedDirectiveAck(state, directive.id) ?? {
+        status: "skipped" as const,
+        reason: "already applied",
+      };
+      await client.ackDirective(directive.id, cachedAck, { signal });
       result.skipped += 1;
       continue;
     }
 
     const ack = await enactDirective(directive, skillsCtx);
+    // Ring the id whether it applied or failed (failure is terminal). Persist
+    // before the ack so a transient ack failure retries this exact ack without
+    // re-enacting the local decision.
+    state = recordAppliedDirective(state, directive.id, ack);
+    cursorStore.state = state;
+    await saveCursor(cursorStore.store, state);
     await client.ackDirective(directive.id, ack, { signal });
-    // Ring the id whether it applied or failed (failure is terminal — re-deciding
-    // mints a new directive id).
-    state = recordAppliedDirective(state, directive.id);
     if (ack.status === "applied") {
       result.applied += 1;
     } else {

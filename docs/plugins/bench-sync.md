@@ -7,7 +7,7 @@ read_when:
 title: "bench-sync plugin"
 ---
 
-The bench-sync plugin (BenchAGI fork extension) keeps a customer gateway's
+The bench-sync plugin (BenchAGI fork plugin) keeps a customer gateway's
 local Workboard and Skill Workshop in sync with the BenchAGI cloud:
 
 - **UP — Workboard mirror:** customer-visible Workboard cards are projected
@@ -73,12 +73,14 @@ at least one of `workboardSync.enabled` / `skillSync.enabled` are true.
 
 ## Durability
 
-Sync state lives in `<state-dir>/bench-sync/cursor.json` (atomic writes):
+Sync state lives in the shared OpenClaw SQLite state database
+(`state/openclaw.sqlite`) under the bench-sync plugin-state namespace:
 per-card and per-proposal content hashes (unchanged items are never
-re-pushed), the directive cursor, and a bounded ring of applied directive
-ids (replay-safe across restarts — a re-delivered directive is acked
-`skipped` without re-enacting). Push failures keep the cursor unadvanced
-and retry with a capped skip-N-ticks backoff.
+re-pushed), the directive cursor, and a bounded ring of enacted directive ids.
+The ring also stores the original ack payload, so if a cloud ack fails after a
+local decision succeeds, the next tick retries that ack without re-enacting the
+Skill Workshop action. Push failures keep the affected cursor unadvanced and
+retry with a capped skip-N-ticks backoff.
 
 ## Failure semantics
 

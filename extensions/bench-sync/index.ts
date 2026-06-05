@@ -6,15 +6,8 @@
 // proposal mirror-up handler. The loop structure itself is not changed —
 // handlers are appended via addTickHandler.
 
-import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "openclaw/plugin-sdk/agent-runtime";
-import {
-  applySkillProposal,
-  inspectSkillProposal,
-  listSkillProposals,
-  quarantineSkillProposal,
-  rejectSkillProposal,
-} from "openclaw/plugin-sdk/skill-workshop-runtime";
 import { WorkboardStore } from "@openclaw/workboard/runtime-api.js";
+import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "openclaw/plugin-sdk/agent-runtime";
 import { definePluginEntry } from "./api.js";
 import { resolveBenchSyncRuntimeConfig } from "./src/config.js";
 import {
@@ -101,6 +94,7 @@ export default definePluginEntry({
         }
 
         if (runtime.skillSyncEnabled) {
+          const workshop = await import("openclaw/plugin-sdk/skill-workshop-runtime");
           // Single-workspace v1: resolve the default agent's workspace dir the
           // same way the gateway's skills server-methods do. Multi-agent
           // proposal routing is a future enhancement.
@@ -110,12 +104,12 @@ export default definePluginEntry({
           );
           const skillsCtx: SkillWorkshopContext = {
             workspaceDir,
-            applyProposal: applySkillProposal,
-            rejectProposal: rejectSkillProposal,
-            quarantineProposal: quarantineSkillProposal,
-            listProposals: listSkillProposals,
+            applyProposal: workshop.applySkillProposal,
+            rejectProposal: workshop.rejectSkillProposal,
+            quarantineProposal: workshop.quarantineSkillProposal,
+            listProposals: workshop.listSkillProposals,
             inspectProposal: async (proposalId, options) => {
-              const read = await inspectSkillProposal(proposalId, options);
+              const read = await workshop.inspectSkillProposal(proposalId, options);
               return read ? { record: read.record, content: read.content } : null;
             },
           };

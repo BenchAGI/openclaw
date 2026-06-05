@@ -6,7 +6,7 @@ import {
   resetPluginStateStoreForTests,
 } from "openclaw/plugin-sdk/plugin-state-test-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { BenchSyncCursorRow, BenchSyncCursorStore } from "./cursor.js";
+import type { BenchSyncCursorRow, BenchSyncCursorState, BenchSyncCursorStore } from "./cursor.js";
 import {
   CURSOR_STATE_MAX_ENTRIES,
   CURSOR_STATE_NAMESPACE,
@@ -66,6 +66,7 @@ describe("cursor save + load round trip", () => {
       proposals: { "prop-1": { hash: "p1" } },
       directiveCursor: "cursor-42",
       appliedDirectiveIds: ["d1", "d2"],
+      directiveAcks: { d2: { status: "applied", result: { proposalId: "prop-1" } } },
     };
 
     await saveCursor(store, state);
@@ -76,24 +77,27 @@ describe("cursor save + load round trip", () => {
   it("stores card cursors as separate rows and prunes stale rows", async () => {
     const store = createStore();
     await saveCursor(store, {
+      ...defaultCursorState(),
       cards: { "card-1": { hash: "abc", seq: 3 }, "card-2": { hash: "def", seq: 7 } },
-      proposals: {},
       directiveCursor: "cursor-42",
       appliedDirectiveIds: ["d1"],
+      directiveAcks: { d1: { status: "failed", error: { code: "x", message: "failed" } } },
     });
 
     await saveCursor(store, {
+      ...defaultCursorState(),
       cards: { "card-2": { hash: "def", seq: 8 } },
-      proposals: {},
       directiveCursor: "cursor-43",
       appliedDirectiveIds: ["d2"],
+      directiveAcks: { d2: { status: "skipped", reason: "already applied" } },
     });
 
     expect(await loadCursor(store)).toEqual({
+      ...defaultCursorState(),
       cards: { "card-2": { hash: "def", seq: 8 } },
-      proposals: {},
       directiveCursor: "cursor-43",
       appliedDirectiveIds: ["d2"],
+      directiveAcks: { d2: { status: "skipped", reason: "already applied" } },
     });
     const cardRows = (await store.entries()).filter((entry) => entry.value.kind === "card");
     expect(cardRows).toHaveLength(1);
@@ -115,10 +119,42 @@ describe("cursor save + load round trip", () => {
       ...defaultCursorState(),
       proposals: { "prop-2": { hash: "next" } },
     });
-    const proposalRows = (await store.entries()).filter(
-      (entry) => entry.value.kind === "proposal",
-    );
+    const proposalRows = (await store.entries()).filter((entry) => entry.value.kind === "proposal");
     expect(proposalRows).toHaveLength(1);
+  });
+
+  it("stores directive acks as separate rows and prunes stale rows", async () => {
+    const store = createStore();
+    await saveCursor(store, {
+      ...defaultCursorState(),
+      appliedDirectiveIds: ["dir-1", "dir-2"],
+      directiveAcks: {
+        "dir-1": { status: "applied", result: { proposalId: "prop-1" } },
+        "dir-2": { status: "failed", error: { code: "scan", message: "blocked" } },
+      },
+    });
+
+    let entries = await store.entries();
+    expect(entries.filter((entry) => entry.value.kind === "directiveAck")).toHaveLength(2);
+    expect(entries.find((entry) => entry.value.kind === "meta")?.value).not.toHaveProperty(
+      "directiveAcks",
+    );
+
+    await saveCursor(store, {
+      ...defaultCursorState(),
+      appliedDirectiveIds: ["dir-2"],
+      directiveAcks: {
+        "dir-2": { status: "skipped", reason: "already applied" },
+      },
+    });
+
+    expect(await loadCursor(store)).toEqual({
+      ...defaultCursorState(),
+      appliedDirectiveIds: ["dir-2"],
+      directiveAcks: { "dir-2": { status: "skipped", reason: "already applied" } },
+    });
+    entries = await store.entries();
+    expect(entries.filter((entry) => entry.value.kind === "directiveAck")).toHaveLength(1);
   });
 
   it("hashes card ids before using them as plugin-state keys", async () => {
@@ -205,12 +241,19 @@ describe("applied-directive ring", () => {
   it("bounds the ring to MAX_APPLIED_DIRECTIVE_IDS", () => {
     let state = defaultCursorState();
     for (let i = 0; i < MAX_APPLIED_DIRECTIVE_IDS + 50; i += 1) {
-      state = recordAppliedDirective(state, `d${i}`);
+      state = recordAppliedDirective(state, `d${i}`, {
+        status: "applied",
+        result: { proposalId: `p${i}` },
+      });
     }
     expect(state.appliedDirectiveIds).toHaveLength(MAX_APPLIED_DIRECTIVE_IDS);
     // Oldest entries dropped, newest retained.
     expect(state.appliedDirectiveIds.at(-1)).toBe(`d${MAX_APPLIED_DIRECTIVE_IDS + 49}`);
     expect(hasAppliedDirective(state, "d0")).toBe(false);
+    expect(state.directiveAcks.d0).toBeUndefined();
+    expect(state.directiveAcks[`d${MAX_APPLIED_DIRECTIVE_IDS + 49}`]).toMatchObject({
+      status: "applied",
+    });
   });
 
   it("bounds the ring on save even if state exceeds the cap", async () => {
@@ -221,12 +264,19 @@ describe("applied-directive ring", () => {
         { length: MAX_APPLIED_DIRECTIVE_IDS + 10 },
         (_, i) => `d${i}`,
       ),
+      directiveAcks: Object.fromEntries(
+        Array.from({ length: MAX_APPLIED_DIRECTIVE_IDS + 10 }, (_, i) => [
+          `d${i}`,
+          { status: "applied", result: { proposalId: `p${i}` } },
+        ]),
+      ) as BenchSyncCursorState["directiveAcks"],
     };
 
     await saveCursor(store, oversized);
 
     const loaded = await loadCursor(store);
     expect(loaded.appliedDirectiveIds).toHaveLength(MAX_APPLIED_DIRECTIVE_IDS);
+    expect(Object.keys(loaded.directiveAcks)).toHaveLength(MAX_APPLIED_DIRECTIVE_IDS);
   });
 
   it("boundAppliedRing keeps the most recent entries", () => {

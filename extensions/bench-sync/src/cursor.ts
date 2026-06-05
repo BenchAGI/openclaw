@@ -1,12 +1,13 @@
 // Durable sync cursor for the bench-sync plugin.
 //
 // Stored in OpenClaw SQLite plugin state. The meta row tracks the directive
-// pull cursor + applied-directive ring; card/proposal hash cursors are separate
-// rows so large Workboards and Skill Workshop manifests do not hit the per-value
+// pull cursor + enacted-directive ring; card/proposal hash cursors and directive
+// ack payloads are separate rows so growing mirrors do not hit the per-value
 // plugin-state size limit.
 
 import crypto from "node:crypto";
 import type { PluginStateKeyedStore } from "openclaw/plugin-sdk/plugin-state-runtime";
+import type { BenchSyncDirectiveAck } from "./client.js";
 
 /** Per-card sync bookkeeping: content hash + monotonically increasing seq. */
 export type BenchSyncCardCursor = {
@@ -26,8 +27,10 @@ export type BenchSyncCursorState = {
   proposals: Record<string, BenchSyncProposalCursor>;
   /** Opaque directive pull cursor returned by the cloud. */
   directiveCursor: string | null;
-  /** Bounded ring of directive ids already applied (dedupe), most-recent last. */
+  /** Bounded ring of directive ids already enacted (dedupe), most-recent last. */
   appliedDirectiveIds: string[];
+  /** Ack payloads for ringed directives, retained so ack retries do not re-enact. */
+  directiveAcks: Record<string, BenchSyncDirectiveAck>;
 };
 
 export type BenchSyncCursorMetaRow = {
@@ -48,17 +51,24 @@ export type BenchSyncProposalCursorRow = {
   cursor: BenchSyncProposalCursor;
 };
 
+export type BenchSyncDirectiveAckRow = {
+  kind: "directiveAck";
+  directiveId: string;
+  ack: BenchSyncDirectiveAck;
+};
+
 export type BenchSyncCursorRow =
   | BenchSyncCursorMetaRow
   | BenchSyncCardCursorRow
-  | BenchSyncProposalCursorRow;
+  | BenchSyncProposalCursorRow
+  | BenchSyncDirectiveAckRow;
 
 export type BenchSyncCursorStore = Pick<
   PluginStateKeyedStore<BenchSyncCursorRow>,
   "delete" | "entries" | "register"
 >;
 
-/** Max retained applied-directive ids (bounded ring). */
+/** Max retained enacted-directive ids (bounded ring). */
 export const MAX_APPLIED_DIRECTIVE_IDS = 500;
 
 export const CURSOR_STATE_NAMESPACE = "cursor";
@@ -67,6 +77,7 @@ export const CURSOR_STATE_MAX_ENTRIES = 5_000;
 const CURSOR_META_KEY = "meta";
 const CARD_KEY_PREFIX = "card:";
 const PROPOSAL_KEY_PREFIX = "proposal:";
+const DIRECTIVE_ACK_KEY_PREFIX = "directive-ack:";
 
 export function defaultCursorState(): BenchSyncCursorState {
   return {
@@ -74,6 +85,7 @@ export function defaultCursorState(): BenchSyncCursorState {
     proposals: {},
     directiveCursor: null,
     appliedDirectiveIds: [],
+    directiveAcks: {},
   };
 }
 
@@ -104,6 +116,42 @@ function coerceProposalCursor(value: unknown): BenchSyncProposalCursor | null {
   return { hash: value.hash };
 }
 
+function coerceDirectiveAck(value: unknown): BenchSyncDirectiveAck | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  if (value.status === "skipped") {
+    return typeof value.reason === "string" ? { status: "skipped", reason: value.reason } : null;
+  }
+  if (value.status === "failed") {
+    if (!isRecord(value.error)) {
+      return null;
+    }
+    const code = value.error.code;
+    const message = value.error.message;
+    return typeof code === "string" && typeof message === "string"
+      ? { status: "failed", error: { code, message } }
+      : null;
+  }
+  if (value.status === "applied") {
+    if (value.result === undefined) {
+      return { status: "applied" };
+    }
+    if (!isRecord(value.result)) {
+      return null;
+    }
+    const proposalId =
+      typeof value.result.proposalId === "string" ? value.result.proposalId : undefined;
+    const cardId = typeof value.result.cardId === "string" ? value.result.cardId : undefined;
+    const result = {
+      ...(proposalId ? { proposalId } : {}),
+      ...(cardId ? { cardId } : {}),
+    };
+    return Object.keys(result).length > 0 ? { status: "applied", result } : { status: "applied" };
+  }
+  return null;
+}
+
 function normalizeCursorMetaRow(value: unknown): BenchSyncCursorMetaRow | null {
   if (!isRecord(value) || value.kind !== "meta") {
     return null;
@@ -121,10 +169,11 @@ function normalizeCursorMetaRow(value: unknown): BenchSyncCursorMetaRow | null {
   ) {
     return null;
   }
+  const appliedDirectiveIds = boundAppliedRing(value.appliedDirectiveIds as string[]);
   return {
     kind: "meta",
     directiveCursor,
-    appliedDirectiveIds: boundAppliedRing(value.appliedDirectiveIds as string[]),
+    appliedDirectiveIds,
   };
 }
 
@@ -158,6 +207,21 @@ function normalizeProposalCursorRow(value: unknown): BenchSyncProposalCursorRow 
   };
 }
 
+function normalizeDirectiveAckRow(value: unknown): BenchSyncDirectiveAckRow | null {
+  if (!isRecord(value) || value.kind !== "directiveAck" || typeof value.directiveId !== "string") {
+    return null;
+  }
+  const ack = coerceDirectiveAck(value.ack);
+  if (!ack) {
+    return null;
+  }
+  return {
+    kind: "directiveAck",
+    directiveId: value.directiveId,
+    ack,
+  };
+}
+
 /** Keep only the most recent MAX_APPLIED_DIRECTIVE_IDS ids. */
 export function boundAppliedRing(ids: string[]): string[] {
   if (ids.length <= MAX_APPLIED_DIRECTIVE_IDS) {
@@ -166,21 +230,52 @@ export function boundAppliedRing(ids: string[]): string[] {
   return ids.slice(ids.length - MAX_APPLIED_DIRECTIVE_IDS);
 }
 
-/** Append an applied directive id, deduping and keeping the ring bounded. */
+function pruneDirectiveAcks(
+  acks: Record<string, BenchSyncDirectiveAck>,
+  retainedIds: readonly string[],
+): Record<string, BenchSyncDirectiveAck> {
+  const retained: Record<string, BenchSyncDirectiveAck> = {};
+  for (const id of retainedIds) {
+    const ack = acks[id];
+    if (ack) {
+      retained[id] = ack;
+    }
+  }
+  return retained;
+}
+
+/** Append an enacted directive id, deduping and keeping the ring bounded. */
 export function recordAppliedDirective(
   state: BenchSyncCursorState,
   id: string,
+  ack?: BenchSyncDirectiveAck,
 ): BenchSyncCursorState {
   const without = state.appliedDirectiveIds.filter((existing) => existing !== id);
   without.push(id);
+  const appliedDirectiveIds = boundAppliedRing(without);
+  const directiveAcks = pruneDirectiveAcks(
+    {
+      ...state.directiveAcks,
+      ...(ack ? { [id]: ack } : {}),
+    },
+    appliedDirectiveIds,
+  );
   return {
     ...state,
-    appliedDirectiveIds: boundAppliedRing(without),
+    appliedDirectiveIds,
+    directiveAcks,
   };
 }
 
 export function hasAppliedDirective(state: BenchSyncCursorState, id: string): boolean {
   return state.appliedDirectiveIds.includes(id);
+}
+
+export function getAppliedDirectiveAck(
+  state: BenchSyncCursorState,
+  id: string,
+): BenchSyncDirectiveAck | null {
+  return state.directiveAcks[id] ?? null;
 }
 
 /**
@@ -196,6 +291,7 @@ export async function loadCursor(
 ): Promise<BenchSyncCursorState> {
   let directiveCursor: string | null = null;
   let appliedDirectiveIds: string[] = [];
+  const directiveAcks: Record<string, BenchSyncDirectiveAck> = {};
   const cards: Record<string, BenchSyncCardCursor> = {};
   const proposals: Record<string, BenchSyncProposalCursor> = {};
   const invalidKeys: string[] = [];
@@ -227,6 +323,15 @@ export async function loadCursor(
         continue;
       }
       proposals[proposal.proposalId] = proposal.cursor;
+      continue;
+    }
+    if (entry.key.startsWith(DIRECTIVE_ACK_KEY_PREFIX)) {
+      const directiveAck = normalizeDirectiveAckRow(entry.value);
+      if (!directiveAck) {
+        invalidKeys.push(entry.key);
+        continue;
+      }
+      directiveAcks[directiveAck.directiveId] = directiveAck.ack;
     }
   }
 
@@ -237,7 +342,13 @@ export async function loadCursor(
     await Promise.all(invalidKeys.map((key) => store.delete(key).catch(() => false)));
   }
 
-  return { cards, proposals, directiveCursor, appliedDirectiveIds };
+  return {
+    cards,
+    proposals,
+    directiveCursor,
+    appliedDirectiveIds,
+    directiveAcks: pruneDirectiveAcks(directiveAcks, appliedDirectiveIds),
+  };
 }
 
 /** Persist the cursor in SQLite plugin state. */
@@ -267,17 +378,32 @@ export async function saveCursor(
     });
   }
 
+  const appliedDirectiveIds = boundAppliedRing(state.appliedDirectiveIds);
+  const directiveAcks = pruneDirectiveAcks(state.directiveAcks, appliedDirectiveIds);
+  const retainedDirectiveAckKeys = new Set<string>();
+  for (const [directiveId, ack] of Object.entries(directiveAcks)) {
+    const key = hashedRowKey(DIRECTIVE_ACK_KEY_PREFIX, directiveId);
+    retainedDirectiveAckKeys.add(key);
+    await store.register(key, {
+      kind: "directiveAck",
+      directiveId,
+      ack,
+    });
+  }
+
   await store.register(CURSOR_META_KEY, {
     kind: "meta",
     directiveCursor: state.directiveCursor,
-    appliedDirectiveIds: boundAppliedRing(state.appliedDirectiveIds),
+    appliedDirectiveIds,
   });
 
   const staleKeys = (await store.entries())
     .filter(
       (entry) =>
         (entry.key.startsWith(CARD_KEY_PREFIX) && !retainedCardKeys.has(entry.key)) ||
-        (entry.key.startsWith(PROPOSAL_KEY_PREFIX) && !retainedProposalKeys.has(entry.key)),
+        (entry.key.startsWith(PROPOSAL_KEY_PREFIX) && !retainedProposalKeys.has(entry.key)) ||
+        (entry.key.startsWith(DIRECTIVE_ACK_KEY_PREFIX) &&
+          !retainedDirectiveAckKeys.has(entry.key)),
     )
     .map((entry) => entry.key);
   await Promise.all(staleKeys.map((key) => store.delete(key)));

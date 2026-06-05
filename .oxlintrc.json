@@ -240,6 +240,16 @@
       "rules": {
         "typescript/no-explicit-any": "off"
       }
+    },
+    {
+      "files": [
+        "extensions/bench-sync/src/directive-apply.ts",
+        "extensions/bench-sync/src/workboard-mirror.ts"
+      ],
+      "rules": {
+        "typescript/no-misused-promises": "off",
+        "typescript/no-unnecessary-type-arguments": "off"
+      }
     }
   ]
 }

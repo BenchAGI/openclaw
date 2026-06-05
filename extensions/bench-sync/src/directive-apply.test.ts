@@ -1,11 +1,5 @@
-import type {
-  SkillProposalApplyResult,
-  SkillProposalManifest,
-  SkillProposalManifestEntry,
-  SkillProposalRecord,
-} from "openclaw/plugin-sdk/skill-workshop-runtime";
 import { describe, expect, it, vi } from "vitest";
-import { BenchSyncClient } from "./client.js";
+import { BenchSyncClient, BenchSyncClientError } from "./client.js";
 import {
   defaultCursorState,
   loadCursor,
@@ -19,6 +13,10 @@ import {
   runDirectiveTick,
   runProposalMirrorTick,
   type PulledDirective,
+  type SkillProposalApplyResult,
+  type SkillProposalManifest,
+  type SkillProposalManifestEntry,
+  type SkillProposalRecord,
   type SkillWorkshopContext,
 } from "./directive-apply.js";
 
@@ -37,6 +35,16 @@ function makeClient(fetchFn: typeof fetch): BenchSyncClient {
     { apiBaseUrl: BASE, instanceId: INSTANCE, apiKey: "bench_test_secret" },
     { fetchFn },
   );
+}
+
+function requestUrl(input: Parameters<typeof fetch>[0]): string {
+  if (input instanceof Request) {
+    return input.url;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return input;
 }
 
 function createMemoryCursorStore(): BenchSyncCursorStore {
@@ -140,7 +148,7 @@ describe("runDirectiveTick — apply/reject/quarantine", () => {
   it("applies a proposal and acks 'applied'", async () => {
     const acks: Array<{ url: string; body: unknown }> = [];
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/sync/directives") && (init?.method ?? "GET") === "GET") {
         return jsonResponse({ directives: [directive()], cursor: "cur-2" });
       }
@@ -162,7 +170,7 @@ describe("runDirectiveTick — apply/reject/quarantine", () => {
     });
     expect(result.applied).toBe(1);
     expect(acks).toHaveLength(1);
-    expect(acks[0]!.body).toMatchObject({ status: "applied", result: { proposalId: "prop-1" } });
+    expect(acks[0]?.body).toMatchObject({ status: "applied", result: { proposalId: "prop-1" } });
     // Directive ringed + cursor persisted.
     expect(store.state.appliedDirectiveIds).toContain("dir-1");
     expect(store.state.directiveCursor).toBe("cur-2");
@@ -173,7 +181,7 @@ describe("runDirectiveTick — apply/reject/quarantine", () => {
 
   it("enacts a reject decision via the reject service call", async () => {
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/sync/directives") && (init?.method ?? "GET") === "GET") {
         return jsonResponse({
           directives: [
@@ -208,7 +216,7 @@ describe("runDirectiveTick — apply/reject/quarantine", () => {
 
   it("enacts a quarantine decision via the quarantine service call", async () => {
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/sync/directives") && (init?.method ?? "GET") === "GET") {
         return jsonResponse({
           directives: [
@@ -238,7 +246,7 @@ describe("runDirectiveTick — idempotency + failure", () => {
   it("acks 'skipped' and does NOT re-enact a directive already in the ring", async () => {
     const acks: unknown[] = [];
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/sync/directives") && (init?.method ?? "GET") === "GET") {
         return jsonResponse({ directives: [directive()] });
       }
@@ -265,7 +273,7 @@ describe("runDirectiveTick — idempotency + failure", () => {
   it("acks 'failed' on a service error and STILL rings the id (no infinite retry)", async () => {
     const acks: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/sync/directives") && (init?.method ?? "GET") === "GET") {
         return jsonResponse({ directives: [directive()] });
       }
@@ -289,15 +297,58 @@ describe("runDirectiveTick — idempotency + failure", () => {
 
     expect(result.failed).toBe(1);
     expect(acks[0]).toMatchObject({ status: "failed" });
-    expect((acks[0]!.error as { message: string }).message).toContain("scan failed");
+    expect(acks[0]?.error).toMatchObject({ message: expect.stringContaining("scan failed") });
     // Ringed despite failure → not retried next tick.
     expect(store.state.appliedDirectiveIds).toContain("dir-1");
+  });
+
+  it("retries a cached applied ack without re-enacting when the first ack fails", async () => {
+    let ackCalls = 0;
+    const ackBodies: unknown[] = [];
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const url = requestUrl(input);
+      if (url.includes("/sync/directives") && (init?.method ?? "GET") === "GET") {
+        return jsonResponse({ directives: [directive()] });
+      }
+      if (url.endsWith("/ack")) {
+        ackCalls += 1;
+        ackBodies.push(JSON.parse((init!.body as string) ?? "{}"));
+        if (ackCalls === 1) {
+          return new Response(JSON.stringify({ error: "temporary outage" }), { status: 503 });
+        }
+      }
+      return jsonResponse({ ok: true });
+    });
+    const skillsCtx = makeSkillsCtx();
+    const store = cursorStore();
+    const client = makeClient(fetchMock);
+
+    await expect(
+      runDirectiveTick({ client, cursorStore: store, skillsCtx }),
+    ).rejects.toBeInstanceOf(BenchSyncClientError);
+
+    expect(skillsCtx.applyProposal).toHaveBeenCalledTimes(1);
+    expect(store.state.appliedDirectiveIds).toContain("dir-1");
+    expect(store.state.directiveAcks["dir-1"]).toMatchObject({
+      status: "applied",
+      result: { proposalId: "prop-1" },
+    });
+
+    store.state = await loadCursor(store.store);
+    const retry = await runDirectiveTick({ client, cursorStore: store, skillsCtx });
+
+    expect(skillsCtx.applyProposal).toHaveBeenCalledTimes(1);
+    expect(retry.skipped).toBe(1);
+    expect(ackBodies).toEqual([
+      { status: "applied", result: { proposalId: "prop-1" } },
+      { status: "applied", result: { proposalId: "prop-1" } },
+    ]);
   });
 
   it("does not leak secrets in the failed ack error", async () => {
     const acks: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/sync/directives") && (init?.method ?? "GET") === "GET") {
         return jsonResponse({ directives: [directive()] });
       }
@@ -316,14 +367,12 @@ describe("runDirectiveTick — idempotency + failure", () => {
       cursorStore: cursorStore(),
       skillsCtx,
     });
-    const err = acks[0]!.error as { code: string; message: string };
-    expect(err.code).toBe("apply_failed");
-    expect(err.message).toBe("workspace failure");
+    expect(acks[0]?.error).toEqual({ code: "apply_failed", message: "workspace failure" });
   });
 
   it("persists the directive cursor from the response", async () => {
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.includes("/sync/directives") && (init?.method ?? "GET") === "GET") {
         return jsonResponse({ directives: [], cursor: "next-cursor" });
       }
@@ -470,7 +519,7 @@ describe("runProposalMirrorTick", () => {
   it("mirrors a STATUS CHANGE even when mirrorPendingUp is false", async () => {
     let posted: unknown;
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.endsWith("/skill-proposals/sync")) {
         posted = JSON.parse((init!.body as string) ?? "{}");
       }
@@ -501,7 +550,7 @@ describe("runProposalMirrorTick", () => {
   it("never includes support-file bytes in the mirror payload", async () => {
     let posted = "";
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.endsWith("/skill-proposals/sync")) {
         posted = (init!.body as string) ?? "";
       }
@@ -525,7 +574,7 @@ describe("runProposalMirrorTick", () => {
       mirrorPendingUp: true,
     });
     expect(posted).toContain("scripts/run.sh");
-    expect(posted).toContain("\"folder\":\"scripts\"");
+    expect(posted).toContain('"folder":"scripts"');
     expect(posted).toContain("h99");
     expect(posted).not.toContain("SECRET_SCRIPT_CONTENT");
   });
