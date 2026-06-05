@@ -1,7 +1,7 @@
 import { Value } from "typebox/value";
 import { describe, expect, it } from "vitest";
 import type { AgentInternalEvent } from "../../../agents/internal-events.js";
-import { AgentParamsSchema } from "./agent.js";
+import { AgentParamsSchema, SendParamsSchema } from "./agent.js";
 
 function makeAgentParamsWithInternalEvent(event: AgentInternalEvent) {
   return {
@@ -57,5 +57,19 @@ describe("AgentParamsSchema", () => {
     } as unknown as AgentInternalEvent);
 
     expect(Value.Check(AgentParamsSchema, params)).toBe(false);
+  });
+});
+
+describe("SendParamsSchema", () => {
+  it("accepts a non-visible context note for gateway send transcript seeding", () => {
+    expect(
+      Value.Check(SendParamsSchema, {
+        to: "channel:C123",
+        message: "Approval thread opened.",
+        channel: "slack",
+        context: "Customer: Briggs. Attachment: /handoffs/briggs/deck.pdf.",
+        idempotencyKey: "send-context-1",
+      }),
+    ).toBe(true);
   });
 });

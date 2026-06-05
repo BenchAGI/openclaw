@@ -207,6 +207,23 @@ function buildGatewayDeliveryPayload(params: {
   return payload;
 }
 
+function buildGatewaySendMirrorText(params: {
+  visibleText: string;
+  contextNote?: string;
+}): string {
+  if (!params.contextNote) {
+    return params.visibleText;
+  }
+  const parts = [
+    "Context note for future turns (not sent to the channel):",
+    params.contextNote,
+  ];
+  if (params.visibleText) {
+    parts.push("Sent to the channel:", params.visibleText);
+  }
+  return parts.join("\n\n");
+}
+
 function cacheGatewayDedupeSuccess(params: {
   context: GatewayRequestContext;
   dedupeKey: string;
@@ -470,6 +487,7 @@ export const sendHandlers: GatewayRequestHandlers = {
       channel?: string;
       accountId?: string;
       agentId?: string;
+      context?: string;
       replyToId?: string;
       threadId?: string;
       forceDocument?: boolean;
@@ -511,6 +529,7 @@ export const sendHandlers: GatewayRequestHandlers = {
       return;
     }
     const accountId = normalizeOptionalString(request.accountId);
+    const contextNote = normalizeOptionalString(request.context);
     const replyToId = normalizeOptionalString(request.replyToId);
     const threadId = normalizeOptionalString(request.threadId);
 
@@ -566,7 +585,10 @@ export const sendHandlers: GatewayRequestHandlers = {
         ];
         const outboundPayloadPlan = createOutboundPayloadPlan(outboundPayloads);
         const mirrorProjection = projectOutboundPayloadPlanForMirror(outboundPayloadPlan);
-        const mirrorText = mirrorProjection.text;
+        const mirrorText = buildGatewaySendMirrorText({
+          visibleText: mirrorProjection.text,
+          contextNote,
+        });
         const mirrorMediaUrls = mirrorProjection.mediaUrls;
         // Preserve opaque, case-sensitive peer IDs (e.g. Matrix room ids) on an
         // explicit session key instead of raw-lowercasing it (openclaw#75670).

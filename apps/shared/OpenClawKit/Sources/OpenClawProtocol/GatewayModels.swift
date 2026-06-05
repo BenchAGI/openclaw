@@ -600,6 +600,7 @@ public struct SendParams: Codable, Sendable {
     public let channel: String?
     public let accountid: String?
     public let agentid: String?
+    public let context: String?
     public let replytoid: String?
     public let threadid: String?
     public let forcedocument: Bool?
@@ -618,6 +619,7 @@ public struct SendParams: Codable, Sendable {
         channel: String?,
         accountid: String?,
         agentid: String?,
+        context: String?,
         replytoid: String?,
         threadid: String?,
         forcedocument: Bool?,
@@ -635,6 +637,7 @@ public struct SendParams: Codable, Sendable {
         self.channel = channel
         self.accountid = accountid
         self.agentid = agentid
+        self.context = context
         self.replytoid = replytoid
         self.threadid = threadid
         self.forcedocument = forcedocument
@@ -654,6 +657,7 @@ public struct SendParams: Codable, Sendable {
         case channel
         case accountid = "accountId"
         case agentid = "agentId"
+        case context
         case replytoid = "replyToId"
         case threadid = "threadId"
         case forcedocument = "forceDocument"
