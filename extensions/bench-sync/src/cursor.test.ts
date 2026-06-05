@@ -13,6 +13,7 @@ import {
   MAX_APPLIED_DIRECTIVE_IDS,
   boundAppliedRing,
   defaultCursorState,
+  getAppliedDirectiveAck,
   hasAppliedDirective,
   loadCursor,
   recordAppliedDirective,
@@ -55,6 +56,10 @@ describe("cursor load defaults", () => {
       fs.access(path.join(stateDir, "state", "openclaw.sqlite")),
     ).resolves.toBeUndefined();
     await expect(fs.access(path.join(stateDir, "bench-sync"))).rejects.toThrow();
+  });
+
+  it("reserves row budget for card/proposal cursors plus directive ack rows", () => {
+    expect(CURSOR_STATE_MAX_ENTRIES).toBeGreaterThanOrEqual(5_000 + MAX_APPLIED_DIRECTIVE_IDS + 1);
   });
 });
 
@@ -236,6 +241,24 @@ describe("applied-directive ring", () => {
     expect(state.appliedDirectiveIds).toEqual(["b", "a"]);
     expect(hasAppliedDirective(state, "a")).toBe(true);
     expect(hasAppliedDirective(state, "z")).toBe(false);
+  });
+
+  it("checks cached directive acks by own property for opaque ids", () => {
+    const ringOnly = {
+      ...defaultCursorState(),
+      appliedDirectiveIds: ["toString"],
+    };
+    expect(getAppliedDirectiveAck(ringOnly, "toString")).toBeNull();
+
+    const state = recordAppliedDirective(defaultCursorState(), "__proto__", {
+      status: "skipped",
+      reason: "already applied",
+    });
+    expect(getAppliedDirectiveAck(state, "__proto__")).toEqual({
+      status: "skipped",
+      reason: "already applied",
+    });
+    expect(Object.getPrototypeOf(state.directiveAcks)).toBe(Object.prototype);
   });
 
   it("bounds the ring to MAX_APPLIED_DIRECTIVE_IDS", () => {

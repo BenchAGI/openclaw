@@ -72,7 +72,8 @@ export type BenchSyncCursorStore = Pick<
 export const MAX_APPLIED_DIRECTIVE_IDS = 500;
 
 export const CURSOR_STATE_NAMESPACE = "cursor";
-export const CURSOR_STATE_MAX_ENTRIES = 5_000;
+/** Preserve the original ~5k card/proposal row budget plus ack rows + meta. */
+export const CURSOR_STATE_MAX_ENTRIES = 5_600;
 
 const CURSOR_META_KEY = "meta";
 const CARD_KEY_PREFIX = "card:";
@@ -150,6 +151,19 @@ function coerceDirectiveAck(value: unknown): BenchSyncDirectiveAck | null {
     return Object.keys(result).length > 0 ? { status: "applied", result } : { status: "applied" };
   }
   return null;
+}
+
+function assignDirectiveAck(
+  acks: Record<string, BenchSyncDirectiveAck>,
+  id: string,
+  ack: BenchSyncDirectiveAck,
+): void {
+  Object.defineProperty(acks, id, {
+    configurable: true,
+    enumerable: true,
+    value: ack,
+    writable: true,
+  });
 }
 
 function normalizeCursorMetaRow(value: unknown): BenchSyncCursorMetaRow | null {
@@ -236,9 +250,12 @@ function pruneDirectiveAcks(
 ): Record<string, BenchSyncDirectiveAck> {
   const retained: Record<string, BenchSyncDirectiveAck> = {};
   for (const id of retainedIds) {
+    if (!Object.hasOwn(acks, id)) {
+      continue;
+    }
     const ack = acks[id];
     if (ack) {
-      retained[id] = ack;
+      assignDirectiveAck(retained, id, ack);
     }
   }
   return retained;
@@ -253,13 +270,14 @@ export function recordAppliedDirective(
   const without = state.appliedDirectiveIds.filter((existing) => existing !== id);
   without.push(id);
   const appliedDirectiveIds = boundAppliedRing(without);
-  const directiveAcks = pruneDirectiveAcks(
-    {
-      ...state.directiveAcks,
-      ...(ack ? { [id]: ack } : {}),
-    },
-    appliedDirectiveIds,
-  );
+  const nextDirectiveAcks: Record<string, BenchSyncDirectiveAck> = {};
+  for (const [existingId, existingAck] of Object.entries(state.directiveAcks)) {
+    assignDirectiveAck(nextDirectiveAcks, existingId, existingAck);
+  }
+  if (ack) {
+    assignDirectiveAck(nextDirectiveAcks, id, ack);
+  }
+  const directiveAcks = pruneDirectiveAcks(nextDirectiveAcks, appliedDirectiveIds);
   return {
     ...state,
     appliedDirectiveIds,
@@ -275,7 +293,7 @@ export function getAppliedDirectiveAck(
   state: BenchSyncCursorState,
   id: string,
 ): BenchSyncDirectiveAck | null {
-  return state.directiveAcks[id] ?? null;
+  return Object.hasOwn(state.directiveAcks, id) ? (state.directiveAcks[id] ?? null) : null;
 }
 
 /**
@@ -331,7 +349,7 @@ export async function loadCursor(
         invalidKeys.push(entry.key);
         continue;
       }
-      directiveAcks[directiveAck.directiveId] = directiveAck.ack;
+      assignDirectiveAck(directiveAcks, directiveAck.directiveId, directiveAck.ack);
     }
   }
 
