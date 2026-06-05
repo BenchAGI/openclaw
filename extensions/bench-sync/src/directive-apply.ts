@@ -19,6 +19,18 @@
 //    Both use the same content-hash diff against the cursor.
 
 import { createHash } from "node:crypto";
+import type {
+  SkillProposalActionInput,
+  SkillProposalApplyResult,
+  SkillProposalKind,
+  SkillProposalManifest,
+  SkillProposalManifestEntry,
+  SkillProposalRecord,
+  SkillProposalScan,
+  SkillProposalScannerState,
+  SkillProposalStatus,
+  SkillProposalSupportFile,
+} from "openclaw/plugin-sdk/skill-workshop-runtime";
 import {
   BenchSyncClientError,
   type BenchSyncClient,
@@ -47,80 +59,17 @@ type DirectiveLogger = {
 
 /** Cloud decision action carried by a skill_proposal_decision directive. */
 export type SkillProposalDecisionAction = "apply" | "reject" | "quarantine";
-
-export type SkillProposalKind = "create" | "update";
-export type SkillProposalStatus = "pending" | "applied" | "rejected" | "quarantined" | "stale";
-export type SkillProposalScannerState = "pending" | "clean" | "failed" | "quarantined";
-
-export type SkillProposalActionInput = {
-  workspaceDir: string;
-  proposalId: string;
-  reason?: string;
-};
-
-export type SkillProposalScan = {
-  state: SkillProposalScannerState;
-  scannedAt: string;
-  critical: number;
-  warn: number;
-  info: number;
-  findings: Array<{ ruleId: string; severity: string; message: string }>;
-};
-
-export type SkillProposalSupportFile = {
-  path: string;
-  sizeBytes: number;
-  hash: string;
-};
-
-export type SkillProposalRecord = {
-  schema: "openclaw.skill-workshop.proposal.v1";
-  id: string;
-  kind: SkillProposalKind;
-  status: SkillProposalStatus;
-  title: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-  origin?: { agentId?: string };
-  proposedVersion: string;
-  draftFile: "PROPOSAL.md";
-  draftHash: string;
-  supportFiles?: SkillProposalSupportFile[];
-  target: {
-    skillName: string;
-    skillKey: string;
-    skillDir: string;
-    skillFile: string;
-    source?: string;
-    currentContentHash?: string;
-  };
-  scan: SkillProposalScan;
-};
-
-export type SkillProposalManifestEntry = {
-  id: string;
-  kind: SkillProposalKind;
-  status: SkillProposalStatus;
-  title: string;
-  description: string;
-  skillName: string;
-  skillKey: string;
-  createdAt: string;
-  updatedAt: string;
-  scanState: SkillProposalScannerState;
-};
-
-export type SkillProposalManifest = {
-  schema: "openclaw.skill-workshop.proposals-manifest.v1";
-  updatedAt: string;
-  proposals: SkillProposalManifestEntry[];
-};
-
-export type SkillProposalApplyResult = {
-  record: SkillProposalRecord;
-  targetSkillFile: string;
+export type {
+  SkillProposalActionInput,
+  SkillProposalApplyResult,
+  SkillProposalKind,
+  SkillProposalManifest,
+  SkillProposalManifestEntry,
+  SkillProposalRecord,
+  SkillProposalScan,
+  SkillProposalScannerState,
+  SkillProposalStatus,
+  SkillProposalSupportFile,
 };
 
 /** Minimal shape of a pulled directive (the cloud SyncDirective contract). */

@@ -66,7 +66,7 @@ describe("cursor load defaults", () => {
 describe("cursor save + load round trip", () => {
   it("persists and reloads a populated cursor", async () => {
     const store = createStore();
-    const state = {
+    const state: BenchSyncCursorState = {
       cards: { "card-1": { hash: "abc", seq: 3 }, "card-2": { hash: "def", seq: 7 } },
       proposals: { "prop-1": { hash: "p1" } },
       directiveCursor: "cursor-42",
