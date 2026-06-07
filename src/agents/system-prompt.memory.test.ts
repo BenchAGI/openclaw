@@ -52,4 +52,24 @@ describe("buildAgentSystemPrompt canonical (Tier-0) memory", () => {
       rmSync(ws, { recursive: true, force: true });
     }
   });
+
+  it("invalidates the stable prompt cache when canonical memory changes", () => {
+    const ws = mkdtempSync(join(tmpdir(), "oc-canon-"));
+    try {
+      const canonicalDir = join(ws, "memory", "canonical");
+      const canonicalFile = join(canonicalDir, "main.md");
+      mkdirSync(canonicalDir, { recursive: true });
+      writeFileSync(canonicalFile, "first durable fact");
+
+      const firstPrompt = buildAgentSystemPrompt({ workspaceDir: ws, agentId: "main" });
+      expect(firstPrompt).toContain("first durable fact");
+
+      writeFileSync(canonicalFile, "second durable fact");
+      const secondPrompt = buildAgentSystemPrompt({ workspaceDir: ws, agentId: "main" });
+      expect(secondPrompt).toContain("second durable fact");
+      expect(secondPrompt).not.toContain("first durable fact");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
 });

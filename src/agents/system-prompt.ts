@@ -728,6 +728,7 @@ export function appendModelIdentitySystemPrompt(params: {
 
 export function buildAgentSystemPrompt(params: {
   workspaceDir: string;
+  agentId?: string;
   defaultThinkLevel?: ThinkLevel;
   reasoningLevel?: ReasoningLevel;
   extraSystemPrompt?: string;
@@ -1008,7 +1009,7 @@ export function buildAgentSystemPrompt(params: {
   const canonicalMemorySection = buildCanonicalMemorySection({
     isMinimal,
     workspaceDir: params.workspaceDir,
-    agentId: params.agentId,
+    agentId: params.agentId ?? params.runtimeInfo?.agentId,
   });
   const docsSection = buildDocsSection({
     docsPath: params.docsPath,

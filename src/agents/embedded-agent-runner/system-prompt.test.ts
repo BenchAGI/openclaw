@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AgentSession } from "openclaw/plugin-sdk/agent-sessions";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearMemoryPluginState, registerMemoryPromptSection } from "../../plugins/memory-state.js";
@@ -235,6 +238,40 @@ describe("buildEmbeddedSystemPrompt", () => {
     });
 
     expect(prompt).not.toContain("## Memory Recall");
+  });
+
+  it("threads agentId into canonical memory prompt assembly", () => {
+    const ws = mkdtempSync(join(tmpdir(), "oc-embedded-canon-"));
+    try {
+      const canonicalDir = join(ws, "memory", "canonical");
+      mkdirSync(canonicalDir, { recursive: true });
+      writeFileSync(join(canonicalDir, "ops.md"), "Ops canonical fact.");
+      writeFileSync(join(canonicalDir, "main.md"), "Main canonical fact.");
+
+      const prompt = buildEmbeddedSystemPrompt({
+        agentId: "ops",
+        workspaceDir: ws,
+        reasoningTagHint: false,
+        runtimeInfo: {
+          agentId: "ops",
+          host: "local",
+          os: "darwin",
+          arch: "arm64",
+          node: process.version,
+          model: "gpt-5.4",
+          provider: "openai",
+        },
+        tools: [],
+        modelAliasLines: [],
+        userTimezone: "UTC",
+      });
+
+      expect(prompt).toContain("## Canonical Memory");
+      expect(prompt).toContain("Ops canonical fact.");
+      expect(prompt).not.toContain("Main canonical fact.");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
   });
 
   it("includes active background process references in the embedded prompt", () => {
