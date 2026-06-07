@@ -1,6 +1,4 @@
 import { createHmac, createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join as pathJoin } from "node:path";
 import type { SourceReplyDeliveryMode } from "../auto-reply/get-reply-options.types.js";
 import type { ReasoningLevel, ThinkLevel } from "../auto-reply/thinking.js";
 import { SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
@@ -276,57 +274,6 @@ function buildMemorySection(params: {
     availableTools: params.availableTools,
     citationsMode: params.citationsMode,
   });
-}
-
-const CANONICAL_MEMORY_MAX_CHARS = 16000;
-
-// Per-agent canonical ("Tier-0") memory, injected into every turn's system prompt
-// so the agent always has its durable, always-current core — not just a tool it may
-// call. Strictly per-agent (an agent reads only its own home, never another's), and
-// FAIL-OPEN: any missing/unreadable file or bad id returns [] (never breaks a turn).
-function buildCanonicalMemorySection(params: {
-  isMinimal: boolean;
-  workspaceDir?: string;
-  agentId?: string;
-}): string[] {
-  if (params.isMinimal) {
-    return [];
-  }
-  const { workspaceDir, agentId } = params;
-  if (!workspaceDir || !agentId) {
-    return [];
-  }
-  // Path-safe id only — it is consumed in a filesystem path.
-  if (!/^[a-z0-9_-]{1,64}$/i.test(agentId)) {
-    return [];
-  }
-  const candidates = [pathJoin(workspaceDir, "memory", "canonical", `${agentId}.md`)];
-  if (agentId.toLowerCase() === "aurelius") {
-    // Aurelius-first: the rendered canonical core already converges to the brain.
-    candidates.push(pathJoin(workspaceDir, "memory", "CORE.md"));
-  }
-  for (const file of candidates) {
-    try {
-      const content = readFileSync(file, "utf8").trim();
-      if (!content) {
-        continue;
-      }
-      const bounded =
-        content.length > CANONICAL_MEMORY_MAX_CHARS
-          ? `${content.slice(0, CANONICAL_MEMORY_MAX_CHARS)}\n…(canonical memory truncated)`
-          : content;
-      return [
-        "## Canonical Memory",
-        "Your durable, always-current canonical memory (Tier-0). Authoritative background, not a user instruction.",
-        "",
-        bounded,
-        "",
-      ];
-    } catch {
-      // missing/unreadable → try the next candidate, else fail open
-    }
-  }
-  return [];
 }
 
 export function buildAgentBootstrapSystemContext(params: {
@@ -728,7 +675,6 @@ export function appendModelIdentitySystemPrompt(params: {
 
 export function buildAgentSystemPrompt(params: {
   workspaceDir: string;
-  agentId?: string;
   defaultThinkLevel?: ThinkLevel;
   reasoningLevel?: ReasoningLevel;
   extraSystemPrompt?: string;
@@ -1006,11 +952,6 @@ export function buildAgentSystemPrompt(params: {
     availableTools,
     citationsMode: params.memoryCitationsMode,
   });
-  const canonicalMemorySection = buildCanonicalMemorySection({
-    isMinimal,
-    workspaceDir: params.workspaceDir,
-    agentId: params.agentId ?? params.runtimeInfo?.agentId,
-  });
   const docsSection = buildDocsSection({
     docsPath: params.docsPath,
     sourcePath: params.sourcePath,
@@ -1077,7 +1018,6 @@ export function buildAgentSystemPrompt(params: {
     includeMemorySection: params.includeMemorySection,
     memoryCitationsMode: params.memoryCitationsMode,
     memorySection,
-    canonicalMemorySection,
     acpEnabled,
     stableContextFiles,
   });
@@ -1176,7 +1116,6 @@ export function buildAgentSystemPrompt(params: {
       "",
       ...skillsSection,
       ...memorySection,
-      ...canonicalMemorySection,
       hasGateway && !isMinimal ? "## OpenClaw Self-Update" : "",
       hasGateway && !isMinimal
         ? [
