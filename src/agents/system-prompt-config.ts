@@ -50,6 +50,7 @@ export function buildConfiguredAgentSystemPrompt(params: ConfiguredAgentSystemPr
   const { config, agentId, ...renderParams } = params;
   const configParams = config ? resolveAgentSystemPromptConfig({ config, agentId }) : {};
   return buildAgentSystemPrompt({
+    agentId,
     ...renderParams,
     ...configParams,
   });
