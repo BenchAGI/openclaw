@@ -93,6 +93,14 @@ export type ResolvedMemorySearchConfig = {
         halfLifeDays: number;
       };
     };
+    /** Tier-1 retrieval-at-start: inject a retrieved prior-context slice on cold session start. */
+    tier1: {
+      enabled: boolean;
+      maxResults: number;
+      minScore: number;
+      maxBytes: number;
+      timeoutMs: number;
+    };
   };
   cache: {
     enabled: boolean;
@@ -118,6 +126,11 @@ const DEFAULT_MMR_LAMBDA = 0.7;
 const DEFAULT_TEMPORAL_DECAY_ENABLED = false;
 const DEFAULT_TEMPORAL_DECAY_HALF_LIFE_DAYS = 30;
 const DEFAULT_CACHE_ENABLED = true;
+const DEFAULT_TIER1_ENABLED = false;
+const DEFAULT_TIER1_MAX_RESULTS = 4;
+const DEFAULT_TIER1_MIN_SCORE = 0.45;
+const DEFAULT_TIER1_MAX_BYTES = 1600;
+const DEFAULT_TIER1_TIMEOUT_MS = 1200;
 const DEFAULT_SOURCES: Array<"memory" | "sessions"> = ["memory"];
 const DEFAULT_MEMORY_EMBEDDING_PROVIDER = "openai";
 
@@ -319,6 +332,38 @@ function mergeConfig(
     enabled: overrides?.cache?.enabled ?? defaults?.cache?.enabled ?? DEFAULT_CACHE_ENABLED,
     maxEntries: overrides?.cache?.maxEntries ?? defaults?.cache?.maxEntries,
   };
+  const tier1 = {
+    enabled:
+      overrides?.query?.tier1?.enabled ?? defaults?.query?.tier1?.enabled ?? DEFAULT_TIER1_ENABLED,
+    maxResults: clampInt(
+      overrides?.query?.tier1?.maxResults ??
+        defaults?.query?.tier1?.maxResults ??
+        DEFAULT_TIER1_MAX_RESULTS,
+      1,
+      20,
+    ),
+    minScore: clampNumber(
+      overrides?.query?.tier1?.minScore ??
+        defaults?.query?.tier1?.minScore ??
+        DEFAULT_TIER1_MIN_SCORE,
+      0,
+      1,
+    ),
+    maxBytes: clampInt(
+      overrides?.query?.tier1?.maxBytes ??
+        defaults?.query?.tier1?.maxBytes ??
+        DEFAULT_TIER1_MAX_BYTES,
+      256,
+      32_000,
+    ),
+    timeoutMs: clampInt(
+      overrides?.query?.tier1?.timeoutMs ??
+        defaults?.query?.tier1?.timeoutMs ??
+        DEFAULT_TIER1_TIMEOUT_MS,
+      100,
+      10_000,
+    ),
+  };
 
   const overlap = clampNumber(chunking.overlap, 0, Math.max(0, chunking.tokens - 1));
   const minScore = clampNumber(query.minScore, 0, 1);
@@ -385,6 +430,7 @@ function mergeConfig(
           halfLifeDays: temporalDecayHalfLifeDays,
         },
       },
+      tier1,
     },
     cache: {
       enabled: cache.enabled,
