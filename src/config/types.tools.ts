@@ -568,6 +568,23 @@ export type MemorySearchConfig = {
         halfLifeDays?: number;
       };
     };
+    /**
+     * Tier-1 retrieval-at-start: on a cold session start, search this agent's
+     * memory index for the opening topic and inject a small retrieved-context
+     * slice ahead of MEMORY.md. Fail-open, bounded, default OFF.
+     */
+    tier1?: {
+      /** Enable Tier-1 retrieval-at-start (default: false — ship dark). */
+      enabled?: boolean;
+      /** Top-K hits to inject (default: 4). */
+      maxResults?: number;
+      /** Minimum relevance score to inject a hit (0-1, default: 0.45). */
+      minScore?: number;
+      /** Hard byte cap on the injected slice (default: 1600). */
+      maxBytes?: number;
+      /** Search timeout budget in ms; on exceed, skip silently (default: 1200). */
+      timeoutMs?: number;
+    };
   };
   /** Index cache behavior. */
   cache?: {
