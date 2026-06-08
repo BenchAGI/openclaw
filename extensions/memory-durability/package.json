@@ -1,0 +1,27 @@
+{
+  "name": "@openclaw/memory-durability",
+  "version": "2026.5.28",
+  "private": true,
+  "description": "OpenClaw memory durability watchdog plugin",
+  "type": "module",
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@openclaw/plugin-sdk": "workspace:*",
+    "openclaw": "workspace:*"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.5.28"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
