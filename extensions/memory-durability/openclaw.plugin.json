@@ -8,6 +8,55 @@
   "contracts": {
     "tools": ["memory_durability"]
   },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "workspaceRoot": {
+        "type": "string"
+      },
+      "storeDir": {
+        "type": "string"
+      },
+      "vaultRoot": {
+        "type": "string"
+      },
+      "busLog": {
+        "type": "string"
+      },
+      "tenant": {
+        "type": "string"
+      },
+      "coreMaxAgeHours": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "busLogMaxAgeSec": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "graceMs": {
+        "type": "number",
+        "minimum": 0
+      },
+      "watch": {
+        "type": "boolean"
+      },
+      "intervalMinutes": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "alertChannel": {
+        "type": "string"
+      },
+      "alertTo": {
+        "type": "string"
+      }
+    }
+  },
   "uiHints": {
     "watch": {
       "label": "Enable Watcher",

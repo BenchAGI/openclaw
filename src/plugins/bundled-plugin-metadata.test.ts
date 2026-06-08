@@ -44,6 +44,7 @@ const EXPECTED_BUNDLED_STARTUP_PLUGIN_IDS = [
   "google-meet",
   "llm-task",
   "lobster",
+  "memory-durability",
   "memory-wiki",
   "openshell",
   "phone-control",
