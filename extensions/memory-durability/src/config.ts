@@ -61,7 +61,7 @@ function str(value: unknown): string | undefined {
 export function resolveMemoryDurabilityConfig(
   raw?: Record<string, unknown>,
 ): MemoryDurabilityConfig {
-  const c = (raw ?? {}) as Record<string, unknown>;
+  const c = raw ?? {};
   return {
     enabled: c.enabled !== false,
     workspaceRoot: str(c.workspaceRoot),

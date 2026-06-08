@@ -56,7 +56,9 @@ function buildJob(config: MemoryDurabilityConfig): ManagedCronJobCreate {
 
 function resolveCronFromContext(ctx: unknown): CronServiceLike | null {
   const getCron = (ctx as { getCron?: () => CronServiceLike | null } | null)?.getCron;
-  if (typeof getCron !== "function") return null;
+  if (typeof getCron !== "function") {
+    return null;
+  }
   try {
     return getCron() ?? null;
   } catch {
@@ -93,10 +95,11 @@ async function reconcile(
         logger.warn?.(`memory-durability: failed to remove watcher job ${job.id}: ${String(err)}`);
       }
     }
-    if (existing.length)
+    if (existing.length) {
       logger.info?.(
         "memory-durability: watcher disabled (no destination) — removed managed job(s).",
       );
+    }
     return;
   }
 
@@ -113,7 +116,9 @@ async function reconcile(
     return;
   }
   // Keep one; update it to the desired shape, prune duplicates.
-  const [primary, ...dupes] = existing.sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0));
+  const [primary, ...dupes] = existing.toSorted(
+    (a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0),
+  );
   try {
     await cron.update(primary.id, desired);
   } catch (err) {

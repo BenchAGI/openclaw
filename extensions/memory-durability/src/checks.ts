@@ -55,11 +55,14 @@ export function coreFreshnessCheck(params: {
 }): Check {
   const name = "core-freshness";
   const cap = Number.isFinite(params.maxAgeHours) ? params.maxAgeHours : 26;
-  const m = String(params.coreText ?? "").match(/Generated at:\s*([0-9TZ:.+-]+)/);
-  if (!m) return { name, status: "error", detail: "CORE.md has no parseable 'Generated at:' line" };
+  const m = (params.coreText ?? "").match(/Generated at:\s*([0-9TZ:.+-]+)/);
+  if (!m) {
+    return { name, status: "error", detail: "CORE.md has no parseable 'Generated at:' line" };
+  }
   const coreMs = Date.parse(m[1]);
-  if (!Number.isFinite(coreMs))
+  if (!Number.isFinite(coreMs)) {
     return { name, status: "error", detail: `CORE.md Generated-at unparseable: ${m[1]}` };
+  }
   const ageH = (params.nowMs - coreMs) / HOUR_MS;
   if (ageH > cap) {
     return {
@@ -94,11 +97,13 @@ export function busLivenessCheck(params: {
 }): Check {
   const name = "bus-liveness";
   const cap = Number.isFinite(params.maxAgeSec) ? params.maxAgeSec : 600;
-  const line = String(params.logTail ?? "").trim();
-  if (!line) return { name, status: "skipped", detail: "no bus-sync log yet" };
+  const line = (params.logTail ?? "").trim();
+  if (!line) {
+    return { name, status: "skipped", detail: "no bus-sync log yet" };
+  }
   const tsMatch = line.match(/^(\S+)/);
-  const tsMs = tsMatch ? Date.parse(tsMatch[1]) : NaN;
-  if (/CONFLICT/.test(line)) {
+  const tsMs = tsMatch ? Date.parse(tsMatch[1]) : Number.NaN;
+  if (line.includes("CONFLICT")) {
     return {
       name,
       status: "fail",
@@ -107,18 +112,20 @@ export function busLivenessCheck(params: {
   }
   if (Number.isFinite(tsMs)) {
     const ageS = Math.round((params.nowMs - tsMs) / 1000);
-    if (ageS > cap)
+    if (ageS > cap) {
       return {
         name,
         status: "fail",
         detail: `bus-sync log stale ${ageS}s (cap ${cap}s) — syncer may be dead`,
       };
-    if (/WARN/.test(line))
+    }
+    if (line.includes("WARN")) {
       return {
         name,
         status: "skipped",
         detail: `bus offline/transient (last: ${line.slice(0, 80)})`,
       };
+    }
     if (params.head && params.origin && params.head !== params.origin) {
       return {
         name,
@@ -142,8 +149,10 @@ export function busLivenessCheck(params: {
 // Exactly one live-plate block, and no duplicated heading lines (the union-merge duplication canary).
 export function plateDuplicationCheck(params: { memoryText: string }): Check {
   const name = "plate+dup";
-  const text = String(params.memoryText ?? "");
-  if (!text) return { name, status: "skipped", detail: "MEMORY.md not found" };
+  const text = params.memoryText ?? "";
+  if (!text) {
+    return { name, status: "skipped", detail: "MEMORY.md not found" };
+  }
   const starts = (text.match(/aurelius-live-plate:start/g) || []).length;
   const ends = (text.match(/aurelius-live-plate:end/g) || []).length;
   if (starts !== 1 || ends !== 1) {
@@ -155,17 +164,20 @@ export function plateDuplicationCheck(params: { memoryText: string }): Check {
   }
   const seen = new Map<string, number>();
   for (const raw of text.split(/\r?\n/)) {
-    if (!/^#{1,6}\s+\S/.test(raw)) continue;
+    if (!/^#{1,6}\s+\S/.test(raw)) {
+      continue;
+    }
     const key = raw.trim().replace(/\s+/g, " ").toLowerCase();
     seen.set(key, (seen.get(key) || 0) + 1);
   }
   for (const [key, n] of seen) {
-    if (n > 1)
+    if (n > 1) {
       return {
         name,
         status: "fail",
         detail: `duplicated heading x${n}: "${key.slice(0, 60)}" — union-merge duplication`,
       };
+    }
   }
   return { name, status: "ok", detail: "one live-plate block, no duplicated headings" };
 }
