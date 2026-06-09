@@ -14,6 +14,14 @@ export type MemorySearchCommandOptions = MemoryCommandOptions & {
   minScore?: number;
 };
 
+export type MemoryTier1CommandOptions = MemoryCommandOptions & {
+  query?: string;
+  sessionKey?: string;
+  maxResults?: number;
+  maxBytes?: number;
+  out?: string;
+};
+
 export type MemoryPromoteCommandOptions = MemoryCommandOptions & {
   limit?: number;
   minScore?: number;

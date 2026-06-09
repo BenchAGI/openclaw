@@ -564,6 +564,26 @@ export type MemorySearchConfig = {
       /** Search timeout budget in ms; on exceed, skip silently (default: 1200). */
       timeoutMs?: number;
     };
+    /**
+     * Optional LLM reranker for Tier-1 candidates: a judge model re-orders and
+     * filters hits by "does this answer THIS question?". Fail-open, default OFF.
+     */
+    reranker?: {
+      /** Enable the LLM reranker (default: false). */
+      enabled?: boolean;
+      /** OpenAI-compatible base URL of the judge endpoint. */
+      baseUrl?: string;
+      /** Optional API key for the judge endpoint. */
+      apiKey?: SecretInput;
+      /** Judge model id. */
+      model?: string;
+      /** Judge request timeout in ms (default: 6000). */
+      timeoutMs?: number;
+      /** Drop candidates the judge scores below this floor (0-1, default: 0.5). */
+      minScore?: number;
+      /** Max candidates sent to the judge (default: 8). */
+      topK?: number;
+    };
   };
   /** Index cache behavior. */
   cache?: {
