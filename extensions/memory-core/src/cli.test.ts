@@ -48,6 +48,7 @@ vi.mock("./cli.host.runtime.js", async () => {
     import("openclaw/plugin-sdk/memory-core-host-runtime-files"),
   ]);
   return {
+    buildTier1RetrievalContextFile: runtimeCore.buildTier1RetrievalContextFile,
     colorize: runtimeCli.colorize,
     defaultRuntime: runtimeCli.defaultRuntime,
     formatErrorMessage: runtimeCli.formatErrorMessage,
@@ -58,12 +59,14 @@ vi.mock("./cli.host.runtime.js", async () => {
     normalizeExtraMemoryPaths: runtimeFiles.normalizeExtraMemoryPaths,
     resolveCommandSecretRefsViaGateway,
     resolveDefaultAgentId,
+    resolveMemorySearchConfig: runtimeCore.resolveMemorySearchConfig,
     resolveSessionTranscriptsDirForAgent: runtimeCore.resolveSessionTranscriptsDirForAgent,
     resolveStateDir: runtimeCore.resolveStateDir,
     setVerbose: runtimeCli.setVerbose,
     shortenHomeInString: runtimeCli.shortenHomeInString,
     shortenHomePath: runtimeCli.shortenHomePath,
     theme: runtimeCli.theme,
+    TIER1_FILE_NAME: runtimeCore.TIER1_FILE_NAME,
     withManager: runtimeCli.withManager,
     withProgress: runtimeCli.withProgress,
     withProgressTotals: runtimeCli.withProgressTotals,
@@ -2150,5 +2153,190 @@ describe("memory cli", () => {
       expect(await readShortTermRecallEntries({ workspaceDir })).toHaveLength(0);
       expect(close).toHaveBeenCalled();
     });
+  });
+
+  function tier1EnabledConfig() {
+    return {
+      agents: { defaults: { memorySearch: { query: { tier1: { enabled: true } } } } },
+    };
+  }
+
+  it("fails when neither positional query nor --query is provided for tier1", async () => {
+    const error = spyRuntimeErrors(defaultRuntime);
+    await runMemoryCli(["tier1"]);
+
+    expect(error).toHaveBeenCalledWith(
+      "Missing retrieval query. Provide a positional query or use --query <text>.",
+    );
+    expect(getMemorySearchManager).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("prints the disabled tier1 outcome as json without opening a manager", async () => {
+    const writeJson = spyRuntimeJson(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan", "--json"]);
+
+    const payload = firstWrittenJsonArg<{
+      injected: boolean;
+      fileName: string;
+      body: string | null;
+      diag: { reason: string };
+    }>(writeJson);
+    expect(payload?.injected).toBe(false);
+    expect(payload?.fileName).toBe("RETRIEVED-CONTEXT-TIER1.md");
+    expect(payload?.body).toBeNull();
+    expect(payload?.diag?.reason).toBe("disabled");
+    expect(getMemorySearchManager).not.toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it("injects tier1 context and prints json when the flag is enabled", async () => {
+    getRuntimeConfig.mockReturnValue(tier1EnabledConfig());
+    const close = vi.fn(async () => {});
+    const search = vi.fn(async () => [
+      {
+        path: "memory/2026-04-03.md",
+        startLine: 1,
+        endLine: 2,
+        score: 0.91,
+        snippet: "Configured router VLAN 10 for IoT clients.",
+        source: "memory",
+      },
+    ]);
+    mockManager({ search, close });
+
+    const writeJson = spyRuntimeJson(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan", "--json"]);
+
+    expect(search).toHaveBeenCalledWith(
+      "router vlan",
+      expect.objectContaining({
+        sources: ["memory"],
+        sessionKey: "agent:main:cli:direct:memory-tier1",
+      }),
+    );
+    expect(getMemorySearchManager).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: "main", purpose: "cli" }),
+    );
+    const payload = firstWrittenJsonArg<{
+      injected: boolean;
+      body: string | null;
+      diag: { reason: string; injectedHits: number };
+    }>(writeJson);
+    expect(payload?.injected).toBe(true);
+    expect(payload?.body).toContain("Configured router VLAN 10 for IoT clients.");
+    expect(payload?.diag?.reason).toBe("ok");
+    expect(payload?.diag?.injectedHits).toBe(1);
+    expect(close).toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it("honors --session-key for tier1 retrieval", async () => {
+    getRuntimeConfig.mockReturnValue(tier1EnabledConfig());
+    const close = vi.fn(async () => {});
+    const search = vi.fn(async () => []);
+    mockManager({ search, close });
+
+    spyRuntimeJson(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan", "--json", "--session-key", "agent:main:custom"]);
+
+    expect(search).toHaveBeenCalledWith(
+      "router vlan",
+      expect.objectContaining({ sessionKey: "agent:main:custom" }),
+    );
+    expect(close).toHaveBeenCalled();
+  });
+
+  it("fails open with exit 0 when the tier1 search throws", async () => {
+    getRuntimeConfig.mockReturnValue(tier1EnabledConfig());
+    const close = vi.fn(async () => {});
+    const search = vi.fn(async () => {
+      throw new Error("boom");
+    });
+    mockManager({ search, close });
+
+    const writeJson = spyRuntimeJson(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan", "--json"]);
+
+    const payload = firstWrittenJsonArg<{
+      injected: boolean;
+      body: string | null;
+      diag: { reason: string };
+    }>(writeJson);
+    expect(payload?.injected).toBe(false);
+    expect(payload?.body).toBeNull();
+    expect(payload?.diag?.reason).toBe("error");
+    expect(close).toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it("writes the tier1 body to --out only when injected", async () => {
+    await withTempWorkspace(async (workspaceDir) => {
+      getRuntimeConfig.mockReturnValue(tier1EnabledConfig());
+      const close = vi.fn(async () => {});
+      const search = vi.fn(async () => [
+        {
+          path: "memory/2026-04-03.md",
+          startLine: 1,
+          endLine: 2,
+          score: 0.91,
+          snippet: "Configured router VLAN 10 for IoT clients.",
+          source: "memory",
+        },
+      ]);
+      mockManager({ search, close });
+
+      const outPath = path.join(workspaceDir, "tier1-context.md");
+      const log = spyRuntimeLogs(defaultRuntime);
+      await runMemoryCli(["tier1", "router vlan", "--out", outPath]);
+
+      expectLogged(log, "Tier-1 context written to ");
+      const body = await fs.readFile(outPath, "utf-8");
+      expect(body).toContain("Configured router VLAN 10 for IoT clients.");
+      expect(close).toHaveBeenCalled();
+      expect(process.exitCode).toBeUndefined();
+    });
+  });
+
+  it("prints a miss summary for --out without writing a file", async () => {
+    await withTempWorkspace(async (workspaceDir) => {
+      getRuntimeConfig.mockReturnValue(tier1EnabledConfig());
+      const close = vi.fn(async () => {});
+      const search = vi.fn(async () => []);
+      mockManager({ search, close });
+
+      const outPath = path.join(workspaceDir, "tier1-miss.md");
+      const log = spyRuntimeLogs(defaultRuntime);
+      await runMemoryCli(["tier1", "router vlan", "--out", outPath]);
+
+      expectLogged(log, "Tier-1 context not injected (below-threshold).");
+      await expectPathMissing(outPath);
+      expect(close).toHaveBeenCalled();
+      expect(process.exitCode).toBeUndefined();
+    });
+  });
+
+  it("prints the tier1 body to stdout by default when injected", async () => {
+    getRuntimeConfig.mockReturnValue(tier1EnabledConfig());
+    const close = vi.fn(async () => {});
+    const search = vi.fn(async () => [
+      {
+        path: "memory/2026-04-03.md",
+        startLine: 1,
+        endLine: 2,
+        score: 0.91,
+        snippet: "Configured router VLAN 10 for IoT clients.",
+        source: "memory",
+      },
+    ]);
+    mockManager({ search, close });
+
+    const log = spyRuntimeLogs(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan"]);
+
+    expectLogged(log, "Retrieved prior context (Tier-1");
+    expectLogged(log, "Configured router VLAN 10 for IoT clients.");
+    expect(close).toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
   });
 });
