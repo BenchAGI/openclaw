@@ -16,12 +16,15 @@
  *    manager derives the per-agent store from it); never pass another agent's id.
  *  - FLAG-GATED: `agents.*.memorySearch.query.tier1.enabled` (default OFF).
  */
-import { appendFileSync } from "node:fs";
+import { appendFileSync, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import type { SecretInput } from "../config/types.secrets.js";
 import type { MemorySearchResult } from "../memory-host-sdk/host/types.js";
 import { getActiveMemorySearchManager } from "../plugin-sdk/memory-host-search.js";
+import { resolveSecretInputString } from "../secrets/resolve-secret-input-string.js";
+import { normalizeSecretInput } from "../utils/normalize-secret-input.js";
 import type { EmbeddedContextFile } from "./embedded-agent-helpers.js";
 import { resolveMemorySearchConfig } from "./memory-search.js";
 
@@ -30,6 +33,11 @@ export const TIER1_FILE_NAME = "RETRIEVED-CONTEXT-TIER1.md";
 
 /** Durable observability trace, independent of subsystem log routing. */
 export const TIER1_DIAG_LOG = path.join(os.homedir(), ".openclaw", "logs", "tier1-retrieval.jsonl");
+
+function appendTier1DiagLine(line: string): void {
+  mkdirSync(path.dirname(TIER1_DIAG_LOG), { recursive: true });
+  appendFileSync(TIER1_DIAG_LOG, line);
+}
 
 /**
  * Best-effort observability: append one diagnostic line to TIER1_DIAG_LOG so F1
@@ -47,25 +55,9 @@ export function recordTier1Diag(
       agentId: ctx.agentId,
       ...diag,
     })}\n`;
-    appendFileSync(TIER1_DIAG_LOG, line);
+    appendTier1DiagLine(line);
   } catch {
     // best-effort trace; a write failure must never affect the session
-  }
-}
-
-/**
- * TEMP instrumentation: record the F1 eligibility-gate breakdown on every
- * primary run so we can see exactly which condition keeps F1 from firing on a
- * given surface. Best-effort; never throws.
- */
-export function recordTier1Gate(values: Record<string, unknown>): void {
-  try {
-    appendFileSync(
-      TIER1_DIAG_LOG,
-      `${JSON.stringify({ at: new Date().toISOString(), kind: "gate", ...values })}\n`,
-    );
-  } catch {
-    // best-effort
   }
 }
 
@@ -288,6 +280,7 @@ export async function buildTier1RetrievalContextFile(
     | {
         enabled: boolean;
         baseUrl?: string;
+        apiKey?: SecretInput;
         model?: string;
         timeoutMs: number;
         minScore: number;
@@ -323,37 +316,35 @@ export async function buildTier1RetrievalContextFile(
 
   // 3) Search (fail-open, bounded by a hard timeout). Scoped to curated memory
   // only ("memory") so we never fold raw session transcripts into the bootstrap.
-  let raced: MemorySearchResult[] | typeof TIMEOUT;
+  let raced: MemorySearchResult[] | null | typeof TIMEOUT;
   try {
-    if (params.searchFn) {
-      raced = await raceWithTimeout(
-        params.searchFn(query, { maxResults, minScore, sessionKey: params.sessionKey }),
-        timeoutMs,
-      );
-    } else {
-      const { manager } = await getActiveMemorySearchManager({
-        cfg: params.config,
-        agentId: params.agentId,
-      });
-      if (!manager) {
-        return { injected: false, diag: diag("unavailable", { query }) };
-      }
-      raced = await raceWithTimeout(
-        manager.search(query, {
-          maxResults,
-          minScore,
-          sessionKey: params.sessionKey,
-          sources: ["memory"],
-        }),
-        timeoutMs,
-      );
-    }
+    const searchPromise: Promise<MemorySearchResult[] | null> = params.searchFn
+      ? params.searchFn(query, { maxResults, minScore, sessionKey: params.sessionKey })
+      : (async () => {
+          const { manager } = await getActiveMemorySearchManager({
+            cfg: params.config,
+            agentId: params.agentId,
+          });
+          if (!manager) {
+            return null;
+          }
+          return manager.search(query, {
+            maxResults,
+            minScore,
+            sessionKey: params.sessionKey,
+            sources: ["memory"],
+          });
+        })();
+    raced = await raceWithTimeout(searchPromise, timeoutMs);
   } catch (err) {
     params.warn?.(`tier1-retrieval search error: ${String(err)}`);
     return { injected: false, diag: diag("error", { query, err: String(err).slice(0, 240) }) };
   }
   if (raced === TIMEOUT) {
     return { injected: false, diag: diag("timeout", { query }) };
+  }
+  if (raced === null) {
+    return { injected: false, diag: diag("unavailable", { query }) };
   }
 
   const results = Array.isArray(raced) ? raced : [];
@@ -379,7 +370,12 @@ export async function buildTier1RetrievalContextFile(
   // order — the rerank can refine, never drop, retrieval.
   let ranked = filtered;
   if (reranker?.enabled) {
-    ranked = await rerankTier1Candidates(query, filtered, reranker, params.warn);
+    ranked = await rerankTier1Candidates(
+      query,
+      filtered,
+      { ...reranker, config: params.config },
+      params.warn,
+    );
   }
 
   const { body, used } = renderTier1Body(query, ranked, maxBytes);
@@ -405,7 +401,7 @@ export async function buildTier1RetrievalContextFile(
 }
 
 /**
- * LLM reranker: ask a judge model (e.g. qwen2.5:7b-instruct on the carbon-white GPU node) to
+ * LLM reranker: ask a local or OpenAI-compatible judge model to
  * score each candidate for whether it answers THIS query, re-sort by judge score, and drop
  * below cfg.minScore. Catches the topically-adjacent hard negatives the embedder alone can't
  * separate. FAIL-OPEN: on any error/timeout/empty/invalid response it returns the input
@@ -414,10 +410,22 @@ export async function buildTier1RetrievalContextFile(
 export async function rerankTier1Candidates(
   query: string,
   candidates: MemorySearchResult[],
-  cfg: { baseUrl?: string; model?: string; timeoutMs: number; minScore: number; topK: number },
+  cfg: {
+    baseUrl?: string;
+    apiKey?: SecretInput;
+    config?: OpenClawConfig;
+    model?: string;
+    timeoutMs: number;
+    minScore: number;
+    topK: number;
+  },
   warn?: (msg: string) => void,
 ): Promise<MemorySearchResult[]> {
   if (!cfg.baseUrl || !cfg.model || candidates.length <= 1) {
+    return candidates;
+  }
+  const configuredApiKey = await resolveTier1RerankerApiKey(cfg, warn);
+  if (configuredApiKey === null) {
     return candidates;
   }
   const top = candidates.slice(0, Math.max(1, cfg.topK));
@@ -436,7 +444,10 @@ export async function rerankTier1Candidates(
   try {
     const res = await fetch(`${cfg.baseUrl.replace(/\/+$/, "")}/v1/chat/completions`, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: "Bearer ollama" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${configuredApiKey ?? "ollama"}`,
+      },
       body: JSON.stringify({
         model: cfg.model,
         temperature: 0,
@@ -476,12 +487,6 @@ export async function rerankTier1Candidates(
       .filter((x) => x.judge >= cfg.minScore)
       .toSorted((a, b) => b.judge - a.judge)
       .map((x) => x.c);
-    recordTier1Gate({
-      kind: "rerank",
-      model: cfg.model,
-      before: top.length,
-      after: reordered.length,
-    });
     // FAIL-OPEN: if the judge floor emptied the set, keep the original cosine order.
     return reordered.length > 0 ? reordered : candidates;
   } catch (err) {
@@ -489,5 +494,39 @@ export async function rerankTier1Candidates(
     return candidates;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function resolveTier1RerankerApiKey(
+  cfg: { apiKey?: SecretInput; config?: OpenClawConfig },
+  warn?: (msg: string) => void,
+): Promise<string | null | undefined> {
+  if (cfg.apiKey === undefined) {
+    return undefined;
+  }
+  if (!cfg.config) {
+    const normalized = normalizeSecretInput(cfg.apiKey);
+    if (!normalized) {
+      warn?.("tier1 reranker apiKey is configured but unresolved; skipping reranker");
+    }
+    return normalized || null;
+  }
+  try {
+    const resolved = await resolveSecretInputString({
+      config: cfg.config,
+      value: cfg.apiKey,
+      env: process.env,
+      normalize: (value) => normalizeSecretInput(value) || undefined,
+    });
+    if (!resolved) {
+      warn?.("tier1 reranker apiKey is configured but unresolved; skipping reranker");
+      return null;
+    }
+    return resolved;
+  } catch (err) {
+    warn?.(
+      `tier1 reranker apiKey resolution error; skipping reranker: ${String(err).slice(0, 160)}`,
+    );
+    return null;
   }
 }

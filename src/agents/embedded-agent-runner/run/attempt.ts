@@ -174,11 +174,7 @@ import { resolveSystemPromptOverride } from "../../system-prompt-override.js";
 import { buildSystemPromptParams } from "../../system-prompt-params.js";
 import { buildSystemPromptReport } from "../../system-prompt-report.js";
 import { appendModelIdentitySystemPrompt } from "../../system-prompt.js";
-import {
-  buildTier1RetrievalContextFile,
-  recordTier1Diag,
-  recordTier1Gate,
-} from "../../tier1-retrieval.js";
+import { buildTier1RetrievalContextFile, recordTier1Diag } from "../../tier1-retrieval.js";
 import { resolveAgentTimeoutMs } from "../../timeout.js";
 import {
   buildEmptyExplicitToolAllowlistError,
@@ -1672,18 +1668,6 @@ export async function runEmbeddedAttempt(
     // Tier-1 slice has its own byte cap. Flag-gated + fail-open: on any miss
     // `tier1ContextFiles` falls back to `contextFiles` unchanged.
     let tier1ContextFiles = contextFiles;
-    recordTier1Gate({
-      sessionKey: params.sessionKey ?? params.sessionId,
-      agentId: sessionAgentId,
-      isRawModelRun,
-      bootstrapMode,
-      contextInjectionMode,
-      runKind: params.bootstrapContextRunKind ?? "default",
-      isPrimary: isPrimaryBootstrapRun(params.sessionKey),
-      hasConfig: Boolean(params.config),
-      promptType: typeof params.prompt,
-      promptLen: typeof params.prompt === "string" ? params.prompt.trim().length : -1,
-    });
     if (
       !isRawModelRun &&
       bootstrapMode === "full" &&
@@ -1853,7 +1837,7 @@ export async function runEmbeddedAttempt(
       })(),
       systemPrompt: appendPrompt,
       bootstrapFiles: hookAdjustedBootstrapFiles,
-      injectedFiles: contextFiles,
+      injectedFiles: tier1ContextFiles,
       skillsPrompt,
       tools: effectiveTools,
     });

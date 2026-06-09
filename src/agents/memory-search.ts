@@ -105,7 +105,7 @@ export type ResolvedMemorySearchConfig = {
     reranker: {
       enabled: boolean;
       baseUrl?: string;
-      apiKey?: string;
+      apiKey?: SecretInput;
       model?: string;
       timeoutMs: number;
       minScore: number;
@@ -119,6 +119,8 @@ export type ResolvedMemorySearchConfig = {
 };
 
 export type ResolvedMemorySearchSyncConfig = ResolvedMemorySearchConfig["sync"];
+
+type MemoryRerankerConfig = NonNullable<NonNullable<MemorySearchConfig["query"]>["reranker"]>;
 
 const DEFAULT_CHUNK_TOKENS = 400;
 const DEFAULT_CHUNK_OVERLAP = 80;
@@ -193,6 +195,23 @@ function getConfiguredMemoryEmbeddingProvider(
     return undefined;
   }
   return getMemoryEmbeddingProvider(normalizedOwner);
+}
+
+function resolveRerankerApiKey(
+  defaults: MemoryRerankerConfig | undefined,
+  overrides: MemoryRerankerConfig | undefined,
+): SecretInput | undefined {
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, "apiKey")) {
+    return overrides.apiKey;
+  }
+  if (
+    overrides &&
+    Object.prototype.hasOwnProperty.call(overrides, "baseUrl") &&
+    overrides.baseUrl !== defaults?.baseUrl
+  ) {
+    return undefined;
+  }
+  return defaults?.apiKey;
 }
 
 function mergeConfig(
@@ -378,6 +397,7 @@ function mergeConfig(
   const reranker = {
     enabled: overrides?.query?.reranker?.enabled ?? defaults?.query?.reranker?.enabled ?? false,
     baseUrl: overrides?.query?.reranker?.baseUrl ?? defaults?.query?.reranker?.baseUrl,
+    apiKey: resolveRerankerApiKey(defaults?.query?.reranker, overrides?.query?.reranker),
     model: overrides?.query?.reranker?.model ?? defaults?.query?.reranker?.model,
     timeoutMs: clampInt(
       overrides?.query?.reranker?.timeoutMs ?? defaults?.query?.reranker?.timeoutMs ?? 6000,

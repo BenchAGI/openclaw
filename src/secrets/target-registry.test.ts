@@ -37,6 +37,29 @@ describe("secret target registry", () => {
     expect(target?.refPathSegments).toEqual(["channels", "googlechat", "serviceAccountRef"]);
   });
 
+  it("resolves Tier-1 reranker SecretInput paths", () => {
+    const defaultTarget = resolveConfigSecretTargetByPath([
+      "agents",
+      "defaults",
+      "memorySearch",
+      "query",
+      "reranker",
+      "apiKey",
+    ]);
+    const agentTarget = resolveConfigSecretTargetByPath([
+      "agents",
+      "list",
+      "0",
+      "memorySearch",
+      "query",
+      "reranker",
+      "apiKey",
+    ]);
+
+    expect(defaultTarget?.entry?.id).toBe("agents.defaults.memorySearch.query.reranker.apiKey");
+    expect(agentTarget?.entry?.id).toBe("agents.list[].memorySearch.query.reranker.apiKey");
+  });
+
   it("returns null when no config target path matches", () => {
     const target = resolveConfigSecretTargetByPath(["gateway", "auth", "mode"]);
 
