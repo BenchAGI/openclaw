@@ -40,7 +40,9 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]{4}\.[1-9][0-9]*\.[1-9][0-9]*(-(alpha|beta)\.[1-9][0-9]*)?$ ]]; then
+          # Fork tag scheme: customer harness releases use a bare -N suffix
+          # (v2026.6.1-4) alongside upstream's -alpha.N/-beta.N.
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]{4}\.[1-9][0-9]*\.[1-9][0-9]*(-(alpha|beta)\.[1-9][0-9]*|-[1-9][0-9]*)?$ ]]; then
             echo "Invalid release tag: ${RELEASE_TAG}"
             exit 1
           fi
