@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { MemorySearchResult } from "../memory-host-sdk/host/types.js";
 import {
   buildTier1RetrievalContextFile,
   cleanTier1Query,
   renderTier1Body,
+  rerankTier1Candidates,
   TIER1_FILE_NAME,
   type Tier1SearchFn,
 } from "./tier1-retrieval.js";
@@ -17,9 +18,18 @@ type Tier1Knobs = {
   timeoutMs?: number;
 };
 
-function makeConfig(tier1?: Tier1Knobs): OpenClawConfig {
+type RerankerKnobs = {
+  enabled?: boolean;
+  baseUrl?: string;
+  model?: string;
+  timeoutMs?: number;
+  minScore?: number;
+  topK?: number;
+};
+
+function makeConfig(tier1?: Tier1Knobs, reranker?: RerankerKnobs): OpenClawConfig {
   return {
-    agents: { defaults: { memorySearch: { query: { tier1 } } } },
+    agents: { defaults: { memorySearch: { query: { tier1, reranker } } } },
   } as unknown as OpenClawConfig;
 }
 
@@ -37,6 +47,10 @@ const BASE = {
   sessionKey: "agent:aurelius:slack:thread:T1",
   effectiveWorkspace: "/tmp/ws",
 };
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("cleanTier1Query", () => {
   it("strips slack mentions, @names, and slash-command prefixes", () => {
@@ -110,7 +124,10 @@ describe("buildTier1RetrievalContextFile", () => {
     const out = await buildTier1RetrievalContextFile({
       ...BASE,
       config: makeConfig({ enabled: true, timeoutMs: 100 }),
-      searchFn: () => new Promise((resolve) => setTimeout(() => resolve([hit(0.9)]), 400)),
+      searchFn: () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve([hit(0.9)]), 400);
+        }),
     });
     expect(out.injected).toBe(false);
     expect(out.diag.reason).toBe("timeout");
@@ -147,5 +164,188 @@ describe("buildTier1RetrievalContextFile", () => {
     expect(body).not.toContain("lower relevance");
     expect(body).not.toContain("below floor");
     expect(out.diag.injectedHits).toBe(2);
+  });
+
+  it("clamps caller maxResults/maxBytes overrides to the hard caps", async () => {
+    const hits = Array.from({ length: 12 }, (_, i) => hit(0.9 - i * 0.01, `snippet number ${i}`));
+    const out = await buildTier1RetrievalContextFile({
+      ...BASE,
+      config: makeConfig({ enabled: true, minScore: 0.45, maxResults: 4, maxBytes: 1600 }),
+      searchFn: async () => hits,
+      maxResultsOverride: 50,
+      maxBytesOverride: 100_000,
+    });
+    expect(out.injected).toBe(true);
+    // 50 is clamped to the cap of 8 (not the config default of 4).
+    expect(out.diag.injectedHits).toBe(8);
+    // 100k is clamped to the 8192-byte cap.
+    expect(Buffer.byteLength(out.file?.content ?? "", "utf8")).toBeLessThanOrEqual(8192);
+  });
+
+  it("honors small caller overrides below the caps", async () => {
+    const out = await buildTier1RetrievalContextFile({
+      ...BASE,
+      config: makeConfig({ enabled: true, minScore: 0.45, maxResults: 4, maxBytes: 1600 }),
+      searchFn: async () => [hit(0.9, "first"), hit(0.8, "second"), hit(0.7, "third")],
+      maxResultsOverride: 1,
+    });
+    expect(out.injected).toBe(true);
+    expect(out.diag.injectedHits).toBe(1);
+    expect(out.file?.content).toContain("first");
+    expect(out.file?.content).not.toContain("second");
+  });
+
+  it("re-orders the injected slice via the config-enabled reranker", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        judgeResponse([
+          { id: 0, score: 0.2 },
+          { id: 1, score: 0.95 },
+        ]),
+      ),
+    );
+    const out = await buildTier1RetrievalContextFile({
+      ...BASE,
+      config: makeConfig(
+        { enabled: true, minScore: 0.45, maxResults: 4, maxBytes: 1600 },
+        { enabled: true, baseUrl: "http://judge.local", model: "judge", minScore: 0.1, topK: 8 },
+      ),
+      searchFn: async () => [hit(0.9, "cosine favorite"), hit(0.8, "judge favorite")],
+    });
+    expect(out.injected).toBe(true);
+    const body = out.file?.content ?? "";
+    expect(body.indexOf("judge favorite")).toBeLessThan(body.indexOf("cosine favorite"));
+  });
+});
+
+function judgeResponse(scores: Array<{ id: number; score: number }>) {
+  return {
+    ok: true,
+    json: async () => ({
+      choices: [{ message: { content: JSON.stringify({ scores }) } }],
+    }),
+  } as unknown as Response;
+}
+
+describe("rerankTier1Candidates", () => {
+  const cfg = {
+    baseUrl: "http://judge.local",
+    model: "judge-model",
+    timeoutMs: 1000,
+    minScore: 0.5,
+    topK: 8,
+  };
+  const candidates = [hit(0.9, "alpha"), hit(0.8, "bravo"), hit(0.7, "charlie")];
+
+  it("re-orders candidates by judge score within topK", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        judgeResponse([
+          { id: 0, score: 0.6 },
+          { id: 1, score: 0.95 },
+          { id: 2, score: 0.7 },
+        ]),
+      ),
+    );
+    const out = await rerankTier1Candidates("q", candidates, cfg);
+    expect(out.map((c) => c.snippet)).toEqual(["bravo", "charlie", "alpha"]);
+  });
+
+  it("drops candidates the judge scores below minScore", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        judgeResponse([
+          { id: 0, score: 0.9 },
+          { id: 1, score: 0.2 },
+          { id: 2, score: 0.8 },
+        ]),
+      ),
+    );
+    const out = await rerankTier1Candidates("q", candidates, cfg);
+    expect(out.map((c) => c.snippet)).toEqual(["alpha", "charlie"]);
+  });
+
+  it("limits the judged set to topK and drops the remainder on success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        judgeResponse([
+          { id: 0, score: 0.7 },
+          { id: 1, score: 0.9 },
+        ]),
+      ),
+    );
+    const out = await rerankTier1Candidates("q", candidates, { ...cfg, topK: 2 });
+    expect(out.map((c) => c.snippet)).toEqual(["bravo", "alpha"]);
+  });
+
+  it("fails open on a judge HTTP error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 500 }) as unknown as Response),
+    );
+    const out = await rerankTier1Candidates("q", candidates, cfg);
+    expect(out).toBe(candidates);
+  });
+
+  it("fails open when the judge times out", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+      ),
+    );
+    const out = await rerankTier1Candidates("q", candidates, { ...cfg, timeoutMs: 120 });
+    expect(out).toBe(candidates);
+  });
+
+  it("fails open on a non-JSON judge response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            json: async () => ({ choices: [{ message: { content: "no json here" } }] }),
+          }) as unknown as Response,
+      ),
+    );
+    const out = await rerankTier1Candidates("q", candidates, cfg);
+    expect(out).toBe(candidates);
+  });
+
+  it("fails open when the judge floor empties the set", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        judgeResponse([
+          { id: 0, score: 0.1 },
+          { id: 1, score: 0.2 },
+          { id: 2, score: 0.3 },
+        ]),
+      ),
+    );
+    const out = await rerankTier1Candidates("q", candidates, cfg);
+    expect(out).toBe(candidates);
+  });
+
+  it("skips the judge entirely without baseUrl/model or with a single candidate", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const single = [hit(0.9, "alpha")];
+    expect(await rerankTier1Candidates("q", candidates, { ...cfg, baseUrl: undefined })).toBe(
+      candidates,
+    );
+    expect(await rerankTier1Candidates("q", candidates, { ...cfg, model: undefined })).toBe(
+      candidates,
+    );
+    expect(await rerankTier1Candidates("q", single, cfg)).toBe(single);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
