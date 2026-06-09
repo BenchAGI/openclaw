@@ -136,7 +136,10 @@ const DEFAULT_MMR_LAMBDA = 0.7;
 const DEFAULT_TEMPORAL_DECAY_ENABLED = false;
 const DEFAULT_TEMPORAL_DECAY_HALF_LIFE_DAYS = 30;
 const DEFAULT_CACHE_ENABLED = true;
-const DEFAULT_TIER1_ENABLED = false;
+// Anamnesis ships ON by default in the BenchAGI customer build (Cory, 2026-06-08):
+// every memory-enabled agent wakes with retrieval-at-start. Still fail-open +
+// bounded + per-agent disable via agents.<id>.memorySearch.query.tier1.enabled=false.
+const DEFAULT_TIER1_ENABLED = true;
 const DEFAULT_TIER1_MAX_RESULTS = 4;
 const DEFAULT_TIER1_MIN_SCORE = 0.45;
 const DEFAULT_TIER1_MAX_BYTES = 1600;

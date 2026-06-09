@@ -73,7 +73,11 @@ describe("buildTier1RetrievalContextFile", () => {
       searched = true;
       return [hit(0.9)];
     };
-    const out = await buildTier1RetrievalContextFile({ ...BASE, config: makeConfig(), searchFn });
+    const out = await buildTier1RetrievalContextFile({
+      ...BASE,
+      config: makeConfig({ enabled: false }),
+      searchFn,
+    });
     expect(out.injected).toBe(false);
     expect(out.diag.reason).toBe("disabled");
     expect(searched).toBe(false);
