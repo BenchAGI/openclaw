@@ -220,7 +220,7 @@ describe("buildTier1RetrievalContextFile", () => {
     expect(out.injected).toBe(true);
     const body = out.file?.content ?? "";
     expect(body.indexOf("judge favorite")).toBeLessThan(body.indexOf("cosine favorite"));
-    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toMatchObject({
+    expect(fetchSpy.mock.calls[0]?.[1]?.headers).toMatchObject({
       authorization: "Bearer judge-key",
     });
   });
@@ -250,7 +250,7 @@ describe("buildTier1RetrievalContextFile", () => {
       searchFn: async () => [hit(0.9, "first"), hit(0.8, "second")],
     });
     expect(out.injected).toBe(true);
-    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toMatchObject({
+    expect(fetchSpy.mock.calls[0]?.[1]?.headers).toMatchObject({
       authorization: "Bearer env-judge-key",
     });
   });
