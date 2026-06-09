@@ -111,6 +111,16 @@ export type ResolvedMemorySearchConfig = {
       maxBytes: number;
       timeoutMs: number;
     };
+    /** LLM reranker: judge re-orders/filters Tier-1 candidates by "does this answer THIS question?" */
+    reranker: {
+      enabled: boolean;
+      baseUrl?: string;
+      apiKey?: string;
+      model?: string;
+      timeoutMs: number;
+      minScore: number;
+      topK: number;
+    };
   };
   cache: {
     enabled: boolean;
@@ -405,6 +415,23 @@ function mergeConfig(
     ),
   };
 
+  const reranker = {
+    enabled: overrides?.query?.reranker?.enabled ?? defaults?.query?.reranker?.enabled ?? false,
+    baseUrl: overrides?.query?.reranker?.baseUrl ?? defaults?.query?.reranker?.baseUrl,
+    model: overrides?.query?.reranker?.model ?? defaults?.query?.reranker?.model,
+    timeoutMs: clampInt(
+      overrides?.query?.reranker?.timeoutMs ?? defaults?.query?.reranker?.timeoutMs ?? 6000,
+      100,
+      30_000,
+    ),
+    minScore: clampNumber(
+      overrides?.query?.reranker?.minScore ?? defaults?.query?.reranker?.minScore ?? 0.5,
+      0,
+      1,
+    ),
+    topK: clampInt(overrides?.query?.reranker?.topK ?? defaults?.query?.reranker?.topK ?? 8, 1, 50),
+  };
+
   const overlap = clampNumber(chunking.overlap, 0, Math.max(0, chunking.tokens - 1));
   const minScore = clampNumber(query.minScore, 0, 1);
   const vectorWeight = clampNumber(hybrid.vectorWeight, 0, 1);
@@ -471,6 +498,7 @@ function mergeConfig(
         },
       },
       tier1,
+      reranker,
     },
     cache: {
       enabled: cache.enabled,
