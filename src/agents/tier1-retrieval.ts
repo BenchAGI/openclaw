@@ -16,6 +16,8 @@
  *    manager derives the per-agent store from it); never pass another agent's id.
  *  - FLAG-GATED: `agents.*.memorySearch.query.tier1.enabled` (default OFF).
  */
+import { appendFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { MemorySearchResult } from "../memory-host-sdk/host/types.js";
@@ -25,6 +27,31 @@ import { resolveMemorySearchConfig } from "./memory-search.js";
 
 /** Synthetic file name; prepended ahead of MEMORY.md in the bootstrap context. */
 export const TIER1_FILE_NAME = "RETRIEVED-CONTEXT-TIER1.md";
+
+/** Durable observability trace, independent of subsystem log routing. */
+export const TIER1_DIAG_LOG = path.join(os.homedir(), ".openclaw", "logs", "tier1-retrieval.jsonl");
+
+/**
+ * Best-effort observability: append one diagnostic line to TIER1_DIAG_LOG so F1
+ * firing is verifiable even though the gateway sends agent stderr to /dev/null.
+ * Never throws — observability must not affect a turn.
+ */
+export function recordTier1Diag(
+  diag: Tier1Diag,
+  ctx: { sessionKey?: string; agentId: string },
+): void {
+  try {
+    const line = `${JSON.stringify({
+      at: new Date().toISOString(),
+      sessionKey: ctx.sessionKey ?? null,
+      agentId: ctx.agentId,
+      ...diag,
+    })}\n`;
+    appendFileSync(TIER1_DIAG_LOG, line);
+  } catch {
+    // best-effort trace; a write failure must never affect the session
+  }
+}
 
 const QUERY_MAX_CHARS = 256;
 const QUERY_LABEL_MAX_CHARS = 120;
