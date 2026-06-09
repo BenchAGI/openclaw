@@ -195,7 +195,7 @@ describe("buildTier1RetrievalContextFile", () => {
   });
 
   it("re-orders the injected slice via the config-enabled reranker", async () => {
-    const fetchSpy = vi.fn(async () =>
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       judgeResponse([
         { id: 0, score: 0.2 },
         { id: 1, score: 0.95 },
@@ -227,7 +227,7 @@ describe("buildTier1RetrievalContextFile", () => {
 
   it("resolves a reranker apiKey SecretRef before calling the judge", async () => {
     vi.stubEnv("TIER1_JUDGE_KEY", "env-judge-key");
-    const fetchSpy = vi.fn(async () =>
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       judgeResponse([
         { id: 0, score: 0.9 },
         { id: 1, score: 0.8 },

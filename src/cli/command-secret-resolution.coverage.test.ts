@@ -20,6 +20,9 @@ function hasSupportedTargetIdsWiring(source: string): boolean {
   return (
     source.includes("resolveAgentRuntimeConfig(") ||
     /targetIds:\s*get[A-Za-z0-9_]+\(\)/m.test(source) ||
+    // Merged-targets shape: base ids come from a get*() source, then optional
+    // feature targets (e.g. tier1 reranker secretRefs) are added before the call.
+    /const targetIds = get[A-Za-z0-9_]+\(\);/m.test(source) ||
     /targetIds:\s*getAgentRuntimeCommandSecretTargetIds\(/m.test(source) ||
     /targetIds:\s*getCapabilityWeb(Fetch|Search)CommandSecretTargetIds\(/m.test(source) ||
     /targetIds:\s*scopedTargets\.targetIds/m.test(source) ||
