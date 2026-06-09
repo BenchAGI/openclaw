@@ -174,7 +174,7 @@ import { resolveSystemPromptOverride } from "../../system-prompt-override.js";
 import { buildSystemPromptParams } from "../../system-prompt-params.js";
 import { buildSystemPromptReport } from "../../system-prompt-report.js";
 import { appendModelIdentitySystemPrompt } from "../../system-prompt.js";
-import { buildTier1RetrievalContextFile } from "../../tier1-retrieval.js";
+import { buildTier1RetrievalContextFile, recordTier1Diag } from "../../tier1-retrieval.js";
 import { resolveAgentTimeoutMs } from "../../timeout.js";
 import {
   buildEmptyExplicitToolAllowlistError,
@@ -1696,6 +1696,10 @@ export async function runEmbeddedAttempt(
           ...tier1.diag,
         })}`,
       );
+      recordTier1Diag(tier1.diag, {
+        sessionKey: params.sessionKey ?? params.sessionId,
+        agentId: sessionAgentId,
+      });
     }
 
     // When toolsAllow is set, use minimal prompt and strip skills catalog
