@@ -15,6 +15,7 @@ import type {
   MemoryRemBackfillOptions,
   MemoryRemHarnessOptions,
   MemorySearchCommandOptions,
+  MemoryTier1CommandOptions,
 } from "./cli.types.js";
 import {
   DEFAULT_PROMOTION_MIN_RECALL_COUNT,
@@ -46,6 +47,11 @@ async function runMemoryIndex(opts: MemoryCommandOptions) {
 async function runMemorySearch(queryArg: string | undefined, opts: MemorySearchCommandOptions) {
   const runtime = await loadMemoryCliRuntime();
   await runtime.runMemorySearch(queryArg, opts);
+}
+
+async function runMemoryTier1(queryArg: string | undefined, opts: MemoryTier1CommandOptions) {
+  const runtime = await loadMemoryCliRuntime();
+  await runtime.runMemoryTier1(queryArg, opts);
 }
 
 async function runMemoryPromote(opts: MemoryPromoteCommandOptions) {
@@ -126,6 +132,10 @@ export function registerMemoryCli(program: Command) {
             "Limit results for focused troubleshooting.",
           ],
           [
+            'openclaw memory tier1 "gateway deploy" --json',
+            "Preview the Tier-1 retrieval-at-start context for a query.",
+          ],
+          [
             `openclaw memory promote --limit 10 --min-score ${DEFAULT_PROMOTION_MIN_SCORE}`,
             "Review weighted short-term candidates for long-term memory.",
           ],
@@ -191,6 +201,25 @@ export function registerMemoryCli(program: Command) {
     .option("--json", "Print JSON")
     .action(async (queryArg: string | undefined, opts: MemorySearchCommandOptions) => {
       await runMemorySearch(queryArg, opts);
+    });
+
+  memory
+    .command("tier1")
+    .description("Build the Tier-1 retrieval-at-start context for a query (flag-gated, fail-open)")
+    .argument("[query]", "Retrieval query (the session's opening topic)")
+    .option("--query <text>", "Retrieval query (alternative to positional argument)")
+    .option("--agent <id>", "Agent id (default: default agent)")
+    .option("--session-key <key>", "Session key recorded with the retrieval")
+    .option("--max-results <n>", "Max hits to inject (clamped)", (value: string) =>
+      parseMemoryCliPositiveIntegerOption(value, "--max-results"),
+    )
+    .option("--max-bytes <n>", "Byte cap for the context body (clamped)", (value: string) =>
+      parseMemoryCliPositiveIntegerOption(value, "--max-bytes"),
+    )
+    .option("--out <path>", "Write the context body to this path (only when injected)")
+    .option("--json", "Print JSON")
+    .action(async (queryArg: string | undefined, opts: MemoryTier1CommandOptions) => {
+      await runMemoryTier1(queryArg, opts);
     });
 
   memory
