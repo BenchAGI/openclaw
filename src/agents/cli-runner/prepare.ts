@@ -64,6 +64,7 @@ import { applyPluginTextReplacements } from "../plugin-text-transforms.js";
 import { ensureSystemPromptCacheBoundary } from "../system-prompt-cache-boundary.js";
 import { buildSystemPromptReport } from "../system-prompt-report.js";
 import { appendModelIdentitySystemPrompt, buildModelIdentityPromptLine } from "../system-prompt.js";
+import { buildTier1RetrievalContextFile, recordTier1Diag } from "../tier1-retrieval.js";
 import { redactRunIdentifier, resolveRunWorkspaceDir } from "../workspace-run.js";
 import { prepareCliBundleMcpConfig } from "./bundle-mcp.js";
 import { prepareClaudeCliSkillsPlugin } from "./claude-skills-plugin.js";
@@ -237,6 +238,37 @@ export async function prepareCliRunContext(
       warn: (message) => cliBackendLog.warn(message),
     }),
   });
+
+  // F1 — Tier-1 retrieval-at-start (Anamnesis) for the CLI backend — the path
+  // Aurelius actually runs (provider=claude-cli). A populated contextFiles means
+  // a cold-start bootstrap (MEMORY.md injected), exactly when we want to prepend
+  // a small retrieved prior-context slice ahead of MEMORY.md. Flag-gated,
+  // fail-open, bounded; on any miss tier1ContextFiles == contextFiles unchanged.
+  let tier1ContextFiles = contextFiles;
+  if (
+    contextFiles.length > 0 &&
+    (params.bootstrapContextRunKind ?? "default") !== "heartbeat" &&
+    params.config &&
+    typeof params.prompt === "string" &&
+    params.prompt.trim().length > 0
+  ) {
+    const tier1 = await buildTier1RetrievalContextFile({
+      config: params.config,
+      agentId: sessionAgentId,
+      promptText: params.prompt,
+      sessionKey: params.sessionKey,
+      effectiveWorkspace: workspaceDir,
+      warn: (message) => cliBackendLog.warn(message),
+    });
+    if (tier1.injected && tier1.file) {
+      tier1ContextFiles = [tier1.file, ...contextFiles];
+    }
+    recordTier1Diag(tier1.diag, {
+      sessionKey: params.sessionKey ?? params.sessionId,
+      agentId: sessionAgentId,
+    });
+  }
+
   const bootstrapMaxChars = resolveBootstrapMaxChars(params.config, sessionAgentId);
   const bootstrapTotalMaxChars = resolveBootstrapTotalMaxChars(params.config, sessionAgentId);
   const bootstrapAnalysis = analyzeBootstrapBudget({
@@ -464,7 +496,7 @@ export async function prepareCliRunContext(
     sourcePath: openClawReferences.sourcePath ?? undefined,
     skillsPrompt: systemPromptSkillsPrompt,
     tools: promptTools,
-    contextFiles,
+    contextFiles: tier1ContextFiles,
     modelDisplay,
     agentId: sessionAgentId,
   });
