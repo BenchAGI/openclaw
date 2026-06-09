@@ -269,8 +269,20 @@ export async function buildTier1RetrievalContextFile(
         timeoutMs: number;
       }
     | undefined;
+  let reranker:
+    | {
+        enabled: boolean;
+        baseUrl?: string;
+        model?: string;
+        timeoutMs: number;
+        minScore: number;
+        topK: number;
+      }
+    | undefined;
   try {
-    tier1 = resolveMemorySearchConfig(params.config, params.agentId)?.query.tier1;
+    const rq = resolveMemorySearchConfig(params.config, params.agentId)?.query;
+    tier1 = rq?.tier1;
+    reranker = rq?.reranker;
   } catch (err) {
     params.warn?.(`tier1-retrieval config error: ${String(err)}`);
     return { injected: false, diag: diag("disabled") };
@@ -342,7 +354,16 @@ export async function buildTier1RetrievalContextFile(
     return { injected: false, diag: diag("below-threshold", { query, hits: results.length }) };
   }
 
-  const { body, used } = renderTier1Body(query, filtered, maxBytes);
+  // 4b) Optional LLM rerank: a judge model re-orders/filters the cosine candidates by
+  // "does this actually answer THIS question?" (catches topically-adjacent hard negatives the
+  // embedder can't separate). FAIL-OPEN: any error/timeout/empty returns the original cosine
+  // order — the rerank can refine, never drop, retrieval.
+  let ranked = filtered;
+  if (reranker?.enabled) {
+    ranked = await rerankTier1Candidates(query, filtered, reranker, params.warn);
+  }
+
+  const { body, used } = renderTier1Body(query, ranked, maxBytes);
   if (used === 0) {
     return { injected: false, diag: diag("below-threshold", { query, hits: results.length }) };
   }
@@ -362,4 +383,92 @@ export async function buildTier1RetrievalContextFile(
       reason: "ok",
     },
   };
+}
+
+/**
+ * LLM reranker: ask a judge model (e.g. qwen2.5:7b-instruct on the carbon-white GPU node) to
+ * score each candidate for whether it answers THIS query, re-sort by judge score, and drop
+ * below cfg.minScore. Catches the topically-adjacent hard negatives the embedder alone can't
+ * separate. FAIL-OPEN: on any error/timeout/empty/invalid response it returns the input
+ * candidates unchanged — the rerank can refine, never drop, retrieval. Bounded by cfg.timeoutMs.
+ */
+async function rerankTier1Candidates(
+  query: string,
+  candidates: MemorySearchResult[],
+  cfg: { baseUrl?: string; model?: string; timeoutMs: number; minScore: number; topK: number },
+  warn?: (msg: string) => void,
+): Promise<MemorySearchResult[]> {
+  if (!cfg.baseUrl || !cfg.model || candidates.length <= 1) {
+    return candidates;
+  }
+  const top = candidates.slice(0, Math.max(1, cfg.topK));
+  const sys =
+    "You are a memory-relevance judge for a retrieval system. Given a user QUESTION and candidate " +
+    "memory snippets, score each from 0.0 to 1.0 for whether it actually HELPS ANSWER THIS SPECIFIC " +
+    "QUESTION. Penalize snippets that are merely topically adjacent but do not answer it. Respond " +
+    'with STRICT JSON only: {"scores":[{"id":<int>,"score":<0.0-1.0>}]}, one entry per candidate, ' +
+    "preserving the given ids.";
+  const enumerated = top
+    .map((c, i) => `- id ${i}: ${(c.snippet ?? "").replace(/\s+/g, " ").slice(0, 700)}`)
+    .join("\n");
+  const user = `QUESTION:\n${query}\n\nCANDIDATES:\n${enumerated}\n\nScore every candidate.`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(100, cfg.timeoutMs));
+  try {
+    const res = await fetch(`${cfg.baseUrl.replace(/\/+$/, "")}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer ollama" },
+      body: JSON.stringify({
+        model: cfg.model,
+        temperature: 0,
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: user },
+        ],
+        response_format: { type: "json_object" },
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      warn?.(`tier1 reranker HTTP ${res.status}`);
+      return candidates;
+    }
+    const payload = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = payload?.choices?.[0]?.message?.content ?? "";
+    const match = content.match(/\{[\s\S]*\}/);
+    if (!match) {
+      return candidates;
+    }
+    const parsed = JSON.parse(match[0]) as { scores?: Array<{ id?: unknown; score?: unknown }> };
+    const scores = Array.isArray(parsed?.scores) ? parsed.scores : [];
+    const judgeById = new Map<number, number>();
+    for (const entry of scores) {
+      const id = Number(entry?.id);
+      const score = Number(entry?.score);
+      if (Number.isInteger(id) && id >= 0 && id < top.length && Number.isFinite(score)) {
+        judgeById.set(id, score);
+      }
+    }
+    if (judgeById.size === 0) {
+      return candidates;
+    }
+    const reordered = top
+      .map((c, i) => ({ c, judge: judgeById.has(i) ? (judgeById.get(i) as number) : -1 }))
+      .filter((x) => x.judge >= cfg.minScore)
+      .sort((a, b) => b.judge - a.judge)
+      .map((x) => x.c);
+    recordTier1Gate({
+      kind: "rerank",
+      model: cfg.model,
+      before: top.length,
+      after: reordered.length,
+    });
+    // FAIL-OPEN: if the judge floor emptied the set, keep the original cosine order.
+    return reordered.length > 0 ? reordered : candidates;
+  } catch (err) {
+    warn?.(`tier1 reranker error: ${String(err).slice(0, 160)}`);
+    return candidates;
+  } finally {
+    clearTimeout(timer);
+  }
 }
