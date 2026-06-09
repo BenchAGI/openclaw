@@ -21,6 +21,14 @@ export {
   resolveSessionAgentIds,
 } from "../agents/agent-scope.js";
 export { resolveMemorySearchConfig } from "../agents/memory-search.js";
+export {
+  buildTier1RetrievalContextFile,
+  TIER1_FILE_NAME,
+  type Tier1Diag,
+  type Tier1RetrievalOutcome,
+  type Tier1RetrievalParams,
+  type Tier1SearchFn,
+} from "../agents/tier1-retrieval.js";
 export { parseNonNegativeByteSize } from "../config/byte-size.js";
 export { getRuntimeConfig, loadConfig } from "../config/config.js";
 export type { OpenClawConfig } from "../config/config.js";

@@ -75,6 +75,9 @@ const DEFAULT_MAX_RESULTS = 4;
 const DEFAULT_MIN_SCORE = 0.45;
 const DEFAULT_MAX_BYTES = 1600;
 const DEFAULT_TIMEOUT_MS = 1200;
+/** Hard ceilings for caller-supplied overrides — Tier-1 stays small by contract. */
+export const MAX_RESULTS_OVERRIDE_CAP = 8;
+export const MAX_BYTES_OVERRIDE_CAP = 8192;
 
 const TIMEOUT = Symbol("tier1-timeout");
 
@@ -121,6 +124,10 @@ export type Tier1RetrievalParams = {
   warn?: (message: string) => void;
   /** Test seam: override the search call (defaults to the host memory manager). */
   searchFn?: Tier1SearchFn;
+  /** Optional caller override for max hits (clamped to MAX_RESULTS_OVERRIDE_CAP). */
+  maxResultsOverride?: number;
+  /** Optional caller override for the body byte cap (clamped to MAX_BYTES_OVERRIDE_CAP). */
+  maxBytesOverride?: number;
 };
 
 /**
@@ -220,6 +227,14 @@ function clampPositive(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+/** Caller overrides are optional and hard-capped; invalid values fall back to config. */
+function clampOverride(value: number | undefined, cap: number): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.min(Math.floor(value), cap);
+}
+
 async function raceWithTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -287,7 +302,7 @@ export async function buildTier1RetrievalContextFile(
     params.warn?.(`tier1-retrieval config error: ${String(err)}`);
     return { injected: false, diag: diag("disabled") };
   }
-  if (!tier1 || tier1.enabled !== true) {
+  if (!tier1?.enabled) {
     return { injected: false, diag: diag("disabled") };
   }
 
@@ -297,9 +312,13 @@ export async function buildTier1RetrievalContextFile(
     return { injected: false, diag: diag("no-signal") };
   }
 
-  const maxResults = clampPositive(tier1.maxResults, DEFAULT_MAX_RESULTS);
+  const maxResults =
+    clampOverride(params.maxResultsOverride, MAX_RESULTS_OVERRIDE_CAP) ??
+    clampPositive(tier1.maxResults, DEFAULT_MAX_RESULTS);
   const minScore = clampPositive(tier1.minScore, DEFAULT_MIN_SCORE);
-  const maxBytes = clampPositive(tier1.maxBytes, DEFAULT_MAX_BYTES);
+  const maxBytes =
+    clampOverride(params.maxBytesOverride, MAX_BYTES_OVERRIDE_CAP) ??
+    clampPositive(tier1.maxBytes, DEFAULT_MAX_BYTES);
   const timeoutMs = clampPositive(tier1.timeoutMs, DEFAULT_TIMEOUT_MS);
 
   // 3) Search (fail-open, bounded by a hard timeout). Scoped to curated memory
@@ -348,7 +367,7 @@ export async function buildTier1RetrievalContextFile(
         r.score >= minScore &&
         (r.snippet ?? "").trim().length > 0,
     )
-    .sort((a, b) => b.score - a.score)
+    .toSorted((a, b) => b.score - a.score)
     .slice(0, maxResults);
   if (filtered.length === 0) {
     return { injected: false, diag: diag("below-threshold", { query, hits: results.length }) };
@@ -392,7 +411,7 @@ export async function buildTier1RetrievalContextFile(
  * separate. FAIL-OPEN: on any error/timeout/empty/invalid response it returns the input
  * candidates unchanged — the rerank can refine, never drop, retrieval. Bounded by cfg.timeoutMs.
  */
-async function rerankTier1Candidates(
+export async function rerankTier1Candidates(
   query: string,
   candidates: MemorySearchResult[],
   cfg: { baseUrl?: string; model?: string; timeoutMs: number; minScore: number; topK: number },
@@ -455,7 +474,7 @@ async function rerankTier1Candidates(
     const reordered = top
       .map((c, i) => ({ c, judge: judgeById.has(i) ? (judgeById.get(i) as number) : -1 }))
       .filter((x) => x.judge >= cfg.minScore)
-      .sort((a, b) => b.judge - a.judge)
+      .toSorted((a, b) => b.judge - a.judge)
       .map((x) => x.c);
     recordTier1Gate({
       kind: "rerank",
