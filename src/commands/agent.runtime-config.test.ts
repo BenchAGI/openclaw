@@ -16,6 +16,7 @@ type ResolveCommandConfigParams = {
   config: OpenClawConfig;
   commandName: string;
   targetIds: Set<string>;
+  optionalActivePaths?: Set<string>;
   runtime: RuntimeEnv;
 };
 
@@ -191,6 +192,151 @@ describe("agentCommand runtime config", () => {
 
       const targetIds = requireResolveCommandConfigParams().targetIds;
       expect(targetIds.has("channels.telegram.botToken")).toBe(true);
+    });
+  });
+
+  it("resolves command secrets when only a Tier-1 reranker SecretRef is configured", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      const loadedConfig = mockConfig(home, store);
+      loadedConfig.agents = {
+        ...loadedConfig.agents,
+        defaults: {
+          ...loadedConfig.agents?.defaults,
+          memorySearch: {
+            query: {
+              tier1: { enabled: true },
+              reranker: {
+                enabled: true,
+                apiKey: { source: "env", provider: "default", id: "TIER1_RERANKER_API_KEY" },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig["agents"];
+      const resolvedConfig = structuredClone(loadedConfig);
+      resolvedConfig.agents!.defaults!.memorySearch!.query!.reranker!.apiKey =
+        "resolved-tier1-reranker-key";
+      resolveCommandConfigWithSecretsMock.mockResolvedValueOnce({
+        resolvedConfig,
+        effectiveConfig: resolvedConfig,
+        diagnostics: [],
+      });
+
+      const prepared = await resolveAgentRuntimeConfig(runtime);
+
+      expect(resolveCommandConfigWithSecretsMock).toHaveBeenCalledTimes(1);
+      const targetIds = requireResolveCommandConfigParams().targetIds;
+      expect(targetIds.has("agents.defaults.memorySearch.query.reranker.apiKey")).toBe(true);
+      expect(targetIds.has("agents.list[].memorySearch.query.reranker.apiKey")).toBe(false);
+      expect(requireResolveCommandConfigParams().optionalActivePaths).toEqual(
+        new Set(["agents.defaults.memorySearch.query.reranker.apiKey"]),
+      );
+      expect(prepared.cfg).toBe(resolvedConfig);
+    });
+  });
+
+  it("keeps disabled Tier-1 reranker SecretRefs out of command secret resolution", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      const loadedConfig = mockConfig(home, store);
+      loadedConfig.agents = {
+        ...loadedConfig.agents,
+        defaults: {
+          ...loadedConfig.agents?.defaults,
+          memorySearch: {
+            query: {
+              tier1: { enabled: false },
+              reranker: {
+                enabled: false,
+                apiKey: { source: "env", provider: "default", id: "TIER1_RERANKER_API_KEY" },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig["agents"];
+
+      const prepared = await resolveAgentRuntimeConfig(runtime);
+
+      expect(resolveCommandConfigWithSecretsMock).not.toHaveBeenCalled();
+      expect(prepared.cfg).toBe(loadedConfig);
+    });
+  });
+
+  it("uses effective memorySearch.enabled for inherited Tier-1 reranker SecretRefs", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      const loadedConfig = mockConfig(home, store);
+      loadedConfig.agents = {
+        defaults: {
+          ...loadedConfig.agents?.defaults,
+          memorySearch: {
+            enabled: false,
+            query: {
+              tier1: { enabled: true },
+              reranker: {
+                enabled: true,
+                apiKey: { source: "env", provider: "default", id: "TIER1_RERANKER_API_KEY" },
+              },
+            },
+          },
+        },
+        list: [{ id: "main", memorySearch: { enabled: true } }],
+      } as OpenClawConfig["agents"];
+      const resolvedConfig = structuredClone(loadedConfig);
+      resolvedConfig.agents!.defaults!.memorySearch!.query!.reranker!.apiKey =
+        "resolved-tier1-reranker-key";
+      resolveCommandConfigWithSecretsMock.mockResolvedValueOnce({
+        resolvedConfig,
+        effectiveConfig: resolvedConfig,
+        diagnostics: [],
+      });
+
+      const prepared = await resolveAgentRuntimeConfig(runtime);
+
+      expect(resolveCommandConfigWithSecretsMock).toHaveBeenCalledTimes(1);
+      expect(requireResolveCommandConfigParams().optionalActivePaths).toEqual(
+        new Set(["agents.defaults.memorySearch.query.reranker.apiKey"]),
+      );
+      expect(prepared.cfg).toBe(resolvedConfig);
+    });
+  });
+
+  it("keeps agent Tier-1 reranker SecretRefs inactive when defaults disable memory search", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      const loadedConfig = mockConfig(home, store);
+      loadedConfig.agents = {
+        defaults: {
+          ...loadedConfig.agents?.defaults,
+          memorySearch: {
+            enabled: false,
+            query: {
+              tier1: { enabled: true },
+              reranker: { enabled: true },
+            },
+          },
+        },
+        list: [
+          {
+            id: "main",
+            memorySearch: {
+              query: {
+                tier1: { enabled: true },
+                reranker: {
+                  enabled: true,
+                  apiKey: { source: "env", provider: "default", id: "TIER1_RERANKER_API_KEY" },
+                },
+              },
+            },
+          },
+        ],
+      } as OpenClawConfig["agents"];
+
+      const prepared = await resolveAgentRuntimeConfig(runtime);
+
+      expect(resolveCommandConfigWithSecretsMock).not.toHaveBeenCalled();
+      expect(prepared.cfg).toBe(loadedConfig);
     });
   });
 

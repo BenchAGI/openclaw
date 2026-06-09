@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import type { SecretInput } from "../config/types.secrets.js";
 import type { MemorySearchResult } from "../memory-host-sdk/host/types.js";
 import {
   buildTier1RetrievalContextFile,
@@ -21,6 +22,7 @@ type Tier1Knobs = {
 type RerankerKnobs = {
   enabled?: boolean;
   baseUrl?: string;
+  apiKey?: SecretInput;
   model?: string;
   timeoutMs?: number;
   minScore?: number;
@@ -49,6 +51,7 @@ const BASE = {
 };
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
@@ -196,26 +199,93 @@ describe("buildTier1RetrievalContextFile", () => {
   });
 
   it("re-orders the injected slice via the config-enabled reranker", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        judgeResponse([
-          { id: 0, score: 0.2 },
-          { id: 1, score: 0.95 },
-        ]),
-      ),
+    const fetchSpy = vi.fn(async () =>
+      judgeResponse([
+        { id: 0, score: 0.2 },
+        { id: 1, score: 0.95 },
+      ]),
     );
+    vi.stubGlobal("fetch", fetchSpy);
     const out = await buildTier1RetrievalContextFile({
       ...BASE,
       config: makeConfig(
         { enabled: true, minScore: 0.45, maxResults: 4, maxBytes: 1600 },
-        { enabled: true, baseUrl: "http://judge.local", model: "judge", minScore: 0.1, topK: 8 },
+        {
+          enabled: true,
+          baseUrl: "http://judge.local",
+          apiKey: "judge-key",
+          model: "judge",
+          minScore: 0.1,
+          topK: 8,
+        },
       ),
       searchFn: async () => [hit(0.9, "cosine favorite"), hit(0.8, "judge favorite")],
     });
     expect(out.injected).toBe(true);
     const body = out.file?.content ?? "";
     expect(body.indexOf("judge favorite")).toBeLessThan(body.indexOf("cosine favorite"));
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toMatchObject({
+      authorization: "Bearer judge-key",
+    });
+  });
+
+  it("resolves a reranker apiKey SecretRef before calling the judge", async () => {
+    vi.stubEnv("TIER1_JUDGE_KEY", "env-judge-key");
+    const fetchSpy = vi.fn(async () =>
+      judgeResponse([
+        { id: 0, score: 0.9 },
+        { id: 1, score: 0.8 },
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const out = await buildTier1RetrievalContextFile({
+      ...BASE,
+      config: makeConfig(
+        { enabled: true, minScore: 0.45, maxResults: 4, maxBytes: 1600 },
+        {
+          enabled: true,
+          baseUrl: "http://judge.local",
+          apiKey: { source: "env", provider: "default", id: "TIER1_JUDGE_KEY" },
+          model: "judge",
+          minScore: 0.1,
+          topK: 8,
+        },
+      ),
+      searchFn: async () => [hit(0.9, "first"), hit(0.8, "second")],
+    });
+    expect(out.injected).toBe(true);
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toMatchObject({
+      authorization: "Bearer env-judge-key",
+    });
+  });
+
+  it("skips the reranker request when a configured apiKey SecretRef is unresolved", async () => {
+    const fetchSpy = vi.fn();
+    const warn = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const out = await buildTier1RetrievalContextFile({
+      ...BASE,
+      config: makeConfig(
+        { enabled: true, minScore: 0.45, maxResults: 4, maxBytes: 1600 },
+        {
+          enabled: true,
+          baseUrl: "http://judge.local",
+          apiKey: { source: "env", provider: "default", id: "MISSING_TIER1_JUDGE_KEY" },
+          model: "judge",
+          minScore: 0.1,
+          topK: 8,
+        },
+      ),
+      searchFn: async () => [hit(0.9, "cosine favorite"), hit(0.8, "judge favorite")],
+      warn,
+    });
+    expect(out.injected).toBe(true);
+    const body = out.file?.content ?? "";
+    expect(body.indexOf("cosine favorite")).toBeLessThan(body.indexOf("judge favorite"));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(warn.mock.calls.some(([message]) => String(message).includes("skipping reranker"))).toBe(
+      true,
+    );
   });
 });
 

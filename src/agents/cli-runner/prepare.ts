@@ -630,7 +630,7 @@ export async function prepareCliRunContext(
     sandbox: { mode: "off", sandboxed: false },
     systemPrompt,
     bootstrapFiles,
-    injectedFiles: contextFiles,
+    injectedFiles: tier1ContextFiles,
     skillsPrompt: systemPromptSkillsPrompt,
     tools: promptTools,
     currentTurn: {

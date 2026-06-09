@@ -114,6 +114,20 @@ type LoadedMemoryCommandConfig = {
   config: OpenClawConfig;
   diagnostics: string[];
 };
+type MemorySearchLike = {
+  enabled?: boolean;
+  query?: {
+    tier1?: { enabled?: boolean };
+    reranker?: { enabled?: boolean; apiKey?: unknown };
+  };
+};
+type AgentMemorySearchLike = {
+  enabled?: boolean;
+  memorySearch?: MemorySearchLike;
+};
+
+const TIER1_RERANKER_DEFAULT_TARGET_ID = "agents.defaults.memorySearch.query.reranker.apiKey";
+const TIER1_RERANKER_AGENT_TARGET_ID = "agents.list[].memorySearch.query.reranker.apiKey";
 
 function getMemoryCommandSecretTargetIds(): Set<string> {
   return new Set([
@@ -122,11 +136,138 @@ function getMemoryCommandSecretTargetIds(): Set<string> {
   ]);
 }
 
-async function loadMemoryCommandConfig(commandName: string): Promise<LoadedMemoryCommandConfig> {
+function getActiveTier1RerankerSecretTargets(
+  cfg: OpenClawConfig,
+): { targetIds: Set<string>; optionalActivePaths: Set<string> } | undefined {
+  const defaultsMemorySearch = cfg.agents?.defaults?.memorySearch as MemorySearchLike | undefined;
+  const defaultsReranker = resolveMemorySearchReranker(defaultsMemorySearch);
+  const agents = (cfg.agents?.list ?? []) as AgentMemorySearchLike[];
+  const targetIds = new Set<string>();
+  const optionalActivePaths = new Set<string>();
+
+  if (
+    isSecretRefValue(defaultsReranker?.apiKey) &&
+    defaultRerankerSecretRefIsActive(defaultsMemorySearch, agents)
+  ) {
+    targetIds.add(TIER1_RERANKER_DEFAULT_TARGET_ID);
+    optionalActivePaths.add(TIER1_RERANKER_DEFAULT_TARGET_ID);
+  }
+
+  agents.forEach((agent, index) => {
+    const memorySearch = agent.memorySearch;
+    const reranker = resolveMemorySearchReranker(memorySearch);
+    if (
+      !isSecretRefValue(reranker?.apiKey) ||
+      !agentRerankerSecretRefIsActive(agent, defaultsMemorySearch)
+    ) {
+      return;
+    }
+    targetIds.add(TIER1_RERANKER_AGENT_TARGET_ID);
+    optionalActivePaths.add(`agents.list.${index}.memorySearch.query.reranker.apiKey`);
+  });
+
+  if (optionalActivePaths.size === 0) {
+    return undefined;
+  }
+  return { targetIds, optionalActivePaths };
+}
+
+function defaultRerankerSecretRefIsActive(
+  defaultsMemorySearch: MemorySearchLike | undefined,
+  agents: readonly AgentMemorySearchLike[],
+): boolean {
+  if (agents.length === 0) {
+    return (
+      resolveEffectiveMemorySearchEnabled(defaultsMemorySearch, undefined) &&
+      tier1AndRerankerAreEnabled(defaultsMemorySearch, undefined)
+    );
+  }
+  return agents.some((agent) => {
+    if (
+      agent.enabled === false ||
+      !resolveEffectiveMemorySearchEnabled(agent.memorySearch, defaultsMemorySearch)
+    ) {
+      return false;
+    }
+    return (
+      tier1AndRerankerAreEnabled(agent.memorySearch, defaultsMemorySearch) &&
+      !hasOwnApiKey(resolveMemorySearchReranker(agent.memorySearch))
+    );
+  });
+}
+
+function agentRerankerSecretRefIsActive(
+  agent: AgentMemorySearchLike,
+  defaultsMemorySearch: MemorySearchLike | undefined,
+): boolean {
+  return (
+    agent.enabled !== false &&
+    resolveEffectiveMemorySearchEnabled(agent.memorySearch, defaultsMemorySearch) &&
+    tier1AndRerankerAreEnabled(agent.memorySearch, defaultsMemorySearch)
+  );
+}
+
+function tier1AndRerankerAreEnabled(
+  memorySearch: MemorySearchLike | undefined,
+  defaultsMemorySearch: MemorySearchLike | undefined,
+): boolean {
+  return (
+    (memorySearch?.query?.tier1?.enabled ?? defaultsMemorySearch?.query?.tier1?.enabled ?? false) &&
+    (memorySearch?.query?.reranker?.enabled ??
+      defaultsMemorySearch?.query?.reranker?.enabled ??
+      false)
+  );
+}
+
+function resolveEffectiveMemorySearchEnabled(
+  memorySearch: MemorySearchLike | undefined,
+  defaultsMemorySearch: MemorySearchLike | undefined,
+): boolean {
+  return memorySearch?.enabled ?? defaultsMemorySearch?.enabled ?? true;
+}
+
+function resolveMemorySearchReranker(
+  memorySearch: MemorySearchLike | undefined,
+): { enabled?: boolean; apiKey?: unknown } | undefined {
+  return memorySearch?.query?.reranker;
+}
+
+function hasOwnApiKey(value: { apiKey?: unknown } | undefined): boolean {
+  return Boolean(value && Object.prototype.hasOwnProperty.call(value, "apiKey"));
+}
+
+function isSecretRefValue(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    (record.source === "env" || record.source === "file" || record.source === "exec") &&
+    typeof record.provider === "string" &&
+    typeof record.id === "string"
+  );
+}
+
+async function loadMemoryCommandConfig(
+  commandName: string,
+  options?: { includeTier1Reranker?: boolean },
+): Promise<LoadedMemoryCommandConfig> {
+  const config = getRuntimeConfig();
+  const tier1RerankerTargets =
+    options?.includeTier1Reranker === true
+      ? getActiveTier1RerankerSecretTargets(config)
+      : undefined;
+  const targetIds = getMemoryCommandSecretTargetIds();
+  for (const targetId of tier1RerankerTargets?.targetIds ?? []) {
+    targetIds.add(targetId);
+  }
   const { resolvedConfig, diagnostics } = await resolveCommandSecretRefsViaGateway({
-    config: getRuntimeConfig(),
+    config,
     commandName,
-    targetIds: getMemoryCommandSecretTargetIds(),
+    targetIds,
+    ...(tier1RerankerTargets
+      ? { optionalActivePaths: tier1RerankerTargets.optionalActivePaths }
+      : {}),
   });
   return {
     config: resolvedConfig,
@@ -1341,7 +1482,9 @@ export async function runMemoryTier1(
     process.exitCode = 1;
     return;
   }
-  const { config: cfg, diagnostics } = await loadMemoryCommandConfig("memory tier1");
+  const { config: cfg, diagnostics } = await loadMemoryCommandConfig("memory tier1", {
+    includeTier1Reranker: true,
+  });
   emitMemorySecretResolveDiagnostics(diagnostics, { json: Boolean(opts.json) });
   const agentId = resolveAgent(cfg, opts.agent);
   const sessionKey = opts.sessionKey?.trim() || buildCliMemoryTier1SessionKey(agentId);

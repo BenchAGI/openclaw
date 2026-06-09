@@ -1289,6 +1289,34 @@ export const FIELD_HELP: Record<string, string> = {
     "Applies recency decay so newer memory can outrank older memory when scores are close. Enable when timeliness matters; keep off for timeless reference knowledge.",
   "agents.defaults.memorySearch.query.hybrid.temporalDecay.halfLifeDays":
     "Controls how fast older memory loses rank when temporal decay is enabled (half-life in days, default: 30). Lower values prioritize recent context more aggressively.",
+  "agents.defaults.memorySearch.query.tier1":
+    "Configures Tier-1 retrieval-at-start, which can prepend a small retrieved memory slice to cold session starts before MEMORY.md. Keep disabled unless you want automatic recall on the opening turn.",
+  "agents.defaults.memorySearch.query.tier1.enabled":
+    "Enables Tier-1 retrieval-at-start for cold session starts. The default is false; misses, timeouts, and retrieval errors fail open without blocking the run.",
+  "agents.defaults.memorySearch.query.tier1.maxResults":
+    "Maximum memory hits to inject into the Tier-1 startup slice (default: 4). Keep this small so retrieved context does not crowd out Tier-0 bootstrap context.",
+  "agents.defaults.memorySearch.query.tier1.minScore":
+    "Minimum memory-search relevance score for Tier-1 injected hits (0-1, default: 0.45). Raise it to reduce weak startup recalls.",
+  "agents.defaults.memorySearch.query.tier1.maxBytes":
+    "Maximum UTF-8 bytes for the rendered Tier-1 context file (default: 1600). The runtime also hard-caps caller overrides to keep startup context bounded.",
+  "agents.defaults.memorySearch.query.tier1.timeoutMs":
+    "Maximum time in milliseconds spent on Tier-1 memory lookup before the run continues without injected context (default: 1200).",
+  "agents.defaults.memorySearch.query.reranker":
+    "Optional judge-model reranker for Tier-1 candidates. Enable it only when a fast local or self-hosted judge is available; HTTP, timeout, auth, or parse failures fall back to cosine order.",
+  "agents.defaults.memorySearch.query.reranker.enabled":
+    "Enables the optional Tier-1 LLM reranker. Requires baseUrl and model; keep disabled unless the extra local or self-hosted judge latency is acceptable.",
+  "agents.defaults.memorySearch.query.reranker.baseUrl":
+    "OpenAI-compatible chat completions base URL for the Tier-1 judge endpoint. Use a local Ollama or other self-hosted endpoint when you want reranking without external latency.",
+  "agents.defaults.memorySearch.query.reranker.apiKey":
+    "Optional API key for the Tier-1 judge endpoint. Use a SecretRef when storing credentials in config; local endpoints that ignore auth can omit it.",
+  "agents.defaults.memorySearch.query.reranker.model":
+    "Model id sent to the Tier-1 judge endpoint. Use a small instruction-following model that can return strict JSON quickly.",
+  "agents.defaults.memorySearch.query.reranker.timeoutMs":
+    "Maximum time in milliseconds for the Tier-1 judge request before falling back to original memory-search order (default: 6000).",
+  "agents.defaults.memorySearch.query.reranker.minScore":
+    "Minimum judge score for keeping a Tier-1 candidate (0-1, default: 0.5). If the judge removes every candidate, retrieval fails open to the original order.",
+  "agents.defaults.memorySearch.query.reranker.topK":
+    "Maximum number of Tier-1 candidates sent to the judge model (default: 8). Larger values cost more latency and tokens.",
   "agents.defaults.memorySearch.cache.enabled":
     "Caches computed chunk embeddings in SQLite so reindexing and incremental updates run faster (default: true). Keep this enabled unless investigating cache correctness or minimizing disk usage.",
   memory: "Memory backend configuration (global).",

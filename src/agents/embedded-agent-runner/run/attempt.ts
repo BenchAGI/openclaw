@@ -1786,18 +1786,6 @@ export async function runEmbeddedAttempt(
     // Tier-1 slice has its own byte cap. Flag-gated + fail-open: on any miss
     // `tier1ContextFiles` falls back to `contextFiles` unchanged.
     let tier1ContextFiles = contextFiles;
-    recordTier1Gate({
-      sessionKey: params.sessionKey ?? params.sessionId,
-      agentId: sessionAgentId,
-      isRawModelRun,
-      bootstrapMode,
-      contextInjectionMode,
-      runKind: params.bootstrapContextRunKind ?? "default",
-      isPrimary: isPrimaryBootstrapRun(params.sessionKey),
-      hasConfig: Boolean(params.config),
-      promptType: typeof params.prompt,
-      promptLen: typeof params.prompt === "string" ? params.prompt.trim().length : -1,
-    });
     if (
       !isRawModelRun &&
       bootstrapMode === "full" &&
@@ -1967,7 +1955,7 @@ export async function runEmbeddedAttempt(
       })(),
       systemPrompt: appendPrompt,
       bootstrapFiles: hookAdjustedBootstrapFiles,
-      injectedFiles: contextFiles,
+      injectedFiles: tier1ContextFiles,
       skillsPrompt,
       tools: effectiveTools,
     });

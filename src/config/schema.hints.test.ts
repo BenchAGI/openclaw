@@ -167,6 +167,8 @@ describe("mapSensitivePaths", () => {
 
     expect(hints["agents.defaults.memorySearch.remote.apiKey"]?.sensitive).toBe(true);
     expect(hints["agents.list[].memorySearch.remote.apiKey"]?.sensitive).toBe(true);
+    expect(hints["agents.defaults.memorySearch.query.reranker.apiKey"]?.sensitive).toBe(true);
+    expect(hints["agents.list[].memorySearch.query.reranker.apiKey"]?.sensitive).toBe(true);
     expect(hints["gateway.auth.token"]?.sensitive).toBe(true);
     expect(hints["models.providers.*.headers.*"]?.sensitive).toBe(true);
     expect(hints["models.providers.*.localService.env.*"]?.sensitive).toBe(true);

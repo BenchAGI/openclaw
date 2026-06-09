@@ -350,6 +350,95 @@ All under `memorySearch.query.hybrid`:
 
 ---
 
+## Tier-1 retrieval at start
+
+Tier-1 retrieval-at-start can prepend a small synthetic context file named
+`RETRIEVED-CONTEXT-TIER1.md` before `MEMORY.md` on cold session starts. It
+searches only curated memory files for the opening topic, stays byte bounded,
+and fails open: disabled config, misses, timeouts, auth errors, and parse errors
+continue the run without injected context.
+
+All under `memorySearch.query.tier1`:
+
+| Key          | Type      | Default | Description                                      |
+| ------------ | --------- | ------- | ------------------------------------------------ |
+| `enabled`    | `boolean` | `false` | Enable automatic startup retrieval               |
+| `maxResults` | `number`  | `4`     | Maximum memory hits to inject                    |
+| `minScore`   | `number`  | `0.45`  | Minimum memory-search score for injected hits    |
+| `maxBytes`   | `number`  | `1600`  | UTF-8 byte cap for the rendered context snapshot |
+| `timeoutMs`  | `number`  | `1200`  | Search timeout before continuing without Tier-1  |
+
+```json5
+{
+  agents: {
+    defaults: {
+      memorySearch: {
+        query: {
+          tier1: {
+            enabled: true,
+            maxResults: 4,
+            minScore: 0.45,
+            maxBytes: 1600,
+            timeoutMs: 1200,
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+Preview the exact rendered context without starting an agent run:
+
+```bash
+openclaw memory tier1 "gateway deploy" --agent main --json
+```
+
+### Tier-1 LLM reranker
+
+The optional reranker asks an OpenAI-compatible chat completions endpoint to
+judge the small Tier-1 candidate set. It can reorder and filter candidates, but
+any judge failure falls back to the original memory-search order.
+
+All under `memorySearch.query.reranker`:
+
+| Key         | Type          | Default | Description                                  |
+| ----------- | ------------- | ------- | -------------------------------------------- |
+| `enabled`   | `boolean`     | `false` | Enable the optional judge-model reranker     |
+| `baseUrl`   | `string`      | --      | OpenAI-compatible endpoint base URL          |
+| `apiKey`    | `SecretInput` | --      | Optional bearer token for the judge endpoint |
+| `model`     | `string`      | --      | Judge model id                               |
+| `timeoutMs` | `number`      | `6000`  | Judge timeout before falling back            |
+| `minScore`  | `number`      | `0.5`   | Minimum judge score for keeping a candidate  |
+| `topK`      | `number`      | `8`     | Maximum candidates sent to the judge         |
+
+```json5
+{
+  agents: {
+    defaults: {
+      memorySearch: {
+        query: {
+          tier1: { enabled: true },
+          reranker: {
+            enabled: true,
+            baseUrl: "http://127.0.0.1:11434",
+            model: "qwen2.5:7b-instruct",
+            timeoutMs: 6000,
+            minScore: 0.5,
+            topK: 8,
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+Use `apiKey` only when the judge endpoint requires auth. Prefer a SecretRef for
+stored credentials.
+
+---
+
 ## Additional memory paths
 
 | Key          | Type       | Description                              |

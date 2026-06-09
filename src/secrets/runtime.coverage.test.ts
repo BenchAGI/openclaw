@@ -499,6 +499,32 @@ function applyConfigForOpenClawTarget(
   if (entry.id === "agents.defaults.memorySearch.remote.apiKey") {
     setPathCreateStrict(config, ["agents", "list", "0", "id"], "sample-agent");
   }
+  if (entry.id === "agents.defaults.memorySearch.query.reranker.apiKey") {
+    setPathCreateStrict(config, ["agents", "list", "0", "id"], "sample-agent");
+    setPathCreateStrict(
+      config,
+      ["agents", "defaults", "memorySearch", "query", "reranker", "enabled"],
+      true,
+    );
+    setPathCreateStrict(
+      config,
+      ["agents", "defaults", "memorySearch", "query", "tier1", "enabled"],
+      true,
+    );
+  }
+  if (entry.id === "agents.list[].memorySearch.query.reranker.apiKey") {
+    setPathCreateStrict(config, ["agents", "list", "0", "id"], "sample-agent");
+    setPathCreateStrict(
+      config,
+      ["agents", "list", "0", "memorySearch", "query", "reranker", "enabled"],
+      true,
+    );
+    setPathCreateStrict(
+      config,
+      ["agents", "list", "0", "memorySearch", "query", "tier1", "enabled"],
+      true,
+    );
+  }
   if (entry.id === "gateway.auth.password") {
     setPathCreateStrict(config, ["gateway", "auth", "mode"], "password");
   }

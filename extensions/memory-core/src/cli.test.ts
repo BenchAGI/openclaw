@@ -2222,6 +2222,18 @@ describe("memory cli", () => {
     const writeJson = spyRuntimeJson(defaultRuntime);
     await runMemoryCli(["tier1", "router vlan", "--json"]);
 
+    const secretRefsCall = firstMockCallArg(
+      resolveCommandSecretRefsViaGateway,
+      "resolve command secret refs",
+    ) as { commandName?: unknown; targetIds?: unknown; optionalActivePaths?: unknown };
+    expect(secretRefsCall.commandName).toBe("memory tier1");
+    expect(secretRefsCall.targetIds).toStrictEqual(
+      new Set([
+        "agents.defaults.memorySearch.remote.apiKey",
+        "agents.list[].memorySearch.remote.apiKey",
+      ]),
+    );
+    expect(secretRefsCall.optionalActivePaths).toBeUndefined();
     expect(search).toHaveBeenCalledWith(
       "router vlan",
       expect.objectContaining({
@@ -2243,6 +2255,180 @@ describe("memory cli", () => {
     expect(payload?.diag?.injectedHits).toBe(1);
     expect(close).toHaveBeenCalled();
     expect(process.exitCode).toBeUndefined();
+  });
+
+  it("adds tier1 reranker secret targets only when the reranker SecretRef is active", async () => {
+    getRuntimeConfig.mockReturnValue({
+      agents: {
+        defaults: {
+          memorySearch: {
+            query: {
+              tier1: { enabled: true },
+              reranker: {
+                enabled: true,
+                apiKey: { source: "env", provider: "default", id: "TIER1_RERANKER_API_KEY" },
+              },
+            },
+          },
+        },
+      },
+    });
+    const close = vi.fn(async () => {});
+    const search = vi.fn(async () => []);
+    mockManager({ search, close });
+
+    spyRuntimeJson(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan", "--json"]);
+
+    const secretRefsCall = firstMockCallArg(
+      resolveCommandSecretRefsViaGateway,
+      "resolve command secret refs",
+    ) as { commandName?: unknown; targetIds?: unknown; optionalActivePaths?: unknown };
+    expect(secretRefsCall.commandName).toBe("memory tier1");
+    expect(secretRefsCall.targetIds).toStrictEqual(
+      new Set([
+        "agents.defaults.memorySearch.remote.apiKey",
+        "agents.list[].memorySearch.remote.apiKey",
+        "agents.defaults.memorySearch.query.reranker.apiKey",
+      ]),
+    );
+    expect(secretRefsCall.optionalActivePaths).toStrictEqual(
+      new Set(["agents.defaults.memorySearch.query.reranker.apiKey"]),
+    );
+    expect(search).toHaveBeenCalled();
+    expect(close).toHaveBeenCalled();
+  });
+
+  it("does not activate disabled tier1 reranker SecretRefs", async () => {
+    getRuntimeConfig.mockReturnValue({
+      agents: {
+        defaults: {
+          memorySearch: {
+            query: {
+              tier1: { enabled: true },
+              reranker: {
+                enabled: false,
+                apiKey: { source: "env", provider: "default", id: "TIER1_RERANKER_API_KEY" },
+              },
+            },
+          },
+        },
+      },
+    });
+    const close = vi.fn(async () => {});
+    const search = vi.fn(async () => []);
+    mockManager({ search, close });
+
+    spyRuntimeJson(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan", "--json"]);
+
+    const secretRefsCall = firstMockCallArg(
+      resolveCommandSecretRefsViaGateway,
+      "resolve command secret refs",
+    ) as { targetIds?: unknown; optionalActivePaths?: unknown };
+    expect(secretRefsCall.targetIds).toStrictEqual(
+      new Set([
+        "agents.defaults.memorySearch.remote.apiKey",
+        "agents.list[].memorySearch.remote.apiKey",
+      ]),
+    );
+    expect(secretRefsCall.optionalActivePaths).toBeUndefined();
+    expect(search).toHaveBeenCalled();
+    expect(close).toHaveBeenCalled();
+  });
+
+  it("uses effective memorySearch.enabled for inherited tier1 reranker SecretRefs", async () => {
+    getRuntimeConfig.mockReturnValue({
+      agents: {
+        defaults: {
+          memorySearch: {
+            enabled: false,
+            query: {
+              tier1: { enabled: true },
+              reranker: {
+                enabled: true,
+                apiKey: { source: "env", provider: "default", id: "TIER1_RERANKER_API_KEY" },
+              },
+            },
+          },
+        },
+        list: [{ id: "main", memorySearch: { enabled: true } }],
+      },
+    });
+    const close = vi.fn(async () => {});
+    const search = vi.fn(async () => []);
+    mockManager({ search, close });
+
+    spyRuntimeJson(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan", "--json"]);
+
+    const secretRefsCall = firstMockCallArg(
+      resolveCommandSecretRefsViaGateway,
+      "resolve command secret refs",
+    ) as { targetIds?: unknown; optionalActivePaths?: unknown };
+    expect(secretRefsCall.targetIds).toStrictEqual(
+      new Set([
+        "agents.defaults.memorySearch.remote.apiKey",
+        "agents.list[].memorySearch.remote.apiKey",
+        "agents.defaults.memorySearch.query.reranker.apiKey",
+      ]),
+    );
+    expect(secretRefsCall.optionalActivePaths).toStrictEqual(
+      new Set(["agents.defaults.memorySearch.query.reranker.apiKey"]),
+    );
+    expect(search).toHaveBeenCalled();
+    expect(close).toHaveBeenCalled();
+  });
+
+  it("keeps agent tier1 reranker SecretRefs inactive when defaults disable memory search", async () => {
+    getRuntimeConfig.mockReturnValue({
+      agents: {
+        defaults: {
+          memorySearch: {
+            enabled: false,
+            query: {
+              tier1: { enabled: true },
+              reranker: { enabled: true },
+            },
+          },
+        },
+        list: [
+          {
+            id: "main",
+            memorySearch: {
+              query: {
+                tier1: { enabled: true },
+                reranker: {
+                  enabled: true,
+                  apiKey: { source: "env", provider: "default", id: "TIER1_RERANKER_API_KEY" },
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+    const writeJson = spyRuntimeJson(defaultRuntime);
+    await runMemoryCli(["tier1", "router vlan", "--json"]);
+
+    const secretRefsCall = firstMockCallArg(
+      resolveCommandSecretRefsViaGateway,
+      "resolve command secret refs",
+    ) as { targetIds?: unknown; optionalActivePaths?: unknown };
+    expect(secretRefsCall.targetIds).toStrictEqual(
+      new Set([
+        "agents.defaults.memorySearch.remote.apiKey",
+        "agents.list[].memorySearch.remote.apiKey",
+      ]),
+    );
+    expect(secretRefsCall.optionalActivePaths).toBeUndefined();
+    const payload = firstWrittenJsonArg<{
+      injected: boolean;
+      diag: { reason: string };
+    }>(writeJson);
+    expect(payload?.injected).toBe(false);
+    expect(payload?.diag?.reason).toBe("disabled");
+    expect(getMemorySearchManager).not.toHaveBeenCalled();
   });
 
   it("honors --session-key for tier1 retrieval", async () => {

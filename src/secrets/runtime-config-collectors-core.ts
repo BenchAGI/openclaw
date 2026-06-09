@@ -120,10 +120,12 @@ function collectAgentMemorySearchAssignments(params: {
   const defaultsMemorySearch = isRecord(defaultsConfig?.memorySearch)
     ? defaultsConfig.memorySearch
     : undefined;
-  const defaultsEnabled = defaultsMemorySearch?.enabled !== false;
+  const defaultsEnabled = resolveEffectiveMemorySearchEnabled(defaultsMemorySearch, undefined);
+  const defaultsReranker = resolveMemorySearchReranker(defaultsMemorySearch);
 
   const list = Array.isArray(agents.list) ? agents.list : [];
   let hasEnabledAgentWithoutOverride = false;
+  let hasEnabledAgentUsingDefaultRerankerApiKey = false;
   for (const rawAgent of list) {
     if (!isRecord(rawAgent)) {
       continue;
@@ -132,8 +134,20 @@ function collectAgentMemorySearchAssignments(params: {
       continue;
     }
     const memorySearch = isRecord(rawAgent.memorySearch) ? rawAgent.memorySearch : undefined;
-    if (memorySearch?.enabled === false) {
+    const memorySearchEnabled = resolveEffectiveMemorySearchEnabled(
+      memorySearch,
+      defaultsMemorySearch,
+    );
+    if (!memorySearchEnabled) {
       continue;
+    }
+    const reranker = resolveMemorySearchReranker(memorySearch);
+    if (
+      resolveEffectiveTier1Enabled(memorySearch, defaultsMemorySearch) &&
+      resolveEffectiveRerankerEnabled(memorySearch, defaultsMemorySearch) &&
+      !hasOwnApiKey(reranker)
+    ) {
+      hasEnabledAgentUsingDefaultRerankerApiKey = true;
     }
     if (!memorySearch || !Object.hasOwn(memorySearch, "remote")) {
       hasEnabledAgentWithoutOverride = true;
@@ -145,6 +159,12 @@ function collectAgentMemorySearchAssignments(params: {
       continue;
     }
   }
+  if (list.length === 0) {
+    hasEnabledAgentUsingDefaultRerankerApiKey =
+      defaultsEnabled &&
+      resolveEffectiveTier1Enabled(defaultsMemorySearch, undefined) &&
+      resolveEffectiveRerankerEnabled(defaultsMemorySearch, undefined);
+  }
 
   if (defaultsMemorySearch && isRecord(defaultsMemorySearch.remote)) {
     const remote = defaultsMemorySearch.remote;
@@ -154,12 +174,29 @@ function collectAgentMemorySearchAssignments(params: {
       expected: "string",
       defaults: params.defaults,
       context: params.context,
-      active: defaultsEnabled && (hasEnabledAgentWithoutOverride || list.length === 0),
+      active: list.length === 0 ? defaultsEnabled : hasEnabledAgentWithoutOverride,
       inactiveReason: hasEnabledAgentWithoutOverride
         ? undefined
         : "all enabled agents override memorySearch.remote.apiKey.",
       apply: (value) => {
         remote.apiKey = value;
+      },
+    });
+  }
+
+  if (defaultsMemorySearch && defaultsReranker) {
+    collectSecretInputAssignment({
+      value: defaultsReranker.apiKey,
+      path: "agents.defaults.memorySearch.query.reranker.apiKey",
+      expected: "string",
+      defaults: params.defaults,
+      context: params.context,
+      active: hasEnabledAgentUsingDefaultRerankerApiKey,
+      inactiveReason: hasEnabledAgentUsingDefaultRerankerApiKey
+        ? undefined
+        : "all enabled agents override memorySearch.query.reranker.apiKey or have Tier-1 retrieval or the reranker disabled.",
+      apply: (value) => {
+        defaultsReranker.apiKey = value;
       },
     });
   }
@@ -172,24 +209,92 @@ function collectAgentMemorySearchAssignments(params: {
     if (!memorySearch) {
       return;
     }
+    const enabled =
+      rawAgent.enabled !== false &&
+      resolveEffectiveMemorySearchEnabled(memorySearch, defaultsMemorySearch);
     const remote = isRecord(memorySearch.remote) ? memorySearch.remote : undefined;
-    if (!remote || !Object.hasOwn(remote, "apiKey")) {
+    if (remote && Object.hasOwn(remote, "apiKey")) {
+      collectSecretInputAssignment({
+        value: remote.apiKey,
+        path: `agents.list.${index}.memorySearch.remote.apiKey`,
+        expected: "string",
+        defaults: params.defaults,
+        context: params.context,
+        active: enabled,
+        inactiveReason: "agent or memorySearch override is disabled.",
+        apply: (value) => {
+          remote.apiKey = value;
+        },
+      });
+    }
+    const reranker = resolveMemorySearchReranker(memorySearch);
+    if (!hasOwnApiKey(reranker)) {
       return;
     }
-    const enabled = rawAgent.enabled !== false && memorySearch.enabled !== false;
+    const rerankerEnabled =
+      rawAgent.enabled !== false &&
+      resolveEffectiveMemorySearchEnabled(memorySearch, defaultsMemorySearch) &&
+      resolveEffectiveTier1Enabled(memorySearch, defaultsMemorySearch) &&
+      resolveEffectiveRerankerEnabled(memorySearch, defaultsMemorySearch);
     collectSecretInputAssignment({
-      value: remote.apiKey,
-      path: `agents.list.${index}.memorySearch.remote.apiKey`,
+      value: reranker?.apiKey,
+      path: `agents.list.${index}.memorySearch.query.reranker.apiKey`,
       expected: "string",
       defaults: params.defaults,
       context: params.context,
-      active: enabled,
-      inactiveReason: "agent or memorySearch override is disabled.",
+      active: rerankerEnabled,
+      inactiveReason:
+        "agent, memorySearch, memorySearch.query.tier1, or memorySearch.query.reranker is disabled.",
       apply: (value) => {
-        remote.apiKey = value;
+        if (reranker) {
+          reranker.apiKey = value;
+        }
       },
     });
   });
+}
+
+function resolveMemorySearchReranker(
+  memorySearch: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  const query = isRecord(memorySearch?.query) ? memorySearch.query : undefined;
+  return isRecord(query?.reranker) ? query.reranker : undefined;
+}
+
+function resolveMemorySearchTier1(
+  memorySearch: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  const query = isRecord(memorySearch?.query) ? memorySearch.query : undefined;
+  return isRecord(query?.tier1) ? query.tier1 : undefined;
+}
+
+function resolveEffectiveMemorySearchEnabled(
+  memorySearch: Record<string, unknown> | undefined,
+  defaultsMemorySearch: Record<string, unknown> | undefined,
+): boolean {
+  return (memorySearch?.enabled ?? defaultsMemorySearch?.enabled ?? true) === true;
+}
+
+function resolveEffectiveTier1Enabled(
+  memorySearch: Record<string, unknown> | undefined,
+  defaultsMemorySearch: Record<string, unknown> | undefined,
+): boolean {
+  const tier1 = resolveMemorySearchTier1(memorySearch);
+  const defaultsTier1 = resolveMemorySearchTier1(defaultsMemorySearch);
+  return (tier1?.enabled ?? defaultsTier1?.enabled ?? false) === true;
+}
+
+function resolveEffectiveRerankerEnabled(
+  memorySearch: Record<string, unknown> | undefined,
+  defaultsMemorySearch: Record<string, unknown> | undefined,
+): boolean {
+  const reranker = resolveMemorySearchReranker(memorySearch);
+  const defaultsReranker = resolveMemorySearchReranker(defaultsMemorySearch);
+  return (reranker?.enabled ?? defaultsReranker?.enabled ?? false) === true;
+}
+
+function hasOwnApiKey(value: Record<string, unknown> | undefined): boolean {
+  return Boolean(value && Object.prototype.hasOwnProperty.call(value, "apiKey"));
 }
 
 function collectTalkAssignments(params: {
