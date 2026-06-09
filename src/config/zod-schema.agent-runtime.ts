@@ -956,6 +956,18 @@ export const MemorySearchSchema = z
           })
           .strict()
           .optional(),
+        reranker: z
+          .object({
+            enabled: z.boolean().optional(),
+            baseUrl: z.string().optional(),
+            apiKey: SecretInputSchema.optional().register(sensitive),
+            model: z.string().optional(),
+            timeoutMs: z.number().int().positive().optional(),
+            minScore: z.number().min(0).max(1).optional(),
+            topK: z.number().int().positive().optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),
