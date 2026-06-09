@@ -11,6 +11,7 @@ import {
 import { buildAgentSessionKey } from "openclaw/plugin-sdk/routing";
 import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
 import {
+  buildTier1RetrievalContextFile,
   colorize,
   defaultRuntime,
   formatErrorMessage,
@@ -21,13 +22,16 @@ import {
   normalizeExtraMemoryPaths,
   resolveCommandSecretRefsViaGateway,
   resolveDefaultAgentId,
+  resolveMemorySearchConfig,
   resolveSessionTranscriptsDirForAgent,
   resolveStateDir,
   setVerbose,
   shortenHomeInString,
   shortenHomePath,
   theme,
+  TIER1_FILE_NAME,
   type OpenClawConfig,
+  type Tier1RetrievalOutcome,
   withManager,
   withProgress,
   withProgressTotals,
@@ -39,6 +43,7 @@ import type {
   MemoryRemBackfillOptions,
   MemoryRemHarnessOptions,
   MemorySearchCommandOptions,
+  MemoryTier1CommandOptions,
 } from "./cli.types.js";
 import { removeBackfillDiaryEntries, writeBackfillDiaryEntries } from "./dreaming-narrative.js";
 import { seedHistoricalDailyMemorySignals } from "./dreaming-phases.js";
@@ -329,6 +334,15 @@ function buildCliMemorySearchSessionKey(agentId: string): string {
     agentId,
     channel: "cli",
     peer: { kind: "direct", id: "memory-search" },
+    dmScope: "per-channel-peer",
+  });
+}
+
+function buildCliMemoryTier1SessionKey(agentId: string): string {
+  return buildAgentSessionKey({
+    agentId,
+    channel: "cli",
+    peer: { kind: "direct", id: "memory-tier1" },
     dmScope: "per-channel-peer",
   });
 }
@@ -1312,6 +1326,92 @@ export async function runMemorySearch(
         lines.push("");
       }
       defaultRuntime.log(lines.join("\n").trim());
+    },
+  });
+}
+
+export async function runMemoryTier1(
+  queryArg: string | undefined,
+  opts: MemoryTier1CommandOptions,
+) {
+  const query = (opts.query ?? queryArg)?.trim();
+  if (!query) {
+    defaultRuntime.error(
+      "Missing retrieval query. Provide a positional query or use --query <text>.",
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const { config: cfg, diagnostics } = await loadMemoryCommandConfig("memory tier1");
+  emitMemorySecretResolveDiagnostics(diagnostics, { json: Boolean(opts.json) });
+  const agentId = resolveAgent(cfg, opts.agent);
+  const sessionKey = opts.sessionKey?.trim() || buildCliMemoryTier1SessionKey(agentId);
+
+  const emit = async (outcome: Tier1RetrievalOutcome) => {
+    const body = outcome.injected ? (outcome.file?.content ?? null) : null;
+    if (opts.json) {
+      defaultRuntime.writeJson({
+        injected: outcome.injected,
+        fileName: TIER1_FILE_NAME,
+        body,
+        diag: outcome.diag,
+      });
+      return;
+    }
+    if (opts.out) {
+      if (body !== null) {
+        const outPath = path.resolve(opts.out);
+        await fs.writeFile(outPath, body, "utf-8");
+        defaultRuntime.log(
+          `Tier-1 context written to ${shortenHomePath(outPath)} (${outcome.diag.injectedHits} hits, ${Buffer.byteLength(body, "utf8")} bytes).`,
+        );
+      } else {
+        defaultRuntime.log(`Tier-1 context not injected (${outcome.diag.reason}).`);
+      }
+      return;
+    }
+    if (body !== null) {
+      defaultRuntime.log(body);
+    }
+  };
+
+  const params = {
+    config: cfg,
+    agentId,
+    promptText: query,
+    sessionKey,
+    effectiveWorkspace: process.cwd(),
+    warn: (message: string) => defaultRuntime.error(theme.warn(message)),
+    ...(opts.maxResults !== undefined ? { maxResultsOverride: opts.maxResults } : {}),
+    ...(opts.maxBytes !== undefined ? { maxBytesOverride: opts.maxBytes } : {}),
+  };
+
+  // Honor the runners' flag gate before opening a memory manager: when Tier-1 is
+  // disabled (or memory search is off entirely), buildTier1RetrievalContextFile
+  // resolves "disabled" without searching — no manager required. Fail-open contract:
+  // every retrieval miss exits 0; only usage errors set a non-zero exit code.
+  let tier1Enabled = false;
+  try {
+    tier1Enabled = resolveMemorySearchConfig(cfg, agentId)?.query.tier1.enabled === true;
+  } catch {
+    // Treat unresolvable config as disabled; the build call below reports it.
+  }
+  if (!tier1Enabled) {
+    await emit(await buildTier1RetrievalContextFile({ ...params, searchFn: async () => [] }));
+    return;
+  }
+
+  await withMemoryManagerForAgent({
+    cfg,
+    agentId,
+    purpose: "cli",
+    run: async (manager) => {
+      const outcome = await buildTier1RetrievalContextFile({
+        ...params,
+        // Scope to curated memory only, mirroring the runners' default search path.
+        searchFn: (q, searchOpts) => manager.search(q, { ...searchOpts, sources: ["memory"] }),
+      });
+      await emit(outcome);
     },
   });
 }
