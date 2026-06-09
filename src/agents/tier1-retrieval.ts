@@ -53,6 +53,22 @@ export function recordTier1Diag(
   }
 }
 
+/**
+ * TEMP instrumentation: record the F1 eligibility-gate breakdown on every
+ * primary run so we can see exactly which condition keeps F1 from firing on a
+ * given surface. Best-effort; never throws.
+ */
+export function recordTier1Gate(values: Record<string, unknown>): void {
+  try {
+    appendFileSync(
+      TIER1_DIAG_LOG,
+      `${JSON.stringify({ at: new Date().toISOString(), kind: "gate", ...values })}\n`,
+    );
+  } catch {
+    // best-effort
+  }
+}
+
 const QUERY_MAX_CHARS = 256;
 const QUERY_LABEL_MAX_CHARS = 120;
 const DEFAULT_MAX_RESULTS = 4;
@@ -77,6 +93,8 @@ export type Tier1Diag = {
   injectedHits: number;
   latencyMs: number;
   reason: Tier1RetrievalReason;
+  /** Diagnostic detail on the "error" path (the caught exception message). */
+  err?: string;
 };
 
 export type Tier1RetrievalOutcome = {
@@ -113,7 +131,18 @@ export function cleanTier1Query(promptText: string): string {
   if (typeof promptText !== "string") {
     return "";
   }
-  let q = promptText.trim();
+  let q = promptText;
+  // The Slack relay wraps the real message behind a large preamble that ends with
+  // a "## Message (user-controlled text...)" marker; the actual user text follows.
+  // Search only that — otherwise we'd embed the whole ~8KB preamble (garbage query
+  // + the embedder rejects it). No marker (CLI/web) -> use the text as-is.
+  const markerIdx = q.lastIndexOf("## Message (user-controlled text");
+  if (markerIdx !== -1) {
+    const afterMarker = q.slice(markerIdx);
+    const nl = afterMarker.indexOf("\n");
+    q = nl !== -1 ? afterMarker.slice(nl + 1) : "";
+  }
+  q = q.trim();
   // Leading Slack-style mentions: <@U123> ... (possibly several).
   q = q.replace(/^(?:<@[^>]+>\s*)+/u, "");
   // Leading @name mention.
@@ -290,7 +319,7 @@ export async function buildTier1RetrievalContextFile(
     }
   } catch (err) {
     params.warn?.(`tier1-retrieval search error: ${String(err)}`);
-    return { injected: false, diag: diag("error", { query }) };
+    return { injected: false, diag: diag("error", { query, err: String(err).slice(0, 240) }) };
   }
   if (raced === TIMEOUT) {
     return { injected: false, diag: diag("timeout", { query }) };
