@@ -398,7 +398,8 @@ function startWatcher() {
     hasKey: Boolean(INGEST_KEY),
   });
   startWatcher();
-})().catch(async (err) => {
-  await log("error", "fatal startup error", { error: err.message ?? String(err) });
+})().catch(async (/** @type {unknown} */ err) => {
+  const message = err instanceof Error ? err.message : String(err);
+  await log("error", "fatal startup error", { error: message });
   process.exit(1);
 });
