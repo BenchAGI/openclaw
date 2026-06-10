@@ -376,4 +376,205 @@ describe("secrets runtime provider and media surfaces", () => {
       "agents.defaults.memorySearch.remote.apiKey",
     );
   });
+
+  it("resolves enabled Tier-1 reranker SecretRefs for defaults and agent overrides", async () => {
+    const snapshot = await prepareSecretsRuntimeSnapshot({
+      config: asConfig({
+        agents: {
+          defaults: {
+            memorySearch: {
+              query: {
+                tier1: {
+                  enabled: true,
+                },
+                reranker: {
+                  enabled: true,
+                  apiKey: {
+                    source: "env",
+                    provider: "default",
+                    id: "DEFAULT_TIER1_RERANKER_API_KEY",
+                  },
+                },
+              },
+            },
+          },
+          list: [
+            {
+              id: "uses-default-reranker",
+            },
+            {
+              id: "overrides-reranker",
+              memorySearch: {
+                query: {
+                  tier1: {
+                    enabled: true,
+                  },
+                  reranker: {
+                    enabled: true,
+                    apiKey: {
+                      source: "env",
+                      provider: "default",
+                      id: "AGENT_TIER1_RERANKER_API_KEY",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      }),
+      env: {
+        DEFAULT_TIER1_RERANKER_API_KEY: "default-judge-key",
+        AGENT_TIER1_RERANKER_API_KEY: "agent-judge-key",
+      },
+      agentDirs: ["/tmp/openclaw-agent-main"],
+      loadAuthStore: () => ({ version: 1, profiles: {} }),
+    });
+
+    expect(snapshot.config.agents?.defaults?.memorySearch?.query?.reranker?.apiKey).toBe(
+      "default-judge-key",
+    );
+    expect(snapshot.config.agents?.list?.[1]?.memorySearch?.query?.reranker?.apiKey).toBe(
+      "agent-judge-key",
+    );
+  });
+
+  it("resolves a default Tier-1 reranker SecretRef inherited by an enabled agent override", async () => {
+    const snapshot = await prepareSecretsRuntimeSnapshot({
+      config: asConfig({
+        agents: {
+          defaults: {
+            memorySearch: {
+              enabled: false,
+              query: {
+                reranker: {
+                  apiKey: {
+                    source: "env",
+                    provider: "default",
+                    id: "INHERITED_TIER1_RERANKER_API_KEY",
+                  },
+                },
+              },
+            },
+          },
+          list: [
+            {
+              id: "enables-tier1-reranker",
+              memorySearch: {
+                enabled: true,
+                query: {
+                  tier1: {
+                    enabled: true,
+                  },
+                  reranker: {
+                    enabled: true,
+                  },
+                },
+              },
+            },
+          ],
+        },
+      }),
+      env: {
+        INHERITED_TIER1_RERANKER_API_KEY: "inherited-judge-key",
+      },
+      agentDirs: ["/tmp/openclaw-agent-main"],
+      loadAuthStore: () => ({ version: 1, profiles: {} }),
+    });
+
+    expect(snapshot.config.agents?.defaults?.memorySearch?.query?.reranker?.apiKey).toBe(
+      "inherited-judge-key",
+    );
+  });
+
+  it("treats Tier-1 reranker SecretRefs as inactive when the reranker is disabled", async () => {
+    const snapshot = await prepareSecretsRuntimeSnapshot({
+      config: asConfig({
+        agents: {
+          defaults: {
+            memorySearch: {
+              query: {
+                reranker: {
+                  enabled: false,
+                  apiKey: {
+                    source: "env",
+                    provider: "default",
+                    id: "DISABLED_TIER1_RERANKER_API_KEY",
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      env: {},
+      agentDirs: ["/tmp/openclaw-agent-main"],
+      loadAuthStore: () => ({ version: 1, profiles: {} }),
+    });
+
+    expect(snapshot.config.agents?.defaults?.memorySearch?.query?.reranker?.apiKey).toEqual({
+      source: "env",
+      provider: "default",
+      id: "DISABLED_TIER1_RERANKER_API_KEY",
+    });
+    expect(snapshot.warnings.map((warning) => warning.path)).toContain(
+      "agents.defaults.memorySearch.query.reranker.apiKey",
+    );
+  });
+
+  it("treats agent Tier-1 reranker SecretRefs as inactive when defaults disable memory search", async () => {
+    const snapshot = await prepareSecretsRuntimeSnapshot({
+      config: asConfig({
+        agents: {
+          defaults: {
+            memorySearch: {
+              enabled: false,
+              query: {
+                tier1: {
+                  enabled: true,
+                },
+                reranker: {
+                  enabled: true,
+                },
+              },
+            },
+          },
+          list: [
+            {
+              id: "inherits-disabled-memory",
+              memorySearch: {
+                query: {
+                  tier1: {
+                    enabled: true,
+                  },
+                  reranker: {
+                    enabled: true,
+                    apiKey: {
+                      source: "env",
+                      provider: "default",
+                      id: "AGENT_TIER1_RERANKER_API_KEY",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      }),
+      env: {
+        AGENT_TIER1_RERANKER_API_KEY: "agent-judge-key",
+      },
+      agentDirs: ["/tmp/openclaw-agent-main"],
+      loadAuthStore: () => ({ version: 1, profiles: {} }),
+    });
+
+    expect(snapshot.config.agents?.list?.[0]?.memorySearch?.query?.reranker?.apiKey).toEqual({
+      source: "env",
+      provider: "default",
+      id: "AGENT_TIER1_RERANKER_API_KEY",
+    });
+    expect(snapshot.warnings.map((warning) => warning.path)).toContain(
+      "agents.list.0.memorySearch.query.reranker.apiKey",
+    );
+  });
 });

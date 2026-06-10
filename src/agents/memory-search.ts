@@ -93,6 +93,24 @@ export type ResolvedMemorySearchConfig = {
         halfLifeDays: number;
       };
     };
+    /** Tier-1 retrieval-at-start: inject a retrieved prior-context slice on cold session start. */
+    tier1: {
+      enabled: boolean;
+      maxResults: number;
+      minScore: number;
+      maxBytes: number;
+      timeoutMs: number;
+    };
+    /** LLM reranker: judge re-orders/filters Tier-1 candidates by "does this answer THIS question?" */
+    reranker: {
+      enabled: boolean;
+      baseUrl?: string;
+      apiKey?: SecretInput;
+      model?: string;
+      timeoutMs: number;
+      minScore: number;
+      topK: number;
+    };
   };
   cache: {
     enabled: boolean;
@@ -101,6 +119,8 @@ export type ResolvedMemorySearchConfig = {
 };
 
 export type ResolvedMemorySearchSyncConfig = ResolvedMemorySearchConfig["sync"];
+
+type MemoryRerankerConfig = NonNullable<NonNullable<MemorySearchConfig["query"]>["reranker"]>;
 
 const DEFAULT_CHUNK_TOKENS = 400;
 const DEFAULT_CHUNK_OVERLAP = 80;
@@ -118,6 +138,11 @@ const DEFAULT_MMR_LAMBDA = 0.7;
 const DEFAULT_TEMPORAL_DECAY_ENABLED = false;
 const DEFAULT_TEMPORAL_DECAY_HALF_LIFE_DAYS = 30;
 const DEFAULT_CACHE_ENABLED = true;
+const DEFAULT_TIER1_ENABLED = false;
+const DEFAULT_TIER1_MAX_RESULTS = 4;
+const DEFAULT_TIER1_MIN_SCORE = 0.45;
+const DEFAULT_TIER1_MAX_BYTES = 1600;
+const DEFAULT_TIER1_TIMEOUT_MS = 1200;
 const DEFAULT_SOURCES: Array<"memory" | "sessions"> = ["memory"];
 const DEFAULT_MEMORY_EMBEDDING_PROVIDER = "openai";
 
@@ -170,6 +195,23 @@ function getConfiguredMemoryEmbeddingProvider(
     return undefined;
   }
   return getMemoryEmbeddingProvider(normalizedOwner);
+}
+
+function resolveRerankerApiKey(
+  defaults: MemoryRerankerConfig | undefined,
+  overrides: MemoryRerankerConfig | undefined,
+): SecretInput | undefined {
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, "apiKey")) {
+    return overrides.apiKey;
+  }
+  if (
+    overrides &&
+    Object.prototype.hasOwnProperty.call(overrides, "baseUrl") &&
+    overrides.baseUrl !== defaults?.baseUrl
+  ) {
+    return undefined;
+  }
+  return defaults?.apiKey;
 }
 
 function mergeConfig(
@@ -319,6 +361,56 @@ function mergeConfig(
     enabled: overrides?.cache?.enabled ?? defaults?.cache?.enabled ?? DEFAULT_CACHE_ENABLED,
     maxEntries: overrides?.cache?.maxEntries ?? defaults?.cache?.maxEntries,
   };
+  const tier1 = {
+    enabled:
+      overrides?.query?.tier1?.enabled ?? defaults?.query?.tier1?.enabled ?? DEFAULT_TIER1_ENABLED,
+    maxResults: clampInt(
+      overrides?.query?.tier1?.maxResults ??
+        defaults?.query?.tier1?.maxResults ??
+        DEFAULT_TIER1_MAX_RESULTS,
+      1,
+      20,
+    ),
+    minScore: clampNumber(
+      overrides?.query?.tier1?.minScore ??
+        defaults?.query?.tier1?.minScore ??
+        DEFAULT_TIER1_MIN_SCORE,
+      0,
+      1,
+    ),
+    maxBytes: clampInt(
+      overrides?.query?.tier1?.maxBytes ??
+        defaults?.query?.tier1?.maxBytes ??
+        DEFAULT_TIER1_MAX_BYTES,
+      256,
+      32_000,
+    ),
+    timeoutMs: clampInt(
+      overrides?.query?.tier1?.timeoutMs ??
+        defaults?.query?.tier1?.timeoutMs ??
+        DEFAULT_TIER1_TIMEOUT_MS,
+      100,
+      10_000,
+    ),
+  };
+
+  const reranker = {
+    enabled: overrides?.query?.reranker?.enabled ?? defaults?.query?.reranker?.enabled ?? false,
+    baseUrl: overrides?.query?.reranker?.baseUrl ?? defaults?.query?.reranker?.baseUrl,
+    apiKey: resolveRerankerApiKey(defaults?.query?.reranker, overrides?.query?.reranker),
+    model: overrides?.query?.reranker?.model ?? defaults?.query?.reranker?.model,
+    timeoutMs: clampInt(
+      overrides?.query?.reranker?.timeoutMs ?? defaults?.query?.reranker?.timeoutMs ?? 6000,
+      100,
+      30_000,
+    ),
+    minScore: clampNumber(
+      overrides?.query?.reranker?.minScore ?? defaults?.query?.reranker?.minScore ?? 0.5,
+      0,
+      1,
+    ),
+    topK: clampInt(overrides?.query?.reranker?.topK ?? defaults?.query?.reranker?.topK ?? 8, 1, 50),
+  };
 
   const overlap = clampNumber(chunking.overlap, 0, Math.max(0, chunking.tokens - 1));
   const minScore = clampNumber(query.minScore, 0, 1);
@@ -385,6 +477,8 @@ function mergeConfig(
           halfLifeDays: temporalDecayHalfLifeDays,
         },
       },
+      tier1,
+      reranker,
     },
     cache: {
       enabled: cache.enabled,

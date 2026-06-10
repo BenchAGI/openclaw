@@ -644,6 +644,123 @@ describe("memory search config", () => {
     });
   });
 
+  it("inherits reranker apiKey when the agent inherits the default endpoint", () => {
+    const cfg = asConfig({
+      agents: {
+        defaults: {
+          memorySearch: {
+            query: {
+              reranker: {
+                enabled: true,
+                baseUrl: "https://judge.example",
+                apiKey: "default-judge-key", // pragma: allowlist secret
+                model: "judge-default",
+              },
+            },
+          },
+        },
+        list: [
+          {
+            id: "main",
+            default: true,
+            memorySearch: {
+              query: {
+                reranker: {
+                  model: "judge-agent",
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const resolved = resolveMemorySearchConfig(cfg, "main");
+
+    expect(resolved?.query.reranker.baseUrl).toBe("https://judge.example");
+    expect(resolved?.query.reranker.apiKey).toBe("default-judge-key"); // pragma: allowlist secret
+    expect(resolved?.query.reranker.model).toBe("judge-agent");
+  });
+
+  it("does not inherit reranker apiKey when an agent overrides the endpoint", () => {
+    const cfg = asConfig({
+      agents: {
+        defaults: {
+          memorySearch: {
+            query: {
+              reranker: {
+                enabled: true,
+                baseUrl: "https://judge.example",
+                apiKey: "default-judge-key", // pragma: allowlist secret
+                model: "judge-default",
+              },
+            },
+          },
+        },
+        list: [
+          {
+            id: "main",
+            default: true,
+            memorySearch: {
+              query: {
+                reranker: {
+                  baseUrl: "http://127.0.0.1:11434",
+                  model: "judge-local",
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const resolved = resolveMemorySearchConfig(cfg, "main");
+
+    expect(resolved?.query.reranker.baseUrl).toBe("http://127.0.0.1:11434");
+    expect(resolved?.query.reranker.apiKey).toBeUndefined();
+    expect(resolved?.query.reranker.model).toBe("judge-local");
+  });
+
+  it("uses explicit agent reranker apiKey when the agent overrides the endpoint", () => {
+    const cfg = asConfig({
+      agents: {
+        defaults: {
+          memorySearch: {
+            query: {
+              reranker: {
+                enabled: true,
+                baseUrl: "https://judge.example",
+                apiKey: "default-judge-key", // pragma: allowlist secret
+                model: "judge-default",
+              },
+            },
+          },
+        },
+        list: [
+          {
+            id: "main",
+            default: true,
+            memorySearch: {
+              query: {
+                reranker: {
+                  baseUrl: "https://agent-judge.example",
+                  apiKey: "agent-judge-key", // pragma: allowlist secret
+                  model: "judge-agent",
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const resolved = resolveMemorySearchConfig(cfg, "main");
+
+    expect(resolved?.query.reranker.baseUrl).toBe("https://agent-judge.example");
+    expect(resolved?.query.reranker.apiKey).toBe("agent-judge-key"); // pragma: allowlist secret
+    expect(resolved?.query.reranker.model).toBe("judge-agent");
+  });
+
   it("gates session sources behind experimental flag", () => {
     const cfg = asConfig({
       agents: {

@@ -174,6 +174,7 @@ import { resolveSystemPromptOverride } from "../../system-prompt-override.js";
 import { buildSystemPromptParams } from "../../system-prompt-params.js";
 import { buildSystemPromptReport } from "../../system-prompt-report.js";
 import { appendModelIdentitySystemPrompt } from "../../system-prompt.js";
+import { buildTier1RetrievalContextFile, recordTier1Diag } from "../../tier1-retrieval.js";
 import { resolveAgentTimeoutMs } from "../../timeout.js";
 import {
   buildEmptyExplicitToolAllowlistError,
@@ -1660,6 +1661,47 @@ export async function runEmbeddedAttempt(
       (isRawModelRun ? "none" : resolvePromptModeForSession(params.sessionKey));
     const promptSurface = resolveAgentPromptSurfaceForSessionKey(params.sessionKey);
 
+    // F1 — Tier-1 retrieval-at-start. On a cold (full-bootstrap), primary,
+    // non-heartbeat session start, prepend a small retrieved prior-context slice
+    // ahead of MEMORY.md so a fresh thread about a prior topic is not cold. The
+    // Tier-0 budget accounting above stays on the original `contextFiles`; the
+    // Tier-1 slice has its own byte cap. Flag-gated + fail-open: on any miss
+    // `tier1ContextFiles` falls back to `contextFiles` unchanged.
+    let tier1ContextFiles = contextFiles;
+    if (
+      !isRawModelRun &&
+      bootstrapMode === "full" &&
+      contextInjectionMode !== "never" &&
+      (params.bootstrapContextRunKind ?? "default") !== "heartbeat" &&
+      isPrimaryBootstrapRun(params.sessionKey) &&
+      params.config &&
+      typeof params.prompt === "string" &&
+      params.prompt.trim().length > 0
+    ) {
+      const tier1 = await buildTier1RetrievalContextFile({
+        config: params.config,
+        agentId: sessionAgentId,
+        promptText: params.prompt,
+        sessionKey: params.sessionKey,
+        effectiveWorkspace,
+        warn: bootstrapWarn,
+      });
+      if (tier1.injected && tier1.file) {
+        tier1ContextFiles = [tier1.file, ...contextFiles];
+      }
+      log.info(
+        `tier1-retrieval ${JSON.stringify({
+          sessionKey: params.sessionKey ?? params.sessionId,
+          agentId: sessionAgentId,
+          ...tier1.diag,
+        })}`,
+      );
+      recordTier1Diag(tier1.diag, {
+        sessionKey: params.sessionKey ?? params.sessionId,
+        agentId: sessionAgentId,
+      });
+    }
+
     // When toolsAllow is set, use minimal prompt and strip skills catalog
     const effectivePromptMode = params.toolsAllow?.length ? ("minimal" as const) : promptMode;
     const effectiveSkillsPrompt = params.toolsAllow?.length ? undefined : skillsPrompt;
@@ -1747,7 +1789,7 @@ export async function runEmbeddedAttempt(
         userTimezone,
         userTime,
         userTimeFormat,
-        contextFiles,
+        contextFiles: tier1ContextFiles,
         bootstrapMode,
         bootstrapTruncationNotice,
         includeMemorySection: !activeContextEngine || activeContextEngine.info.id === "legacy",
@@ -1795,7 +1837,7 @@ export async function runEmbeddedAttempt(
       })(),
       systemPrompt: appendPrompt,
       bootstrapFiles: hookAdjustedBootstrapFiles,
-      injectedFiles: contextFiles,
+      injectedFiles: tier1ContextFiles,
       skillsPrompt,
       tools: effectiveTools,
     });

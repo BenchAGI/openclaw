@@ -1,8 +1,9 @@
 ---
-summary: "CLI reference for `openclaw memory` (status/index/search/promote/promote-explain/rem-harness)"
+summary: "CLI reference for `openclaw memory` (status/index/search/tier1/promote/promote-explain/rem-harness)"
 read_when:
   - You want to index or search semantic memory
   - You're debugging memory availability or indexing
+  - You want to preview automatic Tier-1 startup retrieval
   - You want to promote recalled short-term memory into `MEMORY.md`
 title: "Memory"
 ---
@@ -30,6 +31,8 @@ openclaw memory status --fix
 openclaw memory index --force
 openclaw memory search "meeting notes"
 openclaw memory search --query "deployment" --max-results 20
+openclaw memory tier1 "gateway deploy" --json
+openclaw memory tier1 "gateway deploy" --out ./RETRIEVED-CONTEXT-TIER1.md
 openclaw memory promote --limit 10 --min-score 0.75
 openclaw memory promote --apply
 openclaw memory promote --json --min-recall-count 0 --min-unique-queries 0
@@ -73,6 +76,30 @@ If `memory status` shows `Dreaming status: blocked`, the managed dreaming cron i
 - `--max-results <n>`: limit the number of results returned.
 - `--min-score <n>`: filter out low-score matches.
 - `--json`: print JSON results.
+
+`memory tier1`:
+
+Preview the same Tier-1 retrieval-at-start context that agent runners can prepend
+on a cold session start.
+
+```bash
+openclaw memory tier1 <query> [--agent <id>] [--json] [--out <path>]
+```
+
+- Query input: pass either positional `[query]` or `--query <text>`.
+- If both are provided, `--query` wins.
+- If neither is provided, the command exits with an error.
+- `--agent <id>`: scope to a single agent (default: the default agent).
+- `--session-key <key>`: set the session key recorded with the retrieval.
+- `--max-results <n>`: override the configured hit count, clamped by the runtime.
+- `--max-bytes <n>`: override the rendered body byte cap, clamped by the runtime.
+- `--out <path>`: write the generated context body when retrieval injects.
+- `--json`: print `{ injected, fileName, body, diag }`.
+
+The command honors `memorySearch.query.tier1.enabled`. When Tier-1 is disabled,
+there is no query signal, no memory manager is available, the search times out,
+or no hit passes the score floor, it exits 0 with `injected: false`. Only usage
+errors such as a missing query set a non-zero exit code.
 
 `memory promote`:
 

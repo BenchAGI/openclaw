@@ -10,6 +10,7 @@ import {
 import { buildAgentSessionKey } from "openclaw/plugin-sdk/routing";
 import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
 import {
+  buildTier1RetrievalContextFile,
   colorize,
   defaultRuntime,
   formatErrorMessage,
@@ -20,13 +21,16 @@ import {
   normalizeExtraMemoryPaths,
   resolveCommandSecretRefsViaGateway,
   resolveDefaultAgentId,
+  resolveMemorySearchConfig,
   resolveSessionTranscriptsDirForAgent,
   resolveStateDir,
   setVerbose,
   shortenHomeInString,
   shortenHomePath,
   theme,
+  TIER1_FILE_NAME,
   type OpenClawConfig,
+  type Tier1RetrievalOutcome,
   withManager,
   withProgress,
   withProgressTotals,
@@ -38,6 +42,7 @@ import type {
   MemoryRemBackfillOptions,
   MemoryRemHarnessOptions,
   MemorySearchCommandOptions,
+  MemoryTier1CommandOptions,
 } from "./cli.types.js";
 import { removeBackfillDiaryEntries, writeBackfillDiaryEntries } from "./dreaming-narrative.js";
 import { seedHistoricalDailyMemorySignals } from "./dreaming-phases.js";
@@ -87,6 +92,20 @@ type LoadedMemoryCommandConfig = {
   config: OpenClawConfig;
   diagnostics: string[];
 };
+type MemorySearchLike = {
+  enabled?: boolean;
+  query?: {
+    tier1?: { enabled?: boolean };
+    reranker?: { enabled?: boolean; apiKey?: unknown };
+  };
+};
+type AgentMemorySearchLike = {
+  enabled?: boolean;
+  memorySearch?: MemorySearchLike;
+};
+
+const TIER1_RERANKER_DEFAULT_TARGET_ID = "agents.defaults.memorySearch.query.reranker.apiKey";
+const TIER1_RERANKER_AGENT_TARGET_ID = "agents.list[].memorySearch.query.reranker.apiKey";
 
 function getMemoryCommandSecretTargetIds(): Set<string> {
   return new Set([
@@ -95,11 +114,138 @@ function getMemoryCommandSecretTargetIds(): Set<string> {
   ]);
 }
 
-async function loadMemoryCommandConfig(commandName: string): Promise<LoadedMemoryCommandConfig> {
+function getActiveTier1RerankerSecretTargets(
+  cfg: OpenClawConfig,
+): { targetIds: Set<string>; optionalActivePaths: Set<string> } | undefined {
+  const defaultsMemorySearch = cfg.agents?.defaults?.memorySearch as MemorySearchLike | undefined;
+  const defaultsReranker = resolveMemorySearchReranker(defaultsMemorySearch);
+  const agents = (cfg.agents?.list ?? []) as AgentMemorySearchLike[];
+  const targetIds = new Set<string>();
+  const optionalActivePaths = new Set<string>();
+
+  if (
+    isSecretRefValue(defaultsReranker?.apiKey) &&
+    defaultRerankerSecretRefIsActive(defaultsMemorySearch, agents)
+  ) {
+    targetIds.add(TIER1_RERANKER_DEFAULT_TARGET_ID);
+    optionalActivePaths.add(TIER1_RERANKER_DEFAULT_TARGET_ID);
+  }
+
+  agents.forEach((agent, index) => {
+    const memorySearch = agent.memorySearch;
+    const reranker = resolveMemorySearchReranker(memorySearch);
+    if (
+      !isSecretRefValue(reranker?.apiKey) ||
+      !agentRerankerSecretRefIsActive(agent, defaultsMemorySearch)
+    ) {
+      return;
+    }
+    targetIds.add(TIER1_RERANKER_AGENT_TARGET_ID);
+    optionalActivePaths.add(`agents.list.${index}.memorySearch.query.reranker.apiKey`);
+  });
+
+  if (optionalActivePaths.size === 0) {
+    return undefined;
+  }
+  return { targetIds, optionalActivePaths };
+}
+
+function defaultRerankerSecretRefIsActive(
+  defaultsMemorySearch: MemorySearchLike | undefined,
+  agents: readonly AgentMemorySearchLike[],
+): boolean {
+  if (agents.length === 0) {
+    return (
+      resolveEffectiveMemorySearchEnabled(defaultsMemorySearch, undefined) &&
+      tier1AndRerankerAreEnabled(defaultsMemorySearch, undefined)
+    );
+  }
+  return agents.some((agent) => {
+    if (
+      agent.enabled === false ||
+      !resolveEffectiveMemorySearchEnabled(agent.memorySearch, defaultsMemorySearch)
+    ) {
+      return false;
+    }
+    return (
+      tier1AndRerankerAreEnabled(agent.memorySearch, defaultsMemorySearch) &&
+      !hasOwnApiKey(resolveMemorySearchReranker(agent.memorySearch))
+    );
+  });
+}
+
+function agentRerankerSecretRefIsActive(
+  agent: AgentMemorySearchLike,
+  defaultsMemorySearch: MemorySearchLike | undefined,
+): boolean {
+  return (
+    agent.enabled !== false &&
+    resolveEffectiveMemorySearchEnabled(agent.memorySearch, defaultsMemorySearch) &&
+    tier1AndRerankerAreEnabled(agent.memorySearch, defaultsMemorySearch)
+  );
+}
+
+function tier1AndRerankerAreEnabled(
+  memorySearch: MemorySearchLike | undefined,
+  defaultsMemorySearch: MemorySearchLike | undefined,
+): boolean {
+  return (
+    (memorySearch?.query?.tier1?.enabled ?? defaultsMemorySearch?.query?.tier1?.enabled ?? false) &&
+    (memorySearch?.query?.reranker?.enabled ??
+      defaultsMemorySearch?.query?.reranker?.enabled ??
+      false)
+  );
+}
+
+function resolveEffectiveMemorySearchEnabled(
+  memorySearch: MemorySearchLike | undefined,
+  defaultsMemorySearch: MemorySearchLike | undefined,
+): boolean {
+  return memorySearch?.enabled ?? defaultsMemorySearch?.enabled ?? true;
+}
+
+function resolveMemorySearchReranker(
+  memorySearch: MemorySearchLike | undefined,
+): { enabled?: boolean; apiKey?: unknown } | undefined {
+  return memorySearch?.query?.reranker;
+}
+
+function hasOwnApiKey(value: { apiKey?: unknown } | undefined): boolean {
+  return Boolean(value && Object.prototype.hasOwnProperty.call(value, "apiKey"));
+}
+
+function isSecretRefValue(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    (record.source === "env" || record.source === "file" || record.source === "exec") &&
+    typeof record.provider === "string" &&
+    typeof record.id === "string"
+  );
+}
+
+async function loadMemoryCommandConfig(
+  commandName: string,
+  options?: { includeTier1Reranker?: boolean },
+): Promise<LoadedMemoryCommandConfig> {
+  const config = getRuntimeConfig();
+  const tier1RerankerTargets =
+    options?.includeTier1Reranker === true
+      ? getActiveTier1RerankerSecretTargets(config)
+      : undefined;
+  const targetIds = getMemoryCommandSecretTargetIds();
+  for (const targetId of tier1RerankerTargets?.targetIds ?? []) {
+    targetIds.add(targetId);
+  }
   const { resolvedConfig, diagnostics } = await resolveCommandSecretRefsViaGateway({
-    config: getRuntimeConfig(),
+    config,
     commandName,
-    targetIds: getMemoryCommandSecretTargetIds(),
+    targetIds,
+    ...(tier1RerankerTargets
+      ? { optionalActivePaths: tier1RerankerTargets.optionalActivePaths }
+      : {}),
   });
   return {
     config: resolvedConfig,
@@ -301,6 +447,15 @@ function buildCliMemorySearchSessionKey(agentId: string): string {
     agentId,
     channel: "cli",
     peer: { kind: "direct", id: "memory-search" },
+    dmScope: "per-channel-peer",
+  });
+}
+
+function buildCliMemoryTier1SessionKey(agentId: string): string {
+  return buildAgentSessionKey({
+    agentId,
+    channel: "cli",
+    peer: { kind: "direct", id: "memory-tier1" },
     dmScope: "per-channel-peer",
   });
 }
@@ -1269,6 +1424,94 @@ export async function runMemorySearch(
         lines.push("");
       }
       defaultRuntime.log(lines.join("\n").trim());
+    },
+  });
+}
+
+export async function runMemoryTier1(
+  queryArg: string | undefined,
+  opts: MemoryTier1CommandOptions,
+) {
+  const query = (opts.query ?? queryArg)?.trim();
+  if (!query) {
+    defaultRuntime.error(
+      "Missing retrieval query. Provide a positional query or use --query <text>.",
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const { config: cfg, diagnostics } = await loadMemoryCommandConfig("memory tier1", {
+    includeTier1Reranker: true,
+  });
+  emitMemorySecretResolveDiagnostics(diagnostics, { json: Boolean(opts.json) });
+  const agentId = resolveAgent(cfg, opts.agent);
+  const sessionKey = opts.sessionKey?.trim() || buildCliMemoryTier1SessionKey(agentId);
+
+  const emit = async (outcome: Tier1RetrievalOutcome) => {
+    const body = outcome.injected ? (outcome.file?.content ?? null) : null;
+    if (opts.json) {
+      defaultRuntime.writeJson({
+        injected: outcome.injected,
+        fileName: TIER1_FILE_NAME,
+        body,
+        diag: outcome.diag,
+      });
+      return;
+    }
+    if (opts.out) {
+      if (body !== null) {
+        const outPath = path.resolve(opts.out);
+        await fs.writeFile(outPath, body, "utf-8");
+        defaultRuntime.log(
+          `Tier-1 context written to ${shortenHomePath(outPath)} (${outcome.diag.injectedHits} hits, ${Buffer.byteLength(body, "utf8")} bytes).`,
+        );
+      } else {
+        defaultRuntime.log(`Tier-1 context not injected (${outcome.diag.reason}).`);
+      }
+      return;
+    }
+    if (body !== null) {
+      defaultRuntime.log(body);
+    }
+  };
+
+  const params = {
+    config: cfg,
+    agentId,
+    promptText: query,
+    sessionKey,
+    effectiveWorkspace: process.cwd(),
+    warn: (message: string) => defaultRuntime.error(theme.warn(message)),
+    ...(opts.maxResults !== undefined ? { maxResultsOverride: opts.maxResults } : {}),
+    ...(opts.maxBytes !== undefined ? { maxBytesOverride: opts.maxBytes } : {}),
+  };
+
+  // Honor the runners' flag gate before opening a memory manager: when Tier-1 is
+  // disabled (or memory search is off entirely), buildTier1RetrievalContextFile
+  // resolves "disabled" without searching — no manager required. Fail-open contract:
+  // every retrieval miss exits 0; only usage errors set a non-zero exit code.
+  let tier1Enabled = false;
+  try {
+    tier1Enabled = resolveMemorySearchConfig(cfg, agentId)?.query.tier1.enabled === true;
+  } catch {
+    // Treat unresolvable config as disabled; the build call below reports it.
+  }
+  if (!tier1Enabled) {
+    await emit(await buildTier1RetrievalContextFile({ ...params, searchFn: async () => [] }));
+    return;
+  }
+
+  await withMemoryManagerForAgent({
+    cfg,
+    agentId,
+    purpose: "cli",
+    run: async (manager) => {
+      const outcome = await buildTier1RetrievalContextFile({
+        ...params,
+        // Scope to curated memory only, mirroring the runners' default search path.
+        searchFn: (q, searchOpts) => manager.search(q, { ...searchOpts, sources: ["memory"] }),
+      });
+      await emit(outcome);
     },
   });
 }
