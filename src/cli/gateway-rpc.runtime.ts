@@ -1,5 +1,9 @@
+// Runtime gateway RPC helper shared by CLI commands that call the Gateway.
+import {
+  GATEWAY_CLIENT_MODES,
+  GATEWAY_CLIENT_NAMES,
+} from "../../packages/gateway-protocol/src/client-info.js";
 import { callGateway } from "../gateway/call.js";
-import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../gateway/protocol/client-info.js";
 import type { GatewayRpcOpts } from "./gateway-rpc.types.js";
 import { parseTimeoutMsWithFallback } from "./parse-timeout.js";
 import { withProgress } from "./progress.js";
@@ -21,6 +25,7 @@ export async function callGatewayFromCliRuntime(
   params?: unknown,
   extra?: CallGatewayFromCliRuntimeExtra,
 ) {
+  // Progress is disabled for JSON output so stdout stays parseable.
   const showProgress = extra?.progress ?? opts.json !== true;
   return await withProgress(
     {

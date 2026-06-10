@@ -17,3 +17,7 @@ Emit a structured SessionDigest JSON line into the agent workspace when a gatewa
 ## Surface
 
 plugin
+
+## Related docs
+
+- [session-digest](/plugins/session-digest)

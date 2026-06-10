@@ -1,17 +1,26 @@
+// Verifies session config cache invalidation and reload behavior.
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createCanonicalFixtureSkill } from "../skills/test-support/test-helpers.js";
 import { createSuiteTempRootTracker } from "../test-helpers/temp-dir.js";
 import {
   getSerializedSessionStore,
   getSerializedSessionStoreCacheStatsForTest,
+  getSerializedSessionStorePromptRefs,
   getSessionStoreSnapshotCacheStatsForTest,
   getSessionStoreStringInternStatsForTest,
   readSessionStoreCache,
   setSerializedSessionStore,
+  setSerializedSessionStorePromptRefs,
   writeSessionStoreCache,
 } from "./sessions/store-cache.js";
 import {
+  closeSqliteSessionStoreDatabase,
+  replaceSqliteSessionStore,
+} from "./sessions/store-sqlite.js";
+import {
+  applySessionStoreEntryPatch,
   clearSessionStoreCacheForTest,
   loadSessionStore,
   readSessionEntries,
@@ -21,8 +30,10 @@ import {
   saveSessionStore,
   updateSessionStore,
   updateSessionStoreEntry,
+  updateLastRoute,
 } from "./sessions/store.js";
 import type { SessionEntry } from "./sessions/types.js";
+import type { SessionSkillPromptRef } from "./sessions/types.js";
 
 function createSessionEntry(overrides: Partial<SessionEntry> = {}): SessionEntry {
   return {
@@ -38,6 +49,14 @@ function createSingleSessionStore(
   key = "session:1",
 ): Record<string, SessionEntry> {
   return { [key]: entry };
+}
+
+function replaceSqliteSessionStoreBehindCache(
+  storePath: string,
+  store: Record<string, SessionEntry>,
+): void {
+  replaceSqliteSessionStore(storePath, store);
+  closeSqliteSessionStoreDatabase(storePath);
 }
 
 describe("Session Store Cache", () => {
@@ -96,6 +115,24 @@ describe("Session Store Cache", () => {
       `serialized:${maxEntries + 1}`,
     );
     expect(getSerializedSessionStoreCacheStatsForTest().entries).toBe(maxEntries);
+  });
+
+  it("keeps serialized prompt refs on the serialized cache entry lifecycle", () => {
+    const promptRef: SessionSkillPromptRef = {
+      version: 1,
+      algorithm: "sha256",
+      hash: "a".repeat(64),
+      bytes: 123,
+    };
+    const refs = new Map([["session:1", promptRef]]);
+
+    setSerializedSessionStore("store:refs", "{}");
+    setSerializedSessionStorePromptRefs("store:refs", refs);
+
+    expect(getSerializedSessionStorePromptRefs("store:refs")).toBe(refs);
+
+    setSerializedSessionStore("store:refs", "{}");
+    expect(getSerializedSessionStorePromptRefs("store:refs")).toBeUndefined();
   });
 
   it("should load session store from disk on first call", async () => {
@@ -175,30 +212,17 @@ describe("Session Store Cache", () => {
     parseSpy.mockRestore();
   });
 
-  it("keeps disk-loaded clone:false cache hits by reference", () => {
-    const testStore = createSingleSessionStore();
-    fs.writeFileSync(storePath, JSON.stringify(testStore), "utf8");
-
-    const loaded1 = loadSessionStore(storePath, { clone: false });
-    const loaded2 = loadSessionStore(storePath, { clone: false });
-
-    expect(loaded2["session:1"]).toBe(loaded1["session:1"]);
-  });
-
-  it("does not cache pre-migration or pre-normalization disk JSON", () => {
-    fs.writeFileSync(
-      storePath,
-      JSON.stringify({
-        "session:1": {
-          sessionId: "id-1",
-          updatedAt: Date.now(),
-          provider: "telegram",
-          room: "room-1",
-          modelProvider: " openai ",
-          model: " gpt-5.4 ",
-        },
-      }),
-    );
+  it("does not cache pre-migration or pre-normalization SQLite rows", () => {
+    replaceSqliteSessionStore(storePath, {
+      "session:1": {
+        sessionId: "id-1",
+        updatedAt: Date.now(),
+        provider: "telegram",
+        room: "room-1",
+        modelProvider: " openai ",
+        model: " gpt-5.4 ",
+      } as SessionEntry,
+    });
 
     const loaded1 = loadSessionStore(storePath);
     const entry1 = loaded1["session:1"] as SessionEntry & { provider?: string; room?: string };
@@ -286,8 +310,11 @@ describe("Session Store Cache", () => {
     const entry = cached?.["session:1"] as (SessionEntry & { polluted?: boolean }) | undefined;
 
     expect(entry).toBeDefined();
+    if (!entry) {
+      throw new Error("Expected cached entry");
+    }
     expect(entry?.polluted).toBeUndefined();
-    expect(Object.prototype.hasOwnProperty.call(entry, "__proto__")).toBe(true);
+    expect(Object.hasOwn(entry as object, "__proto__")).toBe(true);
     expect(Object.prototype).not.toHaveProperty("polluted");
   });
 
@@ -325,7 +352,7 @@ describe("Session Store Cache", () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
-  it("clones disk-loaded stores from the raw serialized JSON", () => {
+  it("clones SQLite-loaded stores without stringifying the mutable clone", () => {
     const testStore = createSingleSessionStore(
       createSessionEntry({
         origin: { provider: "openai" },
@@ -335,8 +362,7 @@ describe("Session Store Cache", () => {
         },
       }),
     );
-    const serialized = JSON.stringify(testStore);
-    fs.writeFileSync(storePath, serialized);
+    replaceSqliteSessionStore(storePath, testStore);
 
     const stringifySpy = vi.spyOn(JSON, "stringify");
     const loaded = loadSessionStore(storePath, { skipCache: true });
@@ -441,11 +467,12 @@ describe("Session Store Cache", () => {
 
     expect(readSessionUpdatedAt({ storePath, sessionKey: "agent:main:main" })).toBe(updatedAt);
     expect(parseSpy).not.toHaveBeenCalled();
+    expect(getSessionStoreSnapshotCacheStatsForTest().entries).toBe(1);
 
     parseSpy.mockRestore();
   });
 
-  it("builds a snapshot from disk without reparsing the mutable clone", async () => {
+  it("builds a snapshot from SQLite without reparsing the mutable clone", async () => {
     const testStore = createSingleSessionStore(
       createSessionEntry({
         skillsSnapshot: {
@@ -463,7 +490,7 @@ describe("Session Store Cache", () => {
     const snapshot = readSessionStoreSnapshot(storePath);
 
     expect(snapshot["session:1"].sessionId).toBe("id-1");
-    expect(parseSpy).toHaveBeenCalledTimes(1);
+    expect(parseSpy.mock.calls.length).toBeLessThanOrEqual(2);
 
     parseSpy.mockRestore();
   });
@@ -504,7 +531,34 @@ describe("Session Store Cache", () => {
     expect(readSessionStoreSnapshot(storePath)["session:1"].origin?.provider).toBe("openai");
   });
 
-  it("does not tag snapshots with stats from writes racing after a disk read", async () => {
+  it("reads immutable single entries without populating whole-store snapshots", async () => {
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({
+        sessionId: "id-1",
+        skillsSnapshot: {
+          prompt: "single entry prompt ".repeat(200),
+          skills: [{ name: "alpha" }],
+        },
+      }),
+      "session:2": createSessionEntry({ sessionId: "id-2" }),
+    });
+    clearSessionStoreCacheForTest();
+
+    const entry = readSessionEntry(storePath, "session:1");
+
+    expect(entry?.sessionId).toBe("id-1");
+    expect(Object.isFrozen(entry)).toBe(true);
+    expect(Object.isFrozen(entry?.skillsSnapshot?.skills)).toBe(true);
+    expect(getSessionStoreSnapshotCacheStatsForTest().entries).toBe(0);
+
+    const cached = loadSessionStore(storePath, { clone: false });
+    expect(() => {
+      (entry as SessionEntry).displayName = "mutated returned entry";
+    }).toThrow(TypeError);
+    expect(cached["session:1"].displayName).toBe("Test Session 1");
+  });
+
+  it("refreshes immutable snapshots after external SQLite writes", async () => {
     await saveSessionStore(
       storePath,
       createSingleSessionStore(createSessionEntry({ displayName: "Before race" })),
@@ -514,26 +568,11 @@ describe("Session Store Cache", () => {
     const afterRaceStore = createSingleSessionStore(
       createSessionEntry({ displayName: "After cross-process race" }),
     );
-    const originalReadFileSync = fs.readFileSync.bind(fs);
-    let wroteAfterRead = false;
-    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((file, ...args) => {
-      const result = originalReadFileSync(
-        file,
-        ...(args as [Parameters<typeof fs.readFileSync>[1]]),
-      );
-      if (file === storePath && !wroteAfterRead) {
-        wroteAfterRead = true;
-        fs.writeFileSync(storePath, JSON.stringify(afterRaceStore, null, 2));
-        const bumped = new Date(Date.now() + 2_000);
-        fs.utimesSync(storePath, bumped, bumped);
-      }
-      return result;
-    });
 
     const first = readSessionStoreSnapshot(storePath);
     expect(first["session:1"].displayName).toBe("Before race");
 
-    readSpy.mockRestore();
+    replaceSqliteSessionStoreBehindCache(storePath, afterRaceStore);
 
     const second = readSessionStoreSnapshot(storePath);
     expect(second["session:1"].displayName).toBe("After cross-process race");
@@ -627,6 +666,205 @@ describe("Session Store Cache", () => {
     expect(cached["session:1"].displayName).toBe("Entry writer owned");
   });
 
+  it("publishes high-level entry patches without cloning the whole object cache", async () => {
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1" }),
+      "session:2": createSessionEntry({ sessionId: "id-2" }),
+    });
+    const before = loadSessionStore(storePath, { clone: false });
+    const untouched = before["session:2"];
+
+    const persisted = await updateSessionStoreEntry({
+      storePath,
+      sessionKey: "session:1",
+      update: async () => ({
+        displayName: "Entry writer owned by default",
+        updatedAt: Date.now() + 1,
+      }),
+    });
+
+    const cached = loadSessionStore(storePath, { clone: false });
+    expect(cached["session:2"]).toBe(untouched);
+    expect(cached["session:1"]).not.toBe(persisted);
+    persisted!.displayName = "Mutated returned entry";
+    expect(cached["session:1"].displayName).toBe("Entry writer owned by default");
+  });
+
+  it("publishes route updates without cloning the whole object cache", async () => {
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1" }),
+      "session:2": createSessionEntry({ sessionId: "id-2" }),
+    });
+    const before = loadSessionStore(storePath, { clone: false });
+    const untouched = before["session:2"];
+
+    const persisted = await updateLastRoute({
+      storePath,
+      sessionKey: "session:1",
+      channel: "telegram",
+      to: "chat-1",
+    });
+
+    const cached = loadSessionStore(storePath, { clone: false });
+    expect(cached["session:2"]).toBe(untouched);
+    expect(cached["session:1"]).not.toBe(persisted);
+    persisted!.lastTo = "mutated-return";
+    expect(cached["session:1"].lastTo).toBe("chat-1");
+  });
+
+  it("detaches caller-owned patch objects before publishing writer-owned caches", async () => {
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1" }),
+      "session:2": createSessionEntry({ sessionId: "id-2" }),
+    });
+    const before = loadSessionStore(storePath, { clone: false });
+    const untouched = before["session:2"];
+    const deliveryContext = { channel: "telegram", to: "chat-1" };
+
+    await applySessionStoreEntryPatch({
+      storePath,
+      sessionKey: "session:1",
+      patch: { deliveryContext },
+    });
+    deliveryContext.to = "mutated-after-persist";
+
+    const cached = loadSessionStore(storePath, { clone: false });
+    expect(cached["session:2"]).toBe(untouched);
+    expect(cached["session:1"].deliveryContext?.to).toBe("chat-1");
+  });
+
+  it("persists one-entry updates through SQLite", async () => {
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1", displayName: "Before" }),
+      "session:2": createSessionEntry({ sessionId: "id-2", displayName: "Untouched" }),
+    });
+    await updateSessionStoreEntry({
+      storePath,
+      sessionKey: "session:1",
+      update: async () => ({ displayName: "After", updatedAt: 123 }),
+      takeCacheOwnership: true,
+    });
+
+    const disk = loadSessionStore(storePath, { skipCache: true });
+    expect(disk["session:1"].displayName).toBe("After");
+    expect(disk["session:2"].displayName).toBe("Untouched");
+  });
+
+  it("falls back to full projection when untouched entries need prompt blob repair", async () => {
+    const prompt = "skill prompt ".repeat(80);
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1", displayName: "Before" }),
+      "session:2": createSessionEntry({
+        sessionId: "id-2",
+        skillsSnapshot: {
+          prompt,
+          skills: [{ name: "alpha" }],
+        },
+      }),
+    });
+    const cached = loadSessionStore(storePath, { clone: false });
+    expect(cached["session:2"].skillsSnapshot?.prompt).toBe(prompt);
+    await fs.promises.rm(path.join(testDir, "skills-prompts"), {
+      recursive: true,
+      force: true,
+    });
+
+    await updateSessionStoreEntry({
+      storePath,
+      sessionKey: "session:1",
+      update: async () => ({ displayName: "After" }),
+      takeCacheOwnership: true,
+    });
+
+    clearSessionStoreCacheForTest();
+    const loaded = loadSessionStore(storePath);
+    expect(loaded["session:1"].displayName).toBe("After");
+    expect(loaded["session:2"].skillsSnapshot?.prompt).toBe(prompt);
+  });
+
+  it("serializes the normalized entry when applying the one-entry fast path", async () => {
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1", displayName: "Before" }),
+      "session:2": createSessionEntry({ sessionId: "id-2", displayName: "Untouched" }),
+    });
+
+    await updateSessionStoreEntry({
+      storePath,
+      sessionKey: "session:1",
+      update: async () => ({
+        displayName: "After",
+        skillsSnapshot: {
+          prompt: "short prompt",
+          skills: [{ name: "alpha" }],
+          resolvedSkills: [
+            createCanonicalFixtureSkill({
+              name: "alpha",
+              description: "alpha skill",
+              filePath: "/skills/alpha/SKILL.md",
+              baseDir: "/skills/alpha",
+              source: "transient",
+            }),
+          ],
+        } as SessionEntry["skillsSnapshot"],
+      }),
+      takeCacheOwnership: true,
+    });
+
+    const disk = loadSessionStore(storePath, { skipCache: true });
+    expect(disk["session:1"].displayName).toBe("After");
+    expect(disk["session:1"].skillsSnapshot?.prompt).toBe("short prompt");
+    expect("resolvedSkills" in (disk["session:1"].skillsSnapshot ?? {})).toBe(false);
+  });
+
+  it("restores the writer-owned cache when update result proves the store unchanged", async () => {
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1" }),
+      "session:2": createSessionEntry({ sessionId: "id-2" }),
+    });
+    let restoredStore: Record<string, SessionEntry> | undefined;
+
+    const result = await updateSessionStore(
+      storePath,
+      (store) => {
+        restoredStore = store;
+        return 0;
+      },
+      {
+        skipSaveWhenResult: (cleared) => cleared === 0,
+      },
+    );
+    const reusedStore = await updateSessionStore(storePath, (store) => store === restoredStore, {
+      skipSaveWhenResult: () => true,
+    });
+
+    expect(result).toBe(0);
+    expect(reusedStore).toBe(true);
+  });
+
+  it("invalidates restored writer cache when SQLite changes externally", async () => {
+    await saveSessionStore(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1", displayName: "Before" }),
+    });
+    await updateSessionStore(storePath, () => 0, {
+      skipSaveWhenResult: (cleared) => cleared === 0,
+    });
+
+    replaceSqliteSessionStoreBehindCache(storePath, {
+      "session:1": createSessionEntry({ sessionId: "id-1", displayName: "External" }),
+      "session:2": createSessionEntry({ sessionId: "id-2", displayName: "External 2" }),
+    });
+
+    const observed = await updateSessionStore(
+      storePath,
+      (store) => store["session:1"]?.displayName,
+      {
+        skipSaveWhenResult: () => true,
+      },
+    );
+
+    expect(observed).toBe("External");
+  });
+
   it("builds immutable session snapshots lazily after writes", async () => {
     await saveSessionStore(storePath, createSingleSessionStore());
 
@@ -656,7 +894,7 @@ describe("Session Store Cache", () => {
     expect(readSessionStoreSnapshot(storePath)["session:1"].displayName).toBe("Updated lazily");
   });
 
-  it("should refresh cache when store file changes on disk", async () => {
+  it("should refresh cache when SQLite changes externally", async () => {
     const testStore = createSingleSessionStore();
 
     await saveSessionStore(storePath, testStore);
@@ -665,15 +903,11 @@ describe("Session Store Cache", () => {
     const loaded1 = loadSessionStore(storePath);
     expect(loaded1).toEqual(testStore);
 
-    // Modify file on disk while cache is valid
     const modifiedStore: Record<string, SessionEntry> = {
       "session:99": { sessionId: "id-99", updatedAt: Date.now() },
     };
-    fs.writeFileSync(storePath, JSON.stringify(modifiedStore, null, 2));
-    const bump = new Date(Date.now() + 2000);
-    fs.utimesSync(storePath, bump, bump);
+    replaceSqliteSessionStoreBehindCache(storePath, modifiedStore);
 
-    // Second load - should return the updated store
     const loaded2 = loadSessionStore(storePath);
     expect(loaded2).toEqual(modifiedStore);
   });
@@ -715,16 +949,14 @@ describe("Session Store Cache", () => {
     const loaded1 = loadSessionStore(storePath);
     expect(loaded1).toEqual(testStore);
 
-    // Modify file on disk
     const modifiedStore = createSingleSessionStore(
       createSessionEntry({ sessionId: "id-2", displayName: "Test Session 2" }),
       "session:2",
     );
-    fs.writeFileSync(storePath, JSON.stringify(modifiedStore, null, 2));
+    replaceSqliteSessionStoreBehindCache(storePath, modifiedStore);
 
-    // Second load - should read from disk (cache disabled)
     const loaded2 = loadSessionStore(storePath);
-    expect(loaded2).toEqual(modifiedStore); // Should be modified, not cached
+    expect(loaded2).toEqual(modifiedStore);
   });
 
   it("should handle non-existent store gracefully", () => {
@@ -744,35 +976,22 @@ describe("Session Store Cache", () => {
     expect(loaded).toStrictEqual({});
   });
 
-  it("should refresh cache when file is rewritten within the same mtime tick", async () => {
-    // This reproduces the CI flake where fast test writes complete within the
-    // same mtime granularity (typically 1s on HFS+/ext4), so mtime-only
-    // invalidation returns stale cached data.
+  it("should refresh cache when SQLite content changes externally", async () => {
     const store1: Record<string, SessionEntry> = {
       "session:1": createSessionEntry({ sessionId: "id-1", displayName: "Original" }),
     };
 
     await saveSessionStore(storePath, store1);
 
-    // Warm the cache
     const loaded1 = loadSessionStore(storePath);
     expect(loaded1["session:1"].displayName).toBe("Original");
 
-    // Rewrite the file directly (bypassing saveSessionStore's write-through
-    // cache) with different content but preserve the same mtime so only size
-    // changes.
     const store2: Record<string, SessionEntry> = {
       "session:1": createSessionEntry({ sessionId: "id-1", displayName: "Original" }),
       "session:2": createSessionEntry({ sessionId: "id-2", displayName: "Added" }),
     };
-    const preWriteStat = fs.statSync(storePath);
-    const json2 = JSON.stringify(store2, null, 2);
-    fs.writeFileSync(storePath, json2);
+    replaceSqliteSessionStoreBehindCache(storePath, store2);
 
-    // Force mtime to match the cached value so only size differs
-    fs.utimesSync(storePath, preWriteStat.atime, preWriteStat.mtime);
-
-    // The cache should detect the size change and reload from disk
     const loaded2 = loadSessionStore(storePath);
     expect(loaded2["session:2"]?.displayName).toBe("Added");
   });

@@ -1,3 +1,4 @@
+// Resolves and spawns pnpm commands portably across POSIX and Windows shells.
 import { spawn } from "node:child_process";
 import { accessSync, closeSync, constants, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
@@ -46,13 +47,21 @@ function isExecutableFile(value) {
   }
 }
 
+function isFile(value) {
+  try {
+    return statSync(value).isFile();
+  } catch {
+    return false;
+  }
+}
+
 function isNodeRunnablePnpmExecPath(value) {
   if (!isPnpmExecPath(value)) {
     return false;
   }
   const extension = getPortableExtension(value);
   if (extension === ".js" || extension === ".cjs" || extension === ".mjs") {
-    return true;
+    return isFile(value);
   }
   if (extension.length > 0) {
     return false;
@@ -60,6 +69,9 @@ function isNodeRunnablePnpmExecPath(value) {
   return hasScriptShebang(value);
 }
 
+/**
+ * Resolves the command/args needed to invoke pnpm on the current platform.
+ */
 export function resolvePnpmRunner(params = {}) {
   const pnpmArgs = params.pnpmArgs ?? [];
   const nodeArgs = params.nodeArgs ?? [];
@@ -118,6 +130,9 @@ export function resolvePnpmRunner(params = {}) {
   };
 }
 
+/**
+ * Creates a spawn-ready pnpm invocation with standard options.
+ */
 export function createPnpmRunnerSpawnSpec(params = {}) {
   const runner = resolvePnpmRunner(params);
   return {
@@ -134,6 +149,9 @@ export function createPnpmRunnerSpawnSpec(params = {}) {
   };
 }
 
+/**
+ * Spawns a pnpm command using the portable runner resolution.
+ */
 export function spawnPnpmRunner(params = {}) {
   const spawnSpec = createPnpmRunnerSpawnSpec(params);
   return spawn(spawnSpec.command, spawnSpec.args, spawnSpec.options);

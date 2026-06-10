@@ -1,9 +1,10 @@
+// Boundary invariant tests cover plugin boundary rules that must hold across the repo.
 import { spawnSync } from "node:child_process";
 import fs, { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { expectNoReaddirSyncDuring } from "../../test-utils/fs-scan-assertions.js";
 import { listGitTrackedFiles, toRepoRelativePath } from "../../test-utils/repo-files.js";
 
@@ -23,7 +24,6 @@ const BUNDLED_TYPED_HOOK_REGISTRATION_FILES = [
   "extensions/memory-durability/src/scheduler.ts",
   "extensions/memory-lancedb/index.ts",
   "extensions/session-digest/index.ts",
-  "extensions/skill-workshop/index.ts",
   "extensions/thread-ownership/index.ts",
 ] as const;
 const BUNDLED_TYPED_HOOK_REGISTRATION_GUARDS = {
@@ -31,26 +31,13 @@ const BUNDLED_TYPED_HOOK_REGISTRATION_GUARDS = {
   "extensions/active-memory/index.ts": ["before_prompt_build"],
   "extensions/codex/index.ts": ["inbound_claim"],
   "extensions/diffs/src/plugin.ts": ["before_prompt_build"],
-  "extensions/discord/subagent-hooks-api.ts": [
-    "subagent_delivery_target",
-    "subagent_ended",
-    "subagent_spawning",
-  ],
-  "extensions/feishu/subagent-hooks-api.ts": [
-    "subagent_delivery_target",
-    "subagent_ended",
-    "subagent_spawning",
-  ],
-  "extensions/matrix/subagent-hooks-api.ts": [
-    "subagent_delivery_target",
-    "subagent_ended",
-    "subagent_spawning",
-  ],
+  "extensions/discord/subagent-hooks-api.ts": ["subagent_delivery_target", "subagent_ended"],
+  "extensions/feishu/subagent-hooks-api.ts": ["subagent_delivery_target", "subagent_ended"],
+  "extensions/matrix/subagent-hooks-api.ts": ["subagent_delivery_target", "subagent_ended"],
   "extensions/memory-core/src/dreaming.ts": ["before_agent_reply", "gateway_start", "gateway_stop"],
   "extensions/memory-durability/src/scheduler.ts": ["gateway_start"],
   "extensions/memory-lancedb/index.ts": ["agent_end", "before_prompt_build", "session_end"],
   "extensions/session-digest/index.ts": ["session_end"],
-  "extensions/skill-workshop/index.ts": ["agent_end", "before_prompt_build"],
   "extensions/thread-ownership/index.ts": ["message_received", "message_sending"],
 } as const satisfies Record<
   (typeof BUNDLED_TYPED_HOOK_REGISTRATION_FILES)[number],
@@ -71,7 +58,6 @@ const BUNDLED_LIVE_CONFIG_HOOK_GUARDS = {
   ],
   "extensions/memory-lancedb/index.ts": ["resolveLivePluginConfigObject(", '"memory-lancedb"'],
   "extensions/session-digest/index.ts": ["resolveLivePluginConfigObject(", '"session-digest"'],
-  "extensions/skill-workshop/index.ts": ["resolveLivePluginConfigObject(", '"skill-workshop"'],
   "extensions/thread-ownership/index.ts": [
     "resolveLivePluginConfigObject(",
     '"thread-ownership"',
@@ -115,10 +101,6 @@ const BUNDLED_LIVE_CONFIG_PROVIDER_GUARDS = {
 } as const satisfies Record<string, readonly string[]>;
 const BUNDLED_STARTUP_GATED_HOOK_FORBIDDEN_SNIPPETS = {
   "extensions/memory-lancedb/index.ts": ["if (cfg.autoRecall)", "if (cfg.autoCapture)"],
-  "extensions/skill-workshop/index.ts": [
-    "if (!startupConfig.enabled)",
-    'if (startupConfig.autoCapture && startupConfig.reviewMode !== "off")',
-  ],
 } as const satisfies Record<string, readonly string[]>;
 
 type FileFilter = {
@@ -299,6 +281,22 @@ function collectTypedHookNames(source: string): string[] {
 }
 
 describe("plugin contract boundary invariants", () => {
+  let bundledCapabilityMetadataOffenders: string[];
+
+  beforeAll(() => {
+    const files = listTsFiles("src");
+    bundledCapabilityMetadataOffenders = files.filter((file) => {
+      if (
+        file === "src/plugins/contracts/boundary-invariants.test.ts" ||
+        file.endsWith(".contract.test.ts") ||
+        file.endsWith("-capability-metadata.test.ts")
+      ) {
+        return false;
+      }
+      return readRepoSource(file).includes("contracts/inventory/bundled-capability-metadata");
+    });
+  });
+
   it("lists boundary invariant source files without walking roots in-process", () => {
     try {
       expectNoReaddirSyncDuring(() => {
@@ -315,18 +313,7 @@ describe("plugin contract boundary invariants", () => {
   });
 
   it("keeps bundled-capability-metadata confined to contract/test inventory", () => {
-    const files = listTsFiles("src");
-    const offenders = files.filter((file) => {
-      if (
-        file === "src/plugins/contracts/boundary-invariants.test.ts" ||
-        file.endsWith(".contract.test.ts") ||
-        file.endsWith("-capability-metadata.test.ts")
-      ) {
-        return false;
-      }
-      return readRepoSource(file).includes("contracts/inventory/bundled-capability-metadata");
-    });
-    expect(offenders).toStrictEqual([]);
+    expect(bundledCapabilityMetadataOffenders).toStrictEqual([]);
   });
 
   it("keeps the bundled contract inventory out of non-test runtime code", () => {

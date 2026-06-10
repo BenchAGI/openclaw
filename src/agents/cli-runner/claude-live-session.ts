@@ -1,6 +1,16 @@
+/**
+ * Manages reusable Claude CLI stdio sessions for CLI-backed agent turns.
+ */
 import crypto from "node:crypto";
 import type { ReplyBackendHandle } from "../../auto-reply/reply/reply-run-registry.js";
 import type { CliBackendConfig } from "../../config/types.js";
+import {
+  emitTrustedDiagnosticEvent,
+  type DiagnosticToolParamsSummary,
+  type DiagnosticToolSource,
+  type DiagnosticToolExecutionErrorEvent,
+  type DiagnosticToolExecutionCompletedEvent,
+} from "../../infra/diagnostic-events.js";
 import {
   loadExecApprovals,
   maxAsk,
@@ -17,10 +27,12 @@ import {
   parseCliOutput,
   type CliOutput,
   type CliStreamingDelta,
+  type CliToolResultDelta,
+  type CliToolUseStartDelta,
 } from "../cli-output.js";
 import { classifyFailoverReason } from "../embedded-agent-helpers.js";
 import { FailoverError, resolveFailoverStatus } from "../failover-error.js";
-import { cliBackendLog } from "./log.js";
+import { cliBackendLog, formatCliBackendOutputDigest } from "./log.js";
 import type { PreparedCliRunContext } from "./types.js";
 
 type ProcessSupervisor = ReturnType<
@@ -29,6 +41,7 @@ type ProcessSupervisor = ReturnType<
 type ManagedRun = Awaited<ReturnType<ProcessSupervisor["spawn"]>>;
 type ClaudeLiveTurn = {
   backend: CliBackendConfig;
+  diagnosticRefs: ClaudeLiveDiagnosticRefs;
   outputLimits: ClaudeLiveOutputLimits;
   startedAtMs: number;
   rawLines: string[];
@@ -36,6 +49,8 @@ type ClaudeLiveTurn = {
   sessionId?: string;
   noOutputTimer: NodeJS.Timeout | null;
   timeoutTimer: NodeJS.Timeout | null;
+  activeToolTimer: NodeJS.Timeout | null;
+  activeTools: Map<string, ClaudeLiveActiveTool>;
   streamingParser: ReturnType<typeof createCliJsonlStreamingParser>;
   execPermission: ClaudeLiveExecPermission;
   resolve: (output: CliOutput) => void;
@@ -71,8 +86,24 @@ type ClaudeLiveExecPermission = {
   ask: ExecAsk;
   permissionMode: "bypassPermissions" | "default";
 };
+type ClaudeLiveDiagnosticRefs = {
+  runId: string;
+  sessionId: string;
+  sessionKey?: string;
+};
+type ClaudeLiveActiveTool = {
+  toolName: string;
+  toolCallId: string;
+  startedAt: number;
+};
+type ClaudeLiveToolUse = {
+  toolName: string;
+  toolCallId: string;
+  paramsSummary?: DiagnosticToolParamsSummary;
+};
 
 const CLAUDE_LIVE_IDLE_TIMEOUT_MS = 10 * 60 * 1_000;
+const CLAUDE_LIVE_ACTIVE_TOOL_PROGRESS_MS = 10_000;
 const CLAUDE_LIVE_MAX_SESSIONS = 16;
 const CLAUDE_LIVE_MAX_STDERR_CHARS = 64 * 1024;
 const CLAUDE_LIVE_DEFAULT_MAX_TURN_RAW_CHARS = 8 * 1024 * 1024;
@@ -89,6 +120,7 @@ function sha256(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+/** Closes all live Claude CLI sessions and clears creation promises for tests. */
 export function resetClaudeLiveSessionsForTest(): void {
   for (const session of liveSessions.values()) {
     closeLiveSession(session, "restart");
@@ -117,6 +149,7 @@ async function waitForManagedRunExit(managedRun: ManagedRun): Promise<void> {
   }
 }
 
+/** Closes the live Claude session associated with a prepared run context, if one exists. */
 export async function closeClaudeLiveSessionForContext(
   context: PreparedCliRunContext,
 ): Promise<void> {
@@ -129,6 +162,7 @@ export async function closeClaudeLiveSessionForContext(
   liveSessionCreates.delete(key);
 }
 
+/** Returns whether a prepared backend context is eligible for Claude live stdio reuse. */
 export function shouldUseClaudeLiveSession(context: PreparedCliRunContext): boolean {
   return (
     context.backendResolved.id === "claude-cli" &&
@@ -187,6 +221,7 @@ function stripLiveProcessArgs(
   return stripped;
 }
 
+/** Builds Claude CLI args for stream-json live sessions, stripping one-shot session flags. */
 export function buildClaudeLiveArgs(params: {
   args: string[];
   backend: CliBackendConfig;
@@ -214,6 +249,8 @@ export function buildClaudeLiveArgs(params: {
     ),
     "--replay-user-messages",
   );
+  // Live sessions always speak stream-json over stdin/stdout. Strip stale one-shot args above, then
+  // force the live protocol flags so resume and non-resume turns share the same process contract.
   return params.permissionMode
     ? upsertArgValue(liveArgs, "--permission-mode", params.permissionMode)
     : liveArgs;
@@ -329,6 +366,10 @@ function clearTurnTimers(turn: ClaudeLiveTurn): void {
     clearTimeout(turn.timeoutTimer);
     turn.timeoutTimer = null;
   }
+  if (turn.activeToolTimer) {
+    clearInterval(turn.activeToolTimer);
+    turn.activeToolTimer = null;
+  }
 }
 
 function clearDrainTimer(session: ClaudeLiveSession): void {
@@ -344,8 +385,9 @@ function finishTurn(session: ClaudeLiveSession, output: CliOutput): void {
     return;
   }
   cliBackendLog.info(
-    `claude live session turn: provider=${session.providerId} model=${session.modelId} durationMs=${Date.now() - turn.startedAtMs} rawLines=${turn.rawLines.length}`,
+    `claude live session turn: provider=${session.providerId} model=${session.modelId} durationMs=${Date.now() - turn.startedAtMs} rawLines=${turn.rawLines.length} ${formatCliBackendOutputDigest(output.text)}`,
   );
+  completeActiveClaudeLiveTools(turn);
   clearTurnTimers(turn);
   turn.streamingParser.finish();
   session.currentTurn = null;
@@ -362,6 +404,7 @@ function failTurn(session: ClaudeLiveSession, error: unknown): void {
   cliBackendLog.warn(
     `claude live session turn failed: provider=${session.providerId} model=${session.modelId} durationMs=${Date.now() - turn.startedAtMs} error=${errorKind}`,
   );
+  failActiveClaudeLiveTools(turn, error);
   clearTurnTimers(turn);
   turn.streamingParser.finish();
   session.currentTurn = null;
@@ -422,12 +465,17 @@ function scheduleIdleClose(session: ClaudeLiveSession): void {
   }, CLAUDE_LIVE_IDLE_TIMEOUT_MS);
 }
 
-function createTimeoutError(session: ClaudeLiveSession, message: string): FailoverError {
+function createTimeoutError(
+  session: ClaudeLiveSession,
+  message: string,
+  code?: string,
+): FailoverError {
   return new FailoverError(message, {
     reason: "timeout",
     provider: session.providerId,
     model: session.modelId,
     status: resolveFailoverStatus("timeout"),
+    code,
   });
 }
 
@@ -438,6 +486,209 @@ function createOutputLimitError(session: ClaudeLiveSession, message: string): Fa
     model: session.modelId,
     status: resolveFailoverStatus("format"),
   });
+}
+
+function diagnosticToolSourceForClaudeLiveTool(toolName: string): DiagnosticToolSource {
+  return toolName.startsWith("mcp__") ? "mcp" : "core";
+}
+
+function claudeLiveDiagnosticBase(turn: ClaudeLiveTurn) {
+  return {
+    runId: turn.diagnosticRefs.runId,
+    sessionId: turn.diagnosticRefs.sessionId,
+    ...(turn.diagnosticRefs.sessionKey ? { sessionKey: turn.diagnosticRefs.sessionKey } : {}),
+  };
+}
+
+function emitClaudeLiveProgress(turn: ClaudeLiveTurn, reason: string): void {
+  emitTrustedDiagnosticEvent({
+    type: "run.progress",
+    ...claudeLiveDiagnosticBase(turn),
+    reason,
+  });
+}
+
+function summarizeClaudeLiveToolInput(input: unknown): DiagnosticToolParamsSummary | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+  if (input === null) {
+    return { kind: "null" };
+  }
+  if (Array.isArray(input)) {
+    return { kind: "array", length: input.length };
+  }
+  switch (typeof input) {
+    case "object":
+      return { kind: "object" };
+    case "string":
+      return { kind: "string", length: input.length };
+    case "number":
+      return { kind: "number" };
+    case "boolean":
+      return { kind: "boolean" };
+    case "undefined":
+      return { kind: "undefined" };
+    default:
+      return { kind: "other" };
+  }
+}
+
+function readClaudeLiveMessageContent(parsed: Record<string, unknown>): unknown[] {
+  const message = parsed.message;
+  if (!isRecord(message)) {
+    return [];
+  }
+  const content = message.content;
+  return Array.isArray(content) ? content : [];
+}
+
+function readClaudeLiveToolUses(parsed: Record<string, unknown>): ClaudeLiveToolUse[] {
+  const tools: ClaudeLiveToolUse[] = [];
+  for (const entry of readClaudeLiveMessageContent(parsed)) {
+    if (!isRecord(entry) || entry.type !== "tool_use") {
+      continue;
+    }
+    const toolName = typeof entry.name === "string" ? entry.name.trim() : "";
+    const toolCallId = typeof entry.id === "string" ? entry.id.trim() : "";
+    if (!toolName || !toolCallId) {
+      continue;
+    }
+    tools.push({
+      toolName,
+      toolCallId,
+      paramsSummary: summarizeClaudeLiveToolInput(entry.input),
+    });
+  }
+  return tools;
+}
+
+function readClaudeLiveToolResultIds(parsed: Record<string, unknown>): string[] {
+  const toolResultIds: string[] = [];
+  for (const entry of readClaudeLiveMessageContent(parsed)) {
+    if (!isRecord(entry) || entry.type !== "tool_result") {
+      continue;
+    }
+    const toolCallId = typeof entry.tool_use_id === "string" ? entry.tool_use_id.trim() : "";
+    if (toolCallId) {
+      toolResultIds.push(toolCallId);
+    }
+  }
+  return toolResultIds;
+}
+
+function startClaudeLiveActiveToolHeartbeat(turn: ClaudeLiveTurn): void {
+  if (turn.activeToolTimer || turn.activeTools.size === 0) {
+    return;
+  }
+  turn.activeToolTimer = setInterval(() => {
+    if (turn.activeTools.size === 0) {
+      if (turn.activeToolTimer) {
+        clearInterval(turn.activeToolTimer);
+        turn.activeToolTimer = null;
+      }
+      return;
+    }
+    emitClaudeLiveProgress(turn, "cli_live:tool_running");
+  }, CLAUDE_LIVE_ACTIVE_TOOL_PROGRESS_MS);
+  turn.activeToolTimer.unref?.();
+}
+
+function stopClaudeLiveActiveToolHeartbeatIfIdle(turn: ClaudeLiveTurn): void {
+  if (turn.activeTools.size > 0 || !turn.activeToolTimer) {
+    return;
+  }
+  clearInterval(turn.activeToolTimer);
+  turn.activeToolTimer = null;
+}
+
+function markClaudeLiveToolStarted(turn: ClaudeLiveTurn, tool: ClaudeLiveToolUse): void {
+  const now = Date.now();
+  turn.activeTools.set(tool.toolCallId, {
+    toolName: tool.toolName,
+    toolCallId: tool.toolCallId,
+    startedAt: now,
+  });
+  emitTrustedDiagnosticEvent({
+    type: "tool.execution.started",
+    ...claudeLiveDiagnosticBase(turn),
+    toolName: tool.toolName,
+    toolSource: diagnosticToolSourceForClaudeLiveTool(tool.toolName),
+    toolOwner: "claude-cli",
+    toolCallId: tool.toolCallId,
+    ...(tool.paramsSummary ? { paramsSummary: tool.paramsSummary } : {}),
+  });
+  emitClaudeLiveProgress(turn, "cli_live:tool_started");
+  startClaudeLiveActiveToolHeartbeat(turn);
+}
+
+function markClaudeLiveToolCompleted(turn: ClaudeLiveTurn, toolCallId: string): void {
+  const activeTool = turn.activeTools.get(toolCallId);
+  if (!activeTool) {
+    emitClaudeLiveProgress(turn, "cli_live:tool_result");
+    return;
+  }
+  turn.activeTools.delete(toolCallId);
+  const event: Omit<DiagnosticToolExecutionCompletedEvent, "seq" | "ts" | "type"> = {
+    ...claudeLiveDiagnosticBase(turn),
+    toolName: activeTool.toolName,
+    toolSource: diagnosticToolSourceForClaudeLiveTool(activeTool.toolName),
+    toolOwner: "claude-cli",
+    toolCallId: activeTool.toolCallId,
+    durationMs: Math.max(0, Date.now() - activeTool.startedAt),
+  };
+  emitTrustedDiagnosticEvent({
+    type: "tool.execution.completed",
+    ...event,
+  });
+  emitClaudeLiveProgress(turn, "cli_live:tool_result");
+  stopClaudeLiveActiveToolHeartbeatIfIdle(turn);
+}
+
+function completeActiveClaudeLiveTools(turn: ClaudeLiveTurn): void {
+  const activeToolCallIds = Array.from(turn.activeTools.keys());
+  for (const toolCallId of activeToolCallIds) {
+    markClaudeLiveToolCompleted(turn, toolCallId);
+  }
+}
+
+function failActiveClaudeLiveTools(turn: ClaudeLiveTurn, error: unknown): void {
+  const errorCategory = error instanceof Error && error.name === "AbortError" ? "aborted" : "error";
+  for (const activeTool of turn.activeTools.values()) {
+    const event: Omit<DiagnosticToolExecutionErrorEvent, "seq" | "ts" | "type"> = {
+      ...claudeLiveDiagnosticBase(turn),
+      toolName: activeTool.toolName,
+      toolSource: diagnosticToolSourceForClaudeLiveTool(activeTool.toolName),
+      toolOwner: "claude-cli",
+      toolCallId: activeTool.toolCallId,
+      durationMs: Math.max(0, Date.now() - activeTool.startedAt),
+      errorCategory,
+    };
+    emitTrustedDiagnosticEvent({
+      type: "tool.execution.error",
+      ...event,
+    });
+  }
+  turn.activeTools.clear();
+}
+
+function noteClaudeLiveProgress(turn: ClaudeLiveTurn, parsed: Record<string, unknown>): void {
+  const toolUses = readClaudeLiveToolUses(parsed);
+  const toolResultIds = readClaudeLiveToolResultIds(parsed);
+  for (const tool of toolUses) {
+    markClaudeLiveToolStarted(turn, tool);
+  }
+  for (const toolCallId of toolResultIds) {
+    markClaudeLiveToolCompleted(turn, toolCallId);
+  }
+  if (parsed.type === "result") {
+    emitClaudeLiveProgress(turn, "cli_live:result");
+    return;
+  }
+  if (toolUses.length > 0 || toolResultIds.length > 0) {
+    return;
+  }
+  emitClaudeLiveProgress(turn, "cli_live:stream_progress");
 }
 
 function resetNoOutputTimer(session: ClaudeLiveSession): void {
@@ -669,6 +920,7 @@ function handleClaudeLiveLine(session: ClaudeLiveSession, line: string): void {
   turn.rawLines.push(trimmed);
   turn.streamingParser.push(`${trimmed}\n`);
   turn.sessionId = parseSessionId(parsed) ?? turn.sessionId;
+  noteClaudeLiveProgress(turn, parsed);
   handleClaudeLiveControlRequest(session, turn, parsed);
   if (parsed.type !== "result") {
     return;
@@ -851,7 +1103,7 @@ async function createClaudeLiveSession(params: {
   };
   void managedRun.wait().then(
     (exit) => handleClaudeExit(session, exit.exitCode),
-    (error) => {
+    (error: unknown) => {
       if (session) {
         closeLiveSession(session, "abort", error);
       }
@@ -868,6 +1120,10 @@ function createTurn(params: {
   context: PreparedCliRunContext;
   noOutputTimeoutMs: number;
   onAssistantDelta: (delta: CliStreamingDelta) => void;
+  onToolUseStart?: (delta: CliToolUseStartDelta) => void;
+  onToolResult?: (delta: CliToolResultDelta) => void;
+  classifyCommentaryText?: boolean;
+  onCommentaryText?: (text: string) => void;
   session: ClaudeLiveSession;
   execPermission: ClaudeLiveExecPermission;
   resolve: (output: CliOutput) => void;
@@ -875,16 +1131,27 @@ function createTurn(params: {
 }): ClaudeLiveTurn {
   const turn: ClaudeLiveTurn = {
     backend: params.context.preparedBackend.backend,
+    diagnosticRefs: {
+      runId: params.context.params.runId,
+      sessionId: params.context.params.sessionId,
+      ...(params.context.params.sessionKey ? { sessionKey: params.context.params.sessionKey } : {}),
+    },
     outputLimits: resolveClaudeLiveOutputLimits(params.context.preparedBackend.backend),
     startedAtMs: Date.now(),
     rawLines: [],
     rawChars: 0,
     noOutputTimer: null,
     timeoutTimer: null,
+    activeToolTimer: null,
+    activeTools: new Map(),
     streamingParser: createCliJsonlStreamingParser({
       backend: params.context.preparedBackend.backend,
       providerId: params.context.backendResolved.id,
       onAssistantDelta: params.onAssistantDelta,
+      onToolUseStart: params.onToolUseStart,
+      onToolResult: params.onToolResult,
+      classifyCommentaryText: params.classifyCommentaryText,
+      onCommentaryText: params.onCommentaryText,
     }),
     execPermission: params.execPermission,
     resolve: params.resolve,
@@ -897,6 +1164,7 @@ function createTurn(params: {
       createTimeoutError(
         params.session,
         `CLI produced no output for ${Math.round(params.noOutputTimeoutMs / 1000)}s and was terminated.`,
+        "cli_no_output_timeout",
       ),
     );
   }, params.noOutputTimeoutMs);
@@ -942,6 +1210,7 @@ function ensureLiveSessionCapacity(key: string, context: PreparedCliRunContext):
   });
 }
 
+/** Runs one prompt through a reusable Claude CLI live session. */
 export async function runClaudeLiveSessionTurn(params: {
   context: PreparedCliRunContext;
   args: string[];
@@ -951,6 +1220,10 @@ export async function runClaudeLiveSessionTurn(params: {
   noOutputTimeoutMs: number;
   getProcessSupervisor: () => ProcessSupervisor;
   onAssistantDelta: (delta: CliStreamingDelta) => void;
+  onToolUseStart?: (delta: CliToolUseStartDelta) => void;
+  onToolResult?: (delta: CliToolResultDelta) => void;
+  classifyCommentaryText?: boolean;
+  onCommentaryText?: (text: string) => void;
   cleanup: () => Promise<void>;
 }): Promise<ClaudeLiveRunResult> {
   const key = buildClaudeLiveKey(params.context);
@@ -981,6 +1254,8 @@ export async function runClaudeLiveSessionTurn(params: {
   };
   let session = liveSessions.get(key) ?? null;
   if (session && resumeCapable && !params.useResume) {
+    // Non-resume turns must start from a fresh process when the backend supports resume; otherwise
+    // Claude could inherit conversation state from the previous live turn.
     closeLiveSession(session, "restart");
     session = null;
   }
@@ -1064,6 +1339,10 @@ export async function runClaudeLiveSessionTurn(params: {
       context: params.context,
       noOutputTimeoutMs: params.noOutputTimeoutMs,
       onAssistantDelta: params.onAssistantDelta,
+      onToolUseStart: params.onToolUseStart,
+      onToolResult: params.onToolResult,
+      classifyCommentaryText: params.classifyCommentaryText,
+      onCommentaryText: params.onCommentaryText,
       session: liveSession,
       execPermission,
       resolve,

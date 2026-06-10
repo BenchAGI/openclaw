@@ -1,3 +1,4 @@
+// Qa Lab plugin module implements cli behavior.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
@@ -67,7 +68,7 @@ import {
 } from "./scenario-catalog.js";
 import { resolveQaScenarioPackScenarioIds } from "./scenario-packs.js";
 import { runQaSuiteFromRuntime } from "./suite-launch.runtime.js";
-import { readQaSuiteFailedScenarioCountFromSummary } from "./suite-summary.js";
+import { readQaSuiteFailedOrSkippedScenarioCountFromFile } from "./suite-summary.js";
 import {
   buildTokenEfficiencyReport,
   renderTokenEfficiencyMarkdownReport,
@@ -158,10 +159,10 @@ function parseQaPositiveIntegerOption(label: string, value: number | undefined) 
   if (value === undefined) {
     return undefined;
   }
-  if (!Number.isFinite(value) || value < 1) {
+  if (!Number.isSafeInteger(value) || value < 1) {
     throw new Error(`${label} must be a positive integer`);
   }
-  return Math.floor(value);
+  return value;
 }
 
 function normalizeQaOptionalModelRef(input: string | undefined) {
@@ -170,8 +171,11 @@ function normalizeQaOptionalModelRef(input: string | undefined) {
 }
 
 function normalizeQaRuntimeId(value: string): RuntimeId | undefined {
-  if (value === "openclaw" || value === "codex") {
-    return value;
+  if (value === "openclaw" || value === "pi") {
+    return "openclaw";
+  }
+  if (value === "codex") {
+    return "codex";
   }
   return undefined;
 }
@@ -239,34 +243,6 @@ function resolveQaRuntimeParityTierScenarioIds(params: {
   return uniqueStrings([...params.scenarioIds, ...matchingScenarioIds]);
 }
 
-async function readQaFailedScenarioCountFromSummary(summaryPath: string) {
-  let summaryText: string;
-  try {
-    summaryText = await fs.readFile(summaryPath, "utf8");
-  } catch (error) {
-    throw new Error(
-      `Could not read QA summary JSON at ${summaryPath}: ${formatErrorMessage(error)}`,
-      { cause: error },
-    );
-  }
-  let payload: unknown;
-  try {
-    payload = JSON.parse(summaryText) as unknown;
-  } catch (error) {
-    throw new Error(
-      `Could not parse QA summary JSON at ${summaryPath}: ${formatErrorMessage(error)}`,
-      { cause: error },
-    );
-  }
-  const failedScenarioCount = readQaSuiteFailedScenarioCountFromSummary(payload);
-  if (failedScenarioCount !== null) {
-    return failedScenarioCount;
-  }
-  throw new Error(
-    `QA summary at ${summaryPath} did not include counts.failed or scenarios[].status.`,
-  );
-}
-
 function isQaSuiteInfraRetryableError(error: unknown) {
   const message = formatErrorMessage(error).toLowerCase();
   return (
@@ -281,7 +257,7 @@ function isQaSuiteInfraRetryableError(error: unknown) {
     message.includes("socket hang up") ||
     message.includes("could not read qa summary json") ||
     message.includes("could not parse qa summary json") ||
-    message.includes("did not include counts.failed or scenarios[].status") ||
+    message.includes("did not include counts.failed, counts.skipped, or scenarios[].status") ||
     message.includes("did not produce report artifact")
   );
 }
@@ -295,7 +271,7 @@ async function assertQaSuiteArtifacts(result: { reportPath: string; summaryPath:
       { cause: error },
     );
   }
-  await readQaFailedScenarioCountFromSummary(result.summaryPath);
+  await readQaSuiteFailedOrSkippedScenarioCountFromFile(result.summaryPath);
 }
 
 async function runQaSuiteFromRuntimeWithInfraRetry(
@@ -348,13 +324,15 @@ async function runQaParityPreflight(params: {
   process.stdout.write(`QA parity preflight watch: ${result.watchUrl}\n`);
   process.stdout.write(`QA parity preflight report: ${result.reportPath}\n`);
   process.stdout.write(`QA parity preflight summary: ${result.summaryPath}\n`);
-  const failedScenarioCount = await readQaFailedScenarioCountFromSummary(result.summaryPath);
-  if (failedScenarioCount > 0) {
+  const blockingScenarioCount = await readQaSuiteFailedOrSkippedScenarioCountFromFile(
+    result.summaryPath,
+  );
+  if (blockingScenarioCount > 0) {
     if (params.allowFailures === true) {
       return;
     }
     throw new Error(
-      `QA parity preflight failed with ${failedScenarioCount} failing scenario${failedScenarioCount === 1 ? "" : "s"}.`,
+      `QA parity preflight failed with ${blockingScenarioCount} failing or skipped scenario${blockingScenarioCount === 1 ? "" : "s"}.`,
     );
   }
 }
@@ -488,7 +466,7 @@ async function runInterruptibleServer(label: string, server: InterruptibleServer
 
   process.on("SIGINT", onSignal);
   process.on("SIGTERM", onSignal);
-  await new Promise(() => undefined);
+  await new Promise(() => {});
 }
 
 async function readQaCredentialPayloadFile(filePath: string) {
@@ -521,21 +499,26 @@ function printQaCredentialListTable(credentials: QaCredentialRecord[]) {
   }
   const rows = credentials.map((credential) => ({
     credentialId: credential.credentialId,
+    fingerprint: credential.credentialFingerprint ?? "",
     kind: credential.kind,
     status: credential.status,
     leased: formatQaCredentialLeaseState(credential),
     note: credential.note ?? "",
   }));
   const idWidth = Math.max("credentialId".length, ...rows.map((row) => row.credentialId.length));
+  const fingerprintWidth = Math.max(
+    "fingerprint".length,
+    ...rows.map((row) => row.fingerprint.length),
+  );
   const kindWidth = Math.max("kind".length, ...rows.map((row) => row.kind.length));
   const statusWidth = Math.max("status".length, ...rows.map((row) => row.status.length));
   const leaseWidth = Math.max("leased".length, ...rows.map((row) => row.leased.length));
   process.stdout.write(
-    `${"credentialId".padEnd(idWidth)}  ${"kind".padEnd(kindWidth)}  ${"status".padEnd(statusWidth)}  ${"leased".padEnd(leaseWidth)}  note\n`,
+    `${"credentialId".padEnd(idWidth)}  ${"fingerprint".padEnd(fingerprintWidth)}  ${"kind".padEnd(kindWidth)}  ${"status".padEnd(statusWidth)}  ${"leased".padEnd(leaseWidth)}  note\n`,
   );
   for (const row of rows) {
     process.stdout.write(
-      `${row.credentialId.padEnd(idWidth)}  ${row.kind.padEnd(kindWidth)}  ${row.status.padEnd(statusWidth)}  ${row.leased.padEnd(leaseWidth)}  ${row.note}\n`,
+      `${row.credentialId.padEnd(idWidth)}  ${row.fingerprint.padEnd(fingerprintWidth)}  ${row.kind.padEnd(kindWidth)}  ${row.status.padEnd(statusWidth)}  ${row.leased.padEnd(leaseWidth)}  ${row.note}\n`,
     );
   }
 }
@@ -658,8 +641,10 @@ export async function runQaSuiteCommand(opts: {
     process.stdout.write(`QA Multipass host log: ${result.hostLogPath}\n`);
     process.stdout.write(`QA Multipass bootstrap log: ${result.bootstrapLogPath}\n`);
     if (!allowFailures) {
-      const failedScenarioCount = await readQaFailedScenarioCountFromSummary(result.summaryPath);
-      if (failedScenarioCount > 0) {
+      const blockingScenarioCount = await readQaSuiteFailedOrSkippedScenarioCountFromFile(
+        result.summaryPath,
+      );
+      if (blockingScenarioCount > 0) {
         process.exitCode = 1;
       }
     }
@@ -697,8 +682,10 @@ export async function runQaSuiteCommand(opts: {
   process.stdout.write(`QA suite watch: ${result.watchUrl}\n`);
   process.stdout.write(`QA suite report: ${result.reportPath}\n`);
   process.stdout.write(`QA suite summary: ${result.summaryPath}\n`);
-  const failedScenarioCount = readQaSuiteFailedScenarioCountFromSummary(result);
-  if (!allowFailures && failedScenarioCount !== null && failedScenarioCount > 0) {
+  const blockingScenarioCount = await readQaSuiteFailedOrSkippedScenarioCountFromFile(
+    result.summaryPath,
+  );
+  if (!allowFailures && blockingScenarioCount > 0) {
     process.exitCode = 1;
   }
 }

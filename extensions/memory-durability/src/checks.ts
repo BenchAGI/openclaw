@@ -290,7 +290,7 @@ export function runChecks(opts: CheckOptions = {}): Verdict {
       checks.push({
         name,
         status: "skipped",
-        detail: `missing copy (workspace=${!!wsBuf} store=${!!stBuf})`,
+        detail: `missing copy (workspace=${Boolean(wsBuf)} store=${Boolean(stBuf)})`,
       });
       return;
     }

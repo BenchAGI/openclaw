@@ -1,6 +1,14 @@
+/**
+ * Test harness mocks for embedded-run overflow compaction coverage.
+ */
+import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
 import { type Mock, vi } from "vitest";
 import type { ThinkLevel } from "../../auto-reply/thinking.js";
 import { formatErrorMessage } from "../../infra/errors.js";
+import type {
+  PluginHookBeforeAgentFinalizeEvent,
+  PluginHookBeforeAgentFinalizeResult,
+} from "../../plugins/hook-types.js";
 import type {
   PluginHookAgentContext,
   PluginHookBeforeAgentReplyResult,
@@ -8,12 +16,13 @@ import type {
   PluginHookBeforeModelResolveResult,
   PluginHookBeforePromptBuildResult,
 } from "../../plugins/types.js";
-import { normalizeLowercaseStringOrEmpty } from "../../shared/string-coerce.js";
 import type { FailoverReason } from "../embedded-agent-helpers/types.js";
 import { clearAgentHarnesses, registerAgentHarness } from "../harness/registry.js";
 import type { buildEmbeddedRunPayloads } from "./run/payloads.js";
 import type { EmbeddedRunAttemptResult } from "./run/types.js";
 
+// Shared Vitest harness for overflow, compaction, failover, and hook tests.
+// Tests import these mocks directly so each scenario can override one seam.
 type MockCompactionResult =
   | {
       ok: true;
@@ -33,7 +42,30 @@ type MockCompactionResult =
       compacted: false;
       reason: string;
       result?: undefined;
+    }
+  | {
+      ok: true;
+      compacted: false;
+      reason: string;
+      result?: undefined;
     };
+
+type MockResolvedModel = {
+  id: string;
+  provider: string;
+  contextWindow: number;
+  api: string;
+  reasoning?: boolean;
+};
+
+type MockResolveModelResult = {
+  model: MockResolvedModel;
+  error: null;
+  authStorage: {
+    setRuntimeApiKey: ReturnType<typeof vi.fn>;
+  };
+  modelRegistry: Record<string, never>;
+};
 
 export const mockedGlobalHookRunner = {
   hasHooks: vi.fn((_hookName: string) => false),
@@ -48,6 +80,12 @@ export const mockedGlobalHookRunner = {
       _eventValue: { prompt: string; messages?: unknown[] },
       _ctx: PluginHookAgentContext,
     ): Promise<PluginHookBeforeAgentStartResult | undefined> => undefined,
+  ),
+  runBeforeAgentFinalize: vi.fn(
+    async (
+      _eventValue: PluginHookBeforeAgentFinalizeEvent,
+      _ctx: PluginHookAgentContext,
+    ): Promise<PluginHookBeforeAgentFinalizeResult | undefined> => undefined,
   ),
   runBeforePromptBuild: vi.fn(
     async (
@@ -81,19 +119,21 @@ export const mockedResolveContextEngineOwnerPluginId = vi.fn(() => undefined);
 export const mockedBuildAgentRuntimePlan = vi.fn(() => ({}));
 export const mockedRunPostCompactionSideEffects = vi.fn(async () => {});
 export const mockedEnsureRuntimePluginsLoaded = vi.fn<(params?: unknown) => void>();
-export const mockedResolveModelAsync = vi.fn(async () => ({
-  model: {
-    id: "test-model",
-    provider: "anthropic",
-    contextWindow: 200000,
-    api: "messages",
-  },
-  error: null,
-  authStorage: {
-    setRuntimeApiKey: vi.fn(),
-  },
-  modelRegistry: {},
-}));
+export const mockedResolveModelAsync = vi.fn(
+  async (): Promise<MockResolveModelResult> => ({
+    model: {
+      id: "test-model",
+      provider: "anthropic",
+      contextWindow: 200000,
+      api: "messages",
+    },
+    error: null,
+    authStorage: {
+      setRuntimeApiKey: vi.fn(),
+    },
+    modelRegistry: {},
+  }),
+);
 export const mockedPrepareProviderRuntimeAuth = vi.fn(async () => undefined);
 export const mockedRunEmbeddedAttempt =
   vi.fn<(params: unknown) => Promise<EmbeddedRunAttemptResult>>();
@@ -242,13 +282,14 @@ export const overflowBaseRunParams = {
   runId: "run-1",
 } as const;
 
+/** Reset every mocked runner dependency to the default successful no-op state. */
 export function resetRunOverflowCompactionHarnessMocks(): void {
   clearAgentHarnesses();
   registerAgentHarness({
     id: "codex",
     label: "Codex",
     supports: (ctx) =>
-      ctx.provider === "codex" || ctx.provider === "openai-codex" || ctx.provider === "openai"
+      ctx.provider === "codex" || ctx.provider === "openai" || ctx.provider === "openai"
         ? { supported: true, priority: 100 }
         : { supported: false },
     runAttempt: async (params) => await mockedRunEmbeddedAttempt(params),
@@ -260,6 +301,8 @@ export function resetRunOverflowCompactionHarnessMocks(): void {
   mockedGlobalHookRunner.runBeforeAgentReply.mockResolvedValue(undefined);
   mockedGlobalHookRunner.runBeforeAgentStart.mockReset();
   mockedGlobalHookRunner.runBeforeAgentStart.mockResolvedValue(undefined);
+  mockedGlobalHookRunner.runBeforeAgentFinalize.mockReset();
+  mockedGlobalHookRunner.runBeforeAgentFinalize.mockResolvedValue(undefined);
   mockedGlobalHookRunner.runBeforePromptBuild.mockReset();
   mockedGlobalHookRunner.runBeforePromptBuild.mockResolvedValue(undefined);
   mockedGlobalHookRunner.runBeforeModelResolve.mockReset();
@@ -425,6 +468,7 @@ export function resetRunOverflowCompactionHarnessMocks(): void {
   mockedRunPostCompactionSideEffects.mockResolvedValue(undefined);
 }
 
+/** Install module mocks, import the runner, and return the mocked entrypoint. */
 export async function loadRunOverflowCompactionHarness(): Promise<{
   runEmbeddedAgent: typeof import("./run.js").runEmbeddedAgent;
 }> {
@@ -456,6 +500,41 @@ export async function loadRunOverflowCompactionHarness(): Promise<{
     buildAgentRuntimePlan: mockedBuildAgentRuntimePlan,
   }));
 
+  vi.doMock("../model-runtime-aliases.js", () => ({
+    isCliRuntimeAliasForProvider: ({
+      runtime,
+      provider,
+    }: {
+      runtime?: string;
+      provider?: string;
+    }) =>
+      (provider?.trim().toLowerCase() === "anthropic" &&
+        runtime?.trim().toLowerCase() === "claude-cli") ||
+      (provider?.trim().toLowerCase() === "openai" &&
+        runtime?.trim().toLowerCase() === "codex-cli"),
+    resolveCliRuntimeExecutionProvider: ({
+      provider,
+      cfg,
+      modelId,
+    }: {
+      provider?: string;
+      cfg?: {
+        agents?: {
+          defaults?: {
+            models?: Record<string, { agentRuntime?: { id?: string } }>;
+          };
+        };
+      };
+      modelId?: string;
+    }) => {
+      const key = provider && modelId ? `${provider}/${modelId}` : undefined;
+      const runtime = key
+        ? cfg?.agents?.defaults?.models?.[key]?.agentRuntime?.id?.trim()
+        : undefined;
+      return runtime || undefined;
+    },
+  }));
+
   vi.doMock("../../plugins/provider-runtime.js", () => ({
     prepareProviderRuntimeAuth: mockedPrepareProviderRuntimeAuth,
     resolveProviderCapabilitiesWithPlugin: vi.fn(() => ({})),
@@ -485,6 +564,43 @@ export async function loadRunOverflowCompactionHarness(): Promise<{
           : undefined,
     ),
   }));
+
+  vi.doMock("../cli-backends.js", async () => {
+    const actual = await vi.importActual<typeof import("../cli-backends.js")>("../cli-backends.js");
+    type ResolveBindingParams = Parameters<typeof actual.resolveCliRuntimeModelBackendBinding>[0];
+    type ProviderCheckParams = Parameters<typeof actual.isCliRuntimeModelBackendForProvider>[0];
+    const claudeBinding = {
+      provider: "anthropic",
+      runtime: "claude-cli",
+      pluginId: "anthropic",
+    };
+    return {
+      ...actual,
+      listCliRuntimeModelBackendBindings: vi.fn((params?: unknown) => [
+        claudeBinding,
+        ...actual
+          .listCliRuntimeModelBackendBindings(
+            params as Parameters<typeof actual.listCliRuntimeModelBackendBindings>[0],
+          )
+          .filter(
+            (binding) =>
+              binding.provider !== claudeBinding.provider ||
+              binding.runtime !== claudeBinding.runtime,
+          ),
+      ]),
+      listCliRuntimeProviderIds: vi.fn(() => ["claude-cli"]),
+      resolveCliRuntimeModelBackendBinding: vi.fn((params: ResolveBindingParams) =>
+        params.provider === claudeBinding.provider && params.runtime === claudeBinding.runtime
+          ? claudeBinding
+          : actual.resolveCliRuntimeModelBackendBinding(params),
+      ),
+      isCliRuntimeModelBackendForProvider: vi.fn((params: ProviderCheckParams) =>
+        params.provider === claudeBinding.provider && params.runtime === claudeBinding.runtime
+          ? true
+          : actual.isCliRuntimeModelBackendForProvider(params),
+      ),
+    };
+  });
 
   vi.doMock("../workspace-run.js", () => ({
     resolveRunWorkspaceDir: vi.fn((params: { workspaceDir: string }) => ({

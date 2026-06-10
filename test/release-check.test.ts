@@ -1,3 +1,4 @@
+// Release check tests cover release validation script behavior.
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, win32 } from "node:path";
@@ -34,12 +35,14 @@ import {
   packageNameFromSpecifier,
   resolveReleaseNpmCommand,
   resolveMissingPackBuildHint,
+  runReleaseCheckCommand,
 } from "../scripts/release-check.ts";
 import { COMPLETION_SKIP_PLUGIN_COMMANDS_ENV } from "../src/cli/completion-runtime.ts";
 import {
   LOCAL_BUILD_METADATA_DIST_PATHS,
   PACKAGE_DIST_INVENTORY_RELATIVE_PATH,
 } from "../src/infra/package-dist-inventory.ts";
+import { withEnv } from "../src/test-utils/env.js";
 
 function makeItem(shortVersion: string, sparkleVersion: string): string {
   return `<item><title>${shortVersion}</title><sparkle:shortVersionString>${shortVersion}</sparkle:shortVersionString><sparkle:version>${sparkleVersion}</sparkle:version></item>`;
@@ -47,6 +50,10 @@ function makeItem(shortVersion: string, sparkleVersion: string): string {
 
 function makePackResult(filename: string, unpackedSize: number) {
   return { filename, unpackedSize };
+}
+
+function withProcessEnv<T>(env: Record<string, string>, callback: () => T): T {
+  return withEnv(env, callback);
 }
 
 const requiredPluginSdkPackPaths = [...listPluginSdkDistArtifacts(), "dist/plugin-sdk/compat.js"];
@@ -160,6 +167,61 @@ describe("packed CLI smoke", () => {
       OPENCLAW_SUPPRESS_NOTES: "1",
       OPENCLAW_DISABLE_BUNDLED_ENTRY_SOURCE_FALLBACK: "1",
       [COMPLETION_SKIP_PLUGIN_COMMANDS_ENV]: "1",
+    });
+  });
+});
+
+describe("runReleaseCheckCommand", () => {
+  it("returns captured command output", () => {
+    expect(
+      runReleaseCheckCommand(
+        { command: process.execPath, args: ["--eval", "process.stdout.write('ok')"] },
+        { stdio: ["ignore", "pipe", "pipe"] },
+      ),
+    ).toBe("ok");
+  });
+
+  it("bounds commands that ignore termination", () => {
+    const startedAt = Date.now();
+
+    expect(() =>
+      runReleaseCheckCommand(
+        {
+          command: process.execPath,
+          args: ["--eval", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"],
+        },
+        { stdio: ["ignore", "pipe", "pipe"], timeoutMs: 100 },
+      ),
+    ).toThrow();
+    expect(Date.now() - startedAt).toBeLessThan(2500);
+  });
+
+  it("bounds captured command output", () => {
+    expect(() =>
+      runReleaseCheckCommand(
+        { command: process.execPath, args: ["--eval", "process.stdout.write('x'.repeat(4096))"] },
+        { maxBuffer: 1024, stdio: ["ignore", "pipe", "pipe"] },
+      ),
+    ).toThrow();
+  });
+
+  it("rejects malformed command limit environment values", () => {
+    withProcessEnv({ OPENCLAW_RELEASE_CHECK_COMMAND_TIMEOUT_MS: "1e3" }, () => {
+      expect(() =>
+        runReleaseCheckCommand(
+          { command: process.execPath, args: ["--eval", "process.stdout.write('ok')"] },
+          { stdio: ["ignore", "pipe", "pipe"] },
+        ),
+      ).toThrow("invalid OPENCLAW_RELEASE_CHECK_COMMAND_TIMEOUT_MS: 1e3");
+    });
+
+    withProcessEnv({ OPENCLAW_RELEASE_CHECK_COMMAND_MAX_BUFFER_BYTES: "16mb" }, () => {
+      expect(() =>
+        runReleaseCheckCommand(
+          { command: process.execPath, args: ["--eval", "process.stdout.write('ok')"] },
+          { stdio: ["ignore", "pipe", "pipe"] },
+        ),
+      ).toThrow("invalid OPENCLAW_RELEASE_CHECK_COMMAND_MAX_BUFFER_BYTES: 16mb");
     });
   });
 });
@@ -297,20 +359,6 @@ describe("collectBundledExtensionManifestErrors", () => {
 });
 
 describe("bundled plugin package dependency checks", () => {
-  function makeBundledSpecs() {
-    return new Map([
-      ["@larksuiteoapi/node-sdk", { conflicts: [], pluginIds: ["feishu"], spec: "^1.60.0" }],
-      [
-        "@matrix-org/matrix-sdk-crypto-nodejs",
-        { conflicts: [], pluginIds: ["matrix"], spec: "^0.4.0" },
-      ],
-      [
-        "@matrix-org/matrix-sdk-crypto-wasm",
-        { conflicts: [], pluginIds: ["matrix"], spec: "18.0.0" },
-      ],
-    ]);
-  }
-
   it("maps package names from import specifiers", () => {
     expect(packageNameFromSpecifier("@larksuiteoapi/node-sdk/subpath")).toBe(
       "@larksuiteoapi/node-sdk",
@@ -619,6 +667,7 @@ describe("collectMissingPackPaths", () => {
       "scripts/lib/official-external-provider-catalog.json",
       "scripts/lib/package-dist-imports.mjs",
       "scripts/postinstall-bundled-plugins.mjs",
+      "dist/agents/compaction-planning.worker.js",
       "dist/agents/model-provider-auth.worker.js",
       "dist/task-registry-control.runtime.js",
       "dist/telegram-ingress-worker.runtime.js",
@@ -652,6 +701,7 @@ describe("collectMissingPackPaths", () => {
         "scripts/lib/package-dist-imports.mjs",
         "scripts/postinstall-bundled-plugins.mjs",
         "dist/plugin-sdk/root-alias.cjs",
+        "dist/agents/compaction-planning.worker.js",
         "dist/agents/model-provider-auth.worker.js",
         "dist/task-registry-control.runtime.js",
         "dist/telegram-ingress-worker.runtime.js",
