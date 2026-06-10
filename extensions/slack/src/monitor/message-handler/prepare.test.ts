@@ -1733,7 +1733,7 @@ Second paragraph should still reach the agent after Slack's preview cutoff.`;
     history.mockClear();
     await saveSessionStore(
       storePath,
-      { [prepared.ctxPayload.SessionKey!]: { updatedAt: Date.now() } },
+      { [prepared.ctxPayload.SessionKey!]: { sessionId: "test-session", updatedAt: Date.now() } },
       { skipMaintenance: true },
     );
     const existing = await prepareMessageWith(
@@ -1864,7 +1864,7 @@ Second paragraph should still reach the agent after Slack's preview cutoff.`;
     });
     await saveSessionStore(
       storePath,
-      { [threadKeys.sessionKey]: { updatedAt: Date.now() } },
+      { [threadKeys.sessionKey]: { sessionId: "test-session", updatedAt: Date.now() } },
       { skipMaintenance: true },
     );
 
@@ -2069,8 +2069,8 @@ Second paragraph should still reach the agent after Slack's preview cutoff.`;
     await saveSessionStore(
       storePath,
       {
-        "agent:main:main": { updatedAt: Date.now() },
-        "agent:main:main:thread:650.000": { updatedAt: Date.now() },
+        "agent:main:main": { sessionId: "test-session-main", updatedAt: Date.now() },
+        "agent:main:main:thread:650.000": { sessionId: "test-session-thread", updatedAt: Date.now() },
       },
       { skipMaintenance: true },
     );

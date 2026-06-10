@@ -2503,6 +2503,7 @@ async function persistRemoteBrainTranscriptTurn(params: {
   await userTurnRecorder.persistFallback().catch(() => undefined);
   const appended = await appendAssistantTranscriptMessage({
     message: params.assistantText,
+    sessionKey: params.sessionKey,
     sessionId,
     storePath: params.storePath,
     sessionFile: params.entry?.sessionFile,
