@@ -75,7 +75,7 @@ async function reconcile(
     logger.warn?.("memory-durability: cron service unavailable; watcher not armed this cycle.");
     return;
   }
-  let existing: ManagedCronJobLike[] = [];
+  let existing: ManagedCronJobLike[];
   try {
     existing = (await cron.list({ includeDisabled: true })).filter(
       (j) => j.name === MANAGED_JOB_NAME,
@@ -86,7 +86,8 @@ async function reconcile(
   }
 
   // Disabled, or no Slack destination configured -> remove the managed job (stay silent, tool still works).
-  const shouldRun = config.enabled && config.watch && !!config.alertChannel && !!config.alertTo;
+  const shouldRun =
+    config.enabled && config.watch && Boolean(config.alertChannel) && Boolean(config.alertTo);
   if (!shouldRun) {
     for (const job of existing) {
       try {

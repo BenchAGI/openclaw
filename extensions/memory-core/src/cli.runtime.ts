@@ -234,7 +234,7 @@ function resolveMemorySearchReranker(
 }
 
 function hasOwnApiKey(value: { apiKey?: unknown } | undefined): boolean {
-  return Boolean(value && Object.prototype.hasOwnProperty.call(value, "apiKey"));
+  return Boolean(value && Object.hasOwn(value, "apiKey"));
 }
 
 function isSecretRefValue(value: unknown): boolean {

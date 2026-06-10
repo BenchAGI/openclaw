@@ -625,7 +625,7 @@ public struct SendParams: Codable, Sendable {
         channel: String?,
         accountid: String?,
         agentid: String? = nil,
-        context: String? = nil,
+        context: String?,
         replytoid: String?,
         threadid: String?,
         forcedocument: Bool?,
