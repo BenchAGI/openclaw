@@ -197,11 +197,7 @@ import {
   appendModelIdentitySystemPrompt,
   buildModelIdentityPromptLine,
 } from "../../system-prompt.js";
-import {
-  buildTier1RetrievalContextFile,
-  recordTier1Diag,
-  recordTier1Gate,
-} from "../../tier1-retrieval.js";
+import { buildTier1RetrievalContextFile, recordTier1Diag } from "../../tier1-retrieval.js";
 import { resolveAgentTimeoutMs } from "../../timeout.js";
 import {
   buildEmptyExplicitToolAllowlistError,

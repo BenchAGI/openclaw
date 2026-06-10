@@ -2187,6 +2187,10 @@ describe("memory cli", () => {
   });
 
   it("prints the disabled tier1 outcome as json without opening a manager", async () => {
+    // The customer build enables tier1 by default, so the disabled case must be explicit.
+    getRuntimeConfig.mockReturnValue({
+      agents: { defaults: { memorySearch: { query: { tier1: { enabled: false } } } } },
+    });
     const writeJson = spyRuntimeJson(defaultRuntime);
     await runMemoryCli(["tier1", "router vlan", "--json"]);
 

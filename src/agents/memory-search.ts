@@ -237,14 +237,10 @@ function resolveRerankerApiKey(
   defaults: MemoryRerankerConfig | undefined,
   overrides: MemoryRerankerConfig | undefined,
 ): SecretInput | undefined {
-  if (overrides && Object.prototype.hasOwnProperty.call(overrides, "apiKey")) {
+  if (overrides && Object.hasOwn(overrides, "apiKey")) {
     return overrides.apiKey;
   }
-  if (
-    overrides &&
-    Object.prototype.hasOwnProperty.call(overrides, "baseUrl") &&
-    overrides.baseUrl !== defaults?.baseUrl
-  ) {
+  if (overrides && Object.hasOwn(overrides, "baseUrl") && overrides.baseUrl !== defaults?.baseUrl) {
     return undefined;
   }
   return defaults?.apiKey;

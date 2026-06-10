@@ -294,7 +294,7 @@ function resolveEffectiveRerankerEnabled(
 }
 
 function hasOwnApiKey(value: Record<string, unknown> | undefined): boolean {
-  return Boolean(value && Object.prototype.hasOwnProperty.call(value, "apiKey"));
+  return Boolean(value && Object.hasOwn(value, "apiKey"));
 }
 
 function collectTalkAssignments(params: {
