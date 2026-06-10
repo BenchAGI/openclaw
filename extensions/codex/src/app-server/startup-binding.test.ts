@@ -1,6 +1,8 @@
+// Codex tests cover startup binding plugin behavior.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { saveSessionStore } from "openclaw/plugin-sdk/session-store-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readCodexAppServerBinding, writeCodexAppServerBinding } from "./session-binding.js";
 import { rotateOversizedCodexAppServerStartupBinding } from "./startup-binding.js";
@@ -33,14 +35,17 @@ describe("Codex app-server startup binding", () => {
 
   async function writeSessionRecord(sessionFile: string, record: Record<string, unknown>) {
     await fs.mkdir(path.dirname(sessionFile), { recursive: true });
-    await fs.writeFile(
+    await saveSessionStore(
       path.join(path.dirname(sessionFile), "sessions.json"),
-      JSON.stringify({
+      {
         "agent:main:session-1": {
+          sessionId: "session-1",
           sessionFile,
+          updatedAt: Date.now(),
           ...record,
         },
-      }),
+      },
+      { skipMaintenance: true },
     );
   }
 
@@ -70,6 +75,105 @@ describe("Codex app-server startup binding", () => {
           },
         },
       } as never,
+    });
+
+    expect(binding?.threadId).toBe("thread-existing");
+    const savedBinding = await readCodexAppServerBinding(sessionFile);
+    expect(savedBinding?.threadId).toBe("thread-existing");
+  });
+
+  it("reads updated SQLite-backed session records between startup checks", async () => {
+    const sessionFile = path.join(tempDir, "session.jsonl");
+    const workspaceDir = path.join(tempDir, "workspace");
+    const agentDir = path.join(tempDir, "agent");
+    await writeExistingBinding(sessionFile, workspaceDir, { dynamicToolsFingerprint: "[]" });
+    await writeSessionRecord(sessionFile, { totalTokens: 12_000 });
+
+    const firstBinding = await rotateOversizedCodexAppServerStartupBinding({
+      binding: await readCodexAppServerBinding(sessionFile),
+      sessionFile,
+      agentDir,
+      config: undefined,
+    });
+    expect(firstBinding?.threadId).toBe("thread-existing");
+
+    await writeSessionRecord(sessionFile, { totalTokens: 400_000 });
+
+    const secondBinding = await rotateOversizedCodexAppServerStartupBinding({
+      binding: await readCodexAppServerBinding(sessionFile),
+      sessionFile,
+      agentDir,
+      config: undefined,
+    });
+
+    expect(secondBinding).toBeUndefined();
+    const savedBinding = await readCodexAppServerBinding(sessionFile);
+    expect(savedBinding).toBeUndefined();
+  });
+
+  it("checks native rollout token pressure under default compaction config", async () => {
+    const sessionFile = path.join(tempDir, "session.jsonl");
+    const workspaceDir = path.join(tempDir, "workspace");
+    const agentDir = path.join(tempDir, "agent");
+    await writeExistingBinding(sessionFile, workspaceDir, { dynamicToolsFingerprint: "[]" });
+    await writeSessionRecord(sessionFile, { totalTokens: 12_000 });
+    const rolloutDir = path.join(agentDir, "codex-home", "sessions");
+    await fs.mkdir(rolloutDir, { recursive: true });
+    await fs.writeFile(
+      path.join(rolloutDir, "rollout-thread-existing.jsonl"),
+      `${JSON.stringify({
+        payload: {
+          type: "token_count",
+          info: {
+            last_token_usage: {
+              total_tokens: 241_198,
+            },
+            model_context_window: 258_400,
+          },
+        },
+      })}\n`,
+    );
+
+    const binding = await rotateOversizedCodexAppServerStartupBinding({
+      binding: await readCodexAppServerBinding(sessionFile),
+      sessionFile,
+      agentDir,
+      config: undefined,
+    });
+
+    expect(binding).toBeUndefined();
+    const savedBinding = await readCodexAppServerBinding(sessionFile);
+    expect(savedBinding).toBeUndefined();
+  });
+
+  it("caps the default native reserve so small context windows keep prompt budget", async () => {
+    const sessionFile = path.join(tempDir, "session.jsonl");
+    const workspaceDir = path.join(tempDir, "workspace");
+    const agentDir = path.join(tempDir, "agent");
+    await writeExistingBinding(sessionFile, workspaceDir, { dynamicToolsFingerprint: "[]" });
+    await writeSessionRecord(sessionFile, { totalTokens: 100 });
+    const rolloutDir = path.join(agentDir, "codex-home", "sessions");
+    await fs.mkdir(rolloutDir, { recursive: true });
+    await fs.writeFile(
+      path.join(rolloutDir, "rollout-thread-existing.jsonl"),
+      `${JSON.stringify({
+        payload: {
+          type: "token_count",
+          info: {
+            last_token_usage: {
+              total_tokens: 100,
+            },
+            model_context_window: 16_000,
+          },
+        },
+      })}\n`,
+    );
+
+    const binding = await rotateOversizedCodexAppServerStartupBinding({
+      binding: await readCodexAppServerBinding(sessionFile),
+      sessionFile,
+      agentDir,
+      config: undefined,
     });
 
     expect(binding?.threadId).toBe("thread-existing");
@@ -265,8 +369,6 @@ describe("Codex app-server startup binding", () => {
         }),
       ].join("\n") + "\n",
     );
-    const readFileSpy = vi.spyOn(fs, "readFile");
-
     const binding = await rotateOversizedCodexAppServerStartupBinding({
       binding: await readCodexAppServerBinding(sessionFile),
       sessionFile,
@@ -284,7 +386,6 @@ describe("Codex app-server startup binding", () => {
     });
 
     expect(binding).toBeUndefined();
-    expect(readFileSpy.mock.calls.some(([file]) => file === rolloutFile)).toBe(false);
     const savedBinding = await readCodexAppServerBinding(sessionFile);
     expect(savedBinding).toBeUndefined();
   });
@@ -333,6 +434,76 @@ describe("Codex app-server startup binding", () => {
     expect(savedBinding?.threadId).toBe("thread-existing");
   });
 
+  it("includes projected turn tokens in the native rollout pressure check", async () => {
+    const sessionFile = path.join(tempDir, "session.jsonl");
+    const workspaceDir = path.join(tempDir, "workspace");
+    const agentDir = path.join(tempDir, "agent");
+    await writeExistingBinding(sessionFile, workspaceDir, { dynamicToolsFingerprint: "[]" });
+    await writeSessionRecord(sessionFile, { totalTokens: 12_000 });
+    const rolloutDir = path.join(agentDir, "codex-home", "sessions");
+    await fs.mkdir(rolloutDir, { recursive: true });
+    await fs.writeFile(
+      path.join(rolloutDir, "rollout-thread-existing.jsonl"),
+      `${JSON.stringify({
+        payload: {
+          type: "token_count",
+          info: {
+            last_token_usage: {
+              total_tokens: 220_000,
+            },
+            model_context_window: 258_400,
+          },
+        },
+      })}\n`,
+    );
+
+    const binding = await rotateOversizedCodexAppServerStartupBinding({
+      binding: await readCodexAppServerBinding(sessionFile),
+      sessionFile,
+      agentDir,
+      config: undefined,
+      projectedTurnTokens: 30_000,
+    });
+
+    expect(binding).toBeUndefined();
+    const savedBinding = await readCodexAppServerBinding(sessionFile);
+    expect(savedBinding).toBeUndefined();
+  });
+
+  it("uses the session context window when the native rollout omits its model window", async () => {
+    const sessionFile = path.join(tempDir, "session.jsonl");
+    const workspaceDir = path.join(tempDir, "workspace");
+    const agentDir = path.join(tempDir, "agent");
+    await writeExistingBinding(sessionFile, workspaceDir, { dynamicToolsFingerprint: "[]" });
+    await writeSessionRecord(sessionFile, { totalTokens: 12_000, contextTokens: 258_400 });
+    const rolloutDir = path.join(agentDir, "codex-home", "sessions");
+    await fs.mkdir(rolloutDir, { recursive: true });
+    await fs.writeFile(
+      path.join(rolloutDir, "rollout-thread-existing.jsonl"),
+      `${JSON.stringify({
+        payload: {
+          type: "token_count",
+          info: {
+            last_token_usage: {
+              total_tokens: 241_198,
+            },
+          },
+        },
+      })}\n`,
+    );
+
+    const binding = await rotateOversizedCodexAppServerStartupBinding({
+      binding: await readCodexAppServerBinding(sessionFile),
+      sessionFile,
+      agentDir,
+      config: undefined,
+    });
+
+    expect(binding).toBeUndefined();
+    const savedBinding = await readCodexAppServerBinding(sessionFile);
+    expect(savedBinding).toBeUndefined();
+  });
+
   it("clears byte-oversized rollouts before reading their contents", async () => {
     const sessionFile = path.join(tempDir, "session.jsonl");
     const workspaceDir = path.join(tempDir, "workspace");
@@ -343,7 +514,7 @@ describe("Codex app-server startup binding", () => {
     await fs.mkdir(rolloutDir, { recursive: true });
     const rolloutFile = path.join(rolloutDir, "rollout-thread-existing.jsonl");
     await fs.writeFile(rolloutFile, "x".repeat(2_000));
-    const readFileSpy = vi.spyOn(fs, "readFile");
+    const openSpy = vi.spyOn(fs, "open");
 
     const binding = await rotateOversizedCodexAppServerStartupBinding({
       binding: await readCodexAppServerBinding(sessionFile),
@@ -362,7 +533,7 @@ describe("Codex app-server startup binding", () => {
     });
 
     expect(binding).toBeUndefined();
-    expect(readFileSpy.mock.calls.some(([file]) => file === rolloutFile)).toBe(false);
+    expect(openSpy.mock.calls.some(([file]) => String(file) === rolloutFile)).toBe(false);
     const savedBinding = await readCodexAppServerBinding(sessionFile);
     expect(savedBinding).toBeUndefined();
   });

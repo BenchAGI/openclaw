@@ -1,9 +1,11 @@
+// Telegram plugin module implements network errors behavior.
 import {
   collectErrorGraphCandidates,
   extractErrorCode,
   formatErrorMessage,
   readErrorName,
 } from "openclaw/plugin-sdk/error-runtime";
+import { parseStrictNonNegativeInteger } from "openclaw/plugin-sdk/number-runtime";
 import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/string-coerce-runtime";
 
 const TELEGRAM_NETWORK_ORIGIN = Symbol("openclaw.telegram.network-origin");
@@ -117,7 +119,7 @@ function getNumericHttpStatus(err: unknown): number | undefined {
     if (typeof value === "string") {
       const trimmed = value.trim();
       if (/^\d+$/.test(trimmed)) {
-        return Number.parseInt(trimmed, 10);
+        return parseStrictNonNegativeInteger(trimmed);
       }
     }
   }

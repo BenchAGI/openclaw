@@ -1,3 +1,5 @@
+// Agent session SDK tests cover default tool wiring, prompt preservation, and
+// session write-lock behavior.
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 import type { Model } from "../../llm/types.js";
@@ -65,11 +67,35 @@ function createResourceLoaderWithHandlers(
 }
 
 describe("createAgentSession tool defaults", () => {
+  it("forwards max thinking budgets from settings to the agent", async () => {
+    const { session } = await createAgentSession({
+      model: testModel,
+      resourceLoader: createEmptyResourceLoader(),
+      sessionManager: SessionManager.inMemory(),
+      settingsManager: SettingsManager.inMemory({
+        thinkingBudgets: {
+          high: 16_384,
+          max: 32_768,
+        },
+      }),
+      modelRegistry: ModelRegistry.inMemory(AuthStorage.inMemory()),
+    });
+
+    expect(session.agent.thinkingBudgets).toEqual({
+      high: 16_384,
+      max: 32_768,
+    });
+  });
+
   it("keeps custom tools active when only builtin tools are disabled", async () => {
+    // `noTools: "builtin"` removes stock tools only; extension/custom tools are
+    // still explicitly supplied session capabilities.
     const customTool: ToolDefinition = {
       name: "custom_lookup",
       label: "Custom Lookup",
       description: "Looks up a test value.",
+      promptSnippet: "Lookup test values",
+      promptGuidelines: ["Use custom_lookup for test values."],
       parameters: Type.Object({}),
       execute: async () => ({
         content: [{ type: "text", text: "ok" }],
@@ -95,7 +121,56 @@ describe("createAgentSession tool defaults", () => {
     expect(session.getActiveToolNames()).toEqual(["custom_lookup"]);
   });
 
+  it("preserves an exact base system prompt when active tools change", async () => {
+    const customTool: ToolDefinition = {
+      name: "custom_lookup",
+      label: "Custom Lookup",
+      description: "Looks up a test value.",
+      promptSnippet: "Lookup test values",
+      promptGuidelines: ["Use custom_lookup for test values."],
+      parameters: Type.Object({}),
+      execute: async () => ({
+        content: [{ type: "text", text: "ok" }],
+        details: {},
+      }),
+    };
+
+    const { session } = await createAgentSession({
+      model: testModel,
+      noTools: "builtin",
+      customTools: [customTool],
+      resourceLoader: createEmptyResourceLoader(),
+      sessionManager: SessionManager.inMemory(),
+      settingsManager: SettingsManager.inMemory(),
+      modelRegistry: ModelRegistry.inMemory(AuthStorage.inMemory()),
+    });
+    const systemPrompt = "You are a personal assistant running inside OpenClaw.";
+
+    session.setBaseSystemPrompt(systemPrompt);
+    session.setActiveToolsByName(["bash", "custom_lookup"]);
+
+    expect(session.getActiveToolNames()).toEqual(["custom_lookup"]);
+    expect(session.systemPrompt).toBe(systemPrompt);
+
+    const exactPromptOptions = (
+      session as unknown as {
+        baseSystemPromptOptions: {
+          selectedTools?: string[];
+          toolSnippets?: Record<string, string>;
+          promptGuidelines?: string[];
+        };
+      }
+    ).baseSystemPromptOptions;
+    expect(exactPromptOptions.selectedTools).toEqual(["custom_lookup"]);
+    expect(exactPromptOptions.toolSnippets).toEqual({
+      custom_lookup: "Lookup test values",
+    });
+    expect(exactPromptOptions.promptGuidelines).toEqual(["Use custom_lookup for test values."]);
+  });
+
   it("runs session message persistence under the configured write lock", async () => {
+    // Transcript writes share the caller-provided lock so concurrent event
+    // handlers cannot interleave JSONL persistence.
     const events: string[] = [];
     const sessionManager = SessionManager.inMemory();
     const { session } = await createAgentSession({
@@ -116,7 +191,7 @@ describe("createAgentSession tool defaults", () => {
 
     const handleAgentEvent = (
       session as unknown as { handleAgentEvent(event: unknown): Promise<void> }
-    ).handleAgentEvent;
+    )["handleAgentEvent"];
 
     await handleAgentEvent({
       type: "message_end",
@@ -192,6 +267,8 @@ describe("createAgentSession tool defaults", () => {
   });
 
   it("fences tool execution when no extension hook is registered", async () => {
+    // Write-capable tools still enter the lock even without hooks; the lock is
+    // about shared session state, not just extension execution.
     const events: string[] = [];
     const { session } = await createAgentSession({
       model: testModel,

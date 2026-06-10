@@ -1,3 +1,6 @@
+/**
+ * Builds and installs embedded-agent system prompts.
+ */
 import type { SourceReplyDeliveryMode } from "../../auto-reply/get-reply-options.types.js";
 import type { SubagentDelegationMode } from "../../config/types.agent-defaults.js";
 import type { MemoryCitationsMode } from "../../config/types.memory.js";
@@ -122,23 +125,6 @@ export function buildEmbeddedSystemPrompt(params: {
   });
 }
 
-export function createSystemPromptOverride(
-  systemPrompt: string,
-): (defaultPrompt?: string) => string {
-  const override = systemPrompt.trim();
-  return (_defaultPrompt?: string) => override;
-}
-
-export function applySystemPromptOverrideToSession(
-  session: AgentSession,
-  override: string | ((defaultPrompt?: string) => string),
-) {
-  const prompt = typeof override === "function" ? override() : override.trim();
-  session.agent.state.systemPrompt = prompt;
-  const mutableSession = session as unknown as {
-    _baseSystemPrompt?: string;
-    _rebuildSystemPrompt?: (toolNames: string[]) => string;
-  };
-  mutableSession["_baseSystemPrompt"] = prompt;
-  mutableSession["_rebuildSystemPrompt"] = () => prompt;
+export function applySystemPromptToSession(session: AgentSession, systemPrompt: string) {
+  session.setBaseSystemPrompt(systemPrompt.trim());
 }

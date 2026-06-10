@@ -1,3 +1,4 @@
+// Telegram tests cover channel actions plugin behavior.
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { telegramMessageActions, telegramMessageActionRuntime } from "./channel-actions.js";
@@ -365,6 +366,25 @@ describe("telegramMessageActions", () => {
     expect(discovery?.actions).toContain("send");
     expect(discovery?.actions).toContain("poll");
     expect(discovery?.actions).not.toContain("react");
+  });
+
+  it("advertises poll duration as a positive integer in message tool schema", () => {
+    const cfg = {
+      channels: {
+        telegram: {
+          botToken: "tok",
+          actions: { poll: true },
+        },
+      },
+    } as OpenClawConfig;
+
+    const discovery = telegramMessageActions.describeMessageTool?.({ cfg });
+    const schema = Array.isArray(discovery?.schema) ? discovery.schema[0] : undefined;
+
+    expect(schema?.properties.pollDurationSeconds).toMatchObject({
+      type: "integer",
+      minimum: 1,
+    });
   });
 
   it("matches runtime account-key normalization during SecretRef-tolerant discovery", () => {
