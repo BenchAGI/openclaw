@@ -8,10 +8,10 @@ import {
   type LocalSeatCaptureParams,
   validateLocalSeatCaptureParams,
 } from "../../../packages/gateway-protocol/src/index.js";
-import { loadConfig } from "../../config/config.js";
 import { resolveStateDir } from "../../config/paths.js";
 import { resolveAgentMainSessionKey } from "../../config/sessions.js";
 import { enqueueSystemEvent } from "../../infra/system-events.js";
+import { normalizeAgentId } from "../../routing/session-key.js";
 import { formatForLog } from "../ws-log.js";
 import { respondInvalidParams } from "./nodes.helpers.js";
 import type { GatewayRequestHandlers } from "./types.js";
@@ -23,7 +23,7 @@ function safeSegment(value: string): string {
     .trim()
     .replace(SAFE_SEGMENT_RE, "-")
     .replace(/^-+|-+$/g, "");
-  return normalized || "unknown";
+  return normalized && normalized !== "." && normalized !== ".." ? normalized : "unknown";
 }
 
 function resolveCaptureDate(ts?: string): string {
@@ -64,9 +64,13 @@ function renderSystemEvent(params: LocalSeatCaptureParams): string | undefined {
   return `Local seat capture (untrusted context): ${context.join(" ")}\n${body}`;
 }
 
+function defaultWakeForEvent(event: LocalSeatCaptureParams["event"]): boolean {
+  return event === "user_prompt" || event === "summary";
+}
+
 /** Gateway handlers for local desktop Claude/Codex seat capture. */
 export const localSeatHandlers: GatewayRequestHandlers = {
-  "local-seat.capture": async ({ params, respond }) => {
+  "local-seat.capture": async ({ params, respond, context }) => {
     if (!validateLocalSeatCaptureParams(params)) {
       respondInvalidParams({
         respond,
@@ -76,13 +80,13 @@ export const localSeatHandlers: GatewayRequestHandlers = {
       return;
     }
 
-    const p = params as LocalSeatCaptureParams;
-    const capturePath = resolveCapturePath(p);
+    const captureParams = { ...params, agentId: normalizeAgentId(params.agentId) };
+    const capturePath = resolveCapturePath(captureParams);
     const receivedAt = new Date().toISOString();
     const record = {
-      ...p,
-      host: p.host ?? os.hostname(),
-      platform: p.platform ?? process.platform,
+      ...captureParams,
+      host: captureParams.host ?? os.hostname(),
+      platform: captureParams.platform ?? process.platform,
       receivedAt,
     };
 
@@ -95,14 +99,14 @@ export const localSeatHandlers: GatewayRequestHandlers = {
     }
 
     let queued = false;
-    if (p.wake !== false) {
-      const text = renderSystemEvent(p);
+    if (captureParams.wake ?? defaultWakeForEvent(captureParams.event)) {
+      const text = renderSystemEvent(captureParams);
       if (text) {
-        const cfg = loadConfig();
-        const sessionKey = resolveAgentMainSessionKey({ cfg, agentId: p.agentId });
+        const cfg = context.getRuntimeConfig();
+        const sessionKey = resolveAgentMainSessionKey({ cfg, agentId: captureParams.agentId });
         queued = enqueueSystemEvent(text, {
           sessionKey,
-          contextKey: `local-seat:${p.seatKind}:${p.seatSessionId}:${p.event}`,
+          contextKey: `local-seat:${captureParams.seatKind}:${captureParams.seatSessionId}:${captureParams.event}`,
         });
       }
     }

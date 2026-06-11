@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { resetConfigRuntimeState } from "../../config/config.js";
+import { getRuntimeConfig, resetConfigRuntimeState } from "../../config/config.js";
 import { peekSystemEvents, resetSystemEventsForTest } from "../../infra/system-events.js";
 import { captureEnv } from "../../test-utils/env.js";
 import { localSeatHandlers } from "./local-seat.js";
@@ -16,8 +16,17 @@ async function invokeLocalSeat(params: Record<string, unknown>) {
   await localSeatHandlers["local-seat.capture"]({
     params,
     respond: (ok, payload, error) => responses.push({ ok, payload, error }),
+    context: { getRuntimeConfig },
   } as GatewayRequestHandlerOptions);
   return responses.at(-1);
+}
+
+function expectOkPayload(response: Awaited<ReturnType<typeof invokeLocalSeat>>): unknown {
+  expect(response?.ok).toBe(true);
+  if (!response || !response.ok) {
+    throw new Error("expected local-seat.capture to succeed");
+  }
+  return response.payload;
 }
 
 describe("local-seat.capture", () => {
@@ -47,8 +56,7 @@ describe("local-seat.capture", () => {
       ts: "2026-06-11T01:02:03.000Z",
     });
 
-    expect(response?.ok).toBe(true);
-    const payload = response?.payload as { capturePath: string; queued: boolean };
+    const payload = expectOkPayload(response) as { capturePath: string; queued: boolean };
     expect(payload.queued).toBe(true);
     expect(payload.capturePath).toBe(
       path.join(stateDir, "local-seat-captures", "aurelius", "2026-06-11.jsonl"),
@@ -81,9 +89,57 @@ describe("local-seat.capture", () => {
       wake: false,
     });
 
-    expect(response?.ok).toBe(true);
-    expect((response?.payload as { queued: boolean }).queued).toBe(false);
+    const payload = expectOkPayload(response) as { queued: boolean };
+    expect(payload.queued).toBe(false);
     expect(peekSystemEvents("agent:aurelius:main")).toEqual([]);
+  });
+
+  it("does not queue lifecycle events by default", async () => {
+    stateDir = await mkdtemp(path.join(os.tmpdir(), "openclaw-local-seat-"));
+    process.env.OPENCLAW_STATE_DIR = stateDir;
+    resetConfigRuntimeState();
+
+    for (const event of ["session_start", "session_stop"] as const) {
+      const response = await invokeLocalSeat({
+        agentId: "aurelius",
+        seatKind: "claude-code",
+        seatSessionId: `seat-${event}`,
+        event,
+        text: event,
+        ts: "2026-06-11T01:02:03.000Z",
+      });
+
+      const payload = expectOkPayload(response) as { queued: boolean };
+      expect(payload.queued).toBe(false);
+    }
+    expect(peekSystemEvents("agent:aurelius:main")).toEqual([]);
+  });
+
+  it("normalizes dot-segment agent ids before choosing a capture path", async () => {
+    stateDir = await mkdtemp(path.join(os.tmpdir(), "openclaw-local-seat-"));
+    process.env.OPENCLAW_STATE_DIR = stateDir;
+    resetConfigRuntimeState();
+
+    const response = await invokeLocalSeat({
+      agentId: "..",
+      seatKind: "codex-cli",
+      seatSessionId: "seat-3",
+      event: "summary",
+      summary: "bounded note",
+      ts: "2026-06-11T01:02:03.000Z",
+      wake: false,
+    });
+
+    const payload = expectOkPayload(response) as { capturePath: string; queued: boolean };
+    expect(payload.capturePath).toBe(
+      path.join(stateDir, "local-seat-captures", "main", "2026-06-11.jsonl"),
+    );
+    const lines = (await readFile(payload.capturePath, "utf8")).trim().split("\n");
+    expect(JSON.parse(lines[0] ?? "{}")).toMatchObject({
+      agentId: "main",
+      seatSessionId: "seat-3",
+      summary: "bounded note",
+    });
   });
 
   it("rejects invalid capture payloads", async () => {
@@ -92,6 +148,20 @@ describe("local-seat.capture", () => {
       seatKind: "unknown",
       seatSessionId: "seat-3",
       event: "user_prompt",
+    });
+
+    expect(response?.ok).toBe(false);
+    expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  it("rejects numeric timestamps from incompatible clients", async () => {
+    const response = await invokeLocalSeat({
+      agentId: "aurelius",
+      seatKind: "codex-cli",
+      seatSessionId: "seat-4",
+      event: "user_prompt",
+      text: "bad timestamp",
+      ts: Date.now(),
     });
 
     expect(response?.ok).toBe(false);
