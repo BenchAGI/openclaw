@@ -192,6 +192,7 @@ import {
   ShutdownEventSchema,
   TickEventSchema,
 } from "./frames.js";
+import { LocalSeatCaptureParamsSchema, LocalSeatCaptureResultSchema } from "./local-seat.js";
 import {
   ChatAbortedEventSchema,
   ChatAbortParamsSchema,
@@ -575,6 +576,8 @@ export const ProtocolSchemas = {
   ChatAbortedEvent: ChatAbortedEventSchema,
   ChatErrorEvent: ChatErrorEventSchema,
   ChatEvent: ChatEventSchema,
+  LocalSeatCaptureParams: LocalSeatCaptureParamsSchema,
+  LocalSeatCaptureResult: LocalSeatCaptureResultSchema,
   UpdateStatusParams: UpdateStatusParamsSchema,
   UpdateRunParams: UpdateRunParamsSchema,
   TickEvent: TickEventSchema,

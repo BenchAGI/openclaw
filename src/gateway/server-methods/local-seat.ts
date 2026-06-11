@@ -1,0 +1,112 @@
+// Local seat bridge persists desktop CLI captures and optionally wakes the selected agent.
+import { mkdir, appendFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import {
+  ErrorCodes,
+  errorShape,
+  type LocalSeatCaptureParams,
+  validateLocalSeatCaptureParams,
+} from "../../../packages/gateway-protocol/src/index.js";
+import { loadConfig } from "../../config/config.js";
+import { resolveStateDir } from "../../config/paths.js";
+import { resolveAgentMainSessionKey } from "../../config/sessions.js";
+import { enqueueSystemEvent } from "../../infra/system-events.js";
+import { formatForLog } from "../ws-log.js";
+import { respondInvalidParams } from "./nodes.helpers.js";
+import type { GatewayRequestHandlers } from "./types.js";
+
+const SAFE_SEGMENT_RE = /[^a-z0-9._-]+/gi;
+
+function safeSegment(value: string): string {
+  const normalized = value
+    .trim()
+    .replace(SAFE_SEGMENT_RE, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || "unknown";
+}
+
+function resolveCaptureDate(ts?: string): string {
+  const date = ts ? new Date(ts) : new Date();
+  const safeDate = Number.isFinite(date.getTime()) ? date : new Date();
+  return safeDate.toISOString().slice(0, 10);
+}
+
+function resolveCapturePath(params: LocalSeatCaptureParams): string {
+  return path.join(
+    resolveStateDir(),
+    "local-seat-captures",
+    safeSegment(params.agentId),
+    `${resolveCaptureDate(params.ts)}.jsonl`,
+  );
+}
+
+function boundedText(value: string | undefined, limit: number): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  return trimmed.length > limit ? `${trimmed.slice(0, limit)}\n[truncated]` : trimmed;
+}
+
+function renderSystemEvent(params: LocalSeatCaptureParams): string | undefined {
+  const body = boundedText(params.summary, 4_000) ?? boundedText(params.text, 8_000);
+  if (!body) {
+    return undefined;
+  }
+  const cwd = boundedText(params.cwd, 500);
+  const context = [
+    `seat=${params.seatKind}`,
+    `event=${params.event}`,
+    `session=${safeSegment(params.seatSessionId)}`,
+    cwd ? `cwd=${cwd}` : undefined,
+  ].filter(Boolean);
+  return `Local seat capture (untrusted context): ${context.join(" ")}\n${body}`;
+}
+
+/** Gateway handlers for local desktop Claude/Codex seat capture. */
+export const localSeatHandlers: GatewayRequestHandlers = {
+  "local-seat.capture": async ({ params, respond }) => {
+    if (!validateLocalSeatCaptureParams(params)) {
+      respondInvalidParams({
+        respond,
+        method: "local-seat.capture",
+        validator: validateLocalSeatCaptureParams,
+      });
+      return;
+    }
+
+    const p = params as LocalSeatCaptureParams;
+    const capturePath = resolveCapturePath(p);
+    const receivedAt = new Date().toISOString();
+    const record = {
+      ...p,
+      host: p.host ?? os.hostname(),
+      platform: p.platform ?? process.platform,
+      receivedAt,
+    };
+
+    try {
+      await mkdir(path.dirname(capturePath), { recursive: true });
+      await appendFile(capturePath, `${JSON.stringify(record)}\n`, "utf8");
+    } catch (err) {
+      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      return;
+    }
+
+    let queued = false;
+    if (p.wake !== false) {
+      const text = renderSystemEvent(p);
+      if (text) {
+        const cfg = loadConfig();
+        const sessionKey = resolveAgentMainSessionKey({ cfg, agentId: p.agentId });
+        queued = enqueueSystemEvent(text, {
+          sessionKey,
+          contextKey: `local-seat:${p.seatKind}:${p.seatSessionId}:${p.event}`,
+        });
+      }
+    }
+
+    respond(true, { ok: true, capturePath, queued }, undefined);
+  },
+};

@@ -237,6 +237,9 @@ import {
   LogsTailParamsSchema,
   type LogsTailResult,
   LogsTailResultSchema,
+  type LocalSeatCaptureParams,
+  LocalSeatCaptureParamsSchema,
+  LocalSeatCaptureResultSchema,
   type ModelsListParams,
   ModelsListParamsSchema,
   type NodeDescribeParams,
@@ -877,6 +880,9 @@ export const validateChatAbortParams = lazyCompile<ChatAbortParams>(ChatAbortPar
 export const validateChatInjectParams = lazyCompile<ChatInjectParams>(ChatInjectParamsSchema);
 export const validateChatEvent = lazyCompile(ChatEventSchema);
 export const validateChatMessageGetResult = lazyCompile(ChatMessageGetResultSchema);
+export const validateLocalSeatCaptureParams = lazyCompile<LocalSeatCaptureParams>(
+  LocalSeatCaptureParamsSchema,
+);
 export const validateUpdateStatusParams = lazyCompile<UpdateStatusParams>(UpdateStatusParamsSchema);
 export const validateUpdateRunParams = lazyCompile<UpdateRunParams>(UpdateRunParamsSchema);
 export const validateWebLoginStartParams =
@@ -1141,6 +1147,8 @@ export {
   CronRunsParamsSchema,
   LogsTailParamsSchema,
   LogsTailResultSchema,
+  LocalSeatCaptureParamsSchema,
+  LocalSeatCaptureResultSchema,
   ExecApprovalsGetParamsSchema,
   ExecApprovalsSetParamsSchema,
   ExecApprovalGetParamsSchema,
@@ -1363,6 +1371,7 @@ export type {
   UpdateRunParams,
   ChatInjectParams,
 };
+export type { LocalSeatCaptureParams, LocalSeatCaptureResult } from "./schema/local-seat.js";
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values)];
 }
