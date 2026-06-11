@@ -178,4 +178,18 @@ describe("local-seat.capture", () => {
     expect(response?.ok).toBe(false);
     expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
   });
+
+  it("rejects overlarge local seat ids before queueing untrusted context", async () => {
+    const response = await invokeLocalSeat({
+      agentId: "aurelius",
+      seatKind: "codex-cli",
+      seatSessionId: "x".repeat(1_001),
+      event: "user_prompt",
+      text: "bounded",
+    });
+
+    expect(response?.ok).toBe(false);
+    expect(response?.error).toMatchObject({ code: "INVALID_REQUEST" });
+    expect(peekSystemEvents("agent:aurelius:main")).toEqual([]);
+  });
 });

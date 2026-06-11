@@ -17,12 +17,13 @@ const LocalSeatEventSchema = Type.Union([
 const CaptureTextSchema = Type.String({ maxLength: 50_000 });
 const CaptureSummarySchema = Type.String({ maxLength: 4_000 });
 const CaptureContextStringSchema = Type.String({ maxLength: 1_000 });
+const CaptureIdStringSchema = Type.String({ minLength: 1, maxLength: 1_000 });
 
 export const LocalSeatCaptureParamsSchema = Type.Object(
   {
-    agentId: NonEmptyString,
+    agentId: CaptureIdStringSchema,
     seatKind: LocalSeatKindSchema,
-    seatSessionId: NonEmptyString,
+    seatSessionId: CaptureIdStringSchema,
     event: LocalSeatEventSchema,
     summary: Type.Optional(CaptureSummarySchema),
     text: Type.Optional(CaptureTextSchema),
