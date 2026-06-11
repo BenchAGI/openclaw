@@ -13,11 +13,22 @@ let stateDir: string | undefined;
 
 async function invokeLocalSeat(params: Record<string, unknown>) {
   const responses: Array<{ ok: boolean; payload: unknown; error: unknown }> = [];
-  await localSeatHandlers["local-seat.capture"]({
+  const options: GatewayRequestHandlerOptions = {
+    req: {
+      type: "req",
+      id: "local-seat-test",
+      method: "local-seat.capture",
+      params,
+    },
     params,
-    respond: (ok, payload, error) => responses.push({ ok, payload, error }),
-    context: { getRuntimeConfig },
-  } as GatewayRequestHandlerOptions);
+    client: null,
+    isWebchatConnect: () => false,
+    respond: (ok, payload, error) => {
+      responses.push({ ok, payload, error });
+    },
+    context: { getRuntimeConfig } as GatewayRequestHandlerOptions["context"],
+  };
+  await localSeatHandlers["local-seat.capture"](options);
   return responses.at(-1);
 }
 
