@@ -277,6 +277,8 @@ export type DeviceTokenRevokeParams = SchemaType<"DeviceTokenRevokeParams">;
 export type ChatAbortParams = SchemaType<"ChatAbortParams">;
 export type ChatInjectParams = SchemaType<"ChatInjectParams">;
 export type ChatEvent = SchemaType<"ChatEvent">;
+export type LocalSeatCaptureParams = SchemaType<"LocalSeatCaptureParams">;
+export type LocalSeatCaptureResult = SchemaType<"LocalSeatCaptureResult">;
 
 /** Gateway update and process lifecycle event payloads. */
 export type UpdateRunParams = SchemaType<"UpdateRunParams">;

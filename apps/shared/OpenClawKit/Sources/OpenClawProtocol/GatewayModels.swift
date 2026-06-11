@@ -7360,6 +7360,94 @@ public struct ChatErrorEvent: Codable, Sendable {
     }
 }
 
+public struct LocalSeatCaptureParams: Codable, Sendable {
+    public let agentid: String
+    public let seatkind: AnyCodable
+    public let seatsessionid: String
+    public let event: AnyCodable
+    public let summary: String?
+    public let text: String?
+    public let cwd: String?
+    public let host: String?
+    public let platform: String?
+    public let launcherversion: String?
+    public let providerversion: String?
+    public let source: String?
+    public let ts: String?
+    public let wake: Bool?
+
+    public init(
+        agentid: String,
+        seatkind: AnyCodable,
+        seatsessionid: String,
+        event: AnyCodable,
+        summary: String?,
+        text: String?,
+        cwd: String?,
+        host: String?,
+        platform: String?,
+        launcherversion: String?,
+        providerversion: String?,
+        source: String?,
+        ts: String?,
+        wake: Bool?)
+    {
+        self.agentid = agentid
+        self.seatkind = seatkind
+        self.seatsessionid = seatsessionid
+        self.event = event
+        self.summary = summary
+        self.text = text
+        self.cwd = cwd
+        self.host = host
+        self.platform = platform
+        self.launcherversion = launcherversion
+        self.providerversion = providerversion
+        self.source = source
+        self.ts = ts
+        self.wake = wake
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case agentid = "agentId"
+        case seatkind = "seatKind"
+        case seatsessionid = "seatSessionId"
+        case event
+        case summary
+        case text
+        case cwd
+        case host
+        case platform
+        case launcherversion = "launcherVersion"
+        case providerversion = "providerVersion"
+        case source
+        case ts
+        case wake
+    }
+}
+
+public struct LocalSeatCaptureResult: Codable, Sendable {
+    public let ok: Bool
+    public let capturepath: String
+    public let queued: Bool
+
+    public init(
+        ok: Bool,
+        capturepath: String,
+        queued: Bool)
+    {
+        self.ok = ok
+        self.capturepath = capturepath
+        self.queued = queued
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case ok
+        case capturepath = "capturePath"
+        case queued
+    }
+}
+
 public struct UpdateStatusParams: Codable, Sendable {}
 
 public struct UpdateRunParams: Codable, Sendable {

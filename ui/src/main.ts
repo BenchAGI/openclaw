@@ -1,6 +1,6 @@
 // Control UI module implements main behavior.
 import "./styles.css";
-import "./ui/app.ts";
+import { installAssetReloadRecovery, isStaleAssetImportError } from "./ui/asset-reload.ts";
 import { inferControlUiPublicAssetPath } from "./ui/public-assets.ts";
 
 type ViteImportMeta = ImportMeta & {
@@ -13,7 +13,14 @@ declare const OPENCLAW_CONTROL_UI_BUILD_ID: string | undefined;
 
 const isProd = (import.meta as ViteImportMeta).env?.PROD === true;
 
+installAssetReloadRecovery();
 syncDocumentPublicAssetLinks();
+
+void import("./ui/app.ts").catch((err: unknown) => {
+  if (!isStaleAssetImportError(err)) {
+    throw err;
+  }
+});
 
 if (isProd && "serviceWorker" in navigator) {
   const swUrl = new URL(inferControlUiPublicAssetPath("sw.js"), window.location.origin);
