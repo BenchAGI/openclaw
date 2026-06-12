@@ -58,14 +58,18 @@ function readMachineSlug() {
   }
   try {
     const persisted = readFileSync(path.join(OPENCLAW_HOME, "machine-id"), "utf8").trim();
-    if (persisted) return slugify(persisted, 32);
+    if (persisted) {
+      return slugify(persisted, 32);
+    }
   } catch {
     // not persisted yet
   }
   try {
     const out = execSync("ioreg -rd1 -c IOPlatformExpertDevice", { encoding: "utf8" });
     const uuid = out.match(/IOPlatformUUID"\s*=\s*"([^"]+)"/)?.[1];
-    if (uuid) return slugify(uuid.slice(0, 8), 32);
+    if (uuid) {
+      return slugify(uuid.slice(0, 8), 32);
+    }
   } catch {
     // not a Mac / ioreg unavailable
   }
@@ -131,6 +135,10 @@ function buildPageId(projectDirName, fileName) {
   return `source.claude-code.${ORIGIN_ID}.${projectHash}.${fileName.replace(/\.md$/, "")}-${fileHash}`;
 }
 
+function yamlString(value) {
+  return JSON.stringify(String(value));
+}
+
 function renderSourcePage({ projectDirName, fileName, absolutePath, content, sourceUpdatedAtMs }) {
   const projectDecoded = decodeProjectName(projectDirName);
   const id = buildPageId(projectDirName, fileName);
@@ -139,20 +147,20 @@ function renderSourcePage({ projectDirName, fileName, absolutePath, content, sou
 
   const frontmatter = [
     "---",
-    "pageType: source",
-    `id: ${id}`,
-    `title: ${JSON.stringify(title)}`,
-    "sourceType: memory-bridge",
-    `originId: ${ORIGIN_ID}`,
-    `originUser: ${ORIGIN_USER}`,
-    `originMachine: ${ORIGIN_MACHINE}`,
-    `sourcePath: ${absolutePath}`,
-    `bridgeRelativePath: ${fileName}`,
-    `bridgeWorkspaceDir: ${path.dirname(absolutePath)}`,
+    `pageType: ${yamlString("source")}`,
+    `id: ${yamlString(id)}`,
+    `title: ${yamlString(title)}`,
+    `sourceType: ${yamlString("memory-bridge")}`,
+    `originId: ${yamlString(ORIGIN_ID)}`,
+    `originUser: ${yamlString(ORIGIN_USER)}`,
+    `originMachine: ${yamlString(ORIGIN_MACHINE)}`,
+    `sourcePath: ${yamlString(absolutePath)}`,
+    `bridgeRelativePath: ${yamlString(fileName)}`,
+    `bridgeWorkspaceDir: ${yamlString(path.dirname(absolutePath))}`,
     "bridgeAgentIds:",
-    "  - claude-code",
-    "status: active",
-    `updatedAt: ${updatedIso}`,
+    `  - ${yamlString("claude-code")}`,
+    `status: ${yamlString("active")}`,
+    `updatedAt: ${yamlString(updatedIso)}`,
     "---",
     "",
   ].join("\n");
@@ -252,13 +260,23 @@ async function pruneLegacyUnnamespaced({ dryRun = false } = {}) {
   const entries = await fs.readdir(SOURCES_DIR, { withFileTypes: true }).catch(() => []);
   let removed = 0;
   for (const e of entries) {
-    if (!e.isFile() || !e.name.startsWith(FILE_PREFIX) || !e.name.endsWith(".md")) continue;
-    if (e.name.startsWith(OUR_PAGE_PREFIX)) continue;
+    if (!e.isFile() || !e.name.startsWith(FILE_PREFIX) || !e.name.endsWith(".md")) {
+      continue;
+    }
+    if (e.name.startsWith(OUR_PAGE_PREFIX)) {
+      continue;
+    }
     const abs = path.join(SOURCES_DIR, e.name);
     const content = await readMaybe(abs);
-    if (content === null) continue;
-    if (/^originId:\s/m.test(content)) continue;
-    if (!dryRun) await fs.rm(abs, { force: true });
+    if (content === null) {
+      continue;
+    }
+    if (/^originId:\s/m.test(content)) {
+      continue;
+    }
+    if (!dryRun) {
+      await fs.rm(abs, { force: true });
+    }
     removed += 1;
   }
   return removed;
