@@ -1405,7 +1405,10 @@ describe("runReplyAgent typing (heartbeat)", () => {
       expect(payloads).toHaveLength(2);
       expect(payloads[0]?.text).toContain("Model Fallback:");
       expect(payloads[0]?.replyToId).toBe("msg");
-      expect(payloads[1]?.text).toBe("final");
+      // Fallback wins also carry the persistent in-text fallback-mode banner.
+      expect(payloads[1]?.text).toBe(
+        "⚠ running in fallback mode (deepinfra/moonshotai/Kimi-K2.5 — rate limit)\n\nfinal",
+      );
       expect(payloads[1]?.replyToId).toBe("msg");
     } finally {
       fallbackSpy.mockRestore();
@@ -1899,6 +1902,48 @@ describe("runReplyAgent typing (heartbeat)", () => {
     } finally {
       fallbackSpy.mockRestore();
     }
+  });
+
+  it("prepends fallback-mode banners on sticky auto-fallback turns", async () => {
+    const sessionEntry: SessionEntry = {
+      sessionId: "session",
+      updatedAt: Date.now(),
+      providerOverride: "deepinfra",
+      modelOverride: "moonshotai/Kimi-K2.5",
+      modelOverrideSource: "auto",
+      modelOverrideFallbackOriginProvider: "fireworks",
+      modelOverrideFallbackOriginModel: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+      fallbackNoticeSelectedModel: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+      fallbackNoticeActiveModel: "deepinfra/moonshotai/Kimi-K2.5",
+      fallbackNoticeReason: "rate limit",
+    };
+    const sessionStore = { main: sessionEntry };
+
+    state.runEmbeddedAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "final" }],
+      meta: {},
+    });
+
+    const { run } = createMinimalRun({
+      sessionEntry,
+      sessionStore,
+      sessionKey: "main",
+      runOverrides: {
+        provider: "deepinfra",
+        model: "moonshotai/Kimi-K2.5",
+        hasSessionModelOverride: true,
+        modelOverrideSource: "auto",
+        hasAutoFallbackProvenance: true,
+      },
+    });
+    const res = await run();
+    const payloads = Array.isArray(res) ? res : res ? [res] : [];
+
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]?.text).toBe(
+      "⚠ running in fallback mode (deepinfra/moonshotai/Kimi-K2.5 — rate limit)\n\nfinal",
+    );
+    expect(payloads[0]?.text).not.toContain("Model Fallback:");
   });
 
   it("re-announces model fallback after returning to selected model", async () => {

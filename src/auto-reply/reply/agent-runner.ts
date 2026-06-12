@@ -95,6 +95,7 @@ import {
   type CompactionNoticePhase,
 } from "./compaction-notice.js";
 import { resolveEffectiveReplyRoute } from "./effective-reply-route.js";
+import { buildFallbackModeNotice, prependFallbackModeNotice } from "./fallback-mode-notice.js";
 import { createFollowupRunner } from "./followup-runner.js";
 import { REPLY_RUN_STILL_SHUTTING_DOWN_TEXT } from "./get-reply-run-queue.js";
 import { resolveOriginMessageProvider, resolveOriginMessageTo } from "./origin-routing.js";
@@ -2195,6 +2196,17 @@ export async function runReplyAgent(params: {
       model: modelUsed,
       runner: isCliProvider(providerUsed, cfg) ? "cli" : "embedded",
     });
+    // Persistent fallback-mode banner: unlike the transition-only fallback notice
+    // payloads above, this prefixes every reply won by a non-primary provider.
+    const fallbackModeNotice = buildFallbackModeNotice({
+      executionTrace,
+      requestedProvider: selectedProvider,
+      fallbackActive: fallbackTransition.fallbackActive,
+      fallbackReason: fallbackTransition.previousState.reason ?? fallbackTransition.reasonSummary,
+    });
+    if (fallbackModeNotice) {
+      finalPayloads = prependFallbackModeNotice(finalPayloads, fallbackModeNotice);
+    }
     const requestShaping = {
       authMode:
         runResult.meta?.requestShaping?.authMode ??
