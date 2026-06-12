@@ -129,6 +129,10 @@ import {
   LogsTailResultSchema,
 } from "./logs-chat.js";
 import {
+  LocalSeatCaptureParamsSchema,
+  LocalSeatCaptureResultSchema,
+} from "./local-seat.js";
+import {
   NodeDescribeParamsSchema,
   NodeEventParamsSchema,
   NodePendingDrainParamsSchema,
@@ -359,6 +363,8 @@ export const ProtocolSchemas = {
   ChatAbortParams: ChatAbortParamsSchema,
   ChatInjectParams: ChatInjectParamsSchema,
   ChatEvent: ChatEventSchema,
+  LocalSeatCaptureParams: LocalSeatCaptureParamsSchema,
+  LocalSeatCaptureResult: LocalSeatCaptureResultSchema,
   UpdateRunParams: UpdateRunParamsSchema,
   TickEvent: TickEventSchema,
   ShutdownEvent: ShutdownEventSchema,

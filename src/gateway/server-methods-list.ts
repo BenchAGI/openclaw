@@ -123,6 +123,7 @@ const BASE_METHODS = [
   "gateway.identity.get",
   "system-presence",
   "system-event",
+  "local-seat.capture",
   "message.action",
   "send",
   "agent",

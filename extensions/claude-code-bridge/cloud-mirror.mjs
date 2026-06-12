@@ -206,7 +206,19 @@ function slugFromPath(absPath) {
   // Strip .md extension. Flatten subdirectories into the slug via '__' so
   // the slug maps 1:1 to a Firestore document ID (which cannot contain '/').
   // The original path is preserved separately in sourcePath for humans.
-  return rel.replace(/\\/g, "/").replace(/\.md$/, "").replace(/\//g, "__");
+  const flattened = rel.replace(/\\/g, "/").replace(/\.md$/, "").replace(/\//g, "__");
+  if (isValidSlug(flattened)) {
+    return flattened;
+  }
+  // Human-titled pages (spaces, em-dashes, other unicode) would otherwise be
+  // skipped on every pass forever. Transliterate only when the raw slug is
+  // invalid so every already-mirrored page keeps its exact Firestore doc id.
+  return flattened
+    .replace(/[‐-―−]/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9\-_.]/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^[-.]+/, "");
 }
 
 // Mirrors the server's `isValidSlug` in apps/web/src/app/api/v1/wiki/ingest/route.ts.

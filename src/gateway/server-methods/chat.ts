@@ -1814,7 +1814,6 @@ export const chatHandlers: GatewayRequestHandlers = {
       sessionId,
       events: context.eventHistory.get(replaySessionKey, sinceSeq),
       messages: bounded.messages,
-      events: [],
       frames: [],
       eventHistory: {
         persisted: false,
