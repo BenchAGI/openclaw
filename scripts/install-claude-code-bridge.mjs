@@ -54,6 +54,7 @@ const targetDir = path.join(openclawHome, "claude-code-bridge");
 const claudeSettingsPath = path.join(home, ".claude", "settings.json");
 const launchAgentsDir = path.join(home, "Library", "LaunchAgents");
 const mirrorPlistPath = path.join(launchAgentsDir, "ai.openclaw.claude-code-mirror.plist");
+const launchAgentLogDir = path.join(openclawHome, "logs");
 
 function detectNodeBin() {
   const found = spawnSync("/bin/bash", ["-lc", "command -v node"], { encoding: "utf8" });
@@ -195,7 +196,6 @@ async function updateClaudeSettings() {
 
 function renderMirrorPlist() {
   const mirrorPath = path.join(targetDir, "claude-code-mirror.mjs");
-  const logDir = path.join(openclawHome, "logs");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -227,9 +227,9 @@ function renderMirrorPlist() {
   <integer>900</integer>
 
   <key>StandardOutPath</key>
-  <string>${xmlEscape(path.join(logDir, "claude-code-mirror.log"))}</string>
+  <string>${xmlEscape(path.join(launchAgentLogDir, "claude-code-mirror.log"))}</string>
   <key>StandardErrorPath</key>
-  <string>${xmlEscape(path.join(logDir, "claude-code-mirror.err.log"))}</string>
+  <string>${xmlEscape(path.join(launchAgentLogDir, "claude-code-mirror.err.log"))}</string>
 </dict>
 </plist>
 `;
@@ -248,6 +248,9 @@ async function installLaunchAgent() {
     return;
   }
 
+  if (!dryRun) {
+    await fs.mkdir(launchAgentLogDir, { recursive: true });
+  }
   await writeFileAtomic(mirrorPlistPath, renderMirrorPlist());
   if (process.platform !== "darwin" || flags.has("--no-load")) {
     log(`wrote ${mirrorPlistPath}`);

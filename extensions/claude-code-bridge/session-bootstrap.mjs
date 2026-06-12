@@ -35,7 +35,9 @@ function buildContext() {
   let email = null;
   const m =
     handles.match(/Use\s+`([^`]+@[^`]+)`/i) || handles.match(/([a-z0-9._%-]+@benchagi\.com)/i);
-  if (m && m[1]) email = m[1].toLowerCase();
+  if (m && m[1]) {
+    email = m[1].toLowerCase();
+  }
 
   // Known-stale handles the Claude `userEmail` field has surfaced (fixed denylist),
   // unioned with anything the vault additionally flags. Only asserted when we
@@ -70,7 +72,7 @@ function buildContext() {
     "- Memory federates through OpenClaw: Claude Code auto-memory mirrors into ~/.openclaw/wiki/main/sources every ~15 min, and durable facts from Claude or Codex must be written to the OpenClaw vault/wiki or inbox, not local-only session islands.",
   );
   lines.push(
-    "- Use the mcp__openclaw__* tools (wiki_search / wiki_get / lcm_grep / gateway_health) as the primary path to crew context and history before trusting injected harness context. Full doctrine: ~/.claude/CLAUDE.md.",
+    "- Use the mcp__openclaw__* tools (wiki_search / wiki_get / gateway_health) as the primary path to crew context and history before trusting injected harness context. Full doctrine: ~/.claude/CLAUDE.md.",
   );
   return lines.join("\n");
 }
