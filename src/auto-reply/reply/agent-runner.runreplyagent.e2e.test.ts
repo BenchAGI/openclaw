@@ -1405,7 +1405,10 @@ describe("runReplyAgent typing (heartbeat)", () => {
       expect(payloads).toHaveLength(2);
       expect(payloads[0]?.text).toContain("Model Fallback:");
       expect(payloads[0]?.replyToId).toBe("msg");
-      expect(payloads[1]?.text).toBe("final");
+      // Fallback wins also carry the persistent in-text fallback-mode banner.
+      expect(payloads[1]?.text).toBe(
+        "⚠ running in fallback mode (deepinfra/moonshotai/Kimi-K2.5 — rate limit)\n\nfinal",
+      );
       expect(payloads[1]?.replyToId).toBe("msg");
     } finally {
       fallbackSpy.mockRestore();
