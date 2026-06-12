@@ -65,7 +65,7 @@ OpenClaw separates the selected provider/model from why it was selected. That so
 - **Legacy session override**: older session entries may have `modelOverride` without `modelOverrideSource`. OpenClaw treats those as user overrides so an explicit old selection is not silently converted into fallback behavior.
 - **Cron payload model**: a cron job `payload.model` / `--model` is a job primary, not a user session override. It uses configured fallbacks unless the job provides `payload.fallbacks`; `payload.fallbacks: []` makes the cron run strict.
 
-The auto fallback primary-probe interval is five minutes and is not configurable. OpenClaw remembers recent probes per session and primary model so a failing primary is not retried on every turn. OpenClaw sends a visible notice when a session moves onto fallback and another notice when it returns to the selected primary; it does not repeat the notice on every sticky fallback turn.
+The auto fallback primary-probe interval is five minutes and is not configurable. OpenClaw remembers recent probes per session and primary model so a failing primary is not retried on every turn. OpenClaw sends a visible status notice when a session moves onto fallback and another notice when it returns to the selected primary; those state-change notices are not repeated on every sticky fallback turn. Replies produced by a non-primary provider also carry an in-text fallback-mode banner so readers can see that the answer came from fallback mode even when the session was already sticky.
 
 ## Auth failure skip cache
 
@@ -103,6 +103,14 @@ When a later probe succeeds and the session returns to the selected primary, Ope
 ```
 
 These notices are operational messages, not assistant content. They are delivered once per state change, including side-effect-only turns when feasible, but sticky fallback turns do not repeat them. Delivery bypasses normal source-reply suppression, the notice does not consume the first assistant reply slot for threaded channels, and it is excluded from text-to-speech and commitment extraction.
+
+When a visible assistant reply is produced by a fallback provider instead of the selected primary provider, OpenClaw prepends a banner to the first answer payload:
+
+```text
+⚠ running in fallback mode (<fallback-provider>/<fallback-model> — <reason>)
+```
+
+The banner is assistant-visible reply text, not a separate status notice. It is added on fresh fallback wins and on later sticky auto-fallback turns, while same-provider model fallbacks keep using only the state-change notice.
 
 ## Auth storage (keys + OAuth)
 

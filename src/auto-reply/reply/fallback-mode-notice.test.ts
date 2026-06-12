@@ -108,6 +108,28 @@ describe("buildFallbackModeNotice", () => {
       }),
     ).toBe("⚠ running in fallback mode (ollama/qwen2.5:7b-instruct — HTTP 529)");
   });
+
+  it("uses active fallback state for sticky fallback turns without a fresh failure", () => {
+    expect(
+      buildFallbackModeNotice({
+        executionTrace: {
+          winnerProvider: "deepinfra",
+          winnerModel: "moonshotai/Kimi-K2.5",
+          attempts: [
+            {
+              provider: "deepinfra",
+              model: "moonshotai/Kimi-K2.5",
+              result: "success",
+            },
+          ],
+          fallbackUsed: false,
+        },
+        requestedProvider: "fireworks",
+        fallbackActive: true,
+        fallbackReason: "rate limit",
+      }),
+    ).toBe("⚠ running in fallback mode (deepinfra/moonshotai/Kimi-K2.5 — rate limit)");
+  });
 });
 
 describe("prependFallbackModeNotice", () => {

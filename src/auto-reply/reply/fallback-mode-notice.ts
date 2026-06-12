@@ -23,15 +23,18 @@ export type FallbackModeExecutionTrace = {
   fallbackUsed?: boolean;
 };
 
-function formatLastFailureReason(attempts: FallbackModeAttempt[] | undefined): string {
+function formatLastFailureReason(
+  attempts: FallbackModeAttempt[] | undefined,
+  fallbackReason: string | undefined,
+): string {
   const failures = (attempts ?? []).filter((attempt) => attempt.result !== "success");
   const last = failures[failures.length - 1];
-  if (!last) {
-    return "primary model unavailable";
-  }
-  const reason = normalizeOptionalString(last.reason);
+  const reason = normalizeOptionalString(last?.reason ?? fallbackReason);
   if (reason) {
     return reason.replace(/_/g, " ");
+  }
+  if (!last) {
+    return "primary model unavailable";
   }
   if (typeof last.status === "number") {
     return `HTTP ${last.status}`;
@@ -51,12 +54,15 @@ function formatLastFailureReason(attempts: FallbackModeAttempt[] | undefined): s
 export function buildFallbackModeNotice(params: {
   executionTrace: FallbackModeExecutionTrace | undefined;
   requestedProvider: string | undefined;
+  fallbackActive?: boolean;
+  fallbackReason?: string;
 }): string | undefined {
   const trace = params.executionTrace;
-  if (trace?.fallbackUsed !== true) {
+  const fallbackActive = params.fallbackActive ?? trace?.fallbackUsed === true;
+  if (!fallbackActive) {
     return undefined;
   }
-  const winnerProvider = normalizeOptionalString(trace.winnerProvider);
+  const winnerProvider = normalizeOptionalString(trace?.winnerProvider);
   const requestedProvider = normalizeOptionalString(params.requestedProvider);
   if (!winnerProvider || !requestedProvider) {
     return undefined;
@@ -64,9 +70,9 @@ export function buildFallbackModeNotice(params: {
   if (winnerProvider.toLowerCase() === requestedProvider.toLowerCase()) {
     return undefined;
   }
-  const winnerModel = normalizeOptionalString(trace.winnerModel);
+  const winnerModel = normalizeOptionalString(trace?.winnerModel);
   const winnerRef = winnerModel ? `${winnerProvider}/${winnerModel}` : winnerProvider;
-  return `⚠ running in fallback mode (${winnerRef} — ${formatLastFailureReason(trace.attempts)})`;
+  return `⚠ running in fallback mode (${winnerRef} — ${formatLastFailureReason(trace?.attempts, params.fallbackReason)})`;
 }
 
 /** Prepends the fallback-mode banner to the first visible answer payload, preserving metadata. */

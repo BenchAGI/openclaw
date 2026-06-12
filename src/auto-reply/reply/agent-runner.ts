@@ -2201,6 +2201,8 @@ export async function runReplyAgent(params: {
     const fallbackModeNotice = buildFallbackModeNotice({
       executionTrace,
       requestedProvider: selectedProvider,
+      fallbackActive: fallbackTransition.fallbackActive,
+      fallbackReason: fallbackTransition.previousState.reason ?? fallbackTransition.reasonSummary,
     });
     if (fallbackModeNotice) {
       finalPayloads = prependFallbackModeNotice(finalPayloads, fallbackModeNotice);
