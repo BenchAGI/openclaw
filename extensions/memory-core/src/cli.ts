@@ -8,6 +8,7 @@ import type {
   MemoryCommandOptions,
   MemoryPromoteCommandOptions,
   MemoryPromoteExplainOptions,
+  MemoryPromoteFileOptions,
   MemoryRemBackfillOptions,
   MemoryRemHarnessOptions,
   MemorySearchCommandOptions,
@@ -55,6 +56,11 @@ async function runMemoryPromoteExplain(
   await runtime.runMemoryPromoteExplain(selectorArg, opts);
 }
 
+async function runMemoryPromoteFile(opts: MemoryPromoteFileOptions) {
+  const runtime = await loadMemoryCliRuntime();
+  await runtime.runMemoryPromoteFile(opts);
+}
+
 async function runMemoryRemHarness(opts: MemoryRemHarnessOptions) {
   const runtime = await loadMemoryCliRuntime();
   await runtime.runMemoryRemHarness(opts);
@@ -96,6 +102,14 @@ export function registerMemoryCli(program: Command) {
           [
             'openclaw memory promote-explain "router vlan"',
             "Explain why a specific candidate would or would not promote.",
+          ],
+          [
+            "openclaw memory promote-file --source ./note.md --agent aurelius",
+            "Promote an external memory file into native agent memory and reindex.",
+          ],
+          [
+            "openclaw memory promote-file --from-dir ~/.claude/projects/<slug>/memory --agent aurelius --force",
+            "Backfill every seat memory file under a directory into native memory.",
           ],
           [
             "openclaw memory rem-harness --json",
@@ -185,6 +199,24 @@ export function registerMemoryCli(program: Command) {
     .option("--json", "Print JSON")
     .action(async (selectorArg: string | undefined, opts: MemoryPromoteExplainOptions) => {
       await runMemoryPromoteExplain(selectorArg, opts);
+    });
+
+  memory
+    .command("promote-file")
+    .description("Promote an external memory file into native agent memory and reindex")
+    .option("--agent <id>", "Agent id (default: default agent)")
+    .option("--source <file>", "Single source markdown file to promote")
+    .option("--from-dir <dir>", "Promote every *.md under a directory (recursive)")
+    .option("--type <type>", "Memory type tag for provenance (e.g. feedback|project|user)")
+    .option("--session <id>", "Source seat/session id for provenance")
+    .option("--source-label <label>", "Provenance source label", "claude-code-seat")
+    .option("--source-agent <id>", "Originating seat agent id for provenance")
+    .option("--seat-kind <kind>", "Originating seat kind (claude-code|codex-cli)")
+    .option("--force", "Force a full reindex after writing", false)
+    .option("--verbose", "Verbose logging", false)
+    .option("--json", "Print JSON")
+    .action(async (opts: MemoryPromoteFileOptions) => {
+      await runMemoryPromoteFile(opts);
     });
 
   memory

@@ -213,6 +213,58 @@ describe("memory cli", () => {
     expect(process.exitCode).toBeUndefined();
   }
 
+  describe("promote-file", () => {
+    async function writeSourceFile(name: string, body: string): Promise<string> {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), "promote-src-"));
+      const file = path.join(dir, `${name}.md`);
+      await fs.writeFile(
+        file,
+        `---\nname: ${name}\ndescription: "x"\nmetadata:\n  type: project\n---\n${body}\n`,
+      );
+      return file;
+    }
+
+    it("writes under memory/seat and reindexes once", async () => {
+      await withTempWorkspace(async (workspaceDir) => {
+        const source = await writeSourceFile("smoke-note", "unique-nonce-phrase-7f3");
+        const sync = vi.fn(async () => {});
+        mockManager({ status: () => makeMemoryStatus({ workspaceDir }), sync, close: vi.fn() });
+        const writeJson = spyRuntimeJson(defaultRuntime);
+        await runMemoryCli(["promote-file", "--source", source, "--agent", "main", "--json"]);
+        const payload = firstWrittenJsonArg<{
+          indexed: boolean;
+          results: Array<{ status: string }>;
+        }>(writeJson);
+        expect(payload?.results[0]?.status).toBe("created");
+        expect(payload?.indexed).toBe(true);
+        expect(sync).toHaveBeenCalledWith({ reason: "cli-promote", force: false });
+        const target = path.join(workspaceDir, "memory", "seat", "smoke-note.md");
+        await expect(fs.readFile(target, "utf8")).resolves.toContain("unique-nonce-phrase-7f3");
+        expect(process.exitCode).toBeUndefined();
+      });
+    });
+
+    it("errors when no input is given", async () => {
+      const error = spyRuntimeErrors(defaultRuntime);
+      await runMemoryCli(["promote-file", "--agent", "main"]);
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("no input files"));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it("errors when the agent workspace cannot be resolved", async () => {
+      const source = await writeSourceFile("x", "y");
+      mockManager({
+        status: () => makeMemoryStatus({ workspaceDir: undefined }),
+        sync: vi.fn(),
+        close: vi.fn(),
+      });
+      const error = spyRuntimeErrors(defaultRuntime);
+      await runMemoryCli(["promote-file", "--source", source, "--agent", "main"]);
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("Memory promote-file failed"));
+      expect(process.exitCode).toBe(1);
+    });
+  });
+
   it("prints vector status when available", async () => {
     const close = vi.fn(async () => {});
     mockManager({

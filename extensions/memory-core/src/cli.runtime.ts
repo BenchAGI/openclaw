@@ -31,6 +31,7 @@ import type {
   MemoryCommandOptions,
   MemoryPromoteCommandOptions,
   MemoryPromoteExplainOptions,
+  MemoryPromoteFileOptions,
   MemoryRemBackfillOptions,
   MemoryRemHarnessOptions,
   MemorySearchCommandOptions,
@@ -45,6 +46,11 @@ import {
 } from "./dreaming-repair.js";
 import { asRecord } from "./dreaming-shared.js";
 import { resolveShortTermPromotionDreamingConfig } from "./dreaming.js";
+import {
+  promoteFileToAgentMemory,
+  type PromoteFileSource,
+  type PromoteFileSummary,
+} from "./promote-file.js";
 import { previewGroundedRemMarkdown } from "./rem-evidence.js";
 import {
   applyShortTermPromotions,
@@ -1162,6 +1168,120 @@ export async function runMemoryIndex(opts: MemoryCommandOptions) {
         }
       },
     });
+  }
+}
+
+async function resolvePromoteFileInputs(opts: MemoryPromoteFileOptions): Promise<string[]> {
+  const out: string[] = [];
+  if (opts.source) {
+    const resolved = path.resolve(opts.source);
+    const stat = await fs.stat(resolved).catch(() => null);
+    if (stat?.isFile()) {
+      out.push(resolved);
+    }
+  }
+  if (opts.fromDir) {
+    const dir = path.resolve(opts.fromDir);
+    const stat = await fs.stat(dir).catch(() => null);
+    if (stat?.isDirectory()) {
+      const rels = await fs.readdir(dir, { recursive: true }).catch(() => [] as string[]);
+      for (const rel of rels) {
+        if (!rel.toLowerCase().endsWith(".md")) {
+          continue;
+        }
+        const full = path.join(dir, rel);
+        // Never re-ingest our own promoted output.
+        if (full.includes(`${path.sep}memory${path.sep}seat${path.sep}`)) {
+          continue;
+        }
+        const entryStat = await fs.stat(full).catch(() => null);
+        if (entryStat?.isFile()) {
+          out.push(full);
+        }
+      }
+    }
+  }
+  return [...new Set(out)].toSorted((a, b) => a.localeCompare(b));
+}
+
+async function promoteInputsForAgent(
+  cfg: OpenClawConfig,
+  agentId: string,
+  inputs: string[],
+  opts: MemoryPromoteFileOptions,
+): Promise<PromoteFileSummary | null> {
+  let result: PromoteFileSummary | null = null;
+  await withMemoryManagerForAgent({
+    cfg,
+    agentId,
+    purpose: "status",
+    run: async (manager) => {
+      try {
+        const sources: PromoteFileSource[] = [];
+        for (const file of inputs) {
+          const content = await fs.readFile(file, "utf8").catch(() => null);
+          if (content == null) {
+            continue;
+          }
+          sources.push({
+            sourcePath: file,
+            content,
+            memoryType: opts.type,
+            sourceSessionId: opts.session,
+            sourceLabel: opts.sourceLabel ?? "claude-code-seat",
+            sourceAgentId: opts.sourceAgent ?? agentId,
+            seatKind: opts.seatKind,
+          });
+        }
+        result = await promoteFileToAgentMemory({
+          manager,
+          sources,
+          force: Boolean(opts.force),
+        });
+      } catch (err) {
+        defaultRuntime.error(`Memory promote-file failed (${agentId}): ${formatErrorMessage(err)}`);
+        process.exitCode = 1;
+      }
+    },
+  });
+  return result;
+}
+
+export async function runMemoryPromoteFile(opts: MemoryPromoteFileOptions) {
+  setVerbose(Boolean(opts.verbose));
+  const { config: cfg, diagnostics } = await loadMemoryCommandConfig("memory promote-file");
+  emitMemorySecretResolveDiagnostics(diagnostics, { json: Boolean(opts.json) });
+  const agentId = resolveAgent(cfg, opts.agent);
+
+  const inputs = await resolvePromoteFileInputs(opts);
+  if (inputs.length === 0) {
+    defaultRuntime.error(
+      "memory promote-file: no input files (use --source <file> or --from-dir <dir>).",
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const summary = await promoteInputsForAgent(cfg, agentId, inputs, opts);
+  if (!summary) {
+    return;
+  }
+  if (opts.json) {
+    defaultRuntime.writeJson({
+      agent: agentId,
+      workspaceDir: shortenHomePath(summary.workspaceDir),
+      indexed: summary.indexed,
+      results: summary.results.map((r) => ({ ...r, target: shortenHomePath(r.target) })),
+    });
+  } else {
+    for (const r of summary.results) {
+      defaultRuntime.log(`${r.status}\t${shortenHomePath(r.target)}`);
+    }
+    defaultRuntime.log(
+      summary.indexed
+        ? `Memory promote-file indexed (${agentId}).`
+        : `Memory promote-file: nothing to reindex (${agentId}).`,
+    );
   }
 }
 

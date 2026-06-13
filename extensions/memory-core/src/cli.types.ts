@@ -39,3 +39,13 @@ export type MemoryRemBackfillOptions = MemoryCommandOptions & {
   stageShortTerm?: boolean;
   rollbackShortTerm?: boolean;
 };
+
+export type MemoryPromoteFileOptions = MemoryCommandOptions & {
+  source?: string;
+  fromDir?: string;
+  type?: string;
+  session?: string;
+  sourceLabel?: string;
+  sourceAgent?: string;
+  seatKind?: string;
+};
