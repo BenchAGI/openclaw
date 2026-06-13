@@ -52,7 +52,9 @@ jobs:
   preflight_openclaw_npm:
     if: ${{ inputs.preflight_only }}
     # Preflight builds the full release package before publish; ubuntu-latest can OOM in tsdown.
-    runs-on: blacksmith-16vcpu-ubuntu-2404
+    # 2026.6.7 release: blacksmith runner pool unavailable — rerouted to the
+    # GitHub-hosted fallback (ubuntu-24.04) used elsewhere via use_github_hosted_runners.
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
