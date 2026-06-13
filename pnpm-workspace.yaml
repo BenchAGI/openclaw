@@ -8,7 +8,7 @@ minimumReleaseAge: 2880
 
 minimumReleaseAgeExclude:
   # Except esbuild from the 48h supply-chain hold so the GHSA-gv7w-rqvm-qjhr
-  # security patch (0.28.1, published ~2026-06-11) can land now instead of
+  # security patch (0.28.1, published 2026-06-11) can land now instead of
   # waiting out the gate. Covers the platform-specific @esbuild/* optionals.
   - "esbuild"
   - "@esbuild/*"
@@ -99,9 +99,9 @@ overrides:
   protobufjs: 8.4.0
   uuid: 14.0.0
   # Security: GHSA-gv7w-rqvm-qjhr (esbuild missing binary integrity verification
-  # in the Deno module → RCE via NPM_CONFIG_REGISTRY). Affects >=0.17.0 <0.28.1;
+  # in the Deno module -> RCE via NPM_CONFIG_REGISTRY). Affects >=0.17.0 <0.28.1;
   # transitive via vite/vitest/tsx. Pin to the patched release.
-  esbuild: ">=0.28.1"
+  esbuild: 0.28.1
 
 allowBuilds:
   "@openclaw/fs-safe": true
