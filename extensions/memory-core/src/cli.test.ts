@@ -1382,6 +1382,13 @@ describe("memory cli", () => {
     await withTempWorkspace(async (workspaceDir) => {
       const nowMs = Date.now();
       const isoDay = new Date(nowMs).toISOString().slice(0, 10);
+      const memoryDir = path.join(workspaceDir, "memory");
+      await fs.mkdir(memoryDir, { recursive: true });
+      await fs.writeFile(
+        path.join(memoryDir, `${isoDay}.md`),
+        ["# Daily Memory", "", "Always check weather before suggesting outdoor plans."].join("\n") +
+          "\n",
+      );
       await recordShortTermRecalls({
         workspaceDir,
         query: "weather plans",
