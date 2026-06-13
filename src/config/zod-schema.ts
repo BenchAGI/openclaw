@@ -1150,6 +1150,7 @@ export const OpenClawSchema = z
                     maxBodyBytes: z.number().int().positive().optional(),
                     maxImageParts: z.number().int().nonnegative().optional(),
                     maxTotalImageBytes: z.number().int().positive().optional(),
+                    sseKeepaliveIntervalMs: z.number().int().nonnegative().optional(),
                     images: z
                       .object({
                         ...ResponsesEndpointUrlFetchShape,

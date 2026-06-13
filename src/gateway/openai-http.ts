@@ -108,10 +108,13 @@ const DEFAULT_OPENAI_IMAGE_LIMITS: InputImageLimits = {
   timeoutMs: DEFAULT_INPUT_TIMEOUT_MS,
 };
 
+const DEFAULT_SSE_KEEPALIVE_INTERVAL_MS = 15_000;
+
 type ResolvedOpenAiChatCompletionsLimits = {
   maxBodyBytes: number;
   maxImageParts: number;
   maxTotalImageBytes: number;
+  sseKeepaliveIntervalMs: number;
   images: InputImageLimits;
 };
 
@@ -128,6 +131,11 @@ function resolveOpenAiChatCompletionsLimits(
       config?.maxTotalImageBytes,
       DEFAULT_OPENAI_MAX_TOTAL_IMAGE_BYTES,
       { min: 1 },
+    ),
+    sseKeepaliveIntervalMs: resolveIntegerOption(
+      config?.sseKeepaliveIntervalMs,
+      DEFAULT_SSE_KEEPALIVE_INTERVAL_MS,
+      { min: 0 },
     ),
     images: {
       allowUrl: imageConfig?.allowUrl ?? DEFAULT_OPENAI_IMAGE_LIMITS.allowUrl,
@@ -1161,6 +1169,30 @@ export async function handleOpenAiHttpRequest(
   let closed = false;
   let stopWatchingDisconnect = () => {};
 
+  // Full-agent runs emit no assistant deltas while tools execute, so the SSE
+  // stream can go silent for minutes. Periodic comment frames let consumers
+  // hold a short liveness timeout instead of a turn-length deadline; SSE
+  // comments are ignored by spec-compliant clients. res 'close' is the
+  // catch-all cleanup so no end path can leak the interval.
+  let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+  const stopSseKeepalive = () => {
+    if (keepaliveTimer) {
+      clearInterval(keepaliveTimer);
+      keepaliveTimer = null;
+    }
+  };
+  if (limits.sseKeepaliveIntervalMs > 0) {
+    keepaliveTimer = setInterval(() => {
+      if (closed || res.writableEnded) {
+        stopSseKeepalive();
+        return;
+      }
+      res.write(": keepalive\n\n");
+    }, limits.sseKeepaliveIntervalMs);
+    keepaliveTimer.unref?.();
+    res.once("close", stopSseKeepalive);
+  }
+
   const maybeFinalize = () => {
     if (closed || !finalizeRequested) {
       return;
@@ -1172,6 +1204,7 @@ export async function handleOpenAiHttpRequest(
       return;
     }
     closed = true;
+    stopSseKeepalive();
     stopWatchingDisconnect();
     unsubscribe();
     if (!wroteStopChunk) {

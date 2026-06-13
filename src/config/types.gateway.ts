@@ -295,6 +295,15 @@ export type GatewayHttpChatCompletionsConfig = {
    * Default: 20MB.
    */
   maxTotalImageBytes?: number;
+  /**
+   * Interval for SSE keepalive comment frames (`: keepalive`) on streaming
+   * responses. Full-agent runs go silent during long tool phases (no token
+   * deltas), so without keepalives consumers cannot distinguish "working"
+   * from "dead" and are forced into turn-length read timeouts. Comment
+   * frames are ignored by spec-compliant SSE/OpenAI clients.
+   * Default: 15000. Set 0 to disable.
+   */
+  sseKeepaliveIntervalMs?: number;
   /** Image input controls for `image_url` parts. */
   images?: GatewayHttpChatCompletionsImagesConfig;
 };
