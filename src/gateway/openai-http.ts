@@ -3,7 +3,10 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { estimateBase64DecodedBytes } from "@openclaw/media-core/base64";
-import { resolveIntegerOption } from "@openclaw/normalization-core/number-coercion";
+import {
+  MAX_TIMER_TIMEOUT_MS,
+  resolveIntegerOption,
+} from "@openclaw/normalization-core/number-coercion";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
@@ -135,7 +138,7 @@ function resolveOpenAiChatCompletionsLimits(
     sseKeepaliveIntervalMs: resolveIntegerOption(
       config?.sseKeepaliveIntervalMs,
       DEFAULT_SSE_KEEPALIVE_INTERVAL_MS,
-      { min: 0 },
+      { min: 0, max: MAX_TIMER_TIMEOUT_MS },
     ),
     images: {
       allowUrl: imageConfig?.allowUrl ?? DEFAULT_OPENAI_IMAGE_LIMITS.allowUrl,
@@ -1271,6 +1274,7 @@ export async function handleOpenAiHttpRequest(
 
   stopWatchingDisconnect = watchClientDisconnect(req, res, abortController, () => {
     closed = true;
+    stopSseKeepalive();
     unsubscribe();
   });
 
@@ -1301,6 +1305,7 @@ export async function handleOpenAiHttpRequest(
         })
       ) {
         closed = true;
+        stopSseKeepalive();
         stopWatchingDisconnect();
         unsubscribe();
         writeSse(res, {
@@ -1365,6 +1370,7 @@ export async function handleOpenAiHttpRequest(
       logWarn(`openai-compat: streaming chat completion failed: ${String(err)}`);
       if (isClientToolNameConflictError(err)) {
         closed = true;
+        stopSseKeepalive();
         stopWatchingDisconnect();
         unsubscribe();
         writeSse(res, {
@@ -1377,6 +1383,7 @@ export async function handleOpenAiHttpRequest(
       const mapped = resolveOpenAiCompatError(err);
       if (mapped) {
         closed = true;
+        stopSseKeepalive();
         stopWatchingDisconnect();
         unsubscribe();
         writeSse(res, { error: mapped.error });

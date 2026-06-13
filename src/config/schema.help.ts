@@ -586,6 +586,8 @@ export const FIELD_HELP: Record<string, string> = {
     "Max number of `image_url` parts accepted from the latest user message (default: 8).",
   "gateway.http.endpoints.chatCompletions.maxTotalImageBytes":
     "Max cumulative decoded bytes across all `image_url` parts in one request (default: 20MB).",
+  "gateway.http.endpoints.chatCompletions.sseKeepaliveIntervalMs":
+    "Interval in milliseconds for streaming `/v1/chat/completions` SSE keepalive comment frames (default: 15000; 0 disables; max: 2147000000).",
   "gateway.http.endpoints.chatCompletions.images":
     "Image fetch/validation controls for OpenAI-compatible `image_url` parts.",
   "gateway.http.endpoints.chatCompletions.images.allowUrl":

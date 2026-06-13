@@ -1,3 +1,4 @@
+import { MAX_TIMER_TIMEOUT_MS } from "@openclaw/normalization-core/number-coercion";
 import { describe, expect, it } from "vitest";
 import { testOnlyOpenAiHttp } from "./openai-http.js";
 
@@ -26,11 +27,16 @@ describe("chat-completions SSE keepalive config", () => {
     ).toBe(0);
   });
 
-  it("clamps negatives to 0 (disabled) and falls back to the default for NaN", () => {
+  it("clamps to timer-safe bounds and falls back to the default for NaN", () => {
     // Shared resolveIntegerOption semantics: out-of-range clamps to min.
     expect(
       resolveOpenAiChatCompletionsLimits({ sseKeepaliveIntervalMs: -1 }).sseKeepaliveIntervalMs,
     ).toBe(0);
+    expect(
+      resolveOpenAiChatCompletionsLimits({
+        sseKeepaliveIntervalMs: MAX_TIMER_TIMEOUT_MS + 1,
+      }).sseKeepaliveIntervalMs,
+    ).toBe(MAX_TIMER_TIMEOUT_MS);
     expect(
       resolveOpenAiChatCompletionsLimits({
         sseKeepaliveIntervalMs: Number.NaN,

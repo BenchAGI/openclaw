@@ -301,7 +301,7 @@ export type GatewayHttpChatCompletionsConfig = {
    * deltas), so without keepalives consumers cannot distinguish "working"
    * from "dead" and are forced into turn-length read timeouts. Comment
    * frames are ignored by spec-compliant SSE/OpenAI clients.
-   * Default: 15000. Set 0 to disable.
+   * Default: 15000. Set 0 to disable. Maximum: 2147000000.
    */
   sseKeepaliveIntervalMs?: number;
   /** Image input controls for `image_url` parts. */

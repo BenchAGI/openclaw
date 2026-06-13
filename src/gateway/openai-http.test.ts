@@ -2243,6 +2243,108 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
     },
   );
 
+  it(
+    "emits configured SSE keepalive comments during silent streaming runs",
+    { timeout: 15_000 },
+    async () => {
+      await writeGatewayConfig({
+        gateway: {
+          http: {
+            endpoints: {
+              chatCompletions: {
+                enabled: true,
+                sseKeepaliveIntervalMs: 10,
+              },
+            },
+          },
+        },
+      });
+
+      try {
+        await withGatewayServer(
+          async ({ port }) => {
+            let serverAbortSignal: AbortSignal | undefined;
+
+            agentCommand.mockClear();
+            agentCommand.mockImplementationOnce(
+              (opts: unknown) =>
+                new Promise<undefined>((resolve) => {
+                  const signal = (opts as { abortSignal?: AbortSignal } | undefined)?.abortSignal;
+                  serverAbortSignal = signal;
+                  if (signal?.aborted) {
+                    resolve(undefined);
+                    return;
+                  }
+                  signal?.addEventListener("abort", () => resolve(undefined), { once: true });
+                }),
+            );
+
+            let settled = false;
+            const keepaliveText = new Promise<string>((resolve, reject) => {
+              const clientReq = http.request(
+                {
+                  hostname: "127.0.0.1",
+                  port,
+                  path: "/v1/chat/completions",
+                  method: "POST",
+                  headers: {
+                    "content-type": "application/json",
+                  },
+                },
+                (res) => {
+                  expect(res.statusCode).toBe(200);
+                  expect(res.headers["content-type"] ?? "").toContain("text/event-stream");
+                  res.setEncoding("utf8");
+                  let text = "";
+                  res.on("data", (chunk) => {
+                    text += String(chunk);
+                    if (text.includes(": keepalive\n\n")) {
+                      settled = true;
+                      resolve(text);
+                      clientReq.destroy();
+                    }
+                  });
+                },
+              );
+              clientReq.on("error", (err) => {
+                if (!settled) {
+                  reject(err);
+                }
+              });
+              clientReq.setTimeout(2_000, () => {
+                if (!settled) {
+                  settled = true;
+                  clientReq.destroy(new Error("timed out waiting for SSE keepalive"));
+                }
+              });
+              clientReq.end(
+                JSON.stringify({
+                  stream: true,
+                  model: "openclaw",
+                  messages: [{ role: "user", content: "hi" }],
+                }),
+              );
+            });
+
+            await expect(keepaliveText).resolves.toContain(": keepalive\n\n");
+            await vi.waitFor(() => {
+              expect(serverAbortSignal?.aborted).toBe(true);
+            });
+          },
+          {
+            serverOptions: {
+              host: "127.0.0.1",
+              auth: { mode: "none" },
+              controlUiEnabled: false,
+            },
+          },
+        );
+      } finally {
+        await writeGatewayConfig({});
+      }
+    },
+  );
+
   it("includes usage in final stream chunk when stream_options.include_usage=true", async () => {
     const port = enabledPort;
     agentCommand.mockClear();

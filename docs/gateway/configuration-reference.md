@@ -621,6 +621,7 @@ See [Inferred commitments](/concepts/commitments).
 
 - Admin HTTP RPC: off by default as the `admin-http-rpc` plugin. Enable the plugin to register `POST /api/v1/admin/rpc`. See [Admin HTTP RPC](/plugins/admin-http-rpc).
 - Chat Completions: disabled by default. Enable with `gateway.http.endpoints.chatCompletions.enabled: true`.
+- Chat Completions streaming keepalives: `gateway.http.endpoints.chatCompletions.sseKeepaliveIntervalMs` sends SSE comment frames while a stream is open (default `15000`; set `0` to disable; maximum `2147000000`).
 - Responses API: `gateway.http.endpoints.responses.enabled`.
 - Responses URL-input hardening:
   - `gateway.http.endpoints.responses.maxUrlParts`
