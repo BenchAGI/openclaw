@@ -1,4 +1,5 @@
 // Assembles the canonical Zod schema for OpenClaw config parsing.
+import { MAX_TIMER_TIMEOUT_MS } from "@openclaw/normalization-core/number-coercion";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeStringifiedOptionalString,
@@ -1150,6 +1151,12 @@ export const OpenClawSchema = z
                     maxBodyBytes: z.number().int().positive().optional(),
                     maxImageParts: z.number().int().nonnegative().optional(),
                     maxTotalImageBytes: z.number().int().positive().optional(),
+                    sseKeepaliveIntervalMs: z
+                      .number()
+                      .int()
+                      .nonnegative()
+                      .max(MAX_TIMER_TIMEOUT_MS)
+                      .optional(),
                     images: z
                       .object({
                         ...ResponsesEndpointUrlFetchShape,

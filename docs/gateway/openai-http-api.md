@@ -263,6 +263,10 @@ When `stream: true`, tool calls are emitted as incremental SSE chunks:
 
 If `stream_options.include_usage=true`, a trailing usage chunk is emitted before `[DONE]`.
 
+### Streaming keepalives
+
+Streaming responses send SSE comment frames (`: keepalive`) every 15 seconds by default while the stream is open. These frames let clients use a short liveness timeout during long tool phases, and spec-compliant SSE clients ignore them. Set `gateway.http.endpoints.chatCompletions.sseKeepaliveIntervalMs` to `0` to disable keepalives, or to another non-negative timer-safe interval in milliseconds (maximum `2147000000`).
+
 ### Tool follow-up loop
 
 After receiving `tool_calls`, the client should execute the requested function(s) and send a follow-up request that includes:

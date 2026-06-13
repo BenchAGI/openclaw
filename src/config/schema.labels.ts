@@ -370,6 +370,8 @@ export const FIELD_LABELS: Record<string, string> = {
   "gateway.http.endpoints.chatCompletions.maxImageParts": "OpenAI Chat Completions Max Image Parts",
   "gateway.http.endpoints.chatCompletions.maxTotalImageBytes":
     "OpenAI Chat Completions Max Total Image Bytes",
+  "gateway.http.endpoints.chatCompletions.sseKeepaliveIntervalMs":
+    "OpenAI Chat Completions SSE Keepalive Interval (ms)",
   "gateway.http.endpoints.chatCompletions.images": "OpenAI Chat Completions Image Limits",
   "gateway.http.endpoints.chatCompletions.images.allowUrl":
     "OpenAI Chat Completions Allow Image URLs",
