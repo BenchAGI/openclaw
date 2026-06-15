@@ -146,6 +146,9 @@ export type AppViewState = {
   chatInputHistoryItems: string[] | null;
   chatInputHistoryIndex: number;
   chatDraftBeforeHistory: string | null;
+  dictationActive: boolean;
+  dictationSupported: boolean;
+  dictationStatus: "idle" | "recording" | "transcribing";
   realtimeTalkActive: boolean;
   realtimeTalkStatus: RealtimeTalkStatus;
   realtimeTalkDetail: string | null;
@@ -532,6 +535,7 @@ export type AppViewState = {
     handleChatInputHistoryKey: (input: ChatInputHistoryKeyInput) => ChatInputHistoryKeyResult;
     resetChatInputHistoryNavigation: () => void;
     handleSendChat: (messageOverride?: string, opts?: ChatSendOptions) => Promise<void>;
+    toggleDictation: () => void;
     toggleRealtimeTalk: () => Promise<void>;
     steerQueuedChatMessage: (id: string) => Promise<void>;
     handleAbortChat: (opts?: ChatAbortOptions) => Promise<void>;

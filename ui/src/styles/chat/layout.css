@@ -921,6 +921,22 @@
   background: color-mix(in srgb, var(--danger, #ef4444) 14%, transparent);
 }
 
+.agent-chat__input-btn--dictating {
+  color: var(--danger, #ef4444);
+  background: color-mix(in srgb, var(--danger, #ef4444) 14%, transparent);
+  animation: agent-chat-dictating-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes agent-chat-dictating-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger, #ef4444) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger, #ef4444) 0%, transparent);
+  }
+}
+
 .agent-chat__talk-status {
   color: var(--text);
 }

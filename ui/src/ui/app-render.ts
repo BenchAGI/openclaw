@@ -3513,6 +3513,9 @@ export function renderApp(state: AppViewState) {
                   streamStartedAt: state.chatStreamStartedAt,
                   draft: state.chatMessage,
                   queue: state.chatQueue,
+                  dictationActive: state.dictationActive,
+                  dictationSupported: state.dictationSupported,
+                  dictationStatus: state.dictationStatus,
                   realtimeTalkActive: state.realtimeTalkActive,
                   realtimeTalkStatus: state.realtimeTalkStatus,
                   realtimeTalkDetail: state.realtimeTalkDetail,
@@ -3564,6 +3567,7 @@ export function renderApp(state: AppViewState) {
                       ...scopedAgentListParamsForSession(state, state.sessionKey),
                     });
                   },
+                  onToggleDictation: () => state.toggleDictation(),
                   onToggleRealtimeTalk: () => void state.toggleRealtimeTalk(),
                   onToggleRealtimeTalkOptions: () => {
                     state.realtimeTalkOptionsOpen = !state.realtimeTalkOptionsOpen;

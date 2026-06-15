@@ -76,7 +76,9 @@ import {
 import type { AppViewState } from "./app-view-state.ts";
 import { normalizeAssistantIdentity } from "./assistant-identity.ts";
 import { restoreChatComposerState } from "./chat/composer-persistence.ts";
+import type { DictationEngine, DictationHandlers } from "./chat/dictation.ts";
 import { exportChatMarkdown } from "./chat/export.ts";
+import { GatewayDictationController, isMediaCaptureSupported } from "./chat/gateway-dictation.ts";
 import {
   createRealtimeTalkConversationState,
   updateRealtimeTalkConversation,
@@ -321,6 +323,12 @@ export class OpenClawApp extends LitElement {
   private realtimeTalkSession: RealtimeTalkSession | null = null;
   private realtimeTalkConversationState: RealtimeTalkConversationState =
     createRealtimeTalkConversationState();
+  @state() dictationActive = false;
+  @state() dictationSupported = isMediaCaptureSupported();
+  @state() dictationStatus: "idle" | "recording" | "transcribing" = "idle";
+  private dictationController: DictationEngine | null = null;
+  private dictationControllerClient: unknown = null;
+  private dictationBaseDraft = "";
   private nativeBridgeCleanup: (() => void) | null = null;
   @state() chatManualRefreshInFlight = false;
   @state() chatHeaderControlsHidden = false;
@@ -831,6 +839,11 @@ export class OpenClawApp extends LitElement {
     document.removeEventListener("keydown", this.globalKeydownHandler);
     this.nativeBridgeCleanup?.();
     this.nativeBridgeCleanup = null;
+    this.dictationController?.dispose();
+    this.dictationController = null;
+    this.dictationControllerClient = null;
+    this.dictationActive = false;
+    this.dictationStatus = "idle";
     document.removeEventListener("keydown", this.chatMobileControlsKeydownHandler);
     document.removeEventListener("pointerdown", this.chatMobileControlsPointerdownHandler);
     if (this.sessionSwitchNoticeTimer !== null) {
@@ -1197,6 +1210,65 @@ export class OpenClawApp extends LitElement {
       prefixPaddingMs: number(options.prefixPaddingMs),
       reasoningEffort: text(options.reasoningEffort),
     };
+  }
+
+  toggleDictation() {
+    if (this.dictationActive) {
+      this.stopDictation();
+      return;
+    }
+    if (!this.dictationSupported) {
+      this.lastError = "Voice dictation needs a microphone and a modern browser.";
+      this.chatError = this.lastError;
+      return;
+    }
+    if (!this.client) {
+      this.lastError = "Not connected to the gateway — can't transcribe right now.";
+      this.chatError = this.lastError;
+      return;
+    }
+    const base = this.chatMessage ?? "";
+    const needsSpace = base.length > 0 && !/\s$/.test(base);
+    this.dictationBaseDraft = needsSpace ? `${base} ` : base;
+    if (this.dictationController && this.dictationControllerClient !== this.client) {
+      // Gateway reconnected with a fresh client — rebuild so transcription goes
+      // to the live connection, not the stale one captured at construction.
+      this.dictationController.dispose();
+      this.dictationController = null;
+    }
+    if (!this.dictationController) {
+      const handlers: DictationHandlers = {
+        onText: (dictated) => {
+          this.handleChatDraftChange(this.dictationBaseDraft + dictated);
+        },
+        onStart: () => {
+          this.dictationActive = true;
+          this.dictationStatus = "recording";
+        },
+        onStatus: (status) => {
+          this.dictationStatus = status;
+        },
+        onEnd: () => {
+          this.dictationActive = false;
+          this.dictationStatus = "idle";
+        },
+        onError: (message) => {
+          this.dictationActive = false;
+          this.dictationStatus = "idle";
+          this.lastError = message;
+          this.chatError = message;
+        },
+      };
+      this.dictationController = new GatewayDictationController(this.client, handlers);
+      this.dictationControllerClient = this.client;
+    }
+    this.dictationActive = true;
+    this.dictationStatus = "recording";
+    this.dictationController.start();
+  }
+
+  private stopDictation() {
+    this.dictationController?.stop();
   }
 
   async toggleRealtimeTalk() {

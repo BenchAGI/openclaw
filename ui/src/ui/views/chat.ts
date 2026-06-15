@@ -107,6 +107,9 @@ export type ChatProps = {
   assistantAvatarUrl?: string | null;
   draft: string;
   queue: ChatQueueItem[];
+  dictationActive?: boolean;
+  dictationSupported?: boolean;
+  dictationStatus?: "idle" | "recording" | "transcribing";
   realtimeTalkActive?: boolean;
   realtimeTalkStatus?: RealtimeTalkStatus;
   realtimeTalkDetail?: string | null;
@@ -157,6 +160,7 @@ export type ChatProps = {
   onSend: () => void;
   onCompact?: () => void | Promise<void>;
   onOpenSessionCheckpoints?: () => void | Promise<void>;
+  onToggleDictation?: () => void;
   onToggleRealtimeTalk?: () => void;
   onToggleRealtimeTalkOptions?: () => void;
   onRealtimeTalkOptionsChange?: (
@@ -2183,6 +2187,34 @@ export function renderChat(props: ChatProps) {
               <span class="agent-chat__control-label">${t("chat.composer.attachFile")}</span>
             </button>
 
+            ${props.onToggleDictation
+              ? html`
+                  <button
+                    type="button"
+                    class="agent-chat__input-btn ${props.dictationActive
+                      ? "agent-chat__input-btn--dictating"
+                      : ""}"
+                    @click=${props.onToggleDictation}
+                    title=${props.dictationSupported === false
+                      ? "Dictation needs Chrome, Edge, or Safari"
+                      : props.dictationActive
+                        ? "Stop dictation"
+                        : "Dictate (speech to text)"}
+                    aria-label=${props.dictationActive ? "Stop dictation" : "Dictate"}
+                    aria-pressed=${props.dictationActive ? "true" : "false"}
+                    ?disabled=${!props.connected || props.dictationSupported === false}
+                  >
+                    ${icons.mic}
+                    <span class="agent-chat__control-label"
+                      >${props.dictationStatus === "transcribing"
+                        ? "Transcribing…"
+                        : props.dictationActive
+                          ? "Listening…"
+                          : "Dictate"}</span
+                    >
+                  </button>
+                `
+              : nothing}
             ${props.onToggleRealtimeTalk
               ? html`
                   <button

@@ -197,6 +197,10 @@ const loadTtsHandlers = lazyHandlerModule(
   () => import("./server-methods/tts.js"),
   (module) => module.ttsHandlers,
 );
+const loadAudioHandlers = lazyHandlerModule(
+  () => import("./server-methods/audio.js"),
+  (module) => module.audioHandlers,
+);
 const loadUpdateHandlers = lazyHandlerModule(
   () => import("./server-methods/update.js"),
   (module) => module.updateHandlers,
@@ -443,6 +447,10 @@ export const coreGatewayHandlers: GatewayRequestHandlers = {
       "tts.providers",
     ],
     loadHandlers: loadTtsHandlers,
+  }),
+  ...createLazyCoreHandlers({
+    methods: ["audio.transcribe"],
+    loadHandlers: loadAudioHandlers,
   }),
   ...createLazyCoreHandlers({
     methods: [
