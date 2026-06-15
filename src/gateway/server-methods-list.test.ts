@@ -46,7 +46,14 @@ describe("listGatewayMethods", () => {
       "local-seat.capture",
       "channels.status",
     ]);
-    expect(methods.slice(32, 38)).toEqual([
+    expect(methods.slice(24, 29)).toEqual([
+      "tts.convert",
+      "tts.setProvider",
+      "tts.setPersona",
+      "audio.transcribe",
+      "config.get",
+    ]);
+    expect(methods.slice(33, 39)).toEqual([
       "config.schema.lookup",
       "exec.approvals.get",
       "exec.approvals.set",
