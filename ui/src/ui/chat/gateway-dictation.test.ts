@@ -12,9 +12,9 @@ class FakeMediaRecorder {
   }
   state: "inactive" | "recording" | "paused" = "inactive";
   mimeType: string;
-  ondataavailable: ((event: { data: Blob }) => void) | null = null;
-  onstop: (() => void) | null = null;
-  onerror: (() => void) | null = null;
+  private readonly dataAvailableListeners = new Set<(event: { data: Blob }) => void>();
+  private readonly stopListeners = new Set<() => void>();
+  private readonly errorListeners = new Set<() => void>();
 
   constructor(_stream: unknown, opts?: { mimeType?: string }) {
     this.mimeType = opts?.mimeType ?? "audio/webm";
@@ -27,13 +27,57 @@ class FakeMediaRecorder {
 
   stop(): void {
     this.state = "inactive";
-    this.ondataavailable?.({ data: new Blob(["clip"], { type: this.mimeType }) });
-    this.onstop?.();
+    for (const listener of this.dataAvailableListeners) {
+      listener({ data: new Blob(["clip"], { type: this.mimeType }) });
+    }
+    for (const listener of this.stopListeners) {
+      listener();
+    }
+  }
+
+  addEventListener(type: "dataavailable", listener: (event: { data: Blob }) => void): void;
+  addEventListener(type: "error" | "stop", listener: () => void): void;
+  addEventListener(
+    type: "dataavailable" | "error" | "stop",
+    listener: ((event: { data: Blob }) => void) | (() => void),
+  ): void {
+    switch (type) {
+      case "dataavailable":
+        this.dataAvailableListeners.add(listener as (event: { data: Blob }) => void);
+        break;
+      case "error":
+        this.errorListeners.add(listener as () => void);
+        break;
+      case "stop":
+        this.stopListeners.add(listener as () => void);
+        break;
+    }
+  }
+
+  removeEventListener(type: "dataavailable", listener: (event: { data: Blob }) => void): void;
+  removeEventListener(type: "error" | "stop", listener: () => void): void;
+  removeEventListener(
+    type: "dataavailable" | "error" | "stop",
+    listener: ((event: { data: Blob }) => void) | (() => void),
+  ): void {
+    switch (type) {
+      case "dataavailable":
+        this.dataAvailableListeners.delete(listener as (event: { data: Blob }) => void);
+        break;
+      case "error":
+        this.errorListeners.delete(listener as () => void);
+        break;
+      case "stop":
+        this.stopListeners.delete(listener as () => void);
+        break;
+    }
   }
 
   static last(): FakeMediaRecorder {
     const inst = FakeMediaRecorder.instances.at(-1);
-    if (!inst) throw new Error("no FakeMediaRecorder created");
+    if (!inst) {
+      throw new Error("no FakeMediaRecorder created");
+    }
     return inst;
   }
 }
@@ -41,15 +85,29 @@ class FakeMediaRecorder {
 class FakeFileReader {
   result: string | null = null;
   error: unknown = null;
-  onloadend: (() => void) | null = null;
-  onerror: (() => void) | null = null;
+  private readonly loadEndListeners = new Set<() => void>();
+  private readonly errorListeners = new Set<() => void>();
+
+  addEventListener(type: "error" | "loadend", listener: () => void): void {
+    if (type === "error") {
+      this.errorListeners.add(listener);
+      return;
+    }
+    this.loadEndListeners.add(listener);
+  }
+
   readAsDataURL(_blob: Blob): void {
     this.result = "data:audio/webm;base64,QUJD"; // base64 for "ABC"
-    queueMicrotask(() => this.onloadend?.());
+    queueMicrotask(() => {
+      for (const listener of this.loadEndListeners) {
+        listener();
+      }
+    });
   }
 }
 
 const trackStop = vi.fn();
+let now = 1000;
 
 function installCaptureStubs(getUserMedia?: () => Promise<MediaStream>): void {
   const stream = { getTracks: () => [{ stop: trackStop }] } as unknown as MediaStream;
@@ -79,11 +137,8 @@ beforeEach(() => {
   FakeMediaRecorder.instances = [];
   trackStop.mockReset();
   installCaptureStubs();
-  let now = 1000;
+  now = 1000;
   vi.spyOn(Date, "now").mockImplementation(() => now);
-  (globalThis as unknown as { __advance: (ms: number) => void }).__advance = (ms: number) => {
-    now += ms;
-  };
 });
 
 afterEach(() => {
@@ -92,7 +147,7 @@ afterEach(() => {
 });
 
 function advance(ms: number): void {
-  (globalThis as unknown as { __advance: (ms: number) => void }).__advance(ms);
+  now += ms;
 }
 
 describe("isMediaCaptureSupported", () => {
@@ -192,12 +247,12 @@ describe("GatewayDictationController", () => {
   });
 
   it("does not write to the composer if disposed mid-transcription", async () => {
-    let resolveReq: ((value: { transcript: string }) => void) | null = null;
+    const resolvers: Array<(value: { transcript: string }) => void> = [];
     const client: TranscribeClient = {
       request: vi.fn(
         () =>
           new Promise<{ transcript: string }>((res) => {
-            resolveReq = res;
+            resolvers.push(res);
           }),
       ) as TranscribeClient["request"],
     };
@@ -212,8 +267,12 @@ describe("GatewayDictationController", () => {
 
     // Transcription request is in flight; disconnect before it resolves.
     await vi.waitFor(() => expect(client.request).toHaveBeenCalledTimes(1));
+    const resolveReq = resolvers[0];
+    if (!resolveReq) {
+      throw new Error("transcription request did not start");
+    }
     controller.dispose();
-    resolveReq?.({ transcript: "too late" });
+    resolveReq({ transcript: "too late" });
     await Promise.resolve();
     await Promise.resolve();
 

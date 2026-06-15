@@ -12,7 +12,7 @@ import type { DictationEngine, DictationHandlers } from "./dictation.ts";
 
 /** Minimal shape of the gateway client this controller needs. */
 export interface TranscribeClient {
-  request<T = unknown>(method: string, params?: unknown): Promise<T>;
+  request: <T = unknown>(method: string, params?: unknown) => Promise<T>;
 }
 
 const MIN_RECORDING_MS = 250;
@@ -28,11 +28,11 @@ const MIME_CANDIDATES = [
 
 /** True when the browser can capture mic audio as a recorded clip. */
 export function isMediaCaptureSupported(): boolean {
-  return (
-    typeof navigator !== "undefined" &&
-    !!navigator.mediaDevices?.getUserMedia &&
-    typeof MediaRecorder !== "undefined"
-  );
+  const getUserMedia =
+    typeof navigator === "undefined" || !navigator.mediaDevices
+      ? undefined
+      : Reflect.get(navigator.mediaDevices, "getUserMedia");
+  return typeof getUserMedia === "function" && typeof MediaRecorder !== "undefined";
 }
 
 function pickMimeType(): string | undefined {
@@ -50,12 +50,14 @@ function pickMimeType(): string | undefined {
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read audio."));
-    reader.onloadend = () => {
+    reader.addEventListener("error", () =>
+      reject(reader.error ?? new Error("Failed to read audio.")),
+    );
+    reader.addEventListener("loadend", () => {
       const result = typeof reader.result === "string" ? reader.result : "";
       const comma = result.indexOf(",");
       resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
+    });
     reader.readAsDataURL(blob);
   });
 }
@@ -90,6 +92,7 @@ export class GatewayDictationController implements DictationEngine {
   private disposed = false;
   private startedAt = 0;
   private maxTimer: ReturnType<typeof setTimeout> | null = null;
+  private recorderListeners: RecorderListeners | null = null;
   private readonly client: TranscribeClient;
   private readonly handlers: DictationHandlers;
   private readonly lang?: string;
@@ -139,18 +142,26 @@ export class GatewayDictationController implements DictationEngine {
     const mimeType = pickMimeType();
     const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
     this.chunks = [];
-    recorder.ondataavailable = (event) => {
+    const onDataAvailable = (event: BlobEvent) => {
       if (event.data && event.data.size > 0) {
         this.chunks.push(event.data);
       }
     };
-    recorder.onstop = () => {
+    const onStop = () => {
       void this.finish(recorder.mimeType || mimeType || "audio/webm");
     };
-    recorder.onerror = () => {
+    const onError = () => {
       this.handlers.onError?.("Recording failed.");
       this.finalizeIdle();
     };
+    this.recorderListeners = {
+      dataavailable: onDataAvailable,
+      stop: onStop,
+      error: onError,
+    };
+    recorder.addEventListener("dataavailable", onDataAvailable);
+    recorder.addEventListener("stop", onStop);
+    recorder.addEventListener("error", onError);
     this.recorder = recorder;
     this.startedAt = Date.now();
     recorder.start();
@@ -222,6 +233,7 @@ export class GatewayDictationController implements DictationEngine {
     this.active = false;
     this.ending = false;
     this.clearTimer();
+    this.detachRecorderListeners(this.recorder);
     this.recorder = null;
     if (!this.disposed) {
       this.handlers.onEnd?.();
@@ -236,9 +248,7 @@ export class GatewayDictationController implements DictationEngine {
     const recorder = this.recorder;
     this.recorder = null;
     if (recorder) {
-      recorder.ondataavailable = null;
-      recorder.onstop = null;
-      recorder.onerror = null;
+      this.detachRecorderListeners(recorder);
       if (recorder.state !== "inactive") {
         try {
           recorder.stop();
@@ -262,4 +272,21 @@ export class GatewayDictationController implements DictationEngine {
       this.maxTimer = null;
     }
   }
+
+  private detachRecorderListeners(recorder: MediaRecorder | null): void {
+    const listeners = this.recorderListeners;
+    if (!recorder || !listeners) {
+      return;
+    }
+    recorder.removeEventListener("dataavailable", listeners.dataavailable);
+    recorder.removeEventListener("stop", listeners.stop);
+    recorder.removeEventListener("error", listeners.error);
+    this.recorderListeners = null;
+  }
+}
+
+interface RecorderListeners {
+  dataavailable: (event: BlobEvent) => void;
+  stop: () => void;
+  error: () => void;
 }

@@ -27,6 +27,10 @@ minimumReleaseAgeExclude:
   - "openclaw"
   - "protobufjs"
   - "vite"
+  # Except Vitest from the 48h hold so GHSA-g8mr-85jm-7xhm's patched
+  # 4.1.9 release can clear the production audit immediately.
+  - "vitest"
+  - "@vitest/*"
   - "@cloudflare/workers-types"
   - "@hono/node-server"
   - "@mariozechner/*"
@@ -86,7 +90,7 @@ overrides:
   request-promise: "npm:@cypress/request-promise@5.0.0"
   basic-ftp: 6.0.1
   file-type: 22.0.1
-  form-data: 2.5.4
+  form-data: 2.5.6
   ip-address: 10.2.0
   minimatch: 10.2.5
   path-to-regexp: 8.4.0
@@ -96,7 +100,12 @@ overrides:
   tar: 7.5.15
   tough-cookie: 4.1.3
   yauzl: 3.2.1
-  protobufjs: 8.4.0
+  protobufjs: 8.6.3
+  vite: 8.0.16
+  vitest: 4.1.9
+  "@vitest/browser": 4.1.9
+  "@vitest/browser-playwright": 4.1.9
+  "@vitest/coverage-v8": 4.1.9
   uuid: 14.0.0
   # Security: GHSA-gv7w-rqvm-qjhr (esbuild missing binary integrity verification
   # in the Deno module -> RCE via NPM_CONFIG_REGISTRY). Affects >=0.17.0 <0.28.1;

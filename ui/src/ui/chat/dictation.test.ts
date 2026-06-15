@@ -7,20 +7,28 @@ interface FakeResult {
   0: { transcript: string };
 }
 
+interface FakeRecognitionResultEvent {
+  resultIndex: number;
+  results: ArrayLike<FakeResult>;
+}
+
+interface FakeRecognitionErrorEvent {
+  error: string;
+}
+
 class FakeRecognition {
   static instances: FakeRecognition[] = [];
   lang = "";
   continuous = false;
   interimResults = false;
   maxAlternatives = 0;
-  onresult: ((event: { resultIndex: number; results: ArrayLike<FakeResult> }) => void) | null =
-    null;
-  onerror: ((event: { error: string }) => void) | null = null;
-  onend: (() => void) | null = null;
-  onstart: (() => void) | null = null;
   startCount = 0;
   stopCount = 0;
   abortCount = 0;
+  private readonly resultListeners = new Set<(event: FakeRecognitionResultEvent) => void>();
+  private readonly errorListeners = new Set<(event: FakeRecognitionErrorEvent) => void>();
+  private readonly startListeners = new Set<() => void>();
+  private readonly endListeners = new Set<() => void>();
 
   constructor() {
     FakeRecognition.instances.push(this);
@@ -28,16 +36,68 @@ class FakeRecognition {
 
   start(): void {
     this.startCount++;
-    this.onstart?.();
+    this.emitStart();
   }
 
   stop(): void {
     this.stopCount++;
-    this.onend?.();
+    this.emitEnd();
   }
 
   abort(): void {
     this.abortCount++;
+  }
+
+  addEventListener(type: "result", listener: (event: FakeRecognitionResultEvent) => void): void;
+  addEventListener(type: "error", listener: (event: FakeRecognitionErrorEvent) => void): void;
+  addEventListener(type: "end" | "start", listener: () => void): void;
+  addEventListener(
+    type: "end" | "error" | "result" | "start",
+    listener:
+      | ((event: FakeRecognitionErrorEvent) => void)
+      | ((event: FakeRecognitionResultEvent) => void)
+      | (() => void),
+  ): void {
+    switch (type) {
+      case "result":
+        this.resultListeners.add(listener as (event: FakeRecognitionResultEvent) => void);
+        break;
+      case "error":
+        this.errorListeners.add(listener as (event: FakeRecognitionErrorEvent) => void);
+        break;
+      case "start":
+        this.startListeners.add(listener as () => void);
+        break;
+      case "end":
+        this.endListeners.add(listener as () => void);
+        break;
+    }
+  }
+
+  removeEventListener(type: "result", listener: (event: FakeRecognitionResultEvent) => void): void;
+  removeEventListener(type: "error", listener: (event: FakeRecognitionErrorEvent) => void): void;
+  removeEventListener(type: "end" | "start", listener: () => void): void;
+  removeEventListener(
+    type: "end" | "error" | "result" | "start",
+    listener:
+      | ((event: FakeRecognitionErrorEvent) => void)
+      | ((event: FakeRecognitionResultEvent) => void)
+      | (() => void),
+  ): void {
+    switch (type) {
+      case "result":
+        this.resultListeners.delete(listener as (event: FakeRecognitionResultEvent) => void);
+        break;
+      case "error":
+        this.errorListeners.delete(listener as (event: FakeRecognitionErrorEvent) => void);
+        break;
+      case "start":
+        this.startListeners.delete(listener as () => void);
+        break;
+      case "end":
+        this.endListeners.delete(listener as () => void);
+        break;
+    }
   }
 
   emit(segments: Array<{ transcript: string; isFinal: boolean }>, resultIndex = 0): void {
@@ -45,12 +105,36 @@ class FakeRecognition {
       (s) => ({ 0: { transcript: s.transcript }, isFinal: s.isFinal, length: 1 }) as FakeResult,
     );
     (results as unknown as { length: number }).length = segments.length;
-    this.onresult?.({ resultIndex, results: results as unknown as ArrayLike<FakeResult> });
+    const event = { resultIndex, results: results as unknown as ArrayLike<FakeResult> };
+    for (const listener of this.resultListeners) {
+      listener(event);
+    }
+  }
+
+  emitError(error: string): void {
+    const event = { error };
+    for (const listener of this.errorListeners) {
+      listener(event);
+    }
+  }
+
+  emitEnd(): void {
+    for (const listener of this.endListeners) {
+      listener();
+    }
+  }
+
+  private emitStart(): void {
+    for (const listener of this.startListeners) {
+      listener();
+    }
   }
 
   static last(): FakeRecognition {
     const inst = FakeRecognition.instances.at(-1);
-    if (!inst) throw new Error("no FakeRecognition instance created");
+    if (!inst) {
+      throw new Error("no FakeRecognition instance created");
+    }
     return inst;
   }
 }
@@ -114,7 +198,7 @@ describe("DictationController", () => {
     expect(recognition.startCount).toBe(1);
 
     // Browsers end recognition after silence; controller should restart it.
-    recognition.onend?.();
+    recognition.emitEnd();
     expect(recognition.startCount).toBe(2);
     // No new instance — the same recognition is reused.
     expect(FakeRecognition.instances).toHaveLength(1);
@@ -139,7 +223,7 @@ describe("DictationController", () => {
     const controller = new DictationController({ onText: vi.fn(), onError });
     controller.start();
 
-    FakeRecognition.last().onerror?.({ error: "not-allowed" });
+    FakeRecognition.last().emitError("not-allowed");
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0][0]).toMatch(/denied/i);
     expect(controller.isActive).toBe(false);
@@ -150,8 +234,8 @@ describe("DictationController", () => {
     const controller = new DictationController({ onText: vi.fn(), onError });
     controller.start();
 
-    FakeRecognition.last().onerror?.({ error: "no-speech" });
-    FakeRecognition.last().onerror?.({ error: "aborted" });
+    FakeRecognition.last().emitError("no-speech");
+    FakeRecognition.last().emitError("aborted");
     expect(onError).not.toHaveBeenCalled();
     expect(controller.isActive).toBe(true);
   });

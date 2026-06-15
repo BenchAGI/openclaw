@@ -2079,6 +2079,8 @@ public struct SessionsCreateParams: Codable, Sendable {
     public let agentid: String?
     public let label: String?
     public let model: String?
+    public let thinkinglevel: String?
+    public let reasoninglevel: String?
     public let parentsessionkey: String?
     public let emitcommandhooks: Bool?
     public let task: String?
@@ -2089,6 +2091,8 @@ public struct SessionsCreateParams: Codable, Sendable {
         agentid: String? = nil,
         label: String?,
         model: String?,
+        thinkinglevel: String?,
+        reasoninglevel: String?,
         parentsessionkey: String?,
         emitcommandhooks: Bool?,
         task: String?,
@@ -2098,6 +2102,8 @@ public struct SessionsCreateParams: Codable, Sendable {
         self.agentid = agentid
         self.label = label
         self.model = model
+        self.thinkinglevel = thinkinglevel
+        self.reasoninglevel = reasoninglevel
         self.parentsessionkey = parentsessionkey
         self.emitcommandhooks = emitcommandhooks
         self.task = task
@@ -2109,6 +2115,8 @@ public struct SessionsCreateParams: Codable, Sendable {
         case agentid = "agentId"
         case label
         case model
+        case thinkinglevel = "thinkingLevel"
+        case reasoninglevel = "reasoningLevel"
         case parentsessionkey = "parentSessionKey"
         case emitcommandhooks = "emitCommandHooks"
         case task

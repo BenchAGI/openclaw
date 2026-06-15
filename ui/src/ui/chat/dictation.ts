@@ -43,13 +43,24 @@ interface SpeechRecognitionLike {
   start(): void;
   stop(): void;
   abort(): void;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
-  onend: (() => void) | null;
-  onstart: (() => void) | null;
+  addEventListener(type: "result", listener: (event: SpeechRecognitionEventLike) => void): void;
+  addEventListener(type: "error", listener: (event: SpeechRecognitionErrorEventLike) => void): void;
+  addEventListener(type: "end" | "start", listener: () => void): void;
+  removeEventListener(type: "result", listener: (event: SpeechRecognitionEventLike) => void): void;
+  removeEventListener(
+    type: "error",
+    listener: (event: SpeechRecognitionErrorEventLike) => void,
+  ): void;
+  removeEventListener(type: "end" | "start", listener: () => void): void;
 }
 
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+interface RecognitionListeners {
+  start: () => void;
+  result: (event: SpeechRecognitionEventLike) => void;
+  error: (event: SpeechRecognitionErrorEventLike) => void;
+  end: () => void;
+}
 
 function getRecognitionCtor(): SpeechRecognitionCtor | null {
   if (typeof window === "undefined") {
@@ -110,6 +121,7 @@ export class DictationController implements DictationEngine {
   private recognition: SpeechRecognitionLike | null = null;
   private finalText = "";
   private active = false;
+  private recognitionListeners: RecognitionListeners | null = null;
   private readonly handlers: DictationHandlers;
   private readonly lang: string;
 
@@ -138,6 +150,7 @@ export class DictationController implements DictationEngine {
       return;
     }
 
+    this.detachRecognitionListeners();
     const recognition = new Ctor();
     recognition.lang = this.lang;
     recognition.continuous = true;
@@ -147,11 +160,11 @@ export class DictationController implements DictationEngine {
     this.finalText = "";
     this.active = true;
 
-    recognition.onstart = () => {
+    const onStart = () => {
       this.handlers.onStart?.();
     };
 
-    recognition.onresult = (event) => {
+    const onResult = (event: SpeechRecognitionEventLike) => {
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
@@ -165,7 +178,7 @@ export class DictationController implements DictationEngine {
       this.handlers.onText(normalize(this.finalText + interim));
     };
 
-    recognition.onerror = (event) => {
+    const onError = (event: SpeechRecognitionErrorEventLike) => {
       if (BENIGN_ERRORS.has(event.error)) {
         return;
       }
@@ -174,7 +187,7 @@ export class DictationController implements DictationEngine {
       this.handlers.onError?.(describeError(event.error));
     };
 
-    recognition.onend = () => {
+    const onEnd = () => {
       if (this.active) {
         // Browsers end recognition after a stretch of silence even in
         // `continuous` mode; restart so dictation stays live until the user
@@ -188,6 +201,11 @@ export class DictationController implements DictationEngine {
       }
       this.handlers.onEnd?.();
     };
+    this.recognitionListeners = { start: onStart, result: onResult, error: onError, end: onEnd };
+    recognition.addEventListener("start", onStart);
+    recognition.addEventListener("result", onResult);
+    recognition.addEventListener("error", onError);
+    recognition.addEventListener("end", onEnd);
 
     try {
       recognition.start();
@@ -195,6 +213,7 @@ export class DictationController implements DictationEngine {
     } catch (error) {
       this.active = false;
       this.recognition = null;
+      this.detachRecognitionListeners(recognition);
       this.handlers.onError?.(
         error instanceof Error ? error.message : "Could not start dictation.",
       );
@@ -217,16 +236,25 @@ export class DictationController implements DictationEngine {
     const recognition = this.recognition;
     this.recognition = null;
     if (recognition) {
-      recognition.onresult = null;
-      recognition.onerror = null;
-      recognition.onend = null;
-      recognition.onstart = null;
+      this.detachRecognitionListeners(recognition);
       try {
         recognition.abort();
       } catch {
         // ignore
       }
     }
+  }
+
+  private detachRecognitionListeners(recognition = this.recognition): void {
+    const listeners = this.recognitionListeners;
+    if (!recognition || !listeners) {
+      return;
+    }
+    recognition.removeEventListener("start", listeners.start);
+    recognition.removeEventListener("result", listeners.result);
+    recognition.removeEventListener("error", listeners.error);
+    recognition.removeEventListener("end", listeners.end);
+    this.recognitionListeners = null;
   }
 }
 
