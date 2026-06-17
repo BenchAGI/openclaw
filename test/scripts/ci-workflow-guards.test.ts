@@ -46,7 +46,7 @@ describe("ci workflow guards", () => {
     const action = readFileSync(".github/actions/ensure-base-commit/action.yml", "utf8");
 
     expect(action).toContain("fetch_base_ref()");
-    expect(action).toContain("timeout --signal=TERM --kill-after=10s 30s git");
+    expect(action).toContain("timeout --signal=TERM --kill-after=30s 240s git");
     expect(action).toContain("-c protocol.version=2");
     expect(action).not.toContain("if ! git fetch --no-tags");
   });
