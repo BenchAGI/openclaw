@@ -27,6 +27,9 @@ minimumReleaseAgeExclude:
   - "openclaw"
   - "protobufjs"
   - "vite"
+  - "vitest"
+  - "@vitest/browser"
+  - "@vitest/browser-playwright"
   - "@cloudflare/workers-types"
   - "@hono/node-server"
   - "@mariozechner/*"
@@ -75,7 +78,7 @@ overrides:
   "@aws-sdk/core": 3.974.13
   "@aws-sdk/credential-provider-node": 3.972.52
   "@aws-sdk/xml-builder": 3.972.25
-  hono: 4.12.21
+  hono: 4.12.25 # GHSA-88fw-hqm2-52qc: CORS reflects any Origin w/ credentials on wildcard default (<4.12.25)
   "@hono/node-server": 1.19.14
   axios: 1.16.0
   fast-uri: 3.1.2
@@ -86,7 +89,7 @@ overrides:
   request-promise: "npm:@cypress/request-promise@5.0.0"
   basic-ftp: 6.0.1
   file-type: 22.0.1
-  form-data: 2.5.4
+  form-data: 2.5.6 # GHSA-hmw2-7cc7-3qxx: CRLF injection via unescaped multipart field/file names (<2.5.6)
   ip-address: 10.2.0
   minimatch: 10.2.5
   path-to-regexp: 8.4.0
@@ -96,12 +99,18 @@ overrides:
   tar: 7.5.15
   tough-cookie: 4.1.3
   yauzl: 3.2.1
-  protobufjs: 8.4.0
+  protobufjs: 8.4.2 # GHSA-wcpc-wj8m-hjx6: DoS via unbounded Any expansion in JSON conversion (>=8.0.0 <=8.4.0)
   uuid: 14.0.0
   # Security: GHSA-gv7w-rqvm-qjhr (esbuild missing binary integrity verification
   # in the Deno module -> RCE via NPM_CONFIG_REGISTRY). Affects >=0.17.0 <0.28.1;
   # transitive via vite/vitest/tsx. Pin to the patched release.
   esbuild: 0.28.1
+  # Security: GHSA-fx2h-pf6j-xcff (vite server.fs.deny bypass on Windows alternate
+  # paths, <=8.0.15). Pin to the patched release.
+  vite: 8.0.16
+  # Security: GHSA-g8mr-85jm-7xhm (@vitest/browser Browser Mode API can proxy CDP
+  # and overwrite config files -> RCE, <=4.1.7). Pin to the patched release.
+  "@vitest/browser": 4.1.9
 
 allowBuilds:
   "@openclaw/fs-safe": true
