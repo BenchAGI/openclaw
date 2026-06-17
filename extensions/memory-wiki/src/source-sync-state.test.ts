@@ -49,13 +49,15 @@ describe("memory wiki source sync state", () => {
     );
   });
 
-  it("never prunes a page whose source artifact lives outside the local home (foreign-origin guard)", async () => {
+  it("never prunes a bridge page whose source artifact lives under a sibling user home", async () => {
     const vaultRoot = await makeTempDir();
     const sourcesDir = path.join(vaultRoot, "sources");
     await fs.mkdir(sourcesDir, { recursive: true });
     const localPage = path.join(sourcesDir, "local.md");
+    const externalLocalPage = path.join(sourcesDir, "external-local.md");
     const foreignPage = path.join(sourcesDir, "foreign.md");
     await fs.writeFile(localPage, "# local\n");
+    await fs.writeFile(externalLocalPage, "# external local\n");
     await fs.writeFile(foreignPage, "# foreign\n");
 
     const homeDir = "/Users/coryshelton";
@@ -70,6 +72,14 @@ describe("memory wiki source sync state", () => {
           sourceSize: 1,
           renderFingerprint: "a",
         },
+        externalLocal: {
+          group: "bridge",
+          pagePath: "sources/external-local.md",
+          sourcePath: "/tmp/openclaw-workspace/MEMORY.md",
+          sourceUpdatedAtMs: 3,
+          sourceSize: 3,
+          renderFingerprint: "c",
+        },
         foreign: {
           group: "bridge",
           pagePath: "sources/foreign.md",
@@ -81,9 +91,9 @@ describe("memory wiki source sync state", () => {
       },
     };
 
-    // Both entries are orphans (empty activeKeys). The local page must be pruned;
-    // the foreign page must survive because its source lives outside this
-    // machine's home dir (the cross-Ari federation guard).
+    // All entries are orphans (empty activeKeys). Local paths, including temp
+    // or mounted workspaces outside home, still prune. Sibling home paths survive
+    // because they are treated as cross-operator federation state.
     const removed = await pruneImportedSourceEntries({
       vaultRoot,
       group: "bridge",
@@ -92,11 +102,58 @@ describe("memory wiki source sync state", () => {
       localHomeDir: homeDir,
     });
 
+    expect(removed).toBe(2);
+    await expect(fs.stat(localPage)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(externalLocalPage)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(foreignPage)).resolves.toBeTruthy();
+    expect(state.entries.local).toBeUndefined();
+    expect(state.entries.externalLocal).toBeUndefined();
+    expect(state.entries.foreign).toBeDefined();
+  });
+
+  it("does not treat every absolute source path as foreign when the local home is /root", async () => {
+    const vaultRoot = await makeTempDir();
+    const sourcesDir = path.join(vaultRoot, "sources");
+    await fs.mkdir(sourcesDir, { recursive: true });
+    const localPage = path.join(sourcesDir, "root-temp.md");
+    const foreignPage = path.join(sourcesDir, "root-foreign.md");
+    await fs.writeFile(localPage, "# local temp\n");
+    await fs.writeFile(foreignPage, "# foreign home\n");
+    const state: MemoryWikiImportedSourceState = {
+      version: 1,
+      entries: {
+        rootTemp: {
+          group: "bridge",
+          pagePath: "sources/root-temp.md",
+          sourcePath: "/tmp/openclaw-workspace/MEMORY.md",
+          sourceUpdatedAtMs: 1,
+          sourceSize: 1,
+          renderFingerprint: "root-temp",
+        },
+        rootForeign: {
+          group: "bridge",
+          pagePath: "sources/root-foreign.md",
+          sourcePath: "/home/alice/.claude/projects/memory/MEMORY.md",
+          sourceUpdatedAtMs: 2,
+          sourceSize: 2,
+          renderFingerprint: "root-foreign",
+        },
+      },
+    };
+
+    const removed = await pruneImportedSourceEntries({
+      vaultRoot,
+      group: "bridge",
+      activeKeys: new Set<string>(),
+      state,
+      localHomeDir: "/root",
+    });
+
     expect(removed).toBe(1);
     await expect(fs.stat(localPage)).rejects.toMatchObject({ code: "ENOENT" });
     await expect(fs.stat(foreignPage)).resolves.toBeTruthy();
-    expect(state.entries.local).toBeUndefined();
-    expect(state.entries.foreign).toBeDefined();
+    expect(state.entries.rootTemp).toBeUndefined();
+    expect(state.entries.rootForeign).toBeDefined();
   });
 
   it("persists source sync entries in plugin state", async () => {

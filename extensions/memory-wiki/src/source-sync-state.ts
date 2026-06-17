@@ -259,18 +259,48 @@ export async function shouldSkipImportedSourceWrite(params: {
     .catch(() => false);
 }
 
-// A source artifact is "local" iff it lives under this machine's home dir.
-// Bridge entries are only ever created from local agent-workspace artifacts, so
-// in normal operation every entry passes this check. The guard exists for the
-// abnormal case (see pruneImportedSourceEntries).
-function isLocalSourcePath(sourcePath: string, homeDir: string): boolean {
-  if (!sourcePath || !path.isAbsolute(sourcePath)) {
-    // No/relative source path → can't prove it's foreign; treat as local so we
-    // don't change behavior for entries that predate sourcePath tracking.
-    return true;
-  }
-  const rel = path.relative(homeDir, sourcePath);
+function isPathInsideOrEqual(childPath: string, parentPath: string): boolean {
+  const rel = path.relative(parentPath, childPath);
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+function resolveKnownUserHomeOwner(absolutePath: string): string | undefined {
+  const parsed = path.parse(absolutePath);
+  const relative = path.relative(parsed.root, absolutePath);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return undefined;
+  }
+  const [homeRootName, owner] = relative.split(path.sep);
+  if (!homeRootName || !owner) {
+    return undefined;
+  }
+  const normalizedRootName = homeRootName.toLowerCase();
+  if (normalizedRootName !== "users" && normalizedRootName !== "home") {
+    return undefined;
+  }
+  return `${parsed.root}${normalizedRootName}/${owner}`;
+}
+
+// Bridge artifacts may legitimately live outside this user's home, for example
+// temp workspaces, mounted volumes, and CI checkouts. Only protect paths that
+// look like they came from a different user home such as /Users/<other>/...
+function isSiblingHomeSourcePath(sourcePath: string, homeDir: string): boolean {
+  if (!sourcePath || !path.isAbsolute(sourcePath)) {
+    return false;
+  }
+
+  const resolvedSourcePath = path.resolve(sourcePath);
+  const resolvedHomeDir = path.resolve(homeDir);
+  if (isPathInsideOrEqual(resolvedSourcePath, resolvedHomeDir)) {
+    return false;
+  }
+  const sourceOwner = resolveKnownUserHomeOwner(resolvedSourcePath);
+  if (!sourceOwner) {
+    return false;
+  }
+
+  const localOwner = resolveKnownUserHomeOwner(resolvedHomeDir);
+  return sourceOwner !== localOwner;
 }
 
 export async function pruneImportedSourceEntries(params: {
@@ -287,15 +317,11 @@ export async function pruneImportedSourceEntries(params: {
     if (entry.group !== params.group || params.activeKeys.has(syncKey)) {
       continue;
     }
-    // Durability guard: never delete a page whose source artifact lives OUTSIDE
-    // this machine's home dir. In normal operation every bridge entry comes from
-    // a local artifact, so this is a no-op. It defends against a state rebuild
-    // that adopts a satellite operator's page (sourcePath /Users/<them>/...)
-    // into the bridge group and then prunes it because that path is absent
-    // locally — the 2026-06-04 incident, where foreign mirror pages were
-    // deleted within minutes. Cross-operator (cross-Ari) memory must federate
-    // read-only into the shared vault, never be pruned by a peer machine.
-    if (!isLocalSourcePath(entry.sourcePath, homeDir)) {
+    // Durability guard: never delete a bridge page whose source artifact points
+    // at a sibling user home. That defends against a state rebuild adopting a
+    // satellite operator's mirror page and pruning it as absent locally, while
+    // still allowing local non-home workspaces and unsafe-local imports to prune.
+    if (entry.group === "bridge" && isSiblingHomeSourcePath(entry.sourcePath, homeDir)) {
       continue;
     }
     const pageAbsPath = path.join(params.vaultRoot, entry.pagePath);
