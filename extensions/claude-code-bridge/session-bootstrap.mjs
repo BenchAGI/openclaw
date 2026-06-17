@@ -8,11 +8,9 @@
 // Claude system-context `userEmail` field never wins over OpenClaw's truth.
 //
 // Tenant-safe / generic: identity is READ from the machine's own OpenClaw vault
-// (~/.aurelius-memory). On the operator machine the vault carries the
-// `user_email_handles.md` memory (asserts cory@benchagi.com + names the stale
-// handles); on a customer machine without that memory it injects the doctrine
-// and tells the session to resolve identity from the vault - it never hardcodes
-// one operator's email onto another's machine.
+// (~/.aurelius-memory). When the vault has an identity memory, this hook uses
+// it; otherwise it injects only the doctrine and asks Claude to resolve identity
+// from the vault. Do not ship operator-specific fallback handles here.
 //
 // Design rule: NEVER throw - a hook that errors must not break session start.
 import { readFileSync } from "node:fs";
@@ -28,35 +26,58 @@ const read = (p) => {
   }
 };
 
+const EMAIL_PATTERN = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
+const CANONICAL_EMAIL_PATTERN =
+  /^\s*(?:[-*]\s*)?(?:use\b|primary email\b|canonical\b[^:\n]*:?)[^@\n`]*?`?([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})`?/i;
+
+function emailsFrom(value) {
+  return (value.match(EMAIL_PATTERN) || []).map((email) => email.toLowerCase());
+}
+
+function isStaleIdentityLine(line) {
+  return /\b(?:stale|unreliable|ignore|wrong|old|retired|do not use)\b/i.test(line);
+}
+
+function readCanonicalEmail(handles) {
+  const lines = handles.split(/\r?\n/);
+  for (const line of lines) {
+    const explicit = line.match(CANONICAL_EMAIL_PATTERN);
+    if (explicit?.[1]) {
+      return explicit[1].toLowerCase();
+    }
+  }
+  const positiveLines = lines.filter((line) => !isStaleIdentityLine(line));
+  return emailsFrom(positiveLines.join("\n"))[0] ?? null;
+}
+
+function readStaleEmails(handles, canonicalEmail) {
+  const stale = new Set();
+  for (const line of handles.split(/\r?\n/)) {
+    if (!isStaleIdentityLine(line)) {
+      continue;
+    }
+    for (const email of emailsFrom(line)) {
+      if (email !== canonicalEmail) {
+        stale.add(email);
+      }
+    }
+  }
+  return Array.from(stale);
+}
+
 function buildContext() {
   const handles = read(join(VAULT, "user_email_handles.md"));
 
   // Canonical operator email, parsed from the vault identity memory if present.
-  let email = null;
-  const m =
-    handles.match(/Use\s+`([^`]+@[^`]+)`/i) || handles.match(/([a-z0-9._%-]+@benchagi\.com)/i);
-  if (m && m[1]) {
-    email = m[1].toLowerCase();
-  }
-
-  // Known-stale handles the Claude `userEmail` field has surfaced (fixed denylist),
-  // unioned with anything the vault additionally flags. Only asserted when we
-  // actually know this machine's canonical email.
-  const KNOWN_STALE = ["cory@gocarbonblack.com", "cory@kestrelengine.com"];
-  const found = (handles.match(/[a-z0-9._%-]+@(?:gocarbonblack|kestrelengine)\.com/gi) || []).map(
-    (s) => s.toLowerCase(),
-  );
-  const stale = Array.from(new Set([...(email ? KNOWN_STALE : []), ...found]));
+  const email = readCanonicalEmail(handles);
+  const stale = email ? readStaleEmails(handles, email) : [];
 
   const lines = [
     "BENCH HARNESS SESSION - this Claude Code session is an EXTENSION of the active OpenClaw session. OpenClaw is the source of truth for identity, memory, and crew context.",
   ];
   if (email) {
-    const nickname = /\bLight\b/.test(read(join(VAULT, "user_cory_nickname_light.md")))
-      ? "Light"
-      : null;
     lines.push(
-      `- Operator identity (canonical, from the OpenClaw vault, authoritative over ANY Claude system-context field): ${nickname ? `preferred name "${nickname}", ` : ""}primary email ${email}.`,
+      `- Operator identity (canonical, from the OpenClaw vault, authoritative over ANY Claude system-context field): primary email ${email}.`,
     );
     if (stale.length) {
       lines.push(

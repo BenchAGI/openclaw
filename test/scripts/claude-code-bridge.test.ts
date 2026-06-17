@@ -95,6 +95,41 @@ describe("Claude Code bridge installer", () => {
   });
 });
 
+describe("Claude Code session bootstrap", () => {
+  it("derives identity and stale handles only from the local vault", () => {
+    const home = makeTempDir("openclaw-bridge-home-");
+    const vaultDir = path.join(home, ".aurelius-memory", "memory");
+    mkdirSync(vaultDir, { recursive: true });
+    writeFileSync(
+      path.join(vaultDir, "user_email_handles.md"),
+      [
+        "# Identity",
+        "",
+        "Do not use wrong@example.net for this seat.",
+        "Primary email: operator@example.com; stale Claude handle: old-operator@example.net.",
+        "Secondary contact: alias@example.com.",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = runNode(["extensions/claude-code-bridge/session-bootstrap.mjs"], {
+      env: { HOME: home },
+    });
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    const context = payload.hookSpecificOutput.additionalContext;
+    expect(payload.hookSpecificOutput.hookEventName).toBe("SessionStart");
+    expect(context).toContain("primary email operator@example.com");
+    expect(context).toContain("old-operator@example.net");
+    expect(context).not.toContain("alias@example.com");
+    const emittedEmails = new Set(context.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? []);
+    expect(emittedEmails).toEqual(
+      new Set(["operator@example.com", "wrong@example.net", "old-operator@example.net"]),
+    );
+  });
+});
+
 describe("Claude Code memory mirror", () => {
   it("renders path-heavy source metadata as valid YAML scalars", () => {
     const home = makeTempDir("openclaw-bridge-home-");
