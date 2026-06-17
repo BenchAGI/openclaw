@@ -1,6 +1,7 @@
 // Memory Wiki plugin module implements source sync state behavior.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { readJsonFileWithFallback } from "openclaw/plugin-sdk/json-store";
 import type {
@@ -258,15 +259,43 @@ export async function shouldSkipImportedSourceWrite(params: {
     .catch(() => false);
 }
 
+// A source artifact is "local" iff it lives under this machine's home dir.
+// Bridge entries are only ever created from local agent-workspace artifacts, so
+// in normal operation every entry passes this check. The guard exists for the
+// abnormal case (see pruneImportedSourceEntries).
+function isLocalSourcePath(sourcePath: string, homeDir: string): boolean {
+  if (!sourcePath || !path.isAbsolute(sourcePath)) {
+    // No/relative source path → can't prove it's foreign; treat as local so we
+    // don't change behavior for entries that predate sourcePath tracking.
+    return true;
+  }
+  const rel = path.relative(homeDir, sourcePath);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
 export async function pruneImportedSourceEntries(params: {
   vaultRoot: string;
   group: MemoryWikiImportedSourceGroup;
   activeKeys: Set<string>;
   state: MemoryWikiImportedSourceState;
+  // Defaults to this machine's home dir; injectable for tests.
+  localHomeDir?: string;
 }): Promise<number> {
+  const homeDir = params.localHomeDir ?? os.homedir();
   let removedCount = 0;
   for (const [syncKey, entry] of Object.entries(params.state.entries)) {
     if (entry.group !== params.group || params.activeKeys.has(syncKey)) {
+      continue;
+    }
+    // Durability guard: never delete a page whose source artifact lives OUTSIDE
+    // this machine's home dir. In normal operation every bridge entry comes from
+    // a local artifact, so this is a no-op. It defends against a state rebuild
+    // that adopts a satellite operator's page (sourcePath /Users/<them>/...)
+    // into the bridge group and then prunes it because that path is absent
+    // locally — the 2026-06-04 incident, where foreign mirror pages were
+    // deleted within minutes. Cross-operator (cross-Ari) memory must federate
+    // read-only into the shared vault, never be pruned by a peer machine.
+    if (!isLocalSourcePath(entry.sourcePath, homeDir)) {
       continue;
     }
     const pageAbsPath = path.join(params.vaultRoot, entry.pagePath);

@@ -13,11 +13,13 @@ import {
   configureMemoryWikiSourceSyncStateStore,
   createMemoryWikiSourceSyncStateStore,
   MEMORY_WIKI_SOURCE_SYNC_STATE_MAX_ENTRIES,
+  pruneImportedSourceEntries,
   readLegacyMemoryWikiSourceSyncState,
   readMemoryWikiSourceSyncState,
   resolveMemoryWikiSourceSyncStatePath,
   writeMemoryWikiSourceSyncState,
 } from "./source-sync-state.js";
+import type { MemoryWikiImportedSourceState } from "./source-sync-state.js";
 
 const tempDirs: string[] = [];
 
@@ -45,6 +47,56 @@ describe("memory wiki source sync state", () => {
     await Promise.all(
       tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
     );
+  });
+
+  it("never prunes a page whose source artifact lives outside the local home (foreign-origin guard)", async () => {
+    const vaultRoot = await makeTempDir();
+    const sourcesDir = path.join(vaultRoot, "sources");
+    await fs.mkdir(sourcesDir, { recursive: true });
+    const localPage = path.join(sourcesDir, "local.md");
+    const foreignPage = path.join(sourcesDir, "foreign.md");
+    await fs.writeFile(localPage, "# local\n");
+    await fs.writeFile(foreignPage, "# foreign\n");
+
+    const homeDir = "/Users/coryshelton";
+    const state: MemoryWikiImportedSourceState = {
+      version: 1,
+      entries: {
+        local: {
+          group: "bridge",
+          pagePath: "sources/local.md",
+          sourcePath: "/Users/coryshelton/.claude/projects/x/memory/a.md",
+          sourceUpdatedAtMs: 1,
+          sourceSize: 1,
+          renderFingerprint: "a",
+        },
+        foreign: {
+          group: "bridge",
+          pagePath: "sources/foreign.md",
+          sourcePath: "/Users/jory/.claude/projects/y/memory/b.md",
+          sourceUpdatedAtMs: 2,
+          sourceSize: 2,
+          renderFingerprint: "b",
+        },
+      },
+    };
+
+    // Both entries are orphans (empty activeKeys). The local page must be pruned;
+    // the foreign page must survive because its source lives outside this
+    // machine's home dir (the cross-Ari federation guard).
+    const removed = await pruneImportedSourceEntries({
+      vaultRoot,
+      group: "bridge",
+      activeKeys: new Set<string>(),
+      state,
+      localHomeDir: homeDir,
+    });
+
+    expect(removed).toBe(1);
+    await expect(fs.stat(localPage)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(foreignPage)).resolves.toBeTruthy();
+    expect(state.entries.local).toBeUndefined();
+    expect(state.entries.foreign).toBeDefined();
   });
 
   it("persists source sync entries in plugin state", async () => {
