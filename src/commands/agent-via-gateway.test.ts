@@ -345,6 +345,21 @@ describe("agentCliCommand", () => {
     });
   });
 
+  it("defaults to the only configured agent when no explicit target is given", async () => {
+    await withTempStore(async () => {
+      mockGatewaySuccessReply();
+
+      // No --to/--agent/--session-*; a fresh install has exactly one agent
+      // ("main"), so this should default to it rather than erroring.
+      await agentCliCommand({ message: "hi" }, runtime);
+
+      expect(callGateway).toHaveBeenCalledTimes(1);
+      expect(runtime.error).toHaveBeenCalledWith(
+        expect.stringContaining('defaulting to the only configured agent "main"'),
+      );
+    });
+  });
+
   it.each(["/new", "/RESET", "/reset check status"] as const)(
     "uses backend admin authority for %s gateway commands",
     async (message) => {

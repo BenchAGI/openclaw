@@ -149,7 +149,8 @@ export async function runDaemonInstall(opts: DaemonInstallOptions) {
     configSnapshot = refreshed.snapshot;
     configWriteOptions = refreshed.writeOptions;
     cfg = configSnapshot.valid ? configSnapshot.sourceConfig : configSnapshot.config;
-    const message = "No gateway.mode found. Set gateway.mode=local for managed gateway install.";
+    const message =
+      'gateway.mode was unset — defaulted to "local" for this managed gateway install. No action needed; restart the gateway to apply.';
     if (json) {
       warnings.push(message);
     } else {

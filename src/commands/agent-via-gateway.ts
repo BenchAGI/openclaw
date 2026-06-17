@@ -633,22 +633,29 @@ async function agentViaGatewayCommand(
       `Missing message. Use ${formatCliCommand('openclaw agent --message "..." --agent <id>')} or pass --to/--session-key/--session-id for an existing conversation.`,
     );
   }
-  if (!opts.to && !opts.sessionId && !opts.agent && !explicitSessionKey) {
-    throw new Error(
-      `No target session selected. Use --agent <id>, --session-key <key>, --session-id <id>, or --to <E.164>. Run ${formatCliCommand("openclaw agents list")} to see agents.`,
-    );
-  }
-
   let cfg = await getGatewayDispatchConfig();
-  const agentIdRaw = opts.agent?.trim();
-  const agentId = agentIdRaw ? normalizeAgentId(agentIdRaw) : undefined;
-  if (agentId) {
-    const knownAgents = listAgentIds(cfg);
-    if (!knownAgents.includes(agentId)) {
+  const knownAgents = listAgentIds(cfg);
+  let agentIdRaw = opts.agent?.trim();
+  if (!opts.to && !opts.sessionId && !agentIdRaw && !explicitSessionKey) {
+    // No explicit target. If exactly one agent is configured (the common
+    // fresh-install case — just the default "main"), default to it instead of
+    // erroring; otherwise list the choices so the operator can pick one.
+    if (knownAgents.length === 1) {
+      agentIdRaw = knownAgents[0];
+      runtime.error(
+        `No target specified — defaulting to the only configured agent "${agentIdRaw}".`,
+      );
+    } else {
       throw new Error(
-        `Unknown agent id "${agentIdRaw}". Use "${formatCliCommand("openclaw agents list")}" to see configured agents.`,
+        `No target session selected. Use --agent <id>, --session-key <key>, --session-id <id>, or --to <E.164>. Configured agents: ${knownAgents.join(", ")}.`,
       );
     }
+  }
+  const agentId = agentIdRaw ? normalizeAgentId(agentIdRaw) : undefined;
+  if (agentId && !knownAgents.includes(agentId)) {
+    throw new Error(
+      `Unknown agent id "${agentIdRaw}". Use "${formatCliCommand("openclaw agents list")}" to see configured agents.`,
+    );
   }
   const timeoutSeconds = parseTimeoutSeconds({ cfg, timeout: opts.timeout });
   const gatewayTimeoutMs = resolveGatewayAgentTimeoutMs(timeoutSeconds);
