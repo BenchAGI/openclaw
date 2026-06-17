@@ -30,6 +30,7 @@ minimumReleaseAgeExclude:
   - "vitest"
   - "@vitest/browser"
   - "@vitest/browser-playwright"
+  - "@vitest/coverage-v8"
   - "@cloudflare/workers-types"
   - "@hono/node-server"
   - "@mariozechner/*"
