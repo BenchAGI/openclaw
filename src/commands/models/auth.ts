@@ -33,7 +33,6 @@ import {
 import { loadAuthProfileStoreForRuntime } from "../../agents/auth-profiles/store.js";
 import type { AuthProfileCredential } from "../../agents/auth-profiles/types.js";
 import { clearAuthProfileCooldown } from "../../agents/auth-profiles/usage.js";
-import { resolveRecommendedModelForProvider } from "../../agents/defaults.js";
 import { loadModelCatalog } from "../../agents/model-catalog.js";
 import { normalizeProviderId } from "../../agents/model-selection-normalize.js";
 import { resolveProviderIdForAuth } from "../../agents/provider-auth-aliases.js";
@@ -72,6 +71,7 @@ import { isRemoteEnvironment } from "../oauth-env.js";
 import {
   applyDefaultModelPrimaryUpdate,
   loadValidConfigOrThrow,
+  resolveModelTarget,
   resolveKnownAgentId,
   updateConfig,
 } from "./shared.js";
@@ -215,6 +215,13 @@ type ResolvedModelsAuthContext = {
   providers: ProviderPlugin[];
 };
 
+type ResolvedModelsAuthAgentContext = {
+  config: OpenClawConfig;
+  agentDir: string;
+  workspaceDir: string;
+  isDefaultAgent: boolean;
+};
+
 function listProvidersWithAuthMethods(providers: ProviderPlugin[]): ProviderPlugin[] {
   return providers.filter((provider) => provider.auth.length > 0);
 }
@@ -278,13 +285,9 @@ async function resolveModelsAuthContext(params?: {
   requestedProvider?: string;
   rawAgentId?: string | null;
 }): Promise<ResolvedModelsAuthContext> {
-  const config = await loadValidConfigOrThrow();
-  const agentId =
-    resolveKnownAgentId({ cfg: config, rawAgentId: params?.rawAgentId }) ??
-    resolveDefaultAgentId(config);
-  const agentDir = resolveAgentDir(config, agentId);
-  const workspaceDir =
-    resolveAgentWorkspaceDir(config, agentId) ?? resolveDefaultAgentWorkspaceDir();
+  const { config, agentDir, workspaceDir } = await resolveModelsAuthAgentContext(
+    params?.rawAgentId,
+  );
   const requestedProvider = params?.requestedProvider?.trim();
   const providerRef = requestedProvider
     ? normalizeManualAuthProvider(requestedProvider)
@@ -316,10 +319,20 @@ async function resolveModelsAuthContext(params?: {
   };
 }
 
-async function resolveModelsAuthAgentDir(rawAgentId?: string | null): Promise<string> {
+async function resolveModelsAuthAgentContext(
+  rawAgentId?: string | null,
+): Promise<ResolvedModelsAuthAgentContext> {
   const config = await loadValidConfigOrThrow();
-  const agentId = resolveKnownAgentId({ cfg: config, rawAgentId }) ?? resolveDefaultAgentId(config);
-  return resolveAgentDir(config, agentId);
+  const explicitAgentId = resolveKnownAgentId({ cfg: config, rawAgentId });
+  const agentId = explicitAgentId ?? resolveDefaultAgentId(config);
+  const workspaceDir =
+    resolveAgentWorkspaceDir(config, agentId) ?? resolveDefaultAgentWorkspaceDir();
+  return {
+    config,
+    agentDir: resolveAgentDir(config, agentId),
+    workspaceDir,
+    isDefaultAgent: explicitAgentId === undefined,
+  };
 }
 
 function resolveRequestedProviderOrThrow(
@@ -650,50 +663,103 @@ export async function modelsAuthSetupTokenCommand(
   });
 }
 
-/** Reads a pasted bearer/setup token and stores it as an auth profile. */
 /**
  * Fresh-install nicety: when an operator places their first key for a provider
- * and has NOT configured a default model, adopt that provider's recommended
- * model so the agent doesn't fall through to the global openai/gpt-5.5 baseline
- * (which fails when there is no openai key). No-op when a default is already
- * set, the provider has no recommended model, or the model isn't in the live
- * catalog — we never persist a guessed model id.
+ * and has NOT configured a default model, adopt that auth method's
+ * provider-owned default so the agent doesn't fall through to the global
+ * openai/gpt-5.5 baseline (which fails when there is no openai key). No-op when
+ * a default is already set, the auth method has no default, or the model isn't
+ * in the live catalog - we never persist a guessed model id.
  */
 async function adoptProviderDefaultModelIfUnset(params: {
+  credentialKind: "api_key" | "token";
+  isDefaultAgent: boolean;
   provider: string;
   runtime: RuntimeEnv;
+  workspaceDir: string;
 }): Promise<void> {
-  const recommended = resolveRecommendedModelForProvider(params.provider);
-  if (!recommended) {
+  if (!params.isDefaultAgent) {
+    // Agent-scoped auth stores do not make credentials available to every
+    // agent, so never point the global default at that scoped credential.
     return;
   }
   const cfg = await loadValidConfigOrThrow();
   const existingPrimary = toAgentModelListLike(cfg.agents?.defaults?.model)?.primary;
   if (existingPrimary) {
-    return; // operator already chose a default — never override it
+    return; // operator already chose a default; never override it
+  }
+  const recommended = resolveProviderAuthDefaultModel({
+    config: cfg,
+    credentialKind: params.credentialKind,
+    provider: params.provider,
+    workspaceDir: params.workspaceDir,
+  });
+  if (!recommended) {
+    return;
+  }
+  let resolved: { provider: string; model: string };
+  try {
+    resolved = resolveModelTarget({ raw: recommended, cfg });
+  } catch {
+    return;
   }
   // Validate against the live catalog so a stale registry entry can't persist a
   // model id that no longer exists. An empty catalog (fresh box, discovery not
-  // run yet) is treated as "can't disprove": the registry value is authored,
-  // not a guess, so we still adopt it.
+  // run yet) is treated as "can't disprove": the provider-auth default is
+  // authored by the provider plugin, not guessed from catalog ordering.
   const catalog = await loadModelCatalog({ config: cfg, readOnly: true });
   const known = catalog.some(
     (entry) =>
-      normalizeProviderId(entry.provider) === normalizeProviderId(params.provider) &&
-      entry.id === recommended,
+      normalizeProviderId(entry.provider) === normalizeProviderId(resolved.provider) &&
+      entry.id === resolved.model,
   );
   if (catalog.length > 0 && !known) {
     return;
   }
-  const modelRaw = `${params.provider}/${recommended}`;
   await updateConfig((current) =>
-    applyDefaultModelPrimaryUpdate({ cfg: current, modelRaw, field: "model" }),
+    applyDefaultModelPrimaryUpdate({ cfg: current, modelRaw: recommended, field: "model" }),
   );
   params.runtime.log(
-    `No default model was set — defaulted to ${modelRaw} for your ${params.provider} key. Change it with ${formatCliCommand(
+    `No default model was set - defaulted to ${recommended} for your ${params.provider} key. Change it with ${formatCliCommand(
       "openclaw config set agents.defaults.model <provider>/<model>",
     )}.`,
   );
+}
+
+function resolveProviderAuthDefaultModel(params: {
+  config: OpenClawConfig;
+  credentialKind: "api_key" | "token";
+  provider: string;
+  workspaceDir: string;
+}): string | undefined {
+  const provider = normalizeManualAuthProvider(params.provider);
+  const setupProvider = resolvePluginSetupProvider({
+    provider,
+    config: params.config,
+    workspaceDir: params.workspaceDir,
+  });
+  const providers = setupProvider
+    ? [setupProvider]
+    : resolvePluginProviders({
+        config: params.config,
+        workspaceDir: params.workspaceDir,
+        mode: "setup",
+        includeUntrustedWorkspacePlugins: false,
+        bundledProviderVitestCompat: true,
+        providerRefs: [provider],
+        activate: true,
+      });
+  const authProviders = preferSetupAuthProviders({
+    providers,
+    config: params.config,
+    workspaceDir: params.workspaceDir,
+    requestedProvider: provider,
+  });
+  const matched = resolveProviderMatch(authProviders, provider);
+  const defaultModel = matched?.auth.find(
+    (method) => method.kind === params.credentialKind && method.defaultModel,
+  )?.defaultModel;
+  return defaultModel ? normalizeAgentModelRefForConfig(defaultModel) : undefined;
 }
 
 export async function modelsAuthPasteTokenCommand(
@@ -705,7 +771,7 @@ export async function modelsAuthPasteTokenCommand(
   },
   runtime: RuntimeEnv,
 ) {
-  const agentDir = await resolveModelsAuthAgentDir(opts.agent);
+  const authContext = await resolveModelsAuthAgentContext(opts.agent);
   const rawProvider = normalizeOptionalString(opts.provider);
   if (!rawProvider) {
     throw new Error(
@@ -749,14 +815,20 @@ export async function modelsAuthPasteTokenCommand(
       token,
       ...(expires ? { expires } : {}),
     },
-    agentDir,
+    agentDir: authContext.agentDir,
   });
 
   await updateConfig((cfg) => applyAuthProfileConfig(cfg, { profileId, provider, mode: "token" }));
 
   logConfigUpdated(runtime);
   runtime.log(`Auth profile: ${profileId} (${provider}/token)`);
-  await adoptProviderDefaultModelIfUnset({ provider, runtime });
+  await adoptProviderDefaultModelIfUnset({
+    credentialKind: "token",
+    isDefaultAgent: authContext.isDefaultAgent,
+    provider,
+    runtime,
+    workspaceDir: authContext.workspaceDir,
+  });
   if (provider === "anthropic") {
     runtime.log("Anthropic setup-token auth is supported in OpenClaw.");
     runtime.log("OpenClaw prefers Claude CLI reuse when it is available on the host.");
@@ -773,7 +845,7 @@ export async function modelsAuthPasteApiKeyCommand(
   },
   runtime: RuntimeEnv,
 ) {
-  const agentDir = await resolveModelsAuthAgentDir(opts.agent);
+  const authContext = await resolveModelsAuthAgentContext(opts.agent);
   const rawProvider = normalizeOptionalString(opts.provider);
   if (!rawProvider) {
     throw new Error(
@@ -806,7 +878,7 @@ export async function modelsAuthPasteApiKeyCommand(
       provider,
       key,
     },
-    agentDir,
+    agentDir: authContext.agentDir,
   });
 
   await updateConfig((cfg) =>
@@ -815,7 +887,13 @@ export async function modelsAuthPasteApiKeyCommand(
 
   logConfigUpdated(runtime);
   runtime.log(`Auth profile: ${profileId} (${provider}/api_key)`);
-  await adoptProviderDefaultModelIfUnset({ provider, runtime });
+  await adoptProviderDefaultModelIfUnset({
+    credentialKind: "api_key",
+    isDefaultAgent: authContext.isDefaultAgent,
+    provider,
+    runtime,
+    workspaceDir: authContext.workspaceDir,
+  });
 }
 
 async function upsertAuthProfileWithLockOrThrow(params: UpsertAuthProfileParams): Promise<void> {
