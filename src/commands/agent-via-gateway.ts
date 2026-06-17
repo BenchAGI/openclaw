@@ -261,6 +261,28 @@ function isGatewayAgentEmbeddedFallbackError(err: unknown): boolean {
   return isGatewayTransportError(err);
 }
 
+/**
+ * A gateway "closed" with a pairing/scope rejection — e.g. the CLI device holds
+ * operator.read but running an agent turn needs operator.write, and the scope
+ * upgrade is pending approval. This is an authz problem the embedded agent
+ * cannot solve: falling back would silently ignore the operator's gateway
+ * config + provider keys and run a turn on whatever default the embedded path
+ * picks (historically a keyless openai/gpt-5.5 that then fails with a confusing
+ * auth error). Surface the one-line fix instead of masking it.
+ */
+function isGatewayPairingScopeError(err: unknown): boolean {
+  if (!isGatewayTransportError(err) || err.kind !== "closed") {
+    return false;
+  }
+  const reason = normalizeOptionalString(err.reason)?.toLowerCase() ?? "";
+  return (
+    reason.includes("pairing required") ||
+    reason.includes("more scopes") ||
+    reason.includes("scope upgrade") ||
+    reason.includes("not approved")
+  );
+}
+
 function isTransientGatewayAgentConnectClose(err: unknown): boolean {
   if (!isGatewayTransportError(err) || err.kind !== "closed") {
     return false;
@@ -908,6 +930,15 @@ export async function agentCliCommand(
           deps,
         );
         return returnAfterSignalExit(result, signalBridge.getReceivedSignal(), runtime);
+      }
+
+      if (isGatewayPairingScopeError(err)) {
+        throw new Error(
+          `The local gateway rejected this device: running agent turns needs broader operator scopes (operator.write) and the upgrade is pending approval. Approve this device with \`${formatCliCommand(
+            "openclaw devices approve --latest",
+          )}\`, then retry. (Not falling back to an embedded agent — that would ignore your gateway config and provider keys.)`,
+          { cause: err },
+        );
       }
 
       if (!isGatewayAgentEmbeddedFallbackError(err)) {
