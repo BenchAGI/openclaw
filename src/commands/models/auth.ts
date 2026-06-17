@@ -33,13 +33,15 @@ import {
 import { loadAuthProfileStoreForRuntime } from "../../agents/auth-profiles/store.js";
 import type { AuthProfileCredential } from "../../agents/auth-profiles/types.js";
 import { clearAuthProfileCooldown } from "../../agents/auth-profiles/usage.js";
+import { resolveRecommendedModelForProvider } from "../../agents/defaults.js";
+import { loadModelCatalog } from "../../agents/model-catalog.js";
 import { normalizeProviderId } from "../../agents/model-selection-normalize.js";
 import { resolveProviderIdForAuth } from "../../agents/provider-auth-aliases.js";
 import { resolveDefaultAgentWorkspaceDir } from "../../agents/workspace.js";
 import { formatCliCommand } from "../../cli/command-format.js";
 import { parseDurationMs } from "../../cli/parse-duration.js";
 import { logConfigUpdated } from "../../config/logging.js";
-import { normalizeAgentModelRefForConfig } from "../../config/model-input.js";
+import { normalizeAgentModelRefForConfig, toAgentModelListLike } from "../../config/model-input.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import {
   applyProviderAuthConfigPatch,
@@ -67,7 +69,12 @@ import { validateAnthropicSetupToken } from "../auth-token.js";
 import { repairCodexRuntimePluginInstallForModelSelection } from "../codex-runtime-plugin-install.js";
 import { repairCopilotRuntimePluginInstallForModelSelection } from "../copilot-runtime-plugin-install.js";
 import { isRemoteEnvironment } from "../oauth-env.js";
-import { loadValidConfigOrThrow, resolveKnownAgentId, updateConfig } from "./shared.js";
+import {
+  applyDefaultModelPrimaryUpdate,
+  loadValidConfigOrThrow,
+  resolveKnownAgentId,
+  updateConfig,
+} from "./shared.js";
 
 type UpsertAuthProfileParams = Parameters<typeof upsertAuthProfileWithLock>[0];
 
@@ -644,6 +651,51 @@ export async function modelsAuthSetupTokenCommand(
 }
 
 /** Reads a pasted bearer/setup token and stores it as an auth profile. */
+/**
+ * Fresh-install nicety: when an operator places their first key for a provider
+ * and has NOT configured a default model, adopt that provider's recommended
+ * model so the agent doesn't fall through to the global openai/gpt-5.5 baseline
+ * (which fails when there is no openai key). No-op when a default is already
+ * set, the provider has no recommended model, or the model isn't in the live
+ * catalog — we never persist a guessed model id.
+ */
+async function adoptProviderDefaultModelIfUnset(params: {
+  provider: string;
+  runtime: RuntimeEnv;
+}): Promise<void> {
+  const recommended = resolveRecommendedModelForProvider(params.provider);
+  if (!recommended) {
+    return;
+  }
+  const cfg = await loadValidConfigOrThrow();
+  const existingPrimary = toAgentModelListLike(cfg.agents?.defaults?.model)?.primary;
+  if (existingPrimary) {
+    return; // operator already chose a default — never override it
+  }
+  // Validate against the live catalog so a stale registry entry can't persist a
+  // model id that no longer exists. An empty catalog (fresh box, discovery not
+  // run yet) is treated as "can't disprove": the registry value is authored,
+  // not a guess, so we still adopt it.
+  const catalog = await loadModelCatalog({ config: cfg, readOnly: true });
+  const known = catalog.some(
+    (entry) =>
+      normalizeProviderId(entry.provider) === normalizeProviderId(params.provider) &&
+      entry.id === recommended,
+  );
+  if (catalog.length > 0 && !known) {
+    return;
+  }
+  const modelRaw = `${params.provider}/${recommended}`;
+  await updateConfig((current) =>
+    applyDefaultModelPrimaryUpdate({ cfg: current, modelRaw, field: "model" }),
+  );
+  params.runtime.log(
+    `No default model was set — defaulted to ${modelRaw} for your ${params.provider} key. Change it with ${formatCliCommand(
+      "openclaw config set agents.defaults.model <provider>/<model>",
+    )}.`,
+  );
+}
+
 export async function modelsAuthPasteTokenCommand(
   opts: {
     provider?: string;
@@ -704,6 +756,7 @@ export async function modelsAuthPasteTokenCommand(
 
   logConfigUpdated(runtime);
   runtime.log(`Auth profile: ${profileId} (${provider}/token)`);
+  await adoptProviderDefaultModelIfUnset({ provider, runtime });
   if (provider === "anthropic") {
     runtime.log("Anthropic setup-token auth is supported in OpenClaw.");
     runtime.log("OpenClaw prefers Claude CLI reuse when it is available on the host.");
@@ -762,6 +815,7 @@ export async function modelsAuthPasteApiKeyCommand(
 
   logConfigUpdated(runtime);
   runtime.log(`Auth profile: ${profileId} (${provider}/api_key)`);
+  await adoptProviderDefaultModelIfUnset({ provider, runtime });
 }
 
 async function upsertAuthProfileWithLockOrThrow(params: UpsertAuthProfileParams): Promise<void> {
