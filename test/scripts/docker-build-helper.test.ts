@@ -2402,8 +2402,9 @@ export ROOT_DIR TMPDIR
 
 source "$ROOT_DIR/scripts/lib/docker-e2e-logs.sh"
 
-output="$(run_logged_print_heartbeat plugins-run 08 bash -c 'printf "captured container log\\\\n"; /bin/sleep 9')"
-[[ "$output" = *"still running plugins-run (8s elapsed,"* ]]
+output="$(run_logged_print_heartbeat plugins-run 08 bash -c 'printf "captured container log\\\\n"; /bin/sleep 12')"
+[[ "$output" =~ still\\ running\\ plugins-run\\ \\([0-9]+s\\ elapsed, ]]
+[[ "$output" != *"08s elapsed"* ]]
 [[ "$output" = *"log bytes captured"* ]]
 [[ "$output" = *"captured container log"* ]]
 `;
