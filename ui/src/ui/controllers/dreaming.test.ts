@@ -528,14 +528,15 @@ describe("dreaming controller", () => {
       },
     };
     request.mockResolvedValue({
-      totalItems: 1,
-      totalPages: 2,
+      totalItems: 2,
+      totalPages: 3,
       pageCounts: {
         synthesis: 1,
         entity: 0,
         concept: 0,
         source: 1,
         report: 0,
+        canon: 1,
       },
       totalClaims: 2,
       totalQuestions: 1,
@@ -563,18 +564,41 @@ describe("dreaming controller", () => {
             },
           ],
         },
+        {
+          key: "canon",
+          label: "Canon",
+          itemCount: 1,
+          claimCount: 0,
+          questionCount: 0,
+          contradictionCount: 0,
+          items: [
+            {
+              pagePath: "canon/topics/index.md",
+              title: "Canon Topic",
+              kind: "canon",
+              claimCount: 0,
+              questionCount: 0,
+              contradictionCount: 0,
+              claims: [],
+              questions: [],
+              contradictions: [],
+              snippet: "A durable canon topic.",
+            },
+          ],
+        },
       ],
     });
 
     await loadWikiMemoryPalace(state);
 
     expect(request).toHaveBeenCalledWith("wiki.palace", {});
-    expect(state.wikiMemoryPalace?.totalItems).toBe(1);
-    expect(state.wikiMemoryPalace?.totalPages).toBe(2);
+    expect(state.wikiMemoryPalace?.totalItems).toBe(2);
+    expect(state.wikiMemoryPalace?.totalPages).toBe(3);
     expect(state.wikiMemoryPalace?.pageCounts.source).toBe(1);
     expect(state.wikiMemoryPalace?.pageCounts.synthesis).toBe(1);
+    expect(state.wikiMemoryPalace?.pageCounts.canon).toBe(1);
     expect(state.wikiMemoryPalace?.totalClaims).toBe(2);
-    expect(state.wikiMemoryPalace?.clusters).toHaveLength(1);
+    expect(state.wikiMemoryPalace?.clusters).toHaveLength(2);
     expect(state.wikiMemoryPalace?.clusters[0]?.key).toBe("synthesis");
     expect(state.wikiMemoryPalace?.clusters[0]?.label).toBe("Syntheses");
     expect(state.wikiMemoryPalace?.clusters[0]?.items).toHaveLength(1);
@@ -582,6 +606,9 @@ describe("dreaming controller", () => {
     expect(state.wikiMemoryPalace?.clusters[0]?.items[0]?.claims).toEqual([
       "prefers direct receipts",
     ]);
+    expect(state.wikiMemoryPalace?.clusters[1]?.key).toBe("canon");
+    expect(state.wikiMemoryPalace?.clusters[1]?.items[0]?.kind).toBe("canon");
+    expect(state.wikiMemoryPalace?.clusters[1]?.items[0]?.pagePath).toBe("canon/topics/index.md");
     expect(state.wikiMemoryPalaceError).toBeNull();
     expect(state.wikiMemoryPalaceLoading).toBe(false);
   });
@@ -633,6 +660,7 @@ describe("dreaming controller", () => {
       concept: 0,
       source: 0,
       report: 0,
+      canon: 0,
     });
   });
 
@@ -669,6 +697,7 @@ describe("dreaming controller", () => {
       concept: 0,
       source: 0,
       report: 0,
+      canon: 0,
     });
     expect(state.wikiMemoryPalace?.totalClaims).toBe(2);
     expect(state.wikiMemoryPalaceError).toBeNull();
@@ -692,6 +721,7 @@ describe("dreaming controller", () => {
         concept: 0,
         source: 0,
         report: 0,
+        canon: 0,
       },
       totalClaims: 1,
       totalQuestions: 0,
@@ -737,6 +767,7 @@ describe("dreaming controller", () => {
         concept: 0,
         source: 0,
         report: 0,
+        canon: 0,
       },
       totalClaims: 1,
       totalQuestions: 0,

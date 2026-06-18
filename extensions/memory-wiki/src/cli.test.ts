@@ -132,6 +132,7 @@ describe("memory-wiki cli", () => {
         concept: 0,
         synthesis: 0,
         report: 0,
+        canon: 0,
       },
       sourceCounts: {
         native: 0,
@@ -449,6 +450,14 @@ cli note
       initialize: true,
     });
     callGatewayFromCliMock.mockResolvedValueOnce({ vaultMode: "bridge" });
+
+    await expect(runWikiStatus({ config })).rejects.toThrow(
+      "Invalid Gateway response for wiki.status.",
+    );
+
+    const statusWithoutCanon = createGatewayStatus(config);
+    delete (statusWithoutCanon.pageCounts as Partial<typeof statusWithoutCanon.pageCounts>).canon;
+    callGatewayFromCliMock.mockResolvedValueOnce(statusWithoutCanon);
 
     await expect(runWikiStatus({ config })).rejects.toThrow(
       "Invalid Gateway response for wiki.status.",

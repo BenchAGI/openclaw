@@ -29,8 +29,16 @@ import {
   type WikiRelationship,
 } from "./markdown.js";
 import { initializeMemoryWikiVault } from "./vault.js";
+import { collectWikiMarkdownFiles } from "./wiki-files.js";
 
-const QUERY_DIRS = ["entities", "concepts", "sources", "syntheses", "reports"] as const;
+const QUERY_DIRS = [
+  { dir: "entities", recursive: false },
+  { dir: "concepts", recursive: false },
+  { dir: "sources", recursive: false },
+  { dir: "syntheses", recursive: false },
+  { dir: "reports", recursive: false },
+  { dir: "canon", recursive: true },
+] as const;
 const AGENT_DIGEST_PATH = ".openclaw-wiki/cache/agent-digest.json";
 const CLAIMS_DIGEST_PATH = ".openclaw-wiki/cache/claims.jsonl";
 const RELATED_BLOCK_PATTERN =
@@ -243,15 +251,9 @@ function mergeWikiSearchCorpusResults(params: {
 async function listWikiMarkdownFiles(rootDir: string): Promise<string[]> {
   const files = (
     await Promise.all(
-      QUERY_DIRS.map(async (relativeDir) => {
-        const dirPath = path.join(rootDir, relativeDir);
-        const entries = await fs.readdir(dirPath, { withFileTypes: true }).catch(() => []);
-        return entries
-          .filter(
-            (entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "index.md",
-          )
-          .map((entry) => path.join(relativeDir, entry.name));
-      }),
+      QUERY_DIRS.map((group) =>
+        collectWikiMarkdownFiles(rootDir, group.dir, { recursive: group.recursive }),
+      ),
     )
   ).flat();
   return files.toSorted((left, right) => left.localeCompare(right));
@@ -1442,14 +1444,39 @@ export function resolveQueryableWikiPageByLookup(
 ): QueryableWikiPage | null {
   const key = normalizeLookupKey(lookup);
   const withExtension = key.endsWith(".md") ? key : `${key}.md`;
+  const basenameMatch = resolveQueryableWikiPageByBasename(pages, key);
   return (
     pages.find((page) => page.relativePath === key) ??
     pages.find((page) => page.relativePath === withExtension) ??
     pages.find((page) => page.relativePath.replace(/\.md$/i, "") === key) ??
-    pages.find((page) => path.basename(page.relativePath, ".md") === key) ??
+    basenameMatch ??
     pages.find((page) => page.id === key) ??
     null
   );
+}
+
+function resolveQueryableWikiPageByBasename(
+  pages: QueryableWikiPage[],
+  key: string,
+): QueryableWikiPage | null {
+  const matches = pages.filter((page) => path.basename(page.relativePath, ".md") === key);
+  return (
+    matches.toSorted((left, right) => {
+      const priority = getBasenameLookupPriority(left) - getBasenameLookupPriority(right);
+      return priority === 0 ? left.relativePath.localeCompare(right.relativePath) : priority;
+    })[0] ?? null
+  );
+}
+
+function getBasenameLookupPriority(page: QueryableWikiPage): number {
+  const [topLevelDir, ...remainingSegments] = page.relativePath.split(/[\\/]+/);
+  if (remainingSegments.length === 1 && topLevelDir !== "canon") {
+    return 0;
+  }
+  if (remainingSegments.length === 1 && topLevelDir === "canon") {
+    return 1;
+  }
+  return 2;
 }
 
 export async function searchMemoryWiki(params: {

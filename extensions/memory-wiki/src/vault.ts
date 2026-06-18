@@ -16,6 +16,7 @@ export const WIKI_VAULT_DIRECTORIES = [
   "syntheses",
   "sources",
   "reports",
+  "canon",
   "_attachments",
   "_views",
   ".openclaw-wiki",

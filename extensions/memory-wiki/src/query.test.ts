@@ -209,6 +209,48 @@ describe("searchMemoryWiki", () => {
     expect(getActiveMemorySearchManagerMock).not.toHaveBeenCalled();
   });
 
+  it("finds nested canon pages by title and body", async () => {
+    const { rootDir, config } = await createQueryVault({
+      initialize: true,
+    });
+    await fs.mkdir(path.join(rootDir, "canon", "daily"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "daily", "alpha.md"),
+      renderWikiMarkdown({
+        frontmatter: { pageType: "canon", id: "canon.alpha", title: "Canon Alpha" },
+        body: "# Canon Alpha\n\nalpha canon body text\n",
+      }),
+      "utf8",
+    );
+
+    const results = await searchMemoryWiki({ config, query: "alpha canon" });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.path).toBe("canon/daily/alpha.md");
+    expect(results[0]?.kind).toBe("canon");
+  });
+
+  it("finds nested canon index pages by title and body", async () => {
+    const { rootDir, config } = await createQueryVault({
+      initialize: true,
+    });
+    await fs.mkdir(path.join(rootDir, "canon", "topics"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "topics", "index.md"),
+      renderWikiMarkdown({
+        frontmatter: { pageType: "canon", id: "canon.topic", title: "Canon Topic" },
+        body: "# Canon Topic\n\nnested canon index body\n",
+      }),
+      "utf8",
+    );
+
+    const results = await searchMemoryWiki({ config, query: "nested canon index" });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.path).toBe("canon/topics/index.md");
+    expect(results[0]?.kind).toBe("canon");
+  });
+
   it("uses the default search limit for non-finite maxResults", async () => {
     const { rootDir, config } = await createQueryVault({
       initialize: true,
@@ -1333,6 +1375,63 @@ describe("getMemoryWikiPage", () => {
     expect(result?.content).not.toContain("line three");
     expect(result?.totalLines).toBe(7);
     expect(result?.truncated).toBe(true);
+  });
+
+  it("returns nested canon pages by path", async () => {
+    const { rootDir, config } = await createQueryVault({
+      initialize: true,
+    });
+    await fs.mkdir(path.join(rootDir, "canon", "daily"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "daily", "alpha.md"),
+      renderWikiMarkdown({
+        frontmatter: { pageType: "canon", id: "canon.alpha", title: "Canon Alpha" },
+        body: "# Canon Alpha\n\nline one\n",
+      }),
+      "utf8",
+    );
+
+    const result = await getMemoryWikiPage({
+      config,
+      lookup: "canon/daily/alpha.md",
+    });
+
+    expect(result?.corpus).toBe("wiki");
+    expect(result?.path).toBe("canon/daily/alpha.md");
+    expect(result?.kind).toBe("canon");
+    expect(result?.content).toContain("line one");
+  });
+
+  it("keeps flat page basename lookup ahead of nested canon pages", async () => {
+    const { rootDir, config } = await createQueryVault({
+      initialize: true,
+    });
+    await fs.writeFile(
+      path.join(rootDir, "sources", "alpha.md"),
+      renderWikiMarkdown({
+        frontmatter: { pageType: "source", id: "source.alpha", title: "Alpha Source" },
+        body: "# Alpha Source\n\nflat page\n",
+      }),
+      "utf8",
+    );
+    await fs.mkdir(path.join(rootDir, "canon", "daily"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "daily", "alpha.md"),
+      renderWikiMarkdown({
+        frontmatter: { pageType: "canon", id: "canon.alpha", title: "Canon Alpha" },
+        body: "# Canon Alpha\n\nnested canon page\n",
+      }),
+      "utf8",
+    );
+
+    const result = await getMemoryWikiPage({
+      config,
+      lookup: "alpha",
+    });
+
+    expect(result?.corpus).toBe("wiki");
+    expect(result?.path).toBe("sources/alpha.md");
+    expect(result?.kind).toBe("source");
   });
 
   it("defaults non-finite wiki line options before slicing", async () => {
