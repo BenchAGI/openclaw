@@ -72,20 +72,35 @@ describe("listMemoryWikiPalace", () => {
       }),
       "utf8",
     );
+    await fs.mkdir(path.join(rootDir, "canon", "daily"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "daily", "truth.md"),
+      renderWikiMarkdown({
+        frontmatter: {
+          pageType: "canon",
+          id: "canon.truth",
+          title: "Canon Truth",
+          claims: [{ text: "Canon truth is part of the palace overview." }],
+          updatedAt: "2026-04-11T08:00:00.000Z",
+        },
+        body: ["# Canon Truth", "", "Durable operator truth.", ""].join("\n"),
+      }),
+      "utf8",
+    );
 
     const result = await listMemoryWikiPalace(config);
 
-    expect(result.totalItems).toBe(2);
-    expect(result.totalPages).toBe(3);
+    expect(result.totalItems).toBe(3);
+    expect(result.totalPages).toBe(4);
     expect(result.pageCounts).toEqual({
       synthesis: 1,
       entity: 1,
       concept: 0,
       source: 1,
       report: 0,
-      canon: 0,
+      canon: 1,
     });
-    expect(result.totalClaims).toBe(3);
+    expect(result.totalClaims).toBe(4);
     expect(result.totalQuestions).toBe(1);
     expect(result.totalContradictions).toBe(1);
 
@@ -116,5 +131,11 @@ describe("listMemoryWikiPalace", () => {
     expect(entityCluster?.label).toBe("Entities");
     expect(entityCluster?.itemCount).toBe(1);
     expect(entityCluster?.claimCount).toBe(1);
+
+    const canonCluster = result.clusters[2];
+    expect(canonCluster?.key).toBe("canon");
+    expect(canonCluster?.label).toBe("Canon");
+    expect(canonCluster?.itemCount).toBe(1);
+    expect(canonCluster?.claimCount).toBe(1);
   });
 });

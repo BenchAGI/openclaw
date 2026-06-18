@@ -454,6 +454,14 @@ cli note
     await expect(runWikiStatus({ config })).rejects.toThrow(
       "Invalid Gateway response for wiki.status.",
     );
+
+    const statusWithoutCanon = createGatewayStatus(config);
+    delete (statusWithoutCanon.pageCounts as Partial<typeof statusWithoutCanon.pageCounts>).canon;
+    callGatewayFromCliMock.mockResolvedValueOnce(statusWithoutCanon);
+
+    await expect(runWikiStatus({ config })).rejects.toThrow(
+      "Invalid Gateway response for wiki.status.",
+    );
   });
 
   it("rejects oversized gateway strings before rendering", async () => {

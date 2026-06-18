@@ -92,7 +92,7 @@ describe("resolveMemoryWikiStatus", () => {
     expect(status.warnings.map((warning) => warning.code)).toContain("bridge-artifacts-missing");
   });
 
-  it("counts source provenance from the vault", async () => {
+  it("counts source provenance and recursive canon pages from the vault", async () => {
     const { rootDir, config } = await createVault({
       prefix: "memory-wiki-status-",
       initialize: true,
@@ -145,6 +145,24 @@ describe("resolveMemoryWikiStatus", () => {
       }),
       "utf8",
     );
+    await fs.mkdir(path.join(rootDir, "canon", "daily"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "daily", "truth.md"),
+      renderWikiMarkdown({
+        frontmatter: { pageType: "canon", id: "canon.truth", title: "Canon Truth" },
+        body: "# Canon Truth\n",
+      }),
+      "utf8",
+    );
+    await fs.mkdir(path.join(rootDir, "canon", "topics"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "topics", "index.md"),
+      renderWikiMarkdown({
+        frontmatter: { pageType: "canon", id: "canon.topic", title: "Canon Topic" },
+        body: "# Canon Topic\n",
+      }),
+      "utf8",
+    );
 
     const status = await resolveMemoryWikiStatus(config, {
       pathExists: async () => true,
@@ -152,6 +170,7 @@ describe("resolveMemoryWikiStatus", () => {
     });
 
     expect(status.pageCounts.source).toBe(4);
+    expect(status.pageCounts.canon).toBe(2);
     expect(status.sourceCounts).toEqual({
       native: 1,
       bridge: 1,
@@ -207,7 +226,9 @@ describe("renderMemoryWikiStatus", () => {
     });
 
     expect(rendered).toContain("Wiki vault mode: isolated");
-    expect(rendered).toContain("Pages: 0 sources, 0 entities, 0 concepts, 0 syntheses, 0 reports");
+    expect(rendered).toContain(
+      "Pages: 0 sources, 0 entities, 0 concepts, 0 syntheses, 0 reports, 0 canon",
+    );
     expect(rendered).toContain(
       "Source provenance: 0 native, 0 bridge, 0 bridge-events, 0 unsafe-local, 0 other",
     );

@@ -121,6 +121,71 @@ describe("compileMemoryWikiVault", () => {
     ).resolves.toContain('"text":"Alpha is the canonical source page."');
   });
 
+  it("compiles nested canon pages into indexes and agent digests", async () => {
+    const { rootDir, config } = await createVault({
+      rootDir: nextCaseRoot(),
+      initialize: true,
+    });
+    await fs.mkdir(path.join(rootDir, "canon", "daily"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "daily", "alpha.md"),
+      renderWikiMarkdown({
+        frontmatter: {
+          pageType: "canon",
+          id: "canon.alpha",
+          title: "Canon Alpha",
+          claims: [{ id: "claim.canon.alpha", text: "Canon alpha is searchable truth." }],
+        },
+        body: "# Canon Alpha\n\nThe durable canon alpha note.\n",
+      }),
+      "utf8",
+    );
+    await fs.mkdir(path.join(rootDir, "canon", "topics"), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, "canon", "topics", "index.md"),
+      renderWikiMarkdown({
+        frontmatter: {
+          pageType: "canon",
+          id: "canon.topic",
+          title: "Canon Topic",
+        },
+        body: "# Canon Topic\n\nA nested canon index note.\n",
+      }),
+      "utf8",
+    );
+
+    const result = await compileMemoryWikiVault(config);
+
+    expect(result.pageCounts.canon).toBe(2);
+    expect(result.pages.map((page) => page.relativePath)).toContain("canon/daily/alpha.md");
+    expect(result.pages.map((page) => page.relativePath)).toContain("canon/topics/index.md");
+    await expect(fs.readFile(path.join(rootDir, "index.md"), "utf8")).resolves.toContain(
+      "- Canon: 2",
+    );
+    await expect(fs.readFile(path.join(rootDir, "index.md"), "utf8")).resolves.toContain(
+      "[Canon Alpha](canon/daily/alpha.md)",
+    );
+    await expect(fs.readFile(path.join(rootDir, "canon", "index.md"), "utf8")).resolves.toContain(
+      "[Canon Alpha](daily/alpha.md)",
+    );
+    await expect(fs.readFile(path.join(rootDir, "canon", "index.md"), "utf8")).resolves.toContain(
+      "[Canon Topic](topics/index.md)",
+    );
+    const agentDigest = JSON.parse(
+      await fs.readFile(path.join(rootDir, ".openclaw-wiki", "cache", "agent-digest.json"), "utf8"),
+    ) as {
+      pageCounts: { canon: number };
+      pages: Array<{ path: string; kind: string }>;
+    };
+    expect(agentDigest.pageCounts.canon).toBe(2);
+    expect(agentDigest.pages).toContainEqual(
+      expect.objectContaining({ path: "canon/daily/alpha.md", kind: "canon" }),
+    );
+    expect(agentDigest.pages).toContainEqual(
+      expect.objectContaining({ path: "canon/topics/index.md", kind: "canon" }),
+    );
+  });
+
   it("renders native directory index links relative to each generated index", async () => {
     const { rootDir, config } = await createVault({
       rootDir: nextCaseRoot(),

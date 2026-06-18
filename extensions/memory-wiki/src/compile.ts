@@ -43,13 +43,22 @@ import {
   WIKI_RELATED_START_MARKER,
 } from "./markdown.js";
 import { initializeMemoryWikiVault } from "./vault.js";
+import { collectWikiMarkdownFiles } from "./wiki-files.js";
 
-const COMPILE_PAGE_GROUPS: Array<{ kind: WikiPageKind; dir: string; heading: string }> = [
+type CompilePageGroup = {
+  kind: WikiPageKind;
+  dir: string;
+  heading: string;
+  recursive?: boolean;
+};
+
+const COMPILE_PAGE_GROUPS: CompilePageGroup[] = [
   { kind: "source", dir: "sources", heading: "Sources" },
   { kind: "entity", dir: "entities", heading: "Entities" },
   { kind: "concept", dir: "concepts", heading: "Concepts" },
   { kind: "synthesis", dir: "syntheses", heading: "Syntheses" },
   { kind: "report", dir: "reports", heading: "Reports" },
+  { kind: "canon", dir: "canon", heading: "Canon", recursive: true },
 ];
 const AGENT_DIGEST_PATH = ".openclaw-wiki/cache/agent-digest.json";
 const CLAIMS_DIGEST_PATH = ".openclaw-wiki/cache/claims.jsonl";
@@ -349,19 +358,13 @@ export type RefreshMemoryWikiIndexesResult = {
   compile?: CompileMemoryWikiResult;
 };
 
-async function collectMarkdownFiles(rootDir: string, relativeDir: string): Promise<string[]> {
-  const dirPath = path.join(rootDir, relativeDir);
-  const entries = await fs.readdir(dirPath, { withFileTypes: true }).catch(() => []);
-  return entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-    .map((entry) => path.join(relativeDir, entry.name))
-    .filter((relativePath) => path.basename(relativePath) !== "index.md")
-    .toSorted((left, right) => left.localeCompare(right));
-}
-
 async function readPageSummaries(rootDir: string): Promise<WikiPageSummary[]> {
   const filePaths = (
-    await Promise.all(COMPILE_PAGE_GROUPS.map((group) => collectMarkdownFiles(rootDir, group.dir)))
+    await Promise.all(
+      COMPILE_PAGE_GROUPS.map((group) =>
+        collectWikiMarkdownFiles(rootDir, group.dir, { recursive: group.recursive === true }),
+      ),
+    )
   ).flat();
 
   const readResult = await runTasksWithConcurrency({
@@ -1026,6 +1029,7 @@ function buildRootIndexBody(params: {
     `- Concepts: ${params.counts.concept}`,
     `- Syntheses: ${params.counts.synthesis}`,
     `- Reports: ${params.counts.report}`,
+    `- Canon: ${params.counts.canon}`,
   ];
 
   for (const group of COMPILE_PAGE_GROUPS) {
@@ -1045,7 +1049,7 @@ function buildRootIndexBody(params: {
 function buildDirectoryIndexBody(params: {
   config: ResolvedMemoryWikiConfig;
   pages: WikiPageSummary[];
-  group: { kind: WikiPageKind; dir: string; heading: string };
+  group: CompilePageGroup;
 }): string {
   return renderSectionList({
     config: params.config,

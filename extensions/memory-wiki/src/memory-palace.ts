@@ -3,7 +3,14 @@ import type { ResolvedMemoryWikiConfig } from "./config.js";
 import { parseWikiMarkdown, type WikiPageKind } from "./markdown.js";
 import { readQueryableWikiPages } from "./query.js";
 
-const PALACE_KIND_ORDER: WikiPageKind[] = ["synthesis", "entity", "concept", "source", "report"];
+const PALACE_KIND_ORDER: WikiPageKind[] = [
+  "synthesis",
+  "entity",
+  "concept",
+  "source",
+  "report",
+  "canon",
+];
 const PRIMARY_PALACE_KINDS = new Set<WikiPageKind>(["synthesis", "entity", "concept"]);
 const PALACE_KIND_LABELS: Record<WikiPageKind, string> = {
   synthesis: "Syntheses",
