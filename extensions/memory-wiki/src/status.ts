@@ -77,6 +77,7 @@ async function collectVaultCounts(vaultPath: string): Promise<{
     source: 0,
     synthesis: 0,
     report: 0,
+    canon: 0,
   };
   const sourceCounts: MemoryWikiStatus["sourceCounts"] = {
     native: 0,
@@ -127,6 +128,18 @@ async function collectVaultCounts(vaultPath: string): Promise<{
           sourceCounts.other += 1;
         }
       }
+    }
+  }
+  // canon/ is nested (daily canon nodes + topic subtrees, ~178 files), unlike the
+  // flat first-class dirs above. Count it recursively so the gateway serves a canon
+  // pageCount (inferWikiPageKind maps canon/* -> "canon"); without this the bridge
+  // reports no canon key and canon pages never surface in gateway-mediated recall.
+  const canonEntries = await fs
+    .readdir(path.join(vaultPath, "canon"), { recursive: true, withFileTypes: true })
+    .catch(() => []);
+  for (const entry of canonEntries) {
+    if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "index.md") {
+      pageCounts.canon += 1;
     }
   }
   return { pageCounts, sourceCounts };
@@ -228,6 +241,7 @@ export async function resolveMemoryWikiStatus(
           source: 0,
           synthesis: 0,
           report: 0,
+          canon: 0,
         },
         sourceCounts: {
           native: 0,

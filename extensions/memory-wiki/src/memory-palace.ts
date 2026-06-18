@@ -11,6 +11,7 @@ const PALACE_KIND_LABELS: Record<WikiPageKind, string> = {
   concept: "Concepts",
   source: "Sources",
   report: "Reports",
+  canon: "Canon",
 };
 
 type MemoryWikiPalaceItem = {
@@ -59,6 +60,7 @@ function createEmptyPalacePageCounts(): MemoryWikiPalacePageCounts {
     concept: 0,
     source: 0,
     report: 0,
+    canon: 0,
   };
 }
 

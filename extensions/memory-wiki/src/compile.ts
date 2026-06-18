@@ -392,6 +392,7 @@ function buildPageCounts(pages: WikiPageSummary[]): Record<WikiPageKind, number>
     source: pages.filter((page) => page.kind === "source").length,
     synthesis: pages.filter((page) => page.kind === "synthesis").length,
     report: pages.filter((page) => page.kind === "report").length,
+    canon: pages.filter((page) => page.kind === "canon").length,
   };
 }
 

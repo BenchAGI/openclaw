@@ -83,6 +83,7 @@ describe("listMemoryWikiPalace", () => {
       concept: 0,
       source: 1,
       report: 0,
+      canon: 0,
     });
     expect(result.totalClaims).toBe(3);
     expect(result.totalQuestions).toBe(1);
