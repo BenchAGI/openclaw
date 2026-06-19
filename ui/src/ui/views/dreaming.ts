@@ -516,7 +516,7 @@ function basename(value: string): string {
   return normalized.split("/").findLast(Boolean) ?? value;
 }
 
-function formatKindLabel(kind: "entity" | "concept" | "source" | "synthesis" | "report"): string {
+function formatKindLabel(kind: keyof WikiMemoryPalace["pageCounts"]): string {
   switch (kind) {
     case "entity":
       return "entity";
@@ -528,6 +528,8 @@ function formatKindLabel(kind: "entity" | "concept" | "source" | "synthesis" | "
       return "synthesis";
     case "report":
       return "report";
+    case "canon":
+      return "canon";
   }
   return kind;
 }
@@ -542,6 +544,7 @@ const MEMORY_PALACE_PAGE_COUNT_ORDER: Array<keyof WikiMemoryPalace["pageCounts"]
   "report",
   "entity",
   "concept",
+  "canon",
 ];
 
 function formatMemoryPalacePageCountLabel(kind: keyof WikiMemoryPalace["pageCounts"]): string {
@@ -556,6 +559,8 @@ function formatMemoryPalacePageCountLabel(kind: keyof WikiMemoryPalace["pageCoun
       return "Entities";
     case "concept":
       return "Concepts";
+    case "canon":
+      return "Canon";
   }
   return kind;
 }
