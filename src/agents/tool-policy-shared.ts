@@ -24,6 +24,16 @@ const TOOL_NAME_ALIASES: Record<string, string> = {
 /** Core tool groups exposed to allow/deny policy config. */
 export const TOOL_GROUPS: Record<string, string[]> = { ...CORE_TOOL_GROUPS };
 
+/** Default OpenClaw tool allowlist for delegated safe read-only agent turns. */
+export const SAFE_READ_ONLY_TOOLS = [
+  "read",
+  "web_search",
+  "web_fetch",
+  "x_search",
+  "memory_search",
+  "memory_get",
+] as const;
+
 /** Normalizes a tool name or alias to the policy id used for matching. */
 export function normalizeToolName(name: string) {
   const normalized = normalizeLowercaseStringOrEmpty(name);

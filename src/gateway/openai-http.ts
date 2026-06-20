@@ -38,7 +38,6 @@ import {
   type InputImageSource,
 } from "../media/input-files.js";
 import { defaultRuntime } from "../runtime.js";
-import { SAFE_READ_ONLY_TOOLS } from "../talk/agent-consult-tool.js";
 import { resolveAssistantStreamDeltaText } from "./agent-event-assistant-text.js";
 import {
   buildAgentMessageFromConversationEntries,
@@ -61,6 +60,7 @@ import {
   toolChoiceConstraintPrompt,
   type ToolChoiceConstraint,
 } from "./openai-tool-choice.js";
+import { resolveGatewayToolsModeAllowlist } from "./tools-mode.js";
 
 type OpenAiHttpOptions = {
   auth: ResolvedGatewayAuth;
@@ -996,16 +996,10 @@ export async function handleOpenAiHttpRequest(
     });
     return true;
   }
-  // Agency-mode HARD enforcement: plan/review restrict this turn to read-only
-  // tools (the relay forwards the operator's mode as x-openclaw-tools-mode).
-  // ask/auto (and absent/unknown) leave the full toolset. toolsAllow is enforced
-  // downstream by the embedded runner (runtime toolsAllow allow-list).
-  const toolsModeHeaderRaw = req.headers["x-openclaw-tools-mode"];
-  const toolsMode = (Array.isArray(toolsModeHeaderRaw) ? toolsModeHeaderRaw[0] : toolsModeHeaderRaw)
-    ?.trim()
-    .toLowerCase();
-  const toolsAllow =
-    toolsMode === "plan" || toolsMode === "review" ? [...SAFE_READ_ONLY_TOOLS] : undefined;
+  // Agency-mode HARD enforcement: plan/review allow only read-only runtime
+  // tools and drop caller client tools, which the Gateway cannot classify.
+  // ask/auto (and absent/unknown) leave the full toolset.
+  const toolsAllow = resolveGatewayToolsModeAllowlist(req);
 
   const activeTurnContext = resolveActiveTurnContext(payload.messages);
   const prompt = buildAgentPrompt(payload.messages, activeTurnContext.activeUserMessageIndex);
@@ -1014,8 +1008,9 @@ export async function handleOpenAiHttpRequest(
   let toolChoiceConstraint: ToolChoiceConstraint | undefined;
   try {
     const parsedClientTools = extractClientToolsFromChatRequest(payload.tools);
+    const availableClientTools = toolsAllow ? [] : parsedClientTools;
     const toolChoiceResult = applyChatToolChoice({
-      tools: parsedClientTools,
+      tools: availableClientTools,
       toolChoice: payload.tool_choice,
     });
     resolvedClientTools = toolChoiceResult.tools;
