@@ -38,6 +38,7 @@ import {
   type InputImageSource,
 } from "../media/input-files.js";
 import { defaultRuntime } from "../runtime.js";
+import { SAFE_READ_ONLY_TOOLS } from "../talk/agent-consult-tool.js";
 import { resolveAssistantStreamDeltaText } from "./agent-event-assistant-text.js";
 import {
   buildAgentMessageFromConversationEntries,
@@ -162,6 +163,8 @@ function buildAgentCommandInput(params: {
   sessionKey: string;
   runId: string;
   messageChannel: string;
+  /** Restrict the turn's toolset (e.g. read-only for plan/review mode). */
+  toolsAllow?: string[];
   abortSignal?: AbortSignal;
   streamParams?: AgentStreamParams;
 }) {
@@ -177,6 +180,7 @@ function buildAgentCommandInput(params: {
     messageChannel: params.messageChannel,
     bestEffortDeliver: false as const,
     allowModelOverride: true as const,
+    ...(params.toolsAllow ? { toolsAllow: params.toolsAllow } : {}),
     abortSignal: params.abortSignal,
     streamParams: params.streamParams,
   };
@@ -992,6 +996,17 @@ export async function handleOpenAiHttpRequest(
     });
     return true;
   }
+  // Agency-mode HARD enforcement: plan/review restrict this turn to read-only
+  // tools (the relay forwards the operator's mode as x-openclaw-tools-mode).
+  // ask/auto (and absent/unknown) leave the full toolset. toolsAllow is enforced
+  // downstream by the embedded runner (runtime toolsAllow allow-list).
+  const toolsModeHeaderRaw = req.headers["x-openclaw-tools-mode"];
+  const toolsMode = (Array.isArray(toolsModeHeaderRaw) ? toolsModeHeaderRaw[0] : toolsModeHeaderRaw)
+    ?.trim()
+    .toLowerCase();
+  const toolsAllow =
+    toolsMode === "plan" || toolsMode === "review" ? [...SAFE_READ_ONLY_TOOLS] : undefined;
+
   const activeTurnContext = resolveActiveTurnContext(payload.messages);
   const prompt = buildAgentPrompt(payload.messages, activeTurnContext.activeUserMessageIndex);
   let resolvedClientTools: ClientToolDefinition[];
@@ -1056,6 +1071,7 @@ export async function handleOpenAiHttpRequest(
     sessionKey,
     runId,
     messageChannel,
+    toolsAllow,
     abortSignal: abortController.signal,
     streamParams,
   });

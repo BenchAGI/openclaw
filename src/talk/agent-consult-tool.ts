@@ -71,7 +71,7 @@ export function buildRealtimeVoiceAgentConsultWorkingResponse(
 }
 
 /** Default safe tool allowlist for voice consults in read-only mode. */
-const SAFE_READ_ONLY_TOOLS = [
+export const SAFE_READ_ONLY_TOOLS = [
   "read",
   "web_search",
   "web_fetch",
