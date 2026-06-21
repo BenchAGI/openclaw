@@ -88,3 +88,38 @@ export function buildAnthropicCliBackend(): CliBackendPlugin {
     resolveExecutionArgs: resolveClaudeCliExecutionArgs,
   };
 }
+
+/**
+ * Ultracode variant backend id. A SEPARATE registered claude-cli backend whose
+ * config carries `ultracode: true` — so it runs the same plugin normalizeConfig
+ * (which injects `--settings '{"ultracode":true}'`) but is selected ONLY when a
+ * turn routes to its distinct, allowlisted model id (per-request, via the
+ * x-openclaw-model header). The base `claude-cli` backend stays ultracode-off.
+ */
+export const CLAUDE_CLI_ULTRACODE_BACKEND_ID = "claude-cli-ultracode";
+
+/**
+ * Build the ultracode-enabled Claude CLI backend variant. Identical to the base
+ * claude-cli backend, but with `ultracode: true` (so normalizeClaudeBackendConfig
+ * injects `--settings '{"ultracode":true}'`) and model aliases mapping the
+ * suffixed variant model ids back to the real Claude models (so `--model` still
+ * resolves). Only turns routed to one of these model ids run ultracode.
+ */
+export function buildAnthropicCliBackendUltracode(): CliBackendPlugin {
+  const base = buildAnthropicCliBackend();
+  return {
+    ...base,
+    id: CLAUDE_CLI_ULTRACODE_BACKEND_ID,
+    config: {
+      ...base.config,
+      ultracode: true,
+      modelAliases: {
+        ...base.config.modelAliases,
+        "claude-opus-4-8-ultracode": "claude-opus-4-8",
+        "claude-opus-4-7-ultracode": "claude-opus-4-7",
+        "claude-opus-4-6-ultracode": "claude-opus-4-6",
+        "claude-sonnet-4-6-ultracode": "claude-sonnet-4-6",
+      },
+    },
+  };
+}
