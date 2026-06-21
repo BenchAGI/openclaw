@@ -50,7 +50,15 @@ export type CliToolResultDelta = {
 };
 
 function isClaudeCliProvider(providerId: string): boolean {
-  return normalizeLowercaseStringOrEmpty(providerId) === "claude-cli";
+  // The ultracode variant resolves to backend id "claude-cli-ultracode" (and
+  // future variants may follow the same "claude-cli-<flavor>" convention). It is
+  // the same Claude CLI speaking the same stream-json dialect, so recognize the
+  // whole claude-cli-* family. Without this, those backends fail the dialect gate
+  // and the JSONL parser drops native text deltas, result frames, AND tool events
+  // (e.g. AskUserQuestion never reaches onToolUseStart, so ask_choice cards and
+  // tool results silently vanish; assistant text falls back to the raw blob).
+  const normalized = normalizeLowercaseStringOrEmpty(providerId);
+  return normalized === "claude-cli" || normalized.startsWith("claude-cli-");
 }
 
 function usesClaudeStreamJsonDialect(params: {
