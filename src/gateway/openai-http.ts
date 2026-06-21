@@ -60,6 +60,7 @@ import {
   toolChoiceConstraintPrompt,
   type ToolChoiceConstraint,
 } from "./openai-tool-choice.js";
+import { resolveGatewayToolsModeAllowlist } from "./tools-mode.js";
 
 type OpenAiHttpOptions = {
   auth: ResolvedGatewayAuth;
@@ -162,6 +163,8 @@ function buildAgentCommandInput(params: {
   sessionKey: string;
   runId: string;
   messageChannel: string;
+  /** Restrict the turn's toolset (e.g. read-only for plan/review mode). */
+  toolsAllow?: string[];
   abortSignal?: AbortSignal;
   streamParams?: AgentStreamParams;
 }) {
@@ -177,6 +180,7 @@ function buildAgentCommandInput(params: {
     messageChannel: params.messageChannel,
     bestEffortDeliver: false as const,
     allowModelOverride: true as const,
+    ...(params.toolsAllow ? { toolsAllow: params.toolsAllow } : {}),
     abortSignal: params.abortSignal,
     streamParams: params.streamParams,
   };
@@ -992,6 +996,11 @@ export async function handleOpenAiHttpRequest(
     });
     return true;
   }
+  // Agency-mode HARD enforcement: plan/review allow only read-only runtime
+  // tools and drop caller client tools, which the Gateway cannot classify.
+  // ask/auto (and absent/unknown) leave the full toolset.
+  const toolsAllow = resolveGatewayToolsModeAllowlist(req);
+
   const activeTurnContext = resolveActiveTurnContext(payload.messages);
   const prompt = buildAgentPrompt(payload.messages, activeTurnContext.activeUserMessageIndex);
   let resolvedClientTools: ClientToolDefinition[];
@@ -999,8 +1008,9 @@ export async function handleOpenAiHttpRequest(
   let toolChoiceConstraint: ToolChoiceConstraint | undefined;
   try {
     const parsedClientTools = extractClientToolsFromChatRequest(payload.tools);
+    const availableClientTools = toolsAllow ? [] : parsedClientTools;
     const toolChoiceResult = applyChatToolChoice({
-      tools: parsedClientTools,
+      tools: availableClientTools,
       toolChoice: payload.tool_choice,
     });
     resolvedClientTools = toolChoiceResult.tools;
@@ -1056,6 +1066,7 @@ export async function handleOpenAiHttpRequest(
     sessionKey,
     runId,
     messageChannel,
+    toolsAllow,
     abortSignal: abortController.signal,
     streamParams,
   });

@@ -11,6 +11,7 @@ import {
 } from "../agents/embedded-agent-subscribe.e2e-harness.js";
 import { subscribeEmbeddedAgentSession } from "../agents/embedded-agent-subscribe.js";
 import { FailoverError } from "../agents/failover-error.js";
+import { SAFE_READ_ONLY_TOOLS } from "../agents/tool-policy-shared.js";
 import { HISTORY_CONTEXT_MARKER } from "../auto-reply/reply/history.js";
 import { CURRENT_MESSAGE_MARKER } from "../auto-reply/reply/mentions.js";
 import { emitAgentEvent } from "../infra/agent-events.js";
@@ -113,6 +114,7 @@ type FirstAgentCommandOptions = {
   messageChannel?: string;
   model?: string;
   sessionKey?: string;
+  toolsAllow?: string[];
   streamParams?: {
     frequencyPenalty?: number;
     maxTokens?: number;
@@ -711,6 +713,34 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
         expect(clientTools[0]?.function?.name).toBe("get_time");
         expect(clientTools[0]?.function?.strict).toBe(true);
         expect(firstCall).not.toHaveProperty("toolsAllow");
+        await res.text();
+      }
+
+      for (const toolsMode of ["plan", " Review "]) {
+        mockAgentOnce([{ text: "restricted" }]);
+        const res = await postChatCompletions(
+          port,
+          {
+            model: "openclaw",
+            tool_choice: "auto",
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "client_write_action",
+                  description: "Client-owned write action",
+                  parameters: { type: "object", properties: {} },
+                },
+              },
+            ],
+            messages: [{ role: "user", content: "plan this" }],
+          },
+          { "x-openclaw-tools-mode": toolsMode },
+        );
+        expect(res.status).toBe(200);
+        const firstCall = getFirstAgentCall();
+        expect(firstCall?.toolsAllow).toEqual([...SAFE_READ_ONLY_TOOLS]);
+        expect(firstCall?.clientTools).toBeUndefined();
         await res.text();
       }
 

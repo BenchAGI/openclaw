@@ -8,6 +8,7 @@ import {
   normalizeOptionalLowercaseString,
   normalizeOptionalString,
 } from "@openclaw/normalization-core/string-coerce";
+import { SAFE_READ_ONLY_TOOLS } from "../agents/tool-policy-shared.js";
 import type { RealtimeVoiceTool } from "./provider-types.js";
 
 /** Stable provider-facing tool name for realtime voice agent delegation. */
@@ -69,16 +70,6 @@ export function buildRealtimeVoiceAgentConsultWorkingResponse(
     message: `Tell the ${audienceLabel} briefly that you are checking, then wait for the final OpenClaw result before answering with the actual result.`,
   };
 }
-
-/** Default safe tool allowlist for voice consults in read-only mode. */
-const SAFE_READ_ONLY_TOOLS = [
-  "read",
-  "web_search",
-  "web_fetch",
-  "x_search",
-  "memory_search",
-  "memory_get",
-] as const;
 
 /** Type guard for user/config supplied consult tool policies. */
 export function isRealtimeVoiceAgentConsultToolPolicy(
