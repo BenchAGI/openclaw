@@ -157,7 +157,7 @@ function withoutBridgeSessionHooks(sessionStart) {
     const hooks = Array.isArray(group.hooks) ? group.hooks : [];
     const nextHooks = hooks.filter((hook) => {
       const command = typeof hook?.command === "string" ? hook.command : "";
-      return !/claude-code-bridge\/session-bootstrap\.mjs/.test(command);
+      return !/claude-code-bridge[\\/]+session-bootstrap\.mjs/.test(command);
     });
     if (nextHooks.length > 0) {
       cleaned.push({ ...group, hooks: nextHooks });

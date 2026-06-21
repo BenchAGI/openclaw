@@ -48,6 +48,14 @@ describe("Claude Code bridge installer", () => {
                   },
                 ],
               },
+              {
+                hooks: [
+                  {
+                    type: "command",
+                    command: `${process.execPath} C:\\Users\\bench\\.openclaw\\claude-code-bridge\\session-bootstrap.mjs`,
+                  },
+                ],
+              },
             ],
           },
           custom: true,
