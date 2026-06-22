@@ -1,0 +1,389 @@
+diff --git a/src/agents/cli-output.test.ts b/src/agents/cli-output.test.ts
+index af72291c22..7a33b834dc 100644
+--- a/src/agents/cli-output.test.ts
++++ b/src/agents/cli-output.test.ts
+@@ -672,6 +672,102 @@ describe("createCliJsonlStreamingParser", () => {
+     ]);
+   });
+ 
++  it("dispatches tool events for the claude-cli-ultracode backend without an explicit dialect", () => {
++    // Regression: the ultracode variant resolves to backend/provider id
++    // "claude-cli-ultracode" and never sets jsonlDialect. Until the dialect gate
++    // recognized the claude-cli-* family, this was false, so the parser silently
++    // skipped tool-event dispatch entirely — a native AskUserQuestion never
++    // reached onToolUseStart, so the console's ask_choice card never fired.
++    const starts: CliToolUseStartDelta[] = [];
++    const parser = createCliJsonlStreamingParser({
++      backend: {
++        command: "claude",
++        output: "jsonl",
++        sessionIdFields: ["session_id"],
++      },
++      providerId: "claude-cli-ultracode",
++      onAssistantDelta: () => undefined,
++      onToolUseStart: (delta) => starts.push(delta),
++    });
++
++    parser.push(
++      [
++        JSON.stringify({
++          type: "stream_event",
++          event: {
++            type: "content_block_start",
++            index: 1,
++            content_block: {
++              type: "tool_use",
++              id: "toolu_ask",
++              name: "AskUserQuestion",
++              input: {},
++            },
++          },
++        }),
++        JSON.stringify({
++          type: "stream_event",
++          event: {
++            type: "content_block_delta",
++            index: 1,
++            delta: { type: "input_json_delta", partial_json: '{"questions":[{"question":"Pick",' },
++          },
++        }),
++        JSON.stringify({
++          type: "stream_event",
++          event: {
++            type: "content_block_delta",
++            index: 1,
++            delta: {
++              type: "input_json_delta",
++              partial_json: '"options":[{"label":"A"},{"label":"B"}]}]}',
++            },
++          },
++        }),
++        JSON.stringify({
++          type: "stream_event",
++          event: { type: "content_block_stop", index: 1 },
++        }),
++      ].join("\n") + "\n",
++    );
++    parser.finish();
++
++    expect(starts).toEqual([
++      {
++        toolCallId: "toolu_ask",
++        name: "AskUserQuestion",
++        args: { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] },
++      },
++    ]);
++  });
++
++  it("streams native text deltas for the claude-cli-ultracode backend", () => {
++    // The same dialect gate also drove text extraction: before the fix, ultracode
++    // assistant text fell back to the raw stream-json blob instead of streaming
++    // clean text deltas (the C1 leak). Recognizing the family restores native
++    // streaming so the openai-http salvage is defense-in-depth, not the mechanism.
++    const deltas: string[] = [];
++    const parser = createCliJsonlStreamingParser({
++      backend: {
++        command: "claude",
++        output: "jsonl",
++        sessionIdFields: ["session_id"],
++      },
++      providerId: "claude-cli-ultracode",
++      onAssistantDelta: (delta) => deltas.push(delta.delta),
++    });
++
++    parser.push(
++      JSON.stringify({
++        type: "stream_event",
++        event: { type: "content_block_delta", delta: { type: "text_delta", text: "hi" } },
++      }) + "\n",
++    );
++    parser.finish();
++
++    expect(deltas).toEqual(["hi"]);
++  });
++
+   it("emits empty args when streamed tool args are malformed", () => {
+     const starts: CliToolUseStartDelta[] = [];
+     const parser = createCliJsonlStreamingParser({
+diff --git a/src/agents/cli-output.ts b/src/agents/cli-output.ts
+index a08abdc56d..e24f6a6be0 100644
+--- a/src/agents/cli-output.ts
++++ b/src/agents/cli-output.ts
+@@ -50,7 +50,15 @@ export type CliToolResultDelta = {
+ };
+ 
+ function isClaudeCliProvider(providerId: string): boolean {
+-  return normalizeLowercaseStringOrEmpty(providerId) === "claude-cli";
++  // The ultracode variant resolves to backend id "claude-cli-ultracode" (and
++  // future variants may follow the same "claude-cli-<flavor>" convention). It is
++  // the same Claude CLI speaking the same stream-json dialect, so recognize the
++  // whole claude-cli-* family. Without this, those backends fail the dialect gate
++  // and the JSONL parser drops native text deltas, result frames, AND tool events
++  // (e.g. AskUserQuestion never reaches onToolUseStart, so ask_choice cards and
++  // tool results silently vanish; assistant text falls back to the raw blob).
++  const normalized = normalizeLowercaseStringOrEmpty(providerId);
++  return normalized === "claude-cli" || normalized.startsWith("claude-cli-");
+ }
+ 
+ function usesClaudeStreamJsonDialect(params: {
+diff --git a/src/agents/cli-runner/execute.ts b/src/agents/cli-runner/execute.ts
+index 4e4210f483..57f0f24704 100644
+--- a/src/agents/cli-runner/execute.ts
++++ b/src/agents/cli-runner/execute.ts
+@@ -474,6 +474,17 @@ export async function executePreparedCliRun(
+               args: sanitizeToolArgs(event.args),
+             },
+           });
++          // C3: the agent's native AskUserQuestion can't run on the webchat
++          // surface (no interactive terminal → denied). Bridge it into an
++          // ask_choice card for the client, carrying the full (un-sanitized)
++          // questions/options so the card has real labels.
++          if (event.name === "AskUserQuestion") {
++            emitAgentEvent({
++              runId: params.runId,
++              stream: "ask_choice",
++              data: { toolCallId: event.toolCallId, args: event.args },
++            });
++          }
+         };
+         const emitCliToolResult = (event: {
+           toolCallId: string;
+diff --git a/src/gateway/agent-event-assistant-text.ts b/src/gateway/agent-event-assistant-text.ts
+index 8a9638f9f3..9cb15994a5 100644
+--- a/src/gateway/agent-event-assistant-text.ts
++++ b/src/gateway/agent-event-assistant-text.ts
+@@ -104,3 +104,58 @@ export function salvageClaudeStreamJsonText(content: string): string {
+   }
+   return content;
+ }
++
++/**
++ * Extract a native AskUserQuestion tool call buried in a leaked Claude CLI
++ * stream-json blob (ultracode turns dump the whole stream as assistant content,
++ * bypassing the tool tracker). Returns its tool-call id + raw input args so the
++ * gateway can bridge it into an ask_choice card. Null when none is present.
++ */
++export function extractAskUserQuestionFromClaudeStreamJson(
++  content: string,
++): { toolCallId: string; args: Record<string, unknown> } | null {
++  if (!looksLikeClaudeStreamJson(content)) {
++    return null;
++  }
++  for (const line of content.split("\n")) {
++    const trimmed = line.trim();
++    if (!trimmed) {
++      continue;
++    }
++    let fr: { type?: unknown; message?: unknown };
++    try {
++      fr = JSON.parse(trimmed);
++    } catch {
++      continue;
++    }
++    if (!fr || typeof fr !== "object" || fr.type !== "assistant") {
++      continue;
++    }
++    const message = fr.message;
++    const blocks =
++      message && typeof message === "object"
++        ? (message as { content?: unknown }).content
++        : null;
++    if (!Array.isArray(blocks)) {
++      continue;
++    }
++    for (const block of blocks) {
++      if (
++        block &&
++        typeof block === "object" &&
++        (block as { type?: unknown }).type === "tool_use" &&
++        (block as { name?: unknown }).name === "AskUserQuestion"
++      ) {
++        const input = (block as { input?: unknown }).input;
++        if (input && typeof input === "object" && !Array.isArray(input)) {
++          const id = (block as { id?: unknown }).id;
++          return {
++            toolCallId: typeof id === "string" ? id : "",
++            args: input as Record<string, unknown>,
++          };
++        }
++      }
++    }
++  }
++  return null;
++}
+diff --git a/src/gateway/openai-http.ts b/src/gateway/openai-http.ts
+index 9e5b4c47b6..e1dddf1a2b 100644
+--- a/src/gateway/openai-http.ts
++++ b/src/gateway/openai-http.ts
+@@ -39,6 +39,7 @@ import {
+ } from "../media/input-files.js";
+ import { defaultRuntime } from "../runtime.js";
+ import {
++  extractAskUserQuestionFromClaudeStreamJson,
+   resolveAssistantStreamDeltaText,
+   salvageClaudeStreamJsonText,
+ } from "./agent-event-assistant-text.js";
+@@ -291,6 +292,13 @@ function writeAssistantContentChunk(
+   // Last line of defense: if a turn (e.g. ultracode) surfaces its raw Claude CLI
+   // stream-json as content, salvage the clean assistant text before broadcasting.
+   // Ordinary text passes through untouched.
++  //
++  // NOTE: a native AskUserQuestion buried in a leaked ultracode stream-json blob
++  // is NOT extracted here. That blob arrives split across many streaming assistant
++  // deltas, so the long AskUserQuestion frame never lands whole in a single
++  // `params.content` — per-delta extraction here misses it. The bridge instead
++  // buffers the full assistant blob across deltas at the request scope and emits
++  // the ask_choice card once at finalize (see askChoiceBlob in the handler).
+   const content = salvageClaudeStreamJsonText(params.content);
+   writeSse(res, {
+     id: params.runId,
+@@ -307,6 +315,85 @@ function writeAssistantContentChunk(
+   });
+ }
+ 
++type AskChoiceOption = { id: string; label: string; description?: string };
++type AskChoiceRequest = {
++  choiceId: string;
++  prompt: string;
++  options: AskChoiceOption[];
++  multiSelect?: boolean;
++};
++
++// C3: map the agent's native AskUserQuestion tool input into the console's
++// ask_choice card payload (AgentChatChoiceRequest). Uses the first question.
++function buildAskChoiceFromArgs(toolCallId: string, args: unknown): AskChoiceRequest | null {
++  if (!args || typeof args !== "object") {
++    return null;
++  }
++  const questions = (args as { questions?: unknown }).questions;
++  const first =
++    Array.isArray(questions) && questions[0] && typeof questions[0] === "object"
++      ? (questions[0] as Record<string, unknown>)
++      : null;
++  if (!first) {
++    return null;
++  }
++  const rawOptions = Array.isArray(first.options) ? first.options : [];
++  const options: AskChoiceOption[] = [];
++  for (let i = 0; i < rawOptions.length; i += 1) {
++    const o = rawOptions[i];
++    if (o && typeof o === "object" && typeof (o as { label?: unknown }).label === "string") {
++      const description = (o as { description?: unknown }).description;
++      options.push({
++        id: String(i),
++        label: (o as { label: string }).label,
++        ...(typeof description === "string" ? { description } : {}),
++      });
++    }
++  }
++  if (!options.length) {
++    return null;
++  }
++  const prompt =
++    typeof first.question === "string"
++      ? first.question
++      : typeof first.header === "string"
++        ? first.header
++        : "Choose an option";
++  return {
++    choiceId: toolCallId || "ask-choice",
++    prompt,
++    options,
++    multiSelect: first.multiSelect === true,
++  };
++}
++
++function buildAskChoiceFromAgentEvent(evt: { data?: unknown }): AskChoiceRequest | null {
++  const data = (evt.data ?? {}) as { toolCallId?: unknown; args?: unknown };
++  return buildAskChoiceFromArgs(
++    typeof data.toolCallId === "string" ? data.toolCallId : "",
++    data.args,
++  );
++}
++
++function writeAskChoiceChunk(
++  res: ServerResponse,
++  params: { runId: string; model: string; choice: AskChoiceRequest },
++) {
++  writeSse(res, {
++    id: params.runId,
++    object: "chat.completion.chunk",
++    created: Math.floor(Date.now() / 1000),
++    model: params.model,
++    choices: [
++      {
++        index: 0,
++        delta: { openclaw_ask_choice: params.choice },
++        finish_reason: null,
++      },
++    ],
++  });
++}
++
+ function writeAssistantFinishChunk(
+   res: ServerResponse,
+   params: { runId: string; model: string; finishReason: "stop" | "tool_calls" },
+@@ -1172,6 +1259,13 @@ export async function handleOpenAiHttpRequest(
+   let wroteStopChunk = false;
+   let sawAssistantDelta = false;
+   let bufferedAssistantContent = "";
++  // C3: ultracode turns leak the whole Claude CLI stream-json as assistant
++  // content, split across many streaming deltas, so the post-run flush branch is
++  // skipped (sawAssistantDelta is true). Buffer every assistant delta's raw text
++  // here, then extract a buried AskUserQuestion ONCE at finalize and bridge it
++  // into an ask_choice card. The extractor guards non-blob text (returns null),
++  // so accumulating ordinary prose is harmless.
++  let askChoiceBlob = "";
+   let finalUsage: OpenAiChatCompletionsUsage | undefined;
+   let finalizeRequested = false;
+   let finalizeFinishReason: "stop" | "tool_calls" = "stop";
+@@ -1224,6 +1318,19 @@ export async function handleOpenAiHttpRequest(
+     if (streamIncludeUsage && finalUsage) {
+       writeUsageChunk(res, { runId, model, usage: finalUsage });
+     }
++    // C3: an ultracode turn that called native AskUserQuestion leaks the call
++    // inside its stream-json assistant blob, split across deltas, so the tool
++    // tracker never fires the ask_choice agent-event. Recover it from the full
++    // buffered blob and emit the console ask_choice card exactly once at finalize
++    // (the extractor returns null for non-blob text, so non-ultracode turns and
++    // turns without a question are unaffected).
++    const askq = extractAskUserQuestionFromClaudeStreamJson(askChoiceBlob);
++    if (askq) {
++      const choice = buildAskChoiceFromArgs(askq.toolCallId, askq.args);
++      if (choice) {
++        writeAskChoiceChunk(res, { runId, model, choice });
++      }
++    }
+     writeDone(res);
+     res.end();
+   };
+@@ -1248,6 +1355,12 @@ export async function handleOpenAiHttpRequest(
+         return;
+       }
+ 
++      // C3: accumulate every assistant delta's raw text so a native
++      // AskUserQuestion split across a leaked ultracode stream-json blob can be
++      // recovered whole at finalize. Buffer before any early return (incl. the
++      // tool-choice hold) so no delta is missed.
++      askChoiceBlob += content;
++
+       // Hold prose until the run proves the requested client-tool call exists.
+       // If the provider ignores `tool_choice`, no partial text should leak
+       // before the stream fails with an OpenAI-compatible error payload.
+@@ -1271,6 +1384,16 @@ export async function handleOpenAiHttpRequest(
+       return;
+     }
+ 
++    if (evt.stream === "ask_choice") {
++      // C3: bridge a (denied) native AskUserQuestion into the console's
++      // ask_choice card via the openclaw_ask_choice side channel.
++      const choice = buildAskChoiceFromAgentEvent(evt);
++      if (choice) {
++        writeAskChoiceChunk(res, { runId, model, choice });
++      }
++      return;
++    }
++
+     if (evt.stream === "lifecycle") {
+       const phase = evt.data?.phase;
+       if (phase === "end" || phase === "error") {
