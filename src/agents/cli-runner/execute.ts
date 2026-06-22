@@ -474,6 +474,17 @@ export async function executePreparedCliRun(
               args: sanitizeToolArgs(event.args),
             },
           });
+          // C3: the agent's native AskUserQuestion can't run on the webchat
+          // surface (no interactive terminal → denied). Bridge it into an
+          // ask_choice card for the client, carrying the full (un-sanitized)
+          // questions/options so the card has real labels.
+          if (event.name === "AskUserQuestion") {
+            emitAgentEvent({
+              runId: params.runId,
+              stream: "ask_choice",
+              data: { toolCallId: event.toolCallId, args: event.args },
+            });
+          }
         };
         const emitCliToolResult = (event: {
           toolCallId: string;
