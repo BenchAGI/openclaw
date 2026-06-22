@@ -1,0 +1,14 @@
+diff --git a/src/agents/cli-output.ts b/src/agents/cli-output.ts
+index a08abdc56d..ea43287656 100644
+--- a/src/agents/cli-output.ts
++++ b/src/agents/cli-output.ts
+@@ -50,7 +50,8 @@ export type CliToolResultDelta = {
+ };
+ 
+ function isClaudeCliProvider(providerId: string): boolean {
+-  return normalizeLowercaseStringOrEmpty(providerId) === "claude-cli";
++  const id = normalizeLowercaseStringOrEmpty(providerId);
++  return id === "claude-cli" || id.startsWith("claude-cli-");
+ }
+ 
+ function usesClaudeStreamJsonDialect(params: {
