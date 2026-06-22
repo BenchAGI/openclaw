@@ -71,6 +71,12 @@ describe("package manager build policy", () => {
     expect(packageJson.files).toContain("THIRD_PARTY_NOTICES.md");
   });
 
+  it("ships the Claude Code bridge runtime assets in the published root package", () => {
+    const packageJson = readJson("package.json") as RootPackageJson;
+
+    expect(packageJson.files).toContain("extensions/claude-code-bridge/");
+  });
+
   it("keeps npm shrinkwrap aligned with workspace overrides", () => {
     const workspace = parse(
       fs.readFileSync("pnpm-workspace.yaml", "utf8"),

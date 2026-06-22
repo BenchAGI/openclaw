@@ -13,7 +13,7 @@
 //
 // Env vars:
 //   BENCH_WIKI_INGEST_URL    - Override the ingest endpoint (default: https://benchagi.com/api/v1/wiki/ingest)
-//   BENCH_WIKI_INGEST_KEY    - Required API key (super-admin scope) for X-API-Key auth
+//   BENCH_WIKI_INGEST_KEY    - Required tenant-scoped wiki:mirror key for X-API-Key auth
 //   BENCH_WIKI_MIRROR_DEBOUNCE_MS  - Debounce window (default: 2000)
 //   BENCH_WIKI_MIRROR_BATCH_SIZE   - Entries per POST (default: 50)
 //   BENCH_INSTANCE_ID        - Override the instanceId from openclaw.json (advanced)
