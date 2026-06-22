@@ -6,13 +6,17 @@
   background so the active ~/.openclaw/wiki/{instanceId|main} vault is mirrored to
   benchagi.com in near-real-time.
 
-  INSTALL:
+  INSTALL (normally automated by the enclave-join bootstrap — the mono
+  /api/v1/mesh/enroll/bootstrap script materializes + loads this for you; the
+  manual steps below are for reference / advanced setups):
     1. Copy this file to ~/Library/LaunchAgents/ai.openclaw.wiki-mirror.plist
     2. Replace placeholders:
          __HOME__           -> absolute path to your home directory (for example /Users/you)
          __BRIDGE_DIR__     -> absolute path to extensions/claude-code-bridge
          __NODE_BIN__       -> absolute path to node (likely /opt/homebrew/bin/node)
-         __INGEST_KEY__     -> super-admin API key pulled from your secret manager
+         __INGEST_KEY__     -> the device's tenant-scoped wiki:mirror API key (minted at
+                               enclave enrollment); writes ONLY instances/{instanceId}/
+                               wikiEntries -- never another tenant, never root
     3. Load it:
          launchctl unload ~/Library/LaunchAgents/ai.openclaw.wiki-mirror.plist 2>/dev/null
          launchctl load   ~/Library/LaunchAgents/ai.openclaw.wiki-mirror.plist

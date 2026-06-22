@@ -133,6 +133,7 @@
     "!docs/**/*.jpg",
     "!docs/**/*.png",
     "src/agents/templates/",
+    "extensions/claude-code-bridge/",
     "scripts/crabbox-wrapper.mjs",
     "patches/",
     "skills/",
