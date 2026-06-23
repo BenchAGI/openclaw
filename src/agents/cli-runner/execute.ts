@@ -454,6 +454,7 @@ export async function executePreparedCliRun(
           timeoutMs: params.timeoutMs,
           useResume,
           trigger: params.trigger,
+          messageChannel: params.messageChannel,
         });
         const outputMode = useResume ? (backend.resumeOutput ?? backend.output) : backend.output;
         const hasJsonlOutput = outputMode === "jsonl";

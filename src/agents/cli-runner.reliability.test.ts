@@ -2031,4 +2031,79 @@ describe("resolveCliNoOutputTimeoutMs", () => {
     });
     expect(timeoutMs).toBe(480_000);
   });
+
+  it("caps interactive web-chat fresh turns at the 240s interactive ceiling", () => {
+    const timeoutMs = resolveCliNoOutputTimeoutMs({
+      backend: { command: "claude" },
+      timeoutMs: 600_000,
+      useResume: false,
+      trigger: "user",
+      messageChannel: "webchat",
+    });
+    // ratio 0.8 * 600_000 = 480_000, bounded into the interactive [180k, 240k].
+    expect(timeoutMs).toBe(240_000);
+  });
+
+  it("keeps the 180s cold-start floor for slow fresh web-chat turns", () => {
+    const timeoutMs = resolveCliNoOutputTimeoutMs({
+      backend: { command: "claude" },
+      timeoutMs: 120_000,
+      useResume: false,
+      trigger: "user",
+      messageChannel: "webchat",
+    });
+    // ratio 0.8 * 120_000 = 96_000, raised to the 180k floor, capped at 119k.
+    expect(timeoutMs).toBe(119_000);
+  });
+
+  it("leaves non-webchat fresh user turns (subagent/other channel) on the 600s FRESH ceiling", () => {
+    const timeoutMs = resolveCliNoOutputTimeoutMs({
+      backend: { command: "claude" },
+      timeoutMs: 600_000,
+      useResume: false,
+      trigger: "user",
+      messageChannel: "slack",
+    });
+    // trigger "user" but NOT webchat -> FRESH [180k, 600k]; 0.8 * 600k = 480k.
+    expect(timeoutMs).toBe(480_000);
+  });
+
+  it("leaves cron fresh turns on the 600s FRESH ceiling even on a webchat surface", () => {
+    const timeoutMs = resolveCliNoOutputTimeoutMs({
+      backend: { command: "claude" },
+      timeoutMs: 600_000,
+      useResume: false,
+      trigger: "cron",
+      messageChannel: "webchat",
+    });
+    // trigger "cron" excludes the interactive branch -> dream pipeline keeps 600s.
+    expect(timeoutMs).toBe(480_000);
+  });
+
+  it("keeps web-chat CONTINUATION turns on the RESUME profile (180s)", () => {
+    const timeoutMs = resolveCliNoOutputTimeoutMs({
+      backend: { command: "claude" },
+      timeoutMs: 600_000,
+      useResume: true,
+      trigger: "user",
+      messageChannel: "webchat",
+    });
+    // useResume excludes the interactive branch -> RESUME [60k, 180k]; 0.3 * 600k = 180k.
+    expect(timeoutMs).toBe(180_000);
+  });
+
+  it("lets an explicit backend fresh-watchdog override beat the interactive default", () => {
+    const timeoutMs = resolveCliNoOutputTimeoutMs({
+      backend: {
+        command: "claude",
+        reliability: { watchdog: { fresh: { maxMs: 600_000 } } },
+      },
+      timeoutMs: 600_000,
+      useResume: false,
+      trigger: "user",
+      messageChannel: "webchat",
+    });
+    // configured fresh override -> !configured is false -> interactive branch skipped; 600k ceiling.
+    expect(timeoutMs).toBe(480_000);
+  });
 });
