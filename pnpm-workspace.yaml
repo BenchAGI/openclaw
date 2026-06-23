@@ -102,6 +102,11 @@ overrides:
   yauzl: 3.2.1
   protobufjs: 8.4.2 # GHSA-wcpc-wj8m-hjx6: DoS via unbounded Any expansion in JSON conversion (>=8.0.0 <=8.4.0)
   uuid: 14.0.0
+  # GHSA-vmh5-mc38-953g + GHSA-38rv-x7px-6hhq + GHSA-vxpw-j846-p89q + GHSA-hm92-r4w5-c3mj +
+  # GHSA-vxpw-j846-p89q: undici SOCKS5 TLS cert-validation bypass + WebSocket DoS via fragment
+  # bypass. Patch each major line in place (8.x affected <8.5.0; 7.x affected <7.28.0).
+  "undici@8": 8.5.0
+  "undici@7": 7.28.0
   # Security: GHSA-gv7w-rqvm-qjhr (esbuild missing binary integrity verification
   # in the Deno module -> RCE via NPM_CONFIG_REGISTRY). Affects >=0.17.0 <0.28.1;
   # transitive via vite/vitest/tsx. Pin to the patched release.
