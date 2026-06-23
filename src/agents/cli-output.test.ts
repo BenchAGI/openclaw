@@ -672,6 +672,102 @@ describe("createCliJsonlStreamingParser", () => {
     ]);
   });
 
+  it("dispatches tool events for the claude-cli-ultracode backend without an explicit dialect", () => {
+    // Regression: the ultracode variant resolves to backend/provider id
+    // "claude-cli-ultracode" and never sets jsonlDialect. Until the dialect gate
+    // recognized the claude-cli-* family, this was false, so the parser silently
+    // skipped tool-event dispatch entirely — a native AskUserQuestion never
+    // reached onToolUseStart, so the console's ask_choice card never fired.
+    const starts: CliToolUseStartDelta[] = [];
+    const parser = createCliJsonlStreamingParser({
+      backend: {
+        command: "claude",
+        output: "jsonl",
+        sessionIdFields: ["session_id"],
+      },
+      providerId: "claude-cli-ultracode",
+      onAssistantDelta: () => undefined,
+      onToolUseStart: (delta) => starts.push(delta),
+    });
+
+    parser.push(
+      [
+        JSON.stringify({
+          type: "stream_event",
+          event: {
+            type: "content_block_start",
+            index: 1,
+            content_block: {
+              type: "tool_use",
+              id: "toolu_ask",
+              name: "AskUserQuestion",
+              input: {},
+            },
+          },
+        }),
+        JSON.stringify({
+          type: "stream_event",
+          event: {
+            type: "content_block_delta",
+            index: 1,
+            delta: { type: "input_json_delta", partial_json: '{"questions":[{"question":"Pick",' },
+          },
+        }),
+        JSON.stringify({
+          type: "stream_event",
+          event: {
+            type: "content_block_delta",
+            index: 1,
+            delta: {
+              type: "input_json_delta",
+              partial_json: '"options":[{"label":"A"},{"label":"B"}]}]}',
+            },
+          },
+        }),
+        JSON.stringify({
+          type: "stream_event",
+          event: { type: "content_block_stop", index: 1 },
+        }),
+      ].join("\n") + "\n",
+    );
+    parser.finish();
+
+    expect(starts).toEqual([
+      {
+        toolCallId: "toolu_ask",
+        name: "AskUserQuestion",
+        args: { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] },
+      },
+    ]);
+  });
+
+  it("streams native text deltas for the claude-cli-ultracode backend", () => {
+    // The same dialect gate also drove text extraction: before the fix, ultracode
+    // assistant text fell back to the raw stream-json blob instead of streaming
+    // clean text deltas (the C1 leak). Recognizing the family restores native
+    // streaming so the openai-http salvage is defense-in-depth, not the mechanism.
+    const deltas: string[] = [];
+    const parser = createCliJsonlStreamingParser({
+      backend: {
+        command: "claude",
+        output: "jsonl",
+        sessionIdFields: ["session_id"],
+      },
+      providerId: "claude-cli-ultracode",
+      onAssistantDelta: (delta) => deltas.push(delta.delta),
+    });
+
+    parser.push(
+      JSON.stringify({
+        type: "stream_event",
+        event: { type: "content_block_delta", delta: { type: "text_delta", text: "hi" } },
+      }) + "\n",
+    );
+    parser.finish();
+
+    expect(deltas).toEqual(["hi"]);
+  });
+
   it("emits empty args when streamed tool args are malformed", () => {
     const starts: CliToolUseStartDelta[] = [];
     const parser = createCliJsonlStreamingParser({

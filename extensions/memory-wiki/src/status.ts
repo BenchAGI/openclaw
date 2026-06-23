@@ -7,6 +7,7 @@ import type { OpenClawConfig } from "../api.js";
 import type { ResolvedMemoryWikiConfig } from "./config.js";
 import { inferWikiPageKind, toWikiPageSummary, type WikiPageKind } from "./markdown.js";
 import { probeObsidianCli } from "./obsidian.js";
+import { collectWikiMarkdownFiles } from "./wiki-files.js";
 
 type MemoryWikiStatusWarning = {
   code:
@@ -77,6 +78,7 @@ async function collectVaultCounts(vaultPath: string): Promise<{
     source: 0,
     synthesis: 0,
     report: 0,
+    canon: 0,
   };
   const sourceCounts: MemoryWikiStatus["sourceCounts"] = {
     native: 0,
@@ -85,28 +87,30 @@ async function collectVaultCounts(vaultPath: string): Promise<{
     unsafeLocal: 0,
     other: 0,
   };
-  const dirs = ["entities", "concepts", "sources", "syntheses", "reports"] as const;
-  for (const dir of dirs) {
-    const entries = await fs
-      .readdir(path.join(vaultPath, dir), { withFileTypes: true })
-      .catch(() => []);
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith(".md") || entry.name === "index.md") {
-        continue;
-      }
-      const kind = inferWikiPageKind(path.join(dir, entry.name));
+  const dirs = [
+    { dir: "entities", recursive: false },
+    { dir: "concepts", recursive: false },
+    { dir: "sources", recursive: false },
+    { dir: "syntheses", recursive: false },
+    { dir: "reports", recursive: false },
+    { dir: "canon", recursive: true },
+  ] as const;
+  for (const { dir, recursive } of dirs) {
+    const files = await collectWikiMarkdownFiles(vaultPath, dir, { recursive });
+    for (const relativePath of files) {
+      const kind = inferWikiPageKind(relativePath);
       if (kind) {
         pageCounts[kind] += 1;
       }
       if (dir === "sources") {
-        const absolutePath = path.join(vaultPath, dir, entry.name);
+        const absolutePath = path.join(vaultPath, relativePath);
         const raw = await fs.readFile(absolutePath, "utf8").catch(() => null);
         if (!raw) {
           continue;
         }
         const page = toWikiPageSummary({
           absolutePath,
-          relativePath: path.join(dir, entry.name),
+          relativePath,
           raw,
         });
         if (!page) {
@@ -228,6 +232,7 @@ export async function resolveMemoryWikiStatus(
           source: 0,
           synthesis: 0,
           report: 0,
+          canon: 0,
         },
         sourceCounts: {
           native: 0,
@@ -300,7 +305,7 @@ export function renderMemoryWikiStatus(status: MemoryWikiStatus): string {
     `Obsidian CLI: ${status.obsidianCli.available ? "available" : "missing"}${status.obsidianCli.requested ? " (requested)" : ""}`,
     `Bridge: ${status.bridge.enabled ? "enabled" : "disabled"}${typeof status.bridgePublicArtifactCount === "number" ? ` (${status.bridgePublicArtifactCount} exported artifact${status.bridgePublicArtifactCount === 1 ? "" : "s"})` : ""}`,
     `Unsafe local: ${status.unsafeLocal.allowPrivateMemoryCoreAccess ? `enabled (${status.unsafeLocal.pathCount} paths)` : "disabled"}`,
-    `Pages: ${status.pageCounts.source} sources, ${status.pageCounts.entity} entities, ${status.pageCounts.concept} concepts, ${status.pageCounts.synthesis} syntheses, ${status.pageCounts.report} reports`,
+    `Pages: ${status.pageCounts.source} sources, ${status.pageCounts.entity} entities, ${status.pageCounts.concept} concepts, ${status.pageCounts.synthesis} syntheses, ${status.pageCounts.report} reports, ${status.pageCounts.canon} canon`,
     `Source provenance: ${status.sourceCounts.native} native, ${status.sourceCounts.bridge} bridge, ${status.sourceCounts.bridgeEvents} bridge-events, ${status.sourceCounts.unsafeLocal} unsafe-local, ${status.sourceCounts.other} other`,
   ];
 

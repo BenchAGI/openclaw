@@ -3,7 +3,7 @@
  * without loading full provider runtime code.
  */
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
-import { buildAnthropicCliBackend } from "./cli-backend.js";
+import { buildAnthropicCliBackend, buildAnthropicCliBackendUltracode } from "./cli-backend.js";
 
 /** Setup entry for Claude CLI backend registration. */
 export default definePluginEntry({
@@ -12,5 +12,6 @@ export default definePluginEntry({
   description: "Lightweight Anthropic setup hooks",
   register(api) {
     api.registerCliBackend(buildAnthropicCliBackend());
+    api.registerCliBackend(buildAnthropicCliBackendUltracode());
   },
 });

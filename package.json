@@ -133,6 +133,7 @@
     "!docs/**/*.jpg",
     "!docs/**/*.png",
     "src/agents/templates/",
+    "extensions/claude-code-bridge/",
     "scripts/crabbox-wrapper.mjs",
     "patches/",
     "skills/",
@@ -1918,7 +1919,7 @@
     "tslog": "4.10.2",
     "typebox": "1.1.39",
     "typescript": "6.0.3",
-    "undici": "8.3.0",
+    "undici": "8.5.0",
     "web-push": "3.6.7",
     "web-tree-sitter": "0.26.9",
     "ws": "8.21.0",
@@ -1943,7 +1944,7 @@
     "@types/proper-lockfile": "4.1.4",
     "@types/ws": "8.18.1",
     "@typescript/native-preview": "7.0.0-dev.20260527.2",
-    "@vitest/coverage-v8": "4.1.7",
+    "@vitest/coverage-v8": "4.1.9",
     "esbuild": "0.28.1",
     "jscpd": "4.2.4",
     "jsdom": "29.1.1",
@@ -1956,7 +1957,7 @@
     "tsdown": "0.22.1",
     "tsx": "4.22.3",
     "unrun": "0.3.0",
-    "vitest": "4.1.7"
+    "vitest": "4.1.9"
   },
   "optionalDependencies": {
     "sqlite-vec": "0.1.9"

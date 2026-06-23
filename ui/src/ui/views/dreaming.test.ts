@@ -147,14 +147,15 @@ function buildProps(overrides?: Partial<DreamingProps>): DreamingProps {
     wikiMemoryPalaceLoading: false,
     wikiMemoryPalaceError: null,
     wikiMemoryPalace: {
-      totalItems: 1,
-      totalPages: 2,
+      totalItems: 2,
+      totalPages: 3,
       pageCounts: {
         synthesis: 1,
         entity: 0,
         concept: 0,
         source: 1,
         report: 0,
+        canon: 1,
       },
       totalClaims: 2,
       totalQuestions: 1,
@@ -183,6 +184,28 @@ function buildProps(overrides?: Partial<DreamingProps>): DreamingProps {
               contradictions: ["Old BA receipts guidance may now be stale."],
               snippet: "Recurring travel admin friction across imported chats.",
               updatedAt: "2026-04-10T10:00:00.000Z",
+            },
+          ],
+        },
+        {
+          key: "canon",
+          label: "Canon",
+          itemCount: 1,
+          claimCount: 0,
+          questionCount: 0,
+          contradictionCount: 0,
+          items: [
+            {
+              pagePath: "canon/topics/index.md",
+              title: "Canon Topic",
+              kind: "canon",
+              claimCount: 0,
+              questionCount: 0,
+              contradictionCount: 0,
+              claims: [],
+              questions: [],
+              contradictions: [],
+              snippet: "A durable canon topic.",
             },
           ],
         },
@@ -411,10 +434,10 @@ describe("dreaming view", () => {
     setDreamDiarySubTab("palace");
     const container = renderInto(buildProps());
     expect(compactText(container.querySelector(".dreams-diary__date"))).toBe(
-      "Vault · 2 pages · 2 claim rows · 1 open question · 1 contradiction",
+      "Vault · 3 pages · 2 claim rows · 1 open question · 1 contradiction",
     );
     expect(compactText(container.querySelectorAll(".dreams-diary__para")[0])).toBe(
-      "Full vault breakdown: Sources · 1 page; Syntheses · 1 page.",
+      "Full vault breakdown: Sources · 1 page; Syntheses · 1 page; Canon · 1 page.",
     );
     expect(compactText(container.querySelectorAll(".dreams-diary__para")[1])).toContain(
       "Selected section: Syntheses: 1 page · 2 claim rows · 1 open question on 1 page · 1 contradiction.",
@@ -429,6 +452,7 @@ describe("dreaming view", () => {
     expect(compactText(container.querySelector(".dreams-diary__explainer"))).toBe(
       "This is the compiled memory wiki surface the system can search and reason over; use it to inspect actual memory pages, claims, open questions, and contradictions rather than raw imported source chats.",
     );
+    expect(textItems(container, ".dreams-diary__day-chip")).toContain("Canon");
     setDreamDiarySubTab("dreams");
     setDreamSubTab("scene");
   });
@@ -473,6 +497,7 @@ describe("dreaming view", () => {
           concept: 0,
           source: 1,
           report: 0,
+          canon: 0,
         },
         totalClaims: 0,
         totalQuestions: 0,

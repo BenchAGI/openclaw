@@ -1,6 +1,7 @@
 // Memory Wiki plugin module implements source sync state behavior.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { readJsonFileWithFallback } from "openclaw/plugin-sdk/json-store";
 import type {
@@ -258,15 +259,69 @@ export async function shouldSkipImportedSourceWrite(params: {
     .catch(() => false);
 }
 
+function isPathInsideOrEqual(childPath: string, parentPath: string): boolean {
+  const rel = path.relative(parentPath, childPath);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+function resolveKnownUserHomeOwner(absolutePath: string): string | undefined {
+  const parsed = path.parse(absolutePath);
+  const relative = path.relative(parsed.root, absolutePath);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return undefined;
+  }
+  const [homeRootName, owner] = relative.split(path.sep);
+  if (!homeRootName || !owner) {
+    return undefined;
+  }
+  const normalizedRootName = homeRootName.toLowerCase();
+  if (normalizedRootName !== "users" && normalizedRootName !== "home") {
+    return undefined;
+  }
+  return `${parsed.root}${normalizedRootName}/${owner}`;
+}
+
+// Bridge artifacts may legitimately live outside this user's home, for example
+// temp workspaces, mounted volumes, and CI checkouts. Only protect paths that
+// look like they came from a different user home such as /Users/<other>/...
+function isSiblingHomeSourcePath(sourcePath: string, homeDir: string): boolean {
+  if (!sourcePath || !path.isAbsolute(sourcePath)) {
+    return false;
+  }
+
+  const resolvedSourcePath = path.resolve(sourcePath);
+  const resolvedHomeDir = path.resolve(homeDir);
+  if (isPathInsideOrEqual(resolvedSourcePath, resolvedHomeDir)) {
+    return false;
+  }
+  const sourceOwner = resolveKnownUserHomeOwner(resolvedSourcePath);
+  if (!sourceOwner) {
+    return false;
+  }
+
+  const localOwner = resolveKnownUserHomeOwner(resolvedHomeDir);
+  return sourceOwner !== localOwner;
+}
+
 export async function pruneImportedSourceEntries(params: {
   vaultRoot: string;
   group: MemoryWikiImportedSourceGroup;
   activeKeys: Set<string>;
   state: MemoryWikiImportedSourceState;
+  // Defaults to this machine's home dir; injectable for tests.
+  localHomeDir?: string;
 }): Promise<number> {
+  const homeDir = params.localHomeDir ?? os.homedir();
   let removedCount = 0;
   for (const [syncKey, entry] of Object.entries(params.state.entries)) {
     if (entry.group !== params.group || params.activeKeys.has(syncKey)) {
+      continue;
+    }
+    // Durability guard: never delete a bridge page whose source artifact points
+    // at a sibling user home. That defends against a state rebuild adopting a
+    // satellite operator's mirror page and pruning it as absent locally, while
+    // still allowing local non-home workspaces and unsafe-local imports to prune.
+    if (entry.group === "bridge" && isSiblingHomeSourcePath(entry.sourcePath, homeDir)) {
       continue;
     }
     const pageAbsPath = path.join(params.vaultRoot, entry.pagePath);
