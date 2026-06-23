@@ -243,6 +243,23 @@ function createGatewayNormalCloseError() {
   });
 }
 
+function createGatewayPairingScopeError() {
+  const err = new Error(
+    "gateway closed (1008): pairing required: device is asking for more scopes than currently approved",
+  );
+  err.name = "GatewayTransportError";
+  return Object.assign(err, {
+    kind: "closed",
+    code: 1008,
+    reason: "pairing required: device is asking for more scopes than currently approved",
+    connectionDetails: {
+      url: "ws://127.0.0.1:18789",
+      urlSource: "local loopback",
+      message: "Gateway target: ws://127.0.0.1:18789",
+    },
+  });
+}
+
 vi.mock("../config/gateway-dispatch-config.js", () => ({
   readGatewayDispatchConfig: loadConfig,
   readGatewayDispatchConfigWithShellEnvFallback: loadConfigWithShellEnvFallback,
@@ -342,6 +359,21 @@ describe("agentCliCommand", () => {
       expect(agentCommand).not.toHaveBeenCalled();
       expect(agentModuleLoadCount).not.toHaveBeenCalled();
       expect(runtime.log).toHaveBeenCalledWith("hello");
+    });
+  });
+
+  it("defaults to the only configured agent when no explicit target is given", async () => {
+    await withTempStore(async () => {
+      mockGatewaySuccessReply();
+
+      // No --to/--agent/--session-*; a fresh install has exactly one agent
+      // ("main"), so this should default to it rather than erroring.
+      await agentCliCommand({ message: "hi" }, runtime);
+
+      expect(callGateway).toHaveBeenCalledTimes(1);
+      expect(runtime.error).toHaveBeenCalledWith(
+        expect.stringContaining('defaulting to the only configured agent "main"'),
+      );
     });
   });
 
@@ -1225,6 +1257,20 @@ describe("agentCliCommand", () => {
       await expect(run).resolves.toBeUndefined();
       expect(callGateway).toHaveBeenCalledTimes(1);
       expect(runtime.exit).toHaveBeenCalledWith(143);
+    });
+  });
+
+  it("surfaces the device-approve fix for a pairing/scope rejection instead of embedded fallback", async () => {
+    await withTempStore(async () => {
+      callGateway.mockRejectedValueOnce(createGatewayPairingScopeError());
+
+      await expect(agentCliCommand({ message: "hi", to: "+1555" }, runtime)).rejects.toThrow(
+        /openclaw devices approve --latest/,
+      );
+
+      // Must NOT silently fall back to the embedded agent (which would run on a
+      // different/keyless model and mask the real authz problem).
+      expect(agentCommand).not.toHaveBeenCalled();
     });
   });
 

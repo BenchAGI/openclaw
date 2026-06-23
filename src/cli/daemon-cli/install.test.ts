@@ -433,7 +433,7 @@ describe("runDaemonInstall", () => {
     expect(replaceConfigFileMock).toHaveBeenCalledTimes(1);
     expect(readFirstConfigWriteParams().nextConfig?.gateway?.mode).toBe("local");
     expect(actionState.warnings).toContain(
-      "No gateway.mode found. Set gateway.mode=local for managed gateway install.",
+      'gateway.mode was unset — defaulted to "local" for this managed gateway install. No action needed; restart the gateway to apply.',
     );
     expectFields(readFirstInstallPlanArg().config as Record<string, unknown>, {
       gateway: {
