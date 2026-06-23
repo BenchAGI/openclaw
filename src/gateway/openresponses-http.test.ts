@@ -6,6 +6,7 @@ import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClientToolNameConflictError } from "../agents/agent-tool-definition-adapter.js";
 import { FailoverError } from "../agents/failover-error.js";
+import { SAFE_READ_ONLY_TOOLS } from "../agents/tool-policy-shared.js";
 import { HISTORY_CONTEXT_MARKER } from "../auto-reply/reply/history.js";
 import { CURRENT_MESSAGE_MARKER } from "../auto-reply/reply/mentions.js";
 import { emitAgentEvent } from "../infra/agent-events.js";
@@ -604,6 +605,33 @@ describe("OpenResponses HTTP API (e2e)", () => {
         (optsToolNone as { clientTools?: unknown[] } | undefined)?.clientTools,
       ).toBeUndefined();
       await ensureResponseConsumed(resToolNone);
+
+      for (const toolsMode of ["plan", " Review "]) {
+        mockAgentOnce([{ text: "restricted" }]);
+        const res = await postResponses(
+          port,
+          {
+            model: "openclaw",
+            input: "plan this",
+            tools: [
+              {
+                type: "function",
+                name: "client_write_action",
+                description: "Client-owned write action",
+              },
+            ],
+          },
+          { "x-openclaw-tools-mode": toolsMode },
+        );
+        expect(res.status).toBe(200);
+        const opts = firstAgentOpts() as {
+          clientTools?: unknown[];
+          toolsAllow?: string[];
+        };
+        expect(opts.toolsAllow).toEqual([...SAFE_READ_ONLY_TOOLS]);
+        expect(opts.clientTools).toBeUndefined();
+        await ensureResponseConsumed(res);
+      }
 
       // A pinned `tool_choice` now enforces the response contract, so the agent
       // must produce the matching tool call for a 200; text-only would 502.

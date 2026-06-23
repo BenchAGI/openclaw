@@ -146,4 +146,18 @@ describe("toWikiPageSummary", () => {
       },
     ]);
   });
+
+  it("infers nested canon pages as canon wiki summaries", () => {
+    const summary = toWikiPageSummary({
+      absolutePath: "/tmp/wiki/canon/daily/truth.md",
+      relativePath: "canon/daily/truth.md",
+      raw: renderWikiMarkdown({
+        frontmatter: { pageType: "canon", id: "canon.truth", title: "Canon Truth" },
+        body: "# Canon Truth\n",
+      }),
+    });
+
+    expect(summary?.kind).toBe("canon");
+    expect(summary?.relativePath).toBe("canon/daily/truth.md");
+  });
 });

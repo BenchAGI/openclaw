@@ -65,6 +65,7 @@ import {
 import { wrapUntrustedFileContent } from "./openresponses-file-content.js";
 import { buildAgentPrompt } from "./openresponses-prompt.js";
 import { createAssistantOutputItem, createFunctionCallOutputItem } from "./openresponses-shape.js";
+import { resolveGatewayToolsModeAllowlist } from "./tools-mode.js";
 
 type OpenResponsesHttpOptions = {
   auth: ResolvedGatewayAuth;
@@ -410,6 +411,7 @@ async function runResponsesAgentCommand(params: {
   runId: string;
   messageChannel: string;
   deps: CliDeps;
+  toolsAllow?: string[];
   abortSignal?: AbortSignal;
 }) {
   return agentCommandFromIngress(
@@ -426,6 +428,7 @@ async function runResponsesAgentCommand(params: {
       messageChannel: params.messageChannel,
       bestEffortDeliver: false,
       allowModelOverride: true,
+      ...(params.toolsAllow ? { toolsAllow: params.toolsAllow } : {}),
       abortSignal: params.abortSignal,
     },
     defaultRuntime,
@@ -489,6 +492,10 @@ export async function handleOpenResponsesHttpRequest(
     });
     return true;
   }
+  // Agency-mode HARD enforcement: plan/review allow only read-only runtime
+  // tools and drop caller client tools, which the Gateway cannot classify.
+  // ask/auto (and absent/unknown) leave the full toolset.
+  const toolsAllow = resolveGatewayToolsModeAllowlist(req);
 
   // Extract images + files from input (Phase 2)
   let images: ImageContent[] = [];
@@ -610,8 +617,9 @@ export async function handleOpenResponsesHttpRequest(
   let toolChoiceConstraint: ToolChoiceConstraint | undefined;
   let resolvedClientTools = clientTools;
   try {
+    const availableClientTools = toolsAllow ? [] : clientTools;
     const toolChoiceResult = applyToolChoice({
-      tools: clientTools,
+      tools: availableClientTools,
       toolChoice: payload.tool_choice,
     });
     resolvedClientTools = toolChoiceResult.tools;
@@ -706,6 +714,7 @@ export async function handleOpenResponsesHttpRequest(
         runId: responseId,
         messageChannel,
         deps,
+        toolsAllow,
         abortSignal: abortController.signal,
       });
 
@@ -1045,6 +1054,7 @@ export async function handleOpenResponsesHttpRequest(
         runId: responseId,
         messageChannel,
         deps,
+        toolsAllow,
         abortSignal: abortController.signal,
       });
 

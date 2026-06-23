@@ -124,10 +124,18 @@ export type WikiImportInsights = {
   clusters: WikiImportInsightCluster[];
 };
 
+export type WikiMemoryPalacePageKind =
+  | "entity"
+  | "concept"
+  | "source"
+  | "synthesis"
+  | "report"
+  | "canon";
+
 export type WikiMemoryPalaceItem = {
   pagePath: string;
   title: string;
-  kind: "entity" | "concept" | "source" | "synthesis" | "report";
+  kind: WikiMemoryPalacePageKind;
   id?: string;
   updatedAt?: string;
   sourceType?: string;
@@ -580,7 +588,8 @@ function normalizeWikiPageKind(value: unknown): WikiMemoryPalaceItem["kind"] | u
     value === "concept" ||
     value === "source" ||
     value === "synthesis" ||
-    value === "report"
+    value === "report" ||
+    value === "canon"
     ? value
     : undefined;
 }
@@ -592,6 +601,7 @@ function createEmptyWikiMemoryPalacePageCounts(): WikiMemoryPalacePageCounts {
     concept: 0,
     source: 0,
     report: 0,
+    canon: 0,
   };
 }
 
@@ -606,6 +616,7 @@ function normalizeWikiMemoryPalacePageCounts(
     concept: normalizeFiniteInt(record?.concept, fallback.concept),
     source: normalizeFiniteInt(record?.source, fallback.source),
     report: normalizeFiniteInt(record?.report, fallback.report),
+    canon: normalizeFiniteInt(record?.canon, fallback.canon),
   };
 }
 
@@ -615,7 +626,8 @@ function sumWikiMemoryPalacePageCounts(pageCounts: WikiMemoryPalacePageCounts): 
     pageCounts.entity +
     pageCounts.concept +
     pageCounts.source +
-    pageCounts.report
+    pageCounts.report +
+    pageCounts.canon
   );
 }
 

@@ -265,7 +265,7 @@ function isMemoryWikiStatus(value: unknown): value is MemoryWikiStatus {
     typeof unsafeLocal.allowPrivateMemoryCoreAccess === "boolean" &&
     typeof unsafeLocal.pathCount === "number" &&
     isRecord(pageCounts) &&
-    hasNumberFields(pageCounts, ["source", "entity", "concept", "synthesis", "report"]) &&
+    hasNumberFields(pageCounts, ["source", "entity", "concept", "synthesis", "report", "canon"]) &&
     isRecord(sourceCounts) &&
     hasNumberFields(sourceCounts, ["native", "bridge", "bridgeEvents", "unsafeLocal", "other"]) &&
     isWarningList(value.warnings)

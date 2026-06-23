@@ -38,7 +38,11 @@ import {
   type InputImageSource,
 } from "../media/input-files.js";
 import { defaultRuntime } from "../runtime.js";
-import { resolveAssistantStreamDeltaText } from "./agent-event-assistant-text.js";
+import {
+  extractAskUserQuestionFromClaudeStreamJson,
+  resolveAssistantStreamDeltaText,
+  salvageClaudeStreamJsonText,
+} from "./agent-event-assistant-text.js";
 import {
   buildAgentMessageFromConversationEntries,
   type ConversationEntry,
@@ -60,6 +64,7 @@ import {
   toolChoiceConstraintPrompt,
   type ToolChoiceConstraint,
 } from "./openai-tool-choice.js";
+import { resolveGatewayToolsModeAllowlist } from "./tools-mode.js";
 
 type OpenAiHttpOptions = {
   auth: ResolvedGatewayAuth;
@@ -162,6 +167,8 @@ function buildAgentCommandInput(params: {
   sessionKey: string;
   runId: string;
   messageChannel: string;
+  /** Restrict the turn's toolset (e.g. read-only for plan/review mode). */
+  toolsAllow?: string[];
   abortSignal?: AbortSignal;
   streamParams?: AgentStreamParams;
 }) {
@@ -177,6 +184,7 @@ function buildAgentCommandInput(params: {
     messageChannel: params.messageChannel,
     bestEffortDeliver: false as const,
     allowModelOverride: true as const,
+    ...(params.toolsAllow ? { toolsAllow: params.toolsAllow } : {}),
     abortSignal: params.abortSignal,
     streamParams: params.streamParams,
   };
@@ -285,6 +293,17 @@ function writeAssistantContentChunk(
   res: ServerResponse,
   params: { runId: string; model: string; content: string; finishReason: "stop" | null },
 ) {
+  // Last line of defense: if a turn (e.g. ultracode) surfaces its raw Claude CLI
+  // stream-json as content, salvage the clean assistant text before broadcasting.
+  // Ordinary text passes through untouched.
+  //
+  // NOTE: a native AskUserQuestion buried in a leaked ultracode stream-json blob
+  // is NOT extracted here. That blob arrives split across many streaming assistant
+  // deltas, so the long AskUserQuestion frame never lands whole in a single
+  // `params.content` — per-delta extraction here misses it. The bridge instead
+  // buffers the full assistant blob across deltas at the request scope and emits
+  // the ask_choice card once at finalize (see askChoiceBlob in the handler).
+  const content = salvageClaudeStreamJsonText(params.content);
   writeSse(res, {
     id: params.runId,
     object: "chat.completion.chunk",
@@ -293,8 +312,87 @@ function writeAssistantContentChunk(
     choices: [
       {
         index: 0,
-        delta: { content: params.content },
+        delta: { content },
         finish_reason: params.finishReason,
+      },
+    ],
+  });
+}
+
+type AskChoiceOption = { id: string; label: string; description?: string };
+type AskChoiceRequest = {
+  choiceId: string;
+  prompt: string;
+  options: AskChoiceOption[];
+  multiSelect?: boolean;
+};
+
+// C3: map the agent's native AskUserQuestion tool input into the console's
+// ask_choice card payload (AgentChatChoiceRequest). Uses the first question.
+function buildAskChoiceFromArgs(toolCallId: string, args: unknown): AskChoiceRequest | null {
+  if (!args || typeof args !== "object") {
+    return null;
+  }
+  const questions = (args as { questions?: unknown }).questions;
+  const first =
+    Array.isArray(questions) && questions[0] && typeof questions[0] === "object"
+      ? (questions[0] as Record<string, unknown>)
+      : null;
+  if (!first) {
+    return null;
+  }
+  const rawOptions = Array.isArray(first.options) ? first.options : [];
+  const options: AskChoiceOption[] = [];
+  for (let i = 0; i < rawOptions.length; i += 1) {
+    const o = rawOptions[i];
+    if (o && typeof o === "object" && typeof (o as { label?: unknown }).label === "string") {
+      const description = (o as { description?: unknown }).description;
+      options.push({
+        id: String(i),
+        label: (o as { label: string }).label,
+        ...(typeof description === "string" ? { description } : {}),
+      });
+    }
+  }
+  if (!options.length) {
+    return null;
+  }
+  const prompt =
+    typeof first.question === "string"
+      ? first.question
+      : typeof first.header === "string"
+        ? first.header
+        : "Choose an option";
+  return {
+    choiceId: toolCallId || "ask-choice",
+    prompt,
+    options,
+    multiSelect: first.multiSelect === true,
+  };
+}
+
+function buildAskChoiceFromAgentEvent(evt: { data?: unknown }): AskChoiceRequest | null {
+  const data = (evt.data ?? {}) as { toolCallId?: unknown; args?: unknown };
+  return buildAskChoiceFromArgs(
+    typeof data.toolCallId === "string" ? data.toolCallId : "",
+    data.args,
+  );
+}
+
+function writeAskChoiceChunk(
+  res: ServerResponse,
+  params: { runId: string; model: string; choice: AskChoiceRequest },
+) {
+  writeSse(res, {
+    id: params.runId,
+    object: "chat.completion.chunk",
+    created: Math.floor(Date.now() / 1000),
+    model: params.model,
+    choices: [
+      {
+        index: 0,
+        delta: { openclaw_ask_choice: params.choice },
+        finish_reason: null,
       },
     ],
   });
@@ -992,6 +1090,11 @@ export async function handleOpenAiHttpRequest(
     });
     return true;
   }
+  // Agency-mode HARD enforcement: plan/review allow only read-only runtime
+  // tools and drop caller client tools, which the Gateway cannot classify.
+  // ask/auto (and absent/unknown) leave the full toolset.
+  const toolsAllow = resolveGatewayToolsModeAllowlist(req);
+
   const activeTurnContext = resolveActiveTurnContext(payload.messages);
   const prompt = buildAgentPrompt(payload.messages, activeTurnContext.activeUserMessageIndex);
   let resolvedClientTools: ClientToolDefinition[];
@@ -999,8 +1102,9 @@ export async function handleOpenAiHttpRequest(
   let toolChoiceConstraint: ToolChoiceConstraint | undefined;
   try {
     const parsedClientTools = extractClientToolsFromChatRequest(payload.tools);
+    const availableClientTools = toolsAllow ? [] : parsedClientTools;
     const toolChoiceResult = applyChatToolChoice({
-      tools: parsedClientTools,
+      tools: availableClientTools,
       toolChoice: payload.tool_choice,
     });
     resolvedClientTools = toolChoiceResult.tools;
@@ -1056,6 +1160,7 @@ export async function handleOpenAiHttpRequest(
     sessionKey,
     runId,
     messageChannel,
+    toolsAllow,
     abortSignal: abortController.signal,
     streamParams,
   });
@@ -1165,6 +1270,13 @@ export async function handleOpenAiHttpRequest(
   let wroteStopChunk = false;
   let sawAssistantDelta = false;
   let bufferedAssistantContent = "";
+  // C3: ultracode turns leak the whole Claude CLI stream-json as assistant
+  // content, split across many streaming deltas, so the post-run flush branch is
+  // skipped (sawAssistantDelta is true). Buffer every assistant delta's raw text
+  // here, then extract a buried AskUserQuestion ONCE at finalize and bridge it
+  // into an ask_choice card. The extractor guards non-blob text (returns null),
+  // so accumulating ordinary prose is harmless.
+  let askChoiceBlob = "";
   let finalUsage: OpenAiChatCompletionsUsage | undefined;
   let finalizeRequested = false;
   let finalizeFinishReason: "stop" | "tool_calls" = "stop";
@@ -1217,6 +1329,19 @@ export async function handleOpenAiHttpRequest(
     if (streamIncludeUsage && finalUsage) {
       writeUsageChunk(res, { runId, model, usage: finalUsage });
     }
+    // C3: an ultracode turn that called native AskUserQuestion leaks the call
+    // inside its stream-json assistant blob, split across deltas, so the tool
+    // tracker never fires the ask_choice agent-event. Recover it from the full
+    // buffered blob and emit the console ask_choice card exactly once at finalize
+    // (the extractor returns null for non-blob text, so non-ultracode turns and
+    // turns without a question are unaffected).
+    const askq = extractAskUserQuestionFromClaudeStreamJson(askChoiceBlob);
+    if (askq) {
+      const choice = buildAskChoiceFromArgs(askq.toolCallId, askq.args);
+      if (choice) {
+        writeAskChoiceChunk(res, { runId, model, choice });
+      }
+    }
     writeDone(res);
     res.end();
   };
@@ -1241,6 +1366,12 @@ export async function handleOpenAiHttpRequest(
         return;
       }
 
+      // C3: accumulate every assistant delta's raw text so a native
+      // AskUserQuestion split across a leaked ultracode stream-json blob can be
+      // recovered whole at finalize. Buffer before any early return (incl. the
+      // tool-choice hold) so no delta is missed.
+      askChoiceBlob += content;
+
       // Hold prose until the run proves the requested client-tool call exists.
       // If the provider ignores `tool_choice`, no partial text should leak
       // before the stream fails with an OpenAI-compatible error payload.
@@ -1261,6 +1392,16 @@ export async function handleOpenAiHttpRequest(
         content,
         finishReason: null,
       });
+      return;
+    }
+
+    if (evt.stream === "ask_choice") {
+      // C3: bridge a (denied) native AskUserQuestion into the console's
+      // ask_choice card via the openclaw_ask_choice side channel.
+      const choice = buildAskChoiceFromAgentEvent(evt);
+      if (choice) {
+        writeAskChoiceChunk(res, { runId, model, choice });
+      }
       return;
     }
 

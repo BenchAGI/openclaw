@@ -4,8 +4,10 @@
 import path from "node:path";
 import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
 import type { CliBackendConfig } from "../../config/types.js";
+import { INTERNAL_MESSAGE_CHANNEL } from "../../utils/message-channel-constants.js";
 import {
   CLI_FRESH_WATCHDOG_DEFAULTS,
+  CLI_INTERACTIVE_WATCHDOG_DEFAULTS,
   CLI_RESUME_WATCHDOG_DEFAULTS,
   CLI_WATCHDOG_MIN_TIMEOUT_MS,
 } from "../cli-watchdog-defaults.js";
@@ -15,6 +17,7 @@ function pickWatchdogProfile(
   backend: CliBackendConfig,
   useResume: boolean,
   trigger?: EmbeddedRunTrigger,
+  messageChannel?: string,
 ): {
   noOutputTimeoutMs?: number;
   noOutputTimeoutRatio: number;
@@ -24,12 +27,21 @@ function pickWatchdogProfile(
   const configured = useResume
     ? backend.reliability?.watchdog?.resume
     : backend.reliability?.watchdog?.fresh;
+  // Interactive web-chat FRESH turns get a tighter hang ceiling (240s vs the 600s
+  // FRESH default). Gate on BOTH trigger==="user" AND the gateway-only "webchat"
+  // channel: cron is trigger "cron" (so a cron turn that happens to deliver to a
+  // webchat surface stays on the 600s FRESH ceiling), and foreground subagents are
+  // trigger "user" but carry no "webchat" channel — both are excluded.
+  const isInteractiveWebChat =
+    !useResume && !configured && trigger === "user" && messageChannel === INTERNAL_MESSAGE_CHANNEL;
   const defaults =
     trigger === "cron" && useResume && !configured
       ? CLI_FRESH_WATCHDOG_DEFAULTS
-      : useResume
-        ? CLI_RESUME_WATCHDOG_DEFAULTS
-        : CLI_FRESH_WATCHDOG_DEFAULTS;
+      : isInteractiveWebChat
+        ? CLI_INTERACTIVE_WATCHDOG_DEFAULTS
+        : useResume
+          ? CLI_RESUME_WATCHDOG_DEFAULTS
+          : CLI_FRESH_WATCHDOG_DEFAULTS;
 
   const ratio = (() => {
     const value = configured?.noOutputTimeoutRatio;
@@ -71,8 +83,14 @@ export function resolveCliNoOutputTimeoutMs(params: {
   timeoutMs: number;
   useResume: boolean;
   trigger?: EmbeddedRunTrigger;
+  messageChannel?: string;
 }): number {
-  const profile = pickWatchdogProfile(params.backend, params.useResume, params.trigger);
+  const profile = pickWatchdogProfile(
+    params.backend,
+    params.useResume,
+    params.trigger,
+    params.messageChannel,
+  );
   // Keep watchdog below global timeout in normal cases.
   const cap = Math.max(CLI_WATCHDOG_MIN_TIMEOUT_MS, params.timeoutMs - 1_000);
   if (profile.noOutputTimeoutMs !== undefined) {

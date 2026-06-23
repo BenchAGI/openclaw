@@ -35,11 +35,34 @@ const resolveCommit = () => {
   }
 };
 
+const resolveRelease = () => {
+  const envRelease = process.env.GIT_RELEASE?.trim();
+  if (envRelease) {
+    return envRelease;
+  }
+  try {
+    // The bench fork's release identity is the git TAG (e.g. 2026.6.8-bench.3), not
+    // package.json (which deliberately tracks the upstream base). `describe` surfaces the
+    // nearest tag + commits-ahead + short sha, so a running build self-reports its true
+    // lineage even though `version` stays at the upstream base.
+    return execSync("git describe --tags --always --dirty", {
+      cwd: rootDir,
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return null;
+  }
+};
+
 const version = readPackageVersion();
 const commit = resolveCommit();
+const release = resolveRelease();
 
 const buildInfo = {
   version,
+  release,
   commit,
   builtAt: new Date().toISOString(),
 };
