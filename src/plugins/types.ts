@@ -414,6 +414,13 @@ export type ProviderAuthMethod = {
   hint?: string;
   kind: ProviderAuthKind;
   /**
+   * Provider-owned recommended model ref for this auth method.
+   *
+   * Direct credential placement can use this only when no operator default is
+   * set and after validating the model against the catalog.
+   */
+  defaultModel?: string;
+  /**
    * Optional wizard/onboarding metadata for this specific auth method.
    *
    * Use this when one provider exposes multiple setup entries (for example API

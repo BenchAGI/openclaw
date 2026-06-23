@@ -748,6 +748,7 @@ export function buildAnthropicProvider(): ProviderPlugin {
         label: "Anthropic setup-token",
         hint: "Manual bearer token path",
         kind: "token",
+        defaultModel: defaultAnthropicModel,
         wizard: {
           choiceId: "setup-token",
           choiceLabel: "Anthropic setup-token",

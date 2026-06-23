@@ -62,6 +62,7 @@ const mocks = vi.hoisted(() => ({
   listProfilesForProvider: vi.fn(),
   promoteAuthProfileInOrder: vi.fn(),
   clearAuthProfileCooldown: vi.fn(),
+  loadModelCatalog: vi.fn(),
   resolvePluginSetupProvider: vi.fn(),
   resolvePluginSetupRegistry: vi.fn(),
 }));
@@ -80,6 +81,10 @@ vi.mock("../../agents/auth-profiles/store.js", () => ({
 
 vi.mock("../../agents/auth-profiles/usage.js", () => ({
   clearAuthProfileCooldown: mocks.clearAuthProfileCooldown,
+}));
+
+vi.mock("../../agents/model-catalog.js", () => ({
+  loadModelCatalog: mocks.loadModelCatalog,
 }));
 
 vi.mock("../../plugins/provider-auth-helpers.js", () => ({
@@ -419,6 +424,8 @@ describe("modelsAuthLoginCommand", () => {
     mocks.loadAuthProfileStoreForRuntime.mockReturnValue({ profiles: {}, usageStats: {} });
     mocks.listProfilesForProvider.mockReturnValue([]);
     mocks.clearAuthProfileCooldown.mockResolvedValue(undefined);
+    mocks.loadModelCatalog.mockReset();
+    mocks.loadModelCatalog.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -1329,6 +1336,98 @@ describe("modelsAuthLoginCommand", () => {
     );
   });
 
+  it("adopts provider-owned token defaults for default-agent pasted tokens when unset", async () => {
+    const runtime = createRuntime();
+    mocks.clackText.mockResolvedValue(`sk-ant-oat01-${"a".repeat(80)}`);
+    mocks.loadModelCatalog.mockResolvedValue([
+      { provider: "anthropic", id: "claude-opus-4-8", name: "Claude Opus 4.8" },
+    ]);
+    mocks.resolvePluginProviders.mockReturnValue([
+      createProvider({
+        id: "anthropic",
+        auth: [
+          {
+            id: "setup-token",
+            label: "Anthropic setup-token",
+            kind: "token",
+            defaultModel: "anthropic/claude-opus-4-8",
+            run: vi.fn(),
+          },
+        ],
+        run: vi.fn(),
+      }),
+    ]);
+
+    await modelsAuthPasteTokenCommand({ provider: "anthropic" }, runtime);
+
+    expect(lastUpdatedConfig?.agents?.defaults?.model).toEqual({
+      primary: "anthropic/claude-opus-4-8",
+    });
+    expect(lastUpdatedConfig?.agents?.defaults?.models?.["anthropic/claude-opus-4-8"]).toEqual({});
+    expect(runtime.log).toHaveBeenCalledWith(
+      "No default model was set - defaulted to anthropic/claude-opus-4-8 for your anthropic key. Change it with openclaw config set agents.defaults.model <provider>/<model>.",
+    );
+  });
+
+  it("does not override an existing default model during pasted API-key auth", async () => {
+    const runtime = createRuntime();
+    currentConfig = { agents: { defaults: { model: { primary: "openai/gpt-5.5" } } } };
+    mocks.clackPassword.mockResolvedValue("anthropic-api-key");
+    mocks.resolvePluginProviders.mockReturnValue([
+      createProvider({
+        id: "anthropic",
+        auth: [
+          {
+            id: "api-key",
+            label: "Anthropic API key",
+            kind: "api_key",
+            defaultModel: "anthropic/claude-opus-4-8",
+            run: vi.fn(),
+          },
+        ],
+        run: vi.fn(),
+      }),
+    ]);
+
+    await modelsAuthPasteApiKeyCommand({ provider: "anthropic" }, runtime);
+
+    expect(lastUpdatedConfig?.agents?.defaults?.model).toEqual({
+      primary: "openai/gpt-5.5",
+    });
+    expect(mocks.loadModelCatalog).not.toHaveBeenCalled();
+  });
+
+  it("skips provider defaults that are missing from a non-empty catalog", async () => {
+    const runtime = createRuntime();
+    mocks.clackPassword.mockResolvedValue("anthropic-api-key");
+    mocks.loadModelCatalog.mockResolvedValue([
+      { provider: "anthropic", id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
+    ]);
+    mocks.resolvePluginProviders.mockReturnValue([
+      createProvider({
+        id: "anthropic",
+        auth: [
+          {
+            id: "api-key",
+            label: "Anthropic API key",
+            kind: "api_key",
+            defaultModel: "anthropic/claude-opus-4-8",
+            run: vi.fn(),
+          },
+        ],
+        run: vi.fn(),
+      }),
+    ]);
+
+    await modelsAuthPasteApiKeyCommand({ provider: "anthropic" }, runtime);
+
+    expect(lastUpdatedConfig?.agents?.defaults?.model).toBeUndefined();
+    expect(lastUpdatedConfig?.auth?.profiles?.["anthropic:manual"]).toEqual({
+      provider: "anthropic",
+      mode: "api_key",
+    });
+  });
+
   it("writes pasted tokens to the requested agent store", async () => {
     const runtime = createRuntime();
     useCoderAgentConfig();
@@ -1346,6 +1445,33 @@ describe("modelsAuthLoginCommand", () => {
       },
       agentDir: "/tmp/openclaw/agents/coder",
     });
+  });
+
+  it("does not apply provider defaults globally for requested-agent pasted API keys", async () => {
+    const runtime = createRuntime();
+    useCoderAgentConfig();
+    mocks.clackPassword.mockResolvedValue("anthropic-api-key");
+    mocks.resolvePluginProviders.mockReturnValue([
+      createProvider({
+        id: "anthropic",
+        auth: [
+          {
+            id: "api-key",
+            label: "Anthropic API key",
+            kind: "api_key",
+            defaultModel: "anthropic/claude-opus-4-8",
+            run: vi.fn(),
+          },
+        ],
+        run: vi.fn(),
+      }),
+    ]);
+
+    await modelsAuthPasteApiKeyCommand({ provider: "anthropic", agent: "coder" }, runtime);
+
+    expect(mocks.resolveDefaultAgentId).not.toHaveBeenCalled();
+    expect(lastUpdatedConfig?.agents?.defaults?.model).toBeUndefined();
+    expect(mocks.loadModelCatalog).not.toHaveBeenCalled();
   });
 
   it("rejects pasted token expiries that cannot fit in the Date timestamp range", async () => {

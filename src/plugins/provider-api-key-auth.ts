@@ -100,6 +100,7 @@ export function createProviderApiKeyAuthMethod(
     label: params.label,
     hint: params.hint,
     kind: "api_key",
+    ...(params.defaultModel ? { defaultModel: params.defaultModel } : {}),
     wizard: params.wizard,
     run: async (ctx) => {
       const opts = ctx.opts as Record<string, unknown> | undefined;
