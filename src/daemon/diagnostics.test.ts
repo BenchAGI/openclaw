@@ -21,7 +21,7 @@ function makeTempStateDir(): string {
 }
 
 describe("readLastGatewayErrorLine", () => {
-  it("ignores stale launchd stderr when stderr is suppressed", async () => {
+  it("reads the current launchd stderr path on darwin", async () => {
     const stateDir = makeTempStateDir();
     const homeDir = makeTempStateDir();
     const env = { HOME: homeDir, OPENCLAW_STATE_DIR: stateDir };
@@ -30,10 +30,15 @@ describe("readLastGatewayErrorLine", () => {
     fs.mkdirSync(stateLogs.logDir, { recursive: true });
     fs.mkdirSync(launchdLogs.logDir, { recursive: true });
     fs.writeFileSync(stateLogs.stderrPath, "failed to bind gateway socket stale\n", "utf8");
-    fs.writeFileSync(launchdLogs.stdoutPath, "gateway stdout current\n", "utf8");
+    fs.writeFileSync(
+      launchdLogs.stdoutPath,
+      "failed to bind gateway socket stale stdout\n",
+      "utf8",
+    );
+    fs.writeFileSync(launchdLogs.stderrPath, "failed to bind gateway socket current\n", "utf8");
 
     await expect(readLastGatewayErrorLine(env, { platform: "darwin" })).resolves.toBe(
-      "gateway stdout current",
+      "failed to bind gateway socket current",
     );
   });
 });

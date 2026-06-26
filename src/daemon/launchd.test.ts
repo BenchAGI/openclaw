@@ -1014,8 +1014,7 @@ describe("launchd install", () => {
     expect(plist).toContain("<key>StandardOutPath</key>");
     expect(plist).toContain("<string>/Users/test/Library/Logs/openclaw/gateway.log</string>");
     expect(plist).toContain("<key>StandardErrorPath</key>");
-    // Gateway stderr now lands in a real rotating log file (was /dev/null — the blind spot
-    // that made a customer crash-loop impossible to diagnose without break-glass SSH).
+    // Gateway stderr must stay inspectable when launchd is crash-looping.
     expect(plist).toContain("<string>/Users/test/Library/Logs/openclaw/gateway.err.log</string>");
     expect(plist).toContain("<key>KeepAlive</key>");
     expect(plist).toContain("<string>node</string>");
