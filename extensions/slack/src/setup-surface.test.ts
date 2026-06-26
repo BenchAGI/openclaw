@@ -8,7 +8,7 @@ import {
 import type { WizardPrompter } from "openclaw/plugin-sdk/plugin-test-runtime";
 import { describe, expect, it, vi } from "vitest";
 import { createSlackSetupWizardBase } from "./setup-core.js";
-import { buildSlackSetupLines } from "./setup-shared.js";
+import { buildSlackManifest, buildSlackSetupLines } from "./setup-shared.js";
 
 const slackSetupWizard = createSlackSetupWizardBase({
   promptAllowFrom: async ({ cfg }) => cfg,
@@ -37,6 +37,51 @@ function requireFirstStringArg(mock: ReturnType<typeof vi.fn>, label: string): s
   }
   return call[0];
 }
+
+describe("buildSlackManifest", () => {
+  type SlackManifest = {
+    features: { assistant_view?: unknown };
+    oauth_config: { scopes: { bot: string[] } };
+    settings: { event_subscriptions: { bot_events: string[] } };
+  };
+
+  it("omits the AI assistant view by default so DMs reach the bot via message.im", () => {
+    const manifest = JSON.parse(buildSlackManifest()) as SlackManifest;
+
+    // The assistant pane silently drops DMs; the default install must not declare it.
+    expect(manifest.features.assistant_view).toBeUndefined();
+    expect(manifest.oauth_config.scopes.bot).not.toContain("assistant:write");
+    expect(manifest.settings.event_subscriptions.bot_events).not.toContain(
+      "assistant_thread_started",
+    );
+    expect(manifest.settings.event_subscriptions.bot_events).not.toContain(
+      "assistant_thread_context_changed",
+    );
+    // DMs still arrive through the normal message.im subscription.
+    expect(manifest.settings.event_subscriptions.bot_events).toContain("message.im");
+    expect(manifest.oauth_config.scopes.bot).toContain("im:history");
+    expect(manifest.oauth_config.scopes.bot).toContain("im:write");
+  });
+
+  it("includes the assistant view (pane + scope + thread events) when opted in", () => {
+    const manifest = JSON.parse(
+      buildSlackManifest("Aurelius", { assistantView: true }),
+    ) as SlackManifest;
+
+    expect(manifest.features.assistant_view).toBeDefined();
+    expect(manifest.oauth_config.scopes.bot).toContain("assistant:write");
+    expect(manifest.settings.event_subscriptions.bot_events).toContain("assistant_thread_started");
+    expect(manifest.settings.event_subscriptions.bot_events).toContain(
+      "assistant_thread_context_changed",
+    );
+    // Scopes stay alphabetically sorted with assistant:write spliced in.
+    expect(manifest.oauth_config.scopes.bot.slice(0, 3)).toEqual([
+      "app_mentions:read",
+      "assistant:write",
+      "channels:history",
+    ]);
+  });
+});
 
 describe("slackSetupWizard.finalize", () => {
   it("prompts to enable interactive replies for newly configured Slack accounts", async () => {
@@ -126,23 +171,6 @@ describe("slackSetupWizard.prepare", () => {
           messages_tab_enabled: true,
           messages_tab_read_only_enabled: false,
         },
-        assistant_view: {
-          assistant_description: "OpenClaw connects Slack assistant threads to OpenClaw agents.",
-          suggested_prompts: [
-            {
-              title: "What can you do?",
-              message: "What can you help me with?",
-            },
-            {
-              title: "Summarize this channel",
-              message: "Summarize the recent activity in this channel.",
-            },
-            {
-              title: "Draft a reply",
-              message: "Help me draft a reply.",
-            },
-          ],
-        },
         slash_commands: [
           {
             command: "/openclaw",
@@ -155,7 +183,6 @@ describe("slackSetupWizard.prepare", () => {
         scopes: {
           bot: [
             "app_mentions:read",
-            "assistant:write",
             "channels:history",
             "channels:read",
             "chat:write",
@@ -186,8 +213,6 @@ describe("slackSetupWizard.prepare", () => {
           bot_events: [
             "app_home_opened",
             "app_mention",
-            "assistant_thread_context_changed",
-            "assistant_thread_started",
             "channel_rename",
             "member_joined_channel",
             "member_left_channel",
