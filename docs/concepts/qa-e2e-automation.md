@@ -568,7 +568,6 @@ Repeat _Create New App → From a manifest_ in the same workspace. This QA app i
     "scopes": {
       "bot": [
         "app_mentions:read",
-        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",

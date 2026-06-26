@@ -74,17 +74,6 @@ openclaw plugins install @openclaw/slack
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
-    "assistant_view": {
-      "assistant_description": "OpenClaw connects Slack assistant threads to OpenClaw agents.",
-      "suggested_prompts": [
-        { "title": "What can you do?", "message": "What can you help me with?" },
-        {
-          "title": "Summarize this channel",
-          "message": "Summarize the recent activity in this channel."
-        },
-        { "title": "Draft a reply", "message": "Help me draft a reply." }
-      ]
-    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -97,7 +86,6 @@ openclaw plugins install @openclaw/slack
     "scopes": {
       "bot": [
         "app_mentions:read",
-        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -128,8 +116,6 @@ openclaw plugins install @openclaw/slack
       "bot_events": [
         "app_home_opened",
         "app_mention",
-        "assistant_thread_context_changed",
-        "assistant_thread_started",
         "channel_rename",
         "member_joined_channel",
         "member_left_channel",
@@ -160,17 +146,6 @@ openclaw plugins install @openclaw/slack
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
-    "assistant_view": {
-      "assistant_description": "OpenClaw connects Slack assistant threads to OpenClaw agents.",
-      "suggested_prompts": [
-        { "title": "What can you do?", "message": "What can you help me with?" },
-        {
-          "title": "Summarize this channel",
-          "message": "Summarize the recent activity in this channel."
-        },
-        { "title": "Draft a reply", "message": "Help me draft a reply." }
-      ]
-    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -183,7 +158,6 @@ openclaw plugins install @openclaw/slack
     "scopes": {
       "bot": [
         "app_mentions:read",
-        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -203,8 +177,6 @@ openclaw plugins install @openclaw/slack
       "bot_events": [
         "app_home_opened",
         "app_mention",
-        "assistant_thread_context_changed",
-        "assistant_thread_started",
         "message.channels",
         "message.groups",
         "message.im"
@@ -217,7 +189,7 @@ openclaw plugins install @openclaw/slack
         </CodeGroup>
 
         <Note>
-          **Recommended** matches the Slack plugin's full feature set: App Home, slash commands, files, reactions, pins, group DMs, and emoji/usergroup reads. Pick **Minimal** when workspace policy restricts scopes — it covers DMs, channel/group history, mentions, and slash commands but drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read`. See [Manifest and scope checklist](#manifest-and-scope-checklist) for per-scope rationale and additive options like extra slash commands.
+          **Recommended** matches the Slack plugin's full feature set: App Home, slash commands, files, reactions, pins, group DMs, and emoji/usergroup reads. Pick **Minimal** when workspace policy restricts scopes — it covers DMs, channel/group history, mentions, and slash commands but drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read`. Both default manifests intentionally leave Slack's AI assistant view off so DMs arrive through `message.im`; see [Manifest and scope checklist](#manifest-and-scope-checklist) for per-scope rationale and opt-in additions.
         </Note>
 
         After Slack creates the app:
@@ -290,17 +262,6 @@ openclaw gateway
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
-    "assistant_view": {
-      "assistant_description": "OpenClaw connects Slack assistant threads to OpenClaw agents.",
-      "suggested_prompts": [
-        { "title": "What can you do?", "message": "What can you help me with?" },
-        {
-          "title": "Summarize this channel",
-          "message": "Summarize the recent activity in this channel."
-        },
-        { "title": "Draft a reply", "message": "Help me draft a reply." }
-      ]
-    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -314,7 +275,6 @@ openclaw gateway
     "scopes": {
       "bot": [
         "app_mentions:read",
-        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -345,8 +305,6 @@ openclaw gateway
       "bot_events": [
         "app_home_opened",
         "app_mention",
-        "assistant_thread_context_changed",
-        "assistant_thread_started",
         "channel_rename",
         "member_joined_channel",
         "member_left_channel",
@@ -382,17 +340,6 @@ openclaw gateway
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
-    "assistant_view": {
-      "assistant_description": "OpenClaw connects Slack assistant threads to OpenClaw agents.",
-      "suggested_prompts": [
-        { "title": "What can you do?", "message": "What can you help me with?" },
-        {
-          "title": "Summarize this channel",
-          "message": "Summarize the recent activity in this channel."
-        },
-        { "title": "Draft a reply", "message": "Help me draft a reply." }
-      ]
-    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -406,7 +353,6 @@ openclaw gateway
     "scopes": {
       "bot": [
         "app_mentions:read",
-        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -426,8 +372,6 @@ openclaw gateway
       "bot_events": [
         "app_home_opened",
         "app_mention",
-        "assistant_thread_context_changed",
-        "assistant_thread_started",
         "message.channels",
         "message.groups",
         "message.im"
@@ -445,7 +389,7 @@ openclaw gateway
         </CodeGroup>
 
         <Note>
-          **Recommended** matches the Slack plugin's full feature set; **Minimal** drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read` for restrictive workspaces. See [Manifest and scope checklist](#manifest-and-scope-checklist) for per-scope rationale.
+          **Recommended** matches the Slack plugin's full feature set; **Minimal** drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read` for restrictive workspaces. Both default manifests intentionally leave Slack's AI assistant view off so DMs arrive through `message.im`; see [Manifest and scope checklist](#manifest-and-scope-checklist) for per-scope rationale.
         </Note>
 
         <Info>
@@ -550,17 +494,6 @@ Base manifest (Socket Mode default):
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
-    "assistant_view": {
-      "assistant_description": "OpenClaw connects Slack assistant threads to OpenClaw agents.",
-      "suggested_prompts": [
-        { "title": "What can you do?", "message": "What can you help me with?" },
-        {
-          "title": "Summarize this channel",
-          "message": "Summarize the recent activity in this channel."
-        },
-        { "title": "Draft a reply", "message": "Help me draft a reply." }
-      ]
-    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -573,7 +506,6 @@ Base manifest (Socket Mode default):
     "scopes": {
       "bot": [
         "app_mentions:read",
-        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -604,8 +536,6 @@ Base manifest (Socket Mode default):
       "bot_events": [
         "app_home_opened",
         "app_mention",
-        "assistant_thread_context_changed",
-        "assistant_thread_started",
         "channel_rename",
         "member_joined_channel",
         "member_left_channel",
@@ -643,8 +573,6 @@ For **HTTP Request URLs mode**, replace `settings` with the HTTP variant and add
       "bot_events": [
         "app_home_opened",
         "app_mention",
-        "assistant_thread_context_changed",
-        "assistant_thread_started",
         "channel_rename",
         "member_joined_channel",
         "member_left_channel",
@@ -671,9 +599,43 @@ For **HTTP Request URLs mode**, replace `settings` with the HTTP variant and add
 
 Surface different features that extend the above defaults.
 
-The default manifest enables the Slack App Home **Home** tab and subscribes to `app_home_opened`. When a workspace member opens the Home tab, OpenClaw publishes a safe default Home view with `views.publish`; no conversation payload or private configuration is included. The **Messages** tab remains enabled for Slack DMs. The manifest also enables Slack assistant threads with `features.assistant_view`, `assistant:write`, `assistant_thread_started`, and `assistant_thread_context_changed`; assistant threads route to their own OpenClaw thread sessions and keep Slack-provided thread context available to the agent.
+The default manifest enables the Slack App Home **Home** tab and subscribes to `app_home_opened`. When a workspace member opens the Home tab, OpenClaw publishes a safe default Home view with `views.publish`; no conversation payload or private configuration is included. The **Messages** tab remains enabled for Slack DMs, and the default event list keeps `message.im` so direct messages arrive through the normal message path. Slack's AI assistant view is opt-in because Slack routes assistant-enabled DMs through assistant threads, while OpenClaw's normal DM path expects ordinary `message.im` events.
 
 <AccordionGroup>
+  <Accordion title="Optional Slack AI assistant view">
+    Slack's [app manifest reference](https://docs.slack.dev/reference/app-manifest/) lists `features.assistant_view` as optional, and Slack's [agent guide](https://docs.slack.dev/ai/developing-agents/) requires `assistant:write` plus `assistant_thread_started`, `assistant_thread_context_changed`, and `message.im` subscriptions for apps that enable the assistant surface.
+
+    Keep this off for normal DM-first installs. Add it only when you explicitly want Slack's assistant container and have tested the assistant-thread post-back path in your workspace. Merge these fields into the existing manifest; do not replace the existing scope or event arrays.
+
+```json
+{
+  "features": {
+    "assistant_view": {
+      "assistant_description": "OpenClaw connects Slack assistant threads to OpenClaw agents.",
+      "suggested_prompts": [
+        { "title": "What can you do?", "message": "What can you help me with?" },
+        {
+          "title": "Summarize this channel",
+          "message": "Summarize the recent activity in this channel."
+        },
+        { "title": "Draft a reply", "message": "Help me draft a reply." }
+      ]
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": ["assistant:write"]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": ["assistant_thread_context_changed", "assistant_thread_started"]
+    }
+  }
+}
+```
+
+  </Accordion>
   <Accordion title="Optional native slash commands">
 
     Multiple [native slash commands](#commands-and-slash-behavior) can be used instead of a single configured command with nuance:
@@ -1470,9 +1432,11 @@ openclaw doctor
     - `channels.slack.dmPolicy` (or legacy `channels.slack.dm.policy`)
     - pairing approvals / allowlist entries (`dmPolicy: "open"` still requires `channels.slack.allowFrom: ["*"]`)
     - group DMs use MPIM handling; enable `channels.slack.dm.groupEnabled` and, if configured, include the MPIM in `channels.slack.dm.groupChannels`
-    - Slack Assistant DM events: verbose logs mentioning `drop message_changed`
-      usually mean Slack sent an edited Assistant-thread event without a
-      recoverable human sender in message metadata
+    - If you opted into Slack's AI assistant view, verbose logs mentioning
+      `drop message_changed` usually mean Slack sent an edited assistant-thread
+      event without a recoverable human sender in message metadata. Remove the
+      assistant view from the app manifest for normal DM delivery, or test the
+      assistant-thread path before relying on it.
 
 ```bash
 openclaw pairing list slack

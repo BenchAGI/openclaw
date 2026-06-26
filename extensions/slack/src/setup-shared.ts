@@ -14,7 +14,7 @@ export interface SlackManifestOptions {
    *
    * When the assistant view is declared, Slack routes DMs to the assistant pane,
    * where they arrive as `message_changed` events that only deliver if metadata
-   * resolves exactly one sender — a fragile path that silently drops DMs (see
+   * resolves exactly one sender - a fragile path that silently drops DMs (see
    * `monitor/events/messages.ts`). With it off (the default), DMs arrive as
    * ordinary `message.im` events and reply through the normal send path. Opt in
    * only once the assistant-pane post-back path is hardened.

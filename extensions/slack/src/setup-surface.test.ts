@@ -57,7 +57,7 @@ describe("buildSlackManifest", () => {
     expect(manifest.settings.event_subscriptions.bot_events).not.toContain(
       "assistant_thread_context_changed",
     );
-    // DMs still arrive — through the normal message.im subscription.
+    // DMs still arrive through the normal message.im subscription.
     expect(manifest.settings.event_subscriptions.bot_events).toContain("message.im");
     expect(manifest.oauth_config.scopes.bot).toContain("im:history");
     expect(manifest.oauth_config.scopes.bot).toContain("im:write");
