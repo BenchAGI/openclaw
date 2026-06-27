@@ -26,23 +26,11 @@ async function readLastLogLine(filePath: string): Promise<string | null> {
   }
 }
 
-export async function readLastGatewayErrorLine(
-  env: NodeJS.ProcessEnv,
-  options?: { platform?: NodeJS.Platform },
-): Promise<string | null> {
-  const platform = options?.platform ?? process.platform;
-  const readStderr = platform !== "darwin";
-  // launchd supervisor mode combines child stderr into stdout; other platforms
-  // keep stderr as the strongest failure signal.
-  const { stdoutPath, stderrPath } =
-    platform === "darwin"
-      ? resolveGatewaySupervisorLogPaths(env, { platform })
-      : resolveGatewayLogPaths(env);
-  const stderrRaw = readStderr ? await fs.readFile(stderrPath, "utf8").catch(() => "") : "";
-  const stdoutRaw = await fs.readFile(stdoutPath, "utf8").catch(() => "");
-  const lines = [...stderrRaw.split(/\r?\n/), ...stdoutRaw.split(/\r?\n/)].map((line) =>
-    line.trim(),
-  );
+function splitLogLines(raw: string): string[] {
+  return raw.split(/\r?\n/).map((line) => line.trim());
+}
+
+function findLastGatewayErrorLine(lines: string[]): string | null {
   for (let i = lines.length - 1; i >= 0; i -= 1) {
     const line = lines[i];
     if (!line) {
@@ -52,7 +40,27 @@ export async function readLastGatewayErrorLine(
       return line;
     }
   }
-  return readStderr
-    ? ((await readLastLogLine(stderrPath)) ?? (await readLastLogLine(stdoutPath)))
-    : await readLastLogLine(stdoutPath);
+  return null;
+}
+
+export async function readLastGatewayErrorLine(
+  env: NodeJS.ProcessEnv,
+  options?: { platform?: NodeJS.Platform },
+): Promise<string | null> {
+  const platform = options?.platform ?? process.platform;
+  const { stdoutPath, stderrPath } =
+    platform === "darwin"
+      ? resolveGatewaySupervisorLogPaths(env, { platform })
+      : resolveGatewayLogPaths(env);
+  const stderrRaw = await fs.readFile(stderrPath, "utf8").catch(() => "");
+  const stdoutRaw = await fs.readFile(stdoutPath, "utf8").catch(() => "");
+  const stderrError = findLastGatewayErrorLine(splitLogLines(stderrRaw));
+  if (stderrError) {
+    return stderrError;
+  }
+  const stdoutError = findLastGatewayErrorLine(splitLogLines(stdoutRaw));
+  if (stdoutError) {
+    return stdoutError;
+  }
+  return (await readLastLogLine(stderrPath)) ?? (await readLastLogLine(stdoutPath));
 }
