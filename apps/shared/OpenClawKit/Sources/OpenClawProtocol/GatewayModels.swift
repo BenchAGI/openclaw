@@ -4209,27 +4209,27 @@ public struct DevicePairResolvedEvent: Codable, Sendable {
 
 public struct ChatHistoryParams: Codable, Sendable {
     public let sessionkey: String
+    public let sinceseq: Int?
     public let limit: Int?
     public let maxchars: Int?
-    public let sinceseq: Int?
 
     public init(
         sessionkey: String,
+        sinceseq: Int? = nil,
         limit: Int?,
-        maxchars: Int?,
-        sinceseq: Int? = nil)
+        maxchars: Int?)
     {
         self.sessionkey = sessionkey
+        self.sinceseq = sinceseq
         self.limit = limit
         self.maxchars = maxchars
-        self.sinceseq = sinceseq
     }
 
     private enum CodingKeys: String, CodingKey {
         case sessionkey = "sessionKey"
+        case sinceseq = "sinceSeq"
         case limit
         case maxchars = "maxChars"
-        case sinceseq = "sinceSeq"
     }
 }
 
@@ -4246,6 +4246,7 @@ public struct ChatSendParams: Codable, Sendable {
     public let timeoutms: Int?
     public let systeminputprovenance: [String: AnyCodable]?
     public let systemprovenancereceipt: String?
+    public let cloudauth: [String: AnyCodable]?
     public let idempotencykey: String
 
     public init(
@@ -4261,6 +4262,7 @@ public struct ChatSendParams: Codable, Sendable {
         timeoutms: Int?,
         systeminputprovenance: [String: AnyCodable]?,
         systemprovenancereceipt: String?,
+        cloudauth: [String: AnyCodable]?,
         idempotencykey: String)
     {
         self.sessionkey = sessionkey
@@ -4275,6 +4277,7 @@ public struct ChatSendParams: Codable, Sendable {
         self.timeoutms = timeoutms
         self.systeminputprovenance = systeminputprovenance
         self.systemprovenancereceipt = systemprovenancereceipt
+        self.cloudauth = cloudauth
         self.idempotencykey = idempotencykey
     }
 
@@ -4291,6 +4294,7 @@ public struct ChatSendParams: Codable, Sendable {
         case timeoutms = "timeoutMs"
         case systeminputprovenance = "systemInputProvenance"
         case systemprovenancereceipt = "systemProvenanceReceipt"
+        case cloudauth = "cloudAuth"
         case idempotencykey = "idempotencyKey"
     }
 }
@@ -4378,6 +4382,94 @@ public struct ChatEvent: Codable, Sendable {
         case errorkind = "errorKind"
         case usage
         case stopreason = "stopReason"
+    }
+}
+
+public struct LocalSeatCaptureParams: Codable, Sendable {
+    public let agentid: String
+    public let seatkind: AnyCodable
+    public let seatsessionid: String
+    public let event: AnyCodable
+    public let summary: String?
+    public let text: String?
+    public let cwd: String?
+    public let host: String?
+    public let platform: String?
+    public let launcherversion: String?
+    public let providerversion: String?
+    public let source: String?
+    public let ts: Int?
+    public let wake: Bool?
+
+    public init(
+        agentid: String,
+        seatkind: AnyCodable,
+        seatsessionid: String,
+        event: AnyCodable,
+        summary: String?,
+        text: String?,
+        cwd: String?,
+        host: String?,
+        platform: String?,
+        launcherversion: String?,
+        providerversion: String?,
+        source: String?,
+        ts: Int?,
+        wake: Bool?)
+    {
+        self.agentid = agentid
+        self.seatkind = seatkind
+        self.seatsessionid = seatsessionid
+        self.event = event
+        self.summary = summary
+        self.text = text
+        self.cwd = cwd
+        self.host = host
+        self.platform = platform
+        self.launcherversion = launcherversion
+        self.providerversion = providerversion
+        self.source = source
+        self.ts = ts
+        self.wake = wake
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case agentid = "agentId"
+        case seatkind = "seatKind"
+        case seatsessionid = "seatSessionId"
+        case event
+        case summary
+        case text
+        case cwd
+        case host
+        case platform
+        case launcherversion = "launcherVersion"
+        case providerversion = "providerVersion"
+        case source
+        case ts
+        case wake
+    }
+}
+
+public struct LocalSeatCaptureResult: Codable, Sendable {
+    public let ok: Bool
+    public let capturepath: String
+    public let queued: Bool
+
+    public init(
+        ok: Bool,
+        capturepath: String,
+        queued: Bool)
+    {
+        self.ok = ok
+        self.capturepath = capturepath
+        self.queued = queued
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case ok
+        case capturepath = "capturePath"
+        case queued
     }
 }
 

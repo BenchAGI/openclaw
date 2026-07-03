@@ -274,8 +274,22 @@ PLIST_EOF"
   done_ "${STEP}" "gateway plist installed"
 fi
 
-# ─── Step 8: wiki-mirror plist [manual for API key] ─────────────────────
+# ─── Step 8: Assistant bridge for Claude Code / local Codex workspaces ───
 STEP=8
+BRIDGE_INSTALLER="${FORK_ROOT}/scripts/install-claude-code-bridge.mjs"
+if [[ ! -f "${BRIDGE_INSTALLER}" ]]; then
+  manual "${STEP}" "assistant bridge installer missing at ${BRIDGE_INSTALLER}; update the OpenClaw checkout/package and rerun"
+else
+  BRIDGE_ARGS="--home '${ROOT}' --openclaw-home '${OC_DIR}'"
+  if [[ ${SAFE_MODE} -eq 1 ]]; then
+    BRIDGE_ARGS="${BRIDGE_ARGS} --dry-run --no-load"
+  fi
+  run "node '${BRIDGE_INSTALLER}' ${BRIDGE_ARGS}"
+  done_ "${STEP}" "assistant bridge staged + Claude SessionStart/mirror reconciled"
+fi
+
+# ─── Step 9: wiki-mirror plist [manual for API key] ─────────────────────
+STEP=9
 MIRROR_PLIST="${LAUNCHAGENTS_DIR}/ai.openclaw.wiki-mirror.plist"
 if [[ -f "${MIRROR_PLIST}" ]]; then
   skip "${STEP}" "wiki-mirror plist already present"
@@ -285,8 +299,8 @@ else
   manual "${STEP}" "  (b) template the key into ~/.openclaw/launchd-templates/ai.openclaw.wiki-mirror.plist + cp + launchctl load"
 fi
 
-# ─── Step 9: vault backup to colludr [backup-host manual] ───────────────
-STEP=9
+# ─── Step 10: vault backup to colludr [backup-host manual] ──────────────
+STEP=10
 BACKUP_SCRIPT="${OC_SCRIPTS}/backup-vault-to-${BACKUP_HOST}.sh"
 BACKUP_PLIST="${LAUNCHAGENTS_DIR}/ai.openclaw.vault-backup.plist"
 # Idempotency: in safe-mode the plist never lands, so gate on script presence alone.
@@ -312,8 +326,8 @@ else
   fi
 fi
 
-# ─── Step 10: canvas-drift + log-rotator + memory-bridge-watcher ────────
-STEP=10
+# ─── Step 11: canvas-drift + log-rotator + memory-bridge-watcher ────────
+STEP=11
 DAEMONS=(canvas-drift log-rotator memory-bridge-watcher)
 ALL_PRESENT=1
 ANY_TEMPLATE=0
@@ -345,8 +359,8 @@ else
   done_ "${STEP}" "daemon plists reconciled"
 fi
 
-# ─── Step 11: Health check ──────────────────────────────────────────────
-STEP=11
+# ─── Step 12: Health check ──────────────────────────────────────────────
+STEP=12
 if [[ ${SAFE_MODE} -eq 1 ]]; then
   skip "${STEP}" "health check skipped in safe-mode"
 else

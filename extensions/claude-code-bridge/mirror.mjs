@@ -4,22 +4,31 @@
 // rest of the crew can absorb them on the next dream cycle.
 //
 // Direction is one-way (Claude Code -> wiki). Reads still happen on demand
-// via openclaw_wiki_search/_get from inside Claude Code. Phase B of the
-// workshop unification plan.
+// via openclaw_wiki_search/_get from inside Claude Code.
 //
-// Why we don't touch source-sync.json:
-//   The bridge's `pruneImportedSourceEntries` only removes entries whose
-//   `group` matches "bridge" or "unsafe-local". Files on disk that aren't
-//   in state.entries are never pruned by it. The wiki indexer walks the
-//   sources/ directory directly (extensions/memory-wiki/src/query.ts:102),
-//   so our files are searchable without registration.
+// MEMORY FEDERATION (2026-06-10): this mirror is host/user-namespaced so it
+// can run on EVERY machine + operator in the fleet and converge into the one
+// shared git-backed vault (~/.openclaw/wiki/main -> github.com/BenchAGI/
+// bench-wiki) without collision. Each (user, machine) writes pages under a
+// stable `originId = <user>.<machine>` prefix, and the prune is scoped to
+// that prefix so machines never delete each other's pages. The git transport
+// (vault-sync.sh, 120s, on every machine) unions the disjoint files.
 //
-// File naming: `claude-code-<project-slug>-<file-slug>.md`
+// IMPORTANT: this mirror ALWAYS writes to wiki/main and intentionally IGNORES
+// openclaw.json `instanceId`. cloud-mirror.mjs is the instanceId-aware lane
+// (local vault -> benchagi.com); this lane is the device-convergence lane and
+// must stay on the git-synced `main` vault, or memories get stranded in a
+// per-instance vault that is not on the bench-wiki remote.
+//
+// File naming: `claude-code-<originId>-<project-slug>-<file-slug>.md`
 //   - Distinct prefix avoids collision with `bridge-<agent>-*.md`
+//   - originId segment keeps each machine/user disjoint
 //   - Deterministic (no random hash) so re-runs replace cleanly
 
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
+import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 
@@ -35,15 +44,46 @@ const MAX_FILE_BYTES = 256 * 1024; // skip giant memory files
 const STALE_LOCK_MS = 5 * 60_000;
 
 function slugify(value, max = 60) {
-  const lower = value.toLowerCase();
+  const lower = String(value).toLowerCase();
   const cleaned = lower.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   if (cleaned.length <= max) {
     return cleaned || "x";
   }
   // truncate but keep an 8-char hash suffix for uniqueness
-  const hash = createHash("sha256").update(value).digest("hex").slice(0, 8);
+  const hash = createHash("sha256").update(String(value)).digest("hex").slice(0, 8);
   return `${cleaned.slice(0, max - 9)}-${hash}`;
 }
+
+// --- Origin identity (the federation key) ------------------------------------
+// machineSlug must be STABLE: aerie's Bonjour name drifts across
+// Corys-Mac-mini-{3,8,9,10,69}, so we NEVER trust the live hostname first.
+// Order: BENCH_ORIGIN_MACHINE env > persisted ~/.openclaw/machine-id >
+// IOPlatformUUID (mac, reboot-stable) > hostname (last resort).
+function readMachineSlug() {
+  if (process.env.BENCH_ORIGIN_MACHINE) {
+    return slugify(process.env.BENCH_ORIGIN_MACHINE, 32);
+  }
+  try {
+    const persisted = readFileSync(path.join(HOME, ".openclaw", "machine-id"), "utf8").trim();
+    if (persisted) return slugify(persisted, 32);
+  } catch {
+    /* not persisted yet */
+  }
+  try {
+    const out = execSync("ioreg -rd1 -c IOPlatformExpertDevice", { encoding: "utf8" });
+    const uuid = out.match(/IOPlatformUUID"\s*=\s*"([^"]+)"/)?.[1];
+    if (uuid) return slugify(uuid.slice(0, 8), 32);
+  } catch {
+    /* not a mac / ioreg unavailable */
+  }
+  return slugify(os.hostname().replace(/\.local$/, ""), 32);
+}
+
+const ORIGIN_USER = slugify(process.env.BENCH_ORIGIN_USER || os.userInfo().username, 24);
+const ORIGIN_MACHINE = readMachineSlug();
+const ORIGIN_ID = `${ORIGIN_USER}.${ORIGIN_MACHINE}`; // e.g. coryshelton.aerie
+const ORIGIN_SLUG = slugify(ORIGIN_ID, 48); // filename-safe, e.g. coryshelton-aerie
+const OUR_PAGE_PREFIX = `${FILE_PREFIX}${ORIGIN_SLUG}-`;
 
 function decodeProjectName(rawDirName) {
   // Claude Code encodes the cwd as "-Users-coryshelton-..." (slashes -> dashes,
@@ -62,25 +102,40 @@ async function listProjects() {
 
 async function listProjectMemoryFiles(projectDirName) {
   const memoryDir = path.join(PROJECTS_DIR, projectDirName, "memory");
-  const entries = await fs.readdir(memoryDir, { withFileTypes: true }).catch(() => []);
-  return entries
-    .filter((e) => e.isFile() && e.name.endsWith(".md"))
-    .map((e) => ({
-      absolutePath: path.join(memoryDir, e.name),
-      relativeName: e.name,
-    }));
+  const files = [];
+
+  async function walk(dir, relativePrefix = "") {
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    for (const e of entries) {
+      const relativeName = relativePrefix ? path.join(relativePrefix, e.name) : e.name;
+      const absolutePath = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        await walk(absolutePath, relativeName);
+        continue;
+      }
+      if (e.isFile() && e.name.endsWith(".md")) {
+        files.push({
+          absolutePath,
+          relativeName: relativeName.split(path.sep).join("/"),
+        });
+      }
+    }
+  }
+
+  await walk(memoryDir);
+  return files;
 }
 
 function buildPagePath(projectDirName, fileName) {
   const projectSlug = slugify(projectDirName, 60);
   const fileSlug = slugify(fileName.replace(/\.md$/, ""), 40);
-  return path.join("sources", `${FILE_PREFIX}${projectSlug}-${fileSlug}.md`);
+  return path.join("sources", `${OUR_PAGE_PREFIX}${projectSlug}-${fileSlug}.md`);
 }
 
 function buildPageId(projectDirName, fileName) {
   const projectHash = createHash("sha256").update(projectDirName).digest("hex").slice(0, 8);
   const fileHash = createHash("sha256").update(fileName).digest("hex").slice(0, 8);
-  return `source.claude-code.${projectHash}.${fileName.replace(/\.md$/, "")}-${fileHash}`;
+  return `source.claude-code.${ORIGIN_ID}.${projectHash}.${fileName.replace(/\.md$/, "")}-${fileHash}`;
 }
 
 function renderSourcePage({ projectDirName, fileName, absolutePath, content, sourceUpdatedAtMs }) {
@@ -95,6 +150,9 @@ function renderSourcePage({ projectDirName, fileName, absolutePath, content, sou
     `id: ${id}`,
     `title: ${JSON.stringify(title)}`,
     "sourceType: memory-bridge",
+    `originId: ${ORIGIN_ID}`,
+    `originUser: ${ORIGIN_USER}`,
+    `originMachine: ${ORIGIN_MACHINE}`,
     `sourcePath: ${absolutePath}`,
     `bridgeRelativePath: ${fileName}`,
     `bridgeWorkspaceDir: ${path.dirname(absolutePath)}`,
@@ -110,6 +168,7 @@ function renderSourcePage({ projectDirName, fileName, absolutePath, content, sou
     `# ${title}`,
     "",
     "## Bridge Source",
+    `- Origin: \`${ORIGIN_ID}\` (user \`${ORIGIN_USER}\`, machine \`${ORIGIN_MACHINE}\`)`,
     `- Workspace: \`${path.dirname(absolutePath)}\``,
     `- Project (decoded): \`${projectDecoded}\``,
     `- Relative path: \`${fileName}\``,
@@ -142,7 +201,7 @@ async function readMaybe(p) {
 async function acquireLock() {
   await fs.mkdir(path.dirname(LOCK_PATH), { recursive: true });
   try {
-    await fs.writeFile(LOCK_PATH, JSON.stringify({ pid: process.pid, at: Date.now() }), {
+    await fs.writeFile(LOCK_PATH, JSON.stringify({ pid: process.pid, at: Date.now(), origin: ORIGIN_ID }), {
       flag: "wx",
     });
     return true;
@@ -172,7 +231,7 @@ async function releaseLock() {
 async function appendLog(line) {
   try {
     await fs.mkdir(path.dirname(LOG_PATH), { recursive: true });
-    const entry = `${new Date().toISOString()} ${line}\n`;
+    const entry = `${new Date().toISOString()} [${ORIGIN_ID}] ${line}\n`;
     await fs.appendFile(LOG_PATH, entry, "utf8");
   } catch {
     // logging is best-effort
@@ -185,11 +244,32 @@ async function atomicWrite(absolutePath, content) {
   await fs.rename(tmpPath, absolutePath);
 }
 
+// Only OUR origin's pages — scoped so two machines never prune each other.
 async function listOurExistingPages() {
   const entries = await fs.readdir(SOURCES_DIR, { withFileTypes: true }).catch(() => []);
   return entries
-    .filter((e) => e.isFile() && e.name.startsWith(FILE_PREFIX) && e.name.endsWith(".md"))
+    .filter((e) => e.isFile() && e.name.startsWith(OUR_PAGE_PREFIX) && e.name.endsWith(".md"))
     .map((e) => e.name);
+}
+
+// One-time migration helper: remove legacy un-namespaced claude-code-* pages
+// (those written before federation, with no `originId:` in frontmatter). Run
+// once on the machine that produced them (aerie) AFTER a namespaced pass has
+// recreated them under the origin prefix.
+async function pruneLegacyUnnamespaced({ dryRun = false } = {}) {
+  const entries = await fs.readdir(SOURCES_DIR, { withFileTypes: true }).catch(() => []);
+  let removed = 0;
+  for (const e of entries) {
+    if (!e.isFile() || !e.name.startsWith(FILE_PREFIX) || !e.name.endsWith(".md")) continue;
+    if (e.name.startsWith(OUR_PAGE_PREFIX)) continue; // ours, namespaced — keep
+    const abs = path.join(SOURCES_DIR, e.name);
+    const content = await readMaybe(abs);
+    if (content === null) continue;
+    if (/^originId:\s/m.test(content)) continue; // already namespaced (another origin) — keep
+    if (!dryRun) await fs.rm(abs, { force: true });
+    removed += 1;
+  }
+  return removed;
 }
 
 async function runMirror({ dryRun = false } = {}) {
@@ -244,7 +324,7 @@ async function runMirror({ dryRun = false } = {}) {
     }
   }
 
-  // Prune our orphans (files we own that no longer have a source)
+  // Prune OUR orphans only (files we own that no longer have a source).
   let pruned = 0;
   const ourPages = await listOurExistingPages();
   for (const pageName of ourPages) {
@@ -266,6 +346,7 @@ const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
 const verbose = args.has("--verbose") || args.has("-v");
 const force = args.has("--force");
+const pruneLegacy = args.has("--prune-legacy");
 
 if (!force) {
   const got = await acquireLock();
@@ -278,9 +359,13 @@ if (!force) {
 }
 
 let result;
+let legacyRemoved = 0;
 let error = null;
 try {
   result = await runMirror({ dryRun });
+  if (pruneLegacy) {
+    legacyRemoved = await pruneLegacyUnnamespaced({ dryRun });
+  }
 } catch (e) {
   error = e;
 } finally {
@@ -295,9 +380,13 @@ if (error) {
   process.exit(1);
 }
 
-const summary = `mirrored=${result.mirrored} unchanged=${result.unchanged} skipped=${result.skipped} pruned=${result.pruned} projects=${result.scannedProjects}${dryRun ? " (dry-run)" : ""}`;
+const summary =
+  `mirrored=${result.mirrored} unchanged=${result.unchanged} skipped=${result.skipped} ` +
+  `pruned=${result.pruned} projects=${result.scannedProjects}` +
+  (pruneLegacy ? ` legacyRemoved=${legacyRemoved}` : "") +
+  (dryRun ? " (dry-run)" : "");
 await appendLog(summary);
 if (verbose || dryRun) {
-  process.stdout.write(summary + "\n");
+  process.stdout.write(`origin=${ORIGIN_ID}\n${summary}\n`);
 }
 process.exit(0);
