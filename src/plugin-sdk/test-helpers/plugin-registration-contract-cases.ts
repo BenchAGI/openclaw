@@ -15,7 +15,10 @@ export const pluginRegistrationContractCases = {
     pluginId: "anthropic",
     providerIds: ["anthropic"],
     mediaUnderstandingProviderIds: ["anthropic"],
-    cliBackendIds: ["claude-cli"],
+    // Both claude-cli backends are manifest-declared so the fail-closed setup
+    // fallback can resolve ultracode when the lazy runtime registry misses
+    // (see anthropic-manifest-cli-backends.test.ts).
+    cliBackendIds: ["claude-cli", "claude-cli-ultracode"],
     requireDescribeImages: true,
   },
   brave: {

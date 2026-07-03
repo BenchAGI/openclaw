@@ -24,7 +24,15 @@ describe("shipped anthropic plugin manifest", () => {
     if (!result.ok) {
       throw new Error(result.error);
     }
-    const declared = listSetupCliBackendIds(result.manifest);
+    expect(result.manifest.cliBackends).toContain("claude-cli");
+    expect(result.manifest.cliBackends).toContain("claude-cli-ultracode");
+    // The setup fallback resolves via listSetupCliBackendIds (setup.cliBackends
+    // ?? cliBackends); the shipped manifest declares no setup.cliBackends, so
+    // the top-level list is the one the fallback narrows by.
+    const declared = listSetupCliBackendIds({
+      providers: result.manifest.providers ?? [],
+      cliBackends: result.manifest.cliBackends ?? [],
+    });
     expect(declared).toContain("claude-cli");
     expect(declared).toContain("claude-cli-ultracode");
   });
