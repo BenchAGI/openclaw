@@ -110,6 +110,8 @@ const CLAUDE_CLI_CONTEXT_MODEL_ALIASES: Record<string, string> = {
   sonnet: "claude-sonnet-4-6",
   "sonnet-4.6": "claude-sonnet-4-6",
   "sonnet-4-6": "claude-sonnet-4-6",
+  "sonnet-5": "claude-sonnet-5",
+  "sonnet-5.0": "claude-sonnet-5",
 };
 
 function resolveClaudeCliContextModelId(modelId: string): string {

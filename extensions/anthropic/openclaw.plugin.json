@@ -34,6 +34,17 @@
             "maxTokens": 64000
           },
           {
+            "id": "claude-sonnet-5",
+            "name": "Claude Sonnet 5 (Claude CLI)",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "mediaInput": {
+              "image": { "maxSidePx": 1568, "preferredSidePx": 1568, "tokenMode": "provider" }
+            },
+            "contextWindow": 200000,
+            "maxTokens": 64000
+          },
+          {
             "id": "claude-sonnet-4-6",
             "name": "Claude Sonnet 4.6 (Claude CLI)",
             "reasoning": true,
@@ -84,6 +95,17 @@
             "maxTokens": 64000
           },
           {
+            "id": "claude-sonnet-5",
+            "name": "Claude Sonnet 5",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "mediaInput": {
+              "image": { "maxSidePx": 1568, "preferredSidePx": 1568, "tokenMode": "provider" }
+            },
+            "contextWindow": 200000,
+            "maxTokens": 64000
+          },
+          {
             "id": "claude-sonnet-4-6",
             "name": "Claude Sonnet 4.6",
             "reasoning": true,
@@ -123,7 +145,8 @@
           "opus-4.8": "claude-opus-4-8",
           "opus": "claude-opus-4-8",
           "opus-4.6": "claude-opus-4-6",
-          "sonnet-4.6": "claude-sonnet-4-6"
+          "sonnet-4.6": "claude-sonnet-4-6",
+          "sonnet-5": "claude-sonnet-5"
         }
       }
     }
