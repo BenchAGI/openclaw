@@ -4,15 +4,16 @@ Standalone MCP server that exposes OpenClaw (gateway, agents, memory wiki) as to
 
 ## Architecture
 
-Four hand-authored ESM files and one launchd template, no build step, no openclaw plugin SDK dependency:
+Hand-authored ESM files and launchd templates, no build step, no openclaw plugin SDK dependency:
 
-| File                              | Role                                                                                                                                              |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `serve.mjs`                       | Stdio MCP server. Registers 10 tools. Spawned by Claude Code via `mcpServers` config.                                                             |
-| `mirror.mjs`                      | One-shot local mirror: copies Claude Code project memory files into the active wiki vault (`~/.openclaw/wiki/{instanceId}` or `main`) as bridge-style source pages. |
-| `cloud-mirror.mjs`                | Long-running cloud mirror daemon: pushes local wiki deltas to the configured Bench ingest endpoint.                                                |
-| `statusline.mjs`                  | Fast (<100ms) filesystem-based status string for Claude Code's `statusLine` command. Never invokes the openclaw CLI.                              |
-| `ai.openclaw.wiki-mirror.plist.template` | LaunchAgent template for `cloud-mirror.mjs`.                                                                                               |
+| File                                     | Role                                                                                                                                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `serve.mjs`                              | Stdio MCP server. Registers 10 tools. Spawned by Claude Code via `mcpServers` config.                                                                                      |
+| `session-bootstrap.mjs`                  | Claude Code `SessionStart` hook. Injects the OpenClaw source-of-truth frame, operator identity guidance, and durable-memory write path into every new Claude Code session. |
+| `mirror.mjs`                             | One-shot local mirror: recursively copies Claude Code project memory files into `~/.openclaw/wiki/main/sources/claude-code-<origin>-*.md` as bridge-style source pages.    |
+| `cloud-mirror.mjs`                       | Long-running cloud mirror daemon: pushes local wiki deltas to the configured Bench ingest endpoint.                                                                        |
+| `statusline.mjs`                         | Fast (<100ms) filesystem-based status string for Claude Code's `statusLine` command. Never invokes the openclaw CLI.                                                       |
+| `ai.openclaw.wiki-mirror.plist.template` | LaunchAgent template for `cloud-mirror.mjs`.                                                                                                                               |
 
 The MCP server imports from the openclaw fork's existing `node_modules` (`@modelcontextprotocol/sdk`, `zod`) — no extension-local install needed.
 
@@ -28,9 +29,14 @@ If/when this bridge graduates to a proper extension (e.g., for upstream PR or pr
 
 ## Deployment
 
-- **MCP registration**: user-scope Claude Code config, added via `claude mcp add openclaw --scope user -- node <repo>/extensions/claude-code-bridge/serve.mjs`.
-- **Statusline**: `~/.claude/settings.json` → `statusLine.command`.
+- **Installer**: `pnpm bridge:install` from a checkout, or `node scripts/install-claude-code-bridge.mjs` from the npm package. It stages stable copies under `~/.openclaw/claude-code-bridge/`.
+- **MCP registration**: user-scope Claude Code config, added via `claude mcp add openclaw --scope user -- node ~/.openclaw/claude-code-bridge/serve.mjs`.
+- **Session start**: `~/.claude/settings.json` → `hooks.SessionStart` runs `~/.openclaw/claude-code-bridge/session-bootstrap.mjs`.
+- **Statusline**: `~/.claude/settings.json` → `statusLine.command` runs `~/.openclaw/claude-code-bridge/statusline.mjs`.
+- **Claude memory mirror**: `~/Library/LaunchAgents/ai.openclaw.claude-code-mirror.plist` runs `~/.openclaw/claude-code-bridge/claude-code-mirror.mjs` every 15 minutes, plus once at load.
 - **Cloud mirror schedule**: `~/Library/LaunchAgents/ai.openclaw.wiki-mirror.plist` from the template in this directory.
+
+The package manifest includes `extensions/claude-code-bridge/` and `scripts/install-claude-code-bridge.mjs` so distribution artifacts can install the same bridge without depending on a local checkout path.
 
 ## Tool surface (10 tools)
 
@@ -55,3 +61,5 @@ All prefixed `openclaw_`:
 - `openclaw gateway call` takes ~5–20 s per invocation (process spawn + auth + call). Do not use in fast-rendering paths like the statusline.
 - Setting `OPENCLAW_GATEWAY_URL` in the openclaw child's env puts it into "URL override" mode that requires explicit `--token`. The bridge strips the env var before spawning openclaw. Keep it in the MCP server's own env only for the `/healthz` fetch.
 - The wiki indexer walks the filesystem directly (`extensions/memory-wiki/src/query.ts`), so mirror files in `sources/` are searchable without registering them in `source-sync.json`. Using a distinct prefix (`claude-code-*` vs `bridge-*`) keeps them safe from the agent-bridge prune step.
+- The Claude memory mirror is origin-scoped. Each user/machine writes a stable `originId` prefix and prunes only its own pages, so multiple machines can converge through the shared git-backed vault without deleting each other's memory pages.
+- Codex has its own native hook surface; this installer only writes Claude Code settings. On Codex surfaces, keep the working directory inside an OpenClaw workspace with `AGENTS.md`, and file durable facts through the OpenClaw vault/wiki or inbox rather than Codex-only transcripts.
