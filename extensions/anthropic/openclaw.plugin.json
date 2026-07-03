@@ -1,7 +1,7 @@
 {
   "id": "anthropic",
   "activation": {
-    "onStartup": false
+    "onStartup": true
   },
   "enabledByDefault": true,
   "providers": ["anthropic"],
