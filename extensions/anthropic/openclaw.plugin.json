@@ -1,7 +1,7 @@
 {
   "id": "anthropic",
   "activation": {
-    "onStartup": false
+    "onStartup": true
   },
   "enabledByDefault": true,
   "providers": ["anthropic"],
@@ -150,7 +150,7 @@
       }
     }
   },
-  "cliBackends": ["claude-cli"],
+  "cliBackends": ["claude-cli", "claude-cli-ultracode"],
   "syntheticAuthRefs": ["claude-cli"],
   "setup": {
     "providers": [
