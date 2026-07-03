@@ -152,12 +152,22 @@ async function saveState(state) {
 
 // ─── Walk vault ──────────────────────────────────────────────────────
 
-// Top-level folders inside VAULT_DIR that contain review-worthy content.
-// Anything else at the root (boards, saved views, attachments, source
-// artifacts, plural-syntheses bridge index, etc.) is Obsidian scaffolding
-// and should NOT be pushed to the cloud review queue. The cloud queue
-// piled up to 522 drafts (89% noise) before this allowlist was added —
-// see canon/topics/wiki-review-queue-triage-2026-05-02.md.
+// Top-level folders inside VAULT_DIR that mirror to the cloud shard.
+//
+// TWO classes flow through one pipe (Spark Renaissance, 2026-07-03 — customers
+// own their memories, no opt-in):
+//   - REVIEWED KNOWLEDGE (canon/synthesis/protocols/sops/consolidations): lands
+//     as drafts in the human review queue, exactly as before.
+//   - MEMORY CORPUS (sources/sessions/diary/reports/concepts/entities/dreams):
+//     the bulk of the agent's memory — the ingest route auto-approves these on
+//     TENANT shards (sentinel system:memory-corpus), so they feed the tenant's
+//     Spark galaxy WITHOUT re-creating the 522-draft review flood the old
+//     narrow allowlist was added to stop (see canon/topics/
+//     wiki-review-queue-triage-2026-05-02.md — that concern now lives server-
+//     side as kind-aware review routing, not as a mirroring hole).
+//
+// Still excluded: root scaffolding (boards, saved views, attachments, the
+// plural-"syntheses" bridge index, inbox).
 //
 // Override with BENCH_WIKI_MIRROR_FOLDERS=canon,dreams,...  for forks.
 const DEFAULT_REVIEW_FOLDERS = [
@@ -169,6 +179,13 @@ const DEFAULT_REVIEW_FOLDERS = [
   "consolidation",
   "sops",
   "sop",
+  // memory corpus — full-vault mirroring (tenant galaxies)
+  "sources",
+  "sessions",
+  "diary",
+  "reports",
+  "concepts",
+  "entities",
 ];
 const REVIEW_FOLDERS = new Set(
   (process.env.BENCH_WIKI_MIRROR_FOLDERS ?? DEFAULT_REVIEW_FOLDERS.join(","))
