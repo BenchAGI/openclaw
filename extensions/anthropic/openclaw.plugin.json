@@ -150,7 +150,7 @@
       }
     }
   },
-  "cliBackends": ["claude-cli"],
+  "cliBackends": ["claude-cli", "claude-cli-ultracode"],
   "syntheticAuthRefs": ["claude-cli"],
   "setup": {
     "providers": [
