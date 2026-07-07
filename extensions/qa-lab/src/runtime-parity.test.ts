@@ -114,6 +114,28 @@ describe("runtime parity", () => {
     expect(isRuntimeParityResultPass(result)).toBe(true);
   });
 
+  it("does not mask runtime cell scenario failures behind drift", async () => {
+    const result = await runRuntimeParityScenario({
+      scenarioId: "failed-cell-with-drift",
+      runCell: async (runtime) => ({
+        scenarioStatus: runtime === "codex" ? "fail" : "pass",
+        cell: makeRuntimeParityCell(runtime, [
+          {
+            tool: "web_search",
+            argsHash: "same-args",
+            resultHash: runtime === "codex" ? "failed-result" : "ok-result",
+          },
+        ]),
+      }),
+    });
+
+    expect(result).toMatchObject({
+      drift: "failure-mode",
+      driftDetails: "scenario status differs (pass vs fail)",
+    });
+    expect(isRuntimeParityResultPass(result)).toBe(false);
+  });
+
   it("prefers transcript tool results when mock debug rows are incomplete", () => {
     const resolved = __testing.resolveRuntimeParityToolCalls({
       mockToolCalls: [
@@ -139,6 +161,51 @@ describe("runtime parity", () => {
         argsHash: "same-args",
         resultHash: "async-started",
       },
+    ]);
+  });
+
+  it("scopes process-global mock requests to the parent session prompt", () => {
+    const scoped = __testing.filterMockRequestsForParentPrompt(
+      [
+        {
+          prompt: "Fanout worker alpha: inspect the QA workspace and finish with exactly ALPHA-OK.",
+          allInputText:
+            "Delegate one bounded QA task to a subagent. Fanout worker alpha: inspect the QA workspace and finish with exactly ALPHA-OK.",
+          plannedToolName: "read",
+        },
+        {
+          prompt: "Delegate one bounded QA task to a subagent.",
+          allInputText: "Delegate one bounded QA task to a subagent.",
+          plannedToolName: "sessions_spawn",
+        },
+        {
+          prompt: "Continue the bounded QA task with the retained child result.",
+          allInputText:
+            "Delegate one bounded QA task to a subagent. Continue the bounded QA task with the retained child result.",
+          plannedToolName: "sessions_spawn",
+        },
+        {
+          allInputText: "Inspect the QA workspace and return one concise protocol note.",
+          plannedToolName: "read",
+        },
+        {
+          prompt: "Delegate one bounded QA task to a subagent.",
+          allInputText: "Delegate one bounded QA task to a subagent. Tool result: child accepted.",
+          toolOutput: "child accepted",
+        },
+      ],
+      "Delegate one bounded QA task to a subagent.",
+      [
+        "Delegate one bounded QA task to a subagent.",
+        "Continue the bounded QA task with the retained child result.",
+      ],
+    );
+
+    expect(scoped).toHaveLength(3);
+    expect(scoped.map((request) => request.plannedToolName ?? "result")).toEqual([
+      "sessions_spawn",
+      "sessions_spawn",
+      "result",
     ]);
   });
 });

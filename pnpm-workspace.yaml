@@ -12,6 +12,7 @@ minimumReleaseAgeExclude:
   # waiting out the gate. Covers the platform-specific @esbuild/* optionals.
   - "esbuild"
   - "@esbuild/*"
+  - "@openclaw/crabline@0.1.6"
   - "@openclaw/fs-safe@0.3.0"
   - "@openclaw/proxyline@0.3.3"
   - "acpx"
@@ -65,6 +66,33 @@ minimumReleaseAgeExclude:
   - "oxfmt"
   - "axios@1.15.0"
   - "discord-api-types"
+  - "esbuild@0.28.1"
+  - "@esbuild/aix-ppc64@0.28.1"
+  - "@esbuild/android-arm@0.28.1"
+  - "@esbuild/android-arm64@0.28.1"
+  - "@esbuild/android-x64@0.28.1"
+  - "@esbuild/darwin-arm64@0.28.1"
+  - "@esbuild/darwin-x64@0.28.1"
+  - "@esbuild/freebsd-arm64@0.28.1"
+  - "@esbuild/freebsd-x64@0.28.1"
+  - "@esbuild/linux-arm@0.28.1"
+  - "@esbuild/linux-arm64@0.28.1"
+  - "@esbuild/linux-ia32@0.28.1"
+  - "@esbuild/linux-loong64@0.28.1"
+  - "@esbuild/linux-mips64el@0.28.1"
+  - "@esbuild/linux-ppc64@0.28.1"
+  - "@esbuild/linux-riscv64@0.28.1"
+  - "@esbuild/linux-s390x@0.28.1"
+  - "@esbuild/linux-x64@0.28.1"
+  - "@esbuild/netbsd-arm64@0.28.1"
+  - "@esbuild/netbsd-x64@0.28.1"
+  - "@esbuild/openbsd-arm64@0.28.1"
+  - "@esbuild/openbsd-x64@0.28.1"
+  - "@esbuild/openharmony-arm64@0.28.1"
+  - "@esbuild/sunos-x64@0.28.1"
+  - "@esbuild/win32-arm64@0.28.1"
+  - "@esbuild/win32-ia32@0.28.1"
+  - "@esbuild/win32-x64@0.28.1"
   - "rolldown"
   - "sqlite-vec"
   - "sqlite-vec-*"
@@ -76,10 +104,11 @@ blockExoticSubdeps: true
 
 overrides:
   "@anthropic-ai/sdk": 0.100.1
+  "@opentelemetry/core": 2.8.0
   "@aws-sdk/core": 3.974.13
   "@aws-sdk/credential-provider-node": 3.972.52
   "@aws-sdk/xml-builder": 3.972.25
-  hono: 4.12.25 # GHSA-88fw-hqm2-52qc: CORS reflects any Origin w/ credentials on wildcard default (<4.12.25)
+  hono: 4.12.25
   "@hono/node-server": 1.19.14
   axios: 1.16.0
   fast-uri: 3.1.2
@@ -90,17 +119,17 @@ overrides:
   request-promise: "npm:@cypress/request-promise@5.0.0"
   basic-ftp: 6.0.1
   file-type: 22.0.1
-  form-data: 2.5.6 # GHSA-hmw2-7cc7-3qxx: CRLF injection via unescaped multipart field/file names (<2.5.6)
+  form-data: 2.5.6
   ip-address: 10.2.0
   minimatch: 10.2.5
   path-to-regexp: 8.4.0
   qs: 6.15.2
   node-domexception: "npm:@nolyfill/domexception@1.0.28"
   typebox: 1.1.39
-  tar: 7.5.15
+  tar: 7.5.16
   tough-cookie: 4.1.3
   yauzl: 3.2.1
-  protobufjs: 8.4.2 # GHSA-wcpc-wj8m-hjx6: DoS via unbounded Any expansion in JSON conversion (>=8.0.0 <=8.4.0)
+  protobufjs: 7.6.3
   uuid: 14.0.0
   # GHSA-vmh5-mc38-953g + GHSA-38rv-x7px-6hhq + GHSA-vxpw-j846-p89q + GHSA-hm92-r4w5-c3mj:
   # undici SOCKS5 TLS cert-validation bypass + WebSocket DoS via fragment
@@ -115,8 +144,9 @@ overrides:
   # paths, <=8.0.15). Pin to the patched release.
   vite: 8.0.16
   # Security: GHSA-g8mr-85jm-7xhm (@vitest/browser Browser Mode API can proxy CDP
-  # and overwrite config files -> RCE, <=4.1.7). Pin to the patched release.
-  "@vitest/browser": 4.1.9
+  # and overwrite config files -> RCE, <=4.1.7). Pin to the patched release,
+  # aligned with the workspace vitest 4.1.8 pin (post-2026.6.11 merge).
+  "@vitest/browser": 4.1.8
 
 allowBuilds:
   "@openclaw/fs-safe": true
@@ -130,12 +160,13 @@ allowBuilds:
   "@discordjs/opus": false
   esbuild: true
   koffi: false
-  node-llama-cpp: true
+  node-llama-cpp: false
   protobufjs: true
   tree-sitter-bash: false
   openclaw: true
   "@openclaw/proxyline": true
   clawpdf: true
+  "@openclaw/crabline": true
   rastermill: true
 
 packageExtensions:

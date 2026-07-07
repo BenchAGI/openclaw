@@ -1,5 +1,4 @@
 // Discord plugin module implements message handler.process behavior.
-import path from "node:path";
 import { MessageFlags } from "discord-api-types/v10";
 import { resolveAckReaction, resolveHumanDelayConfig } from "openclaw/plugin-sdk/agent-runtime";
 import {
@@ -38,13 +37,8 @@ import {
 } from "openclaw/plugin-sdk/reply-payload";
 import type { ReplyDispatchKind, ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
 import { danger, logVerbose, shouldLogVerbose } from "openclaw/plugin-sdk/runtime-env";
-import {
-  loadSessionStore,
-  readLatestAssistantTextFromSessionTranscript,
-  resolveAndPersistSessionFile,
-  resolveSessionStoreEntry,
-  resolveStorePath,
-} from "openclaw/plugin-sdk/session-store-runtime";
+import { getSessionEntry, resolveStorePath } from "openclaw/plugin-sdk/session-store-runtime";
+import { readLatestAssistantTextByIdentity } from "openclaw/plugin-sdk/session-transcript-runtime";
 import { resolveDiscordAccount, resolveDiscordMaxLinesPerMessage } from "../accounts.js";
 import { createDiscordRestClient } from "../client.js";
 import { beginDiscordInboundEventDeliveryCorrelation } from "../inbound-event-delivery.js";
@@ -113,10 +107,7 @@ function isFallbackOnlyToolWarningFinal(payload: ReplyPayload): boolean {
   return !resolveSendableOutboundReplyParts(payload).hasMedia;
 }
 
-type DiscordReplySkipReason =
-  | "aborted before delivery"
-  | "reasoning payload"
-  | "internal-only payload";
+type DiscordReplySkipReason = "aborted before delivery" | "internal-only payload";
 
 export function formatDiscordReplySkip(params: {
   kind: "tool" | "block" | "final";
@@ -415,14 +406,24 @@ async function processDiscordMessageInner(
     statusReactionsActive = true;
     void statusReactions.setQueued();
   };
-  queueInitialDiscordAckReaction({
-    enabled: statusReactionsEnabled,
-    shouldSendAckReaction,
-    ackReaction,
-    statusReactions,
-    reactionAdapter: discordAdapter,
-    target: `${messageChannelId}/${message.id}`,
-  });
+  let initialAckReactionQueued = false;
+  const queueInitialAckReactionAfterRecord = () => {
+    if (initialAckReactionQueued) {
+      return;
+    }
+    initialAckReactionQueued = true;
+    if (statusReactionsEnabled) {
+      statusReactionsActive = true;
+    }
+    queueInitialDiscordAckReaction({
+      enabled: statusReactionsEnabled,
+      shouldSendAckReaction,
+      ackReaction,
+      statusReactions,
+      reactionAdapter: discordAdapter,
+      target: `${messageChannelId}/${message.id}`,
+    });
+  };
   const processContext = await buildDiscordMessageProcessContext({
     ctx,
     text,
@@ -515,21 +516,20 @@ async function processDiscordMessageInner(
     }
     try {
       const storePath = resolveStorePath(cfg.session?.store, { agentId: route.agentId });
-      const store = loadSessionStore(storePath, { clone: false });
-      const sessionEntry = resolveSessionStoreEntry({ store, sessionKey }).existing;
+      const sessionEntry = getSessionEntry({
+        agentId: route.agentId,
+        sessionKey,
+        storePath,
+      });
       if (!sessionEntry?.sessionId) {
         return undefined;
       }
-      const { sessionFile } = await resolveAndPersistSessionFile({
+      const latest = await readLatestAssistantTextByIdentity({
+        agentId: route.agentId,
         sessionId: sessionEntry.sessionId,
         sessionKey,
-        sessionStore: store,
         storePath,
-        sessionEntry,
-        agentId: route.agentId,
-        sessionsDir: path.dirname(storePath),
       });
-      const latest = await readLatestAssistantTextFromSessionTranscript(sessionFile);
       if (!latest?.timestamp || latest.timestamp < dispatchStartedAt) {
         return undefined;
       }
@@ -557,6 +557,10 @@ async function processDiscordMessageInner(
     chunkMode,
     log: logVerbose,
   });
+  // While the durable verbose commentary lane is active (dispatch reports it
+  // via onVerboseProgressVisibility), the ephemeral draft yields its commentary
+  // lines so commentary is not rendered in both lanes.
+  let verboseProgressActive: () => boolean = () => false;
   const finalPreviewFlags =
     (discordConfig?.suppressEmbeds ?? true) ? MessageFlags.SuppressEmbeds : undefined;
   let finalReplyStartNotified = false;
@@ -595,18 +599,6 @@ async function processDiscordMessageInner(
       );
       return null;
     }
-    if (payload.isReasoning) {
-      // Reasoning/thinking payloads should not be delivered to Discord.
-      logVerbose(
-        formatDiscordReplySkip({
-          kind: info.kind,
-          reason: "reasoning payload",
-          target: deliverTarget,
-          sessionKey: ctxPayload.SessionKey,
-        }),
-      );
-      return null;
-    }
     if (draftPreview.draftStream && draftPreview.isProgressMode && info.kind === "block") {
       const reply = resolveSendableOutboundReplyParts(payload);
       if (!reply.hasMedia && !payload.isError) {
@@ -638,18 +630,6 @@ async function processDiscordMessageInner(
       return { visibleReplySent: false };
     }
     const isFinal = info.kind === "final";
-    if (payload.isReasoning) {
-      // Reasoning/thinking payloads should not be delivered to Discord.
-      logVerbose(
-        formatDiscordReplySkip({
-          kind: info.kind,
-          reason: "reasoning payload",
-          target: deliverTarget,
-          sessionKey: ctxPayload.SessionKey,
-        }),
-      );
-      return { visibleReplySent: false };
-    }
     if (
       isFinal &&
       !options?.allowFallbackOnlyToolWarning &&
@@ -949,6 +929,7 @@ async function processDiscordMessageInner(
       storePath: turn.storePath,
       ctxPayload,
       recordInboundSession,
+      afterRecord: queueInitialAckReactionAfterRecord,
       dispatchReplyWithBufferedBlockDispatcher,
       dispatcherOptions: {
         ...replyPipeline,
@@ -977,9 +958,7 @@ async function processDiscordMessageInner(
         queuedDeliveryCorrelations: isRoomEvent ? [{ begin: beginDeliveryCorrelation }] : undefined,
         suppressTyping: isRoomEvent ? true : undefined,
         allowProgressCallbacksWhenSourceDeliverySuppressed:
-          sourceRepliesAreToolOnly && draftPreview.draftStream && draftPreview.isProgressMode
-            ? true
-            : undefined,
+          sourceRepliesAreToolOnly && statusReactionsExplicitlyEnabled ? true : undefined,
         disableBlockStreaming: sourceRepliesAreToolOnly
           ? true
           : (draftPreview.disableBlockStreamingForDraft ??
@@ -997,12 +976,18 @@ async function processDiscordMessageInner(
           ? () => draftPreview.handleAssistantMessageBoundary()
           : undefined,
         onModelSelected,
-        suppressDefaultToolProgressMessages: draftPreview.suppressDefaultToolProgressMessages
-          ? true
-          : undefined,
+        suppressDefaultToolProgressMessages:
+          (sourceRepliesAreToolOnly && statusReactionsExplicitlyEnabled) ||
+          draftPreview.suppressDefaultToolProgressMessages
+            ? true
+            : undefined,
+        allowToolLifecycleWhenProgressHidden: statusReactionsEnabled ? true : undefined,
         commentaryProgressEnabled: draftPreview.isProgressMode
           ? draftPreview.commentaryProgressEnabled
           : undefined,
+        onVerboseProgressVisibility: (isActive) => {
+          verboseProgressActive = isActive;
+        },
         onReasoningStream: async (payload) => {
           await statusReactions.setThinking();
           await draftPreview.pushReasoningProgress(payload?.text, {
@@ -1020,6 +1005,8 @@ async function processDiscordMessageInner(
               discordConfig,
               {
                 event: "tool",
+                itemId: payload.itemId,
+                toolCallId: payload.toolCallId,
                 name: payload.name,
                 phase: payload.phase,
                 args: payload.args,
@@ -1031,6 +1018,9 @@ async function processDiscordMessageInner(
         },
         onItemEvent: async (payload) => {
           if (payload.kind === "preamble") {
+            if (verboseProgressActive()) {
+              return;
+            }
             if (draftPreview.commentaryProgressEnabled && payload.progressText) {
               await draftPreview.pushCommentaryProgress(payload.progressText, {
                 itemId: payload.itemId,
@@ -1042,6 +1032,7 @@ async function processDiscordMessageInner(
             buildChannelProgressDraftLineForEntry(discordConfig, {
               event: "item",
               itemId: payload.itemId,
+              toolCallId: payload.toolCallId,
               itemKind: payload.kind,
               title: payload.title,
               name: payload.name,
@@ -1089,6 +1080,8 @@ async function processDiscordMessageInner(
           await draftPreview.pushToolProgress(
             buildChannelProgressDraftLine({
               event: "command-output",
+              itemId: payload.itemId,
+              toolCallId: payload.toolCallId,
               phase: payload.phase,
               title: payload.title,
               name: payload.name,
@@ -1104,6 +1097,8 @@ async function processDiscordMessageInner(
           await draftPreview.pushToolProgress(
             buildChannelProgressDraftLine({
               event: "patch",
+              itemId: payload.itemId,
+              toolCallId: payload.toolCallId,
               phase: payload.phase,
               title: payload.title,
               name: payload.name,

@@ -10,7 +10,10 @@ import { sanitizeAgentId } from "../../routing/session-key.js";
 import { defaultRuntime } from "../../runtime.js";
 import type { GatewayRpcOpts } from "../gateway-rpc.js";
 import { addGatewayClientOptions, callGatewayFromCli } from "../gateway-rpc.js";
-import { parsePositiveIntOrUndefined } from "../program/helpers.js";
+import {
+  parsePositiveIntOrUndefined,
+  parseStrictPositiveIntOrUndefined,
+} from "../program/helpers.js";
 import { resolveCronCreateScheduleFromArgs } from "./schedule-options.js";
 import {
   getCronChannelOptions,
@@ -19,6 +22,7 @@ import {
   handleCronCliError,
   parseCronCommandArgv,
   parseCronCommandEnv,
+  parseCronFallbacks,
   parseCronToolsAllow,
   printCronJson,
   printCronList,
@@ -121,6 +125,7 @@ export function registerCronAddCommand(cron: Command) {
         "Thinking level for agent jobs (off|minimal|low|medium|high|xhigh)",
       )
       .option("--model <model>", "Model override for agent jobs (provider/model or alias)")
+      .option("--fallbacks <list>", "Fallback model list for agent jobs")
       .option("--timeout-seconds <n>", "Timeout seconds for agent or command jobs")
       .option("--no-output-timeout-seconds <n>", "No-output timeout seconds for command jobs")
       .option("--output-max-bytes <n>", "Maximum captured stdout/stderr bytes for command jobs")
@@ -217,7 +222,10 @@ export function registerCronAddCommand(cron: Command) {
               if (systemEvent) {
                 return { kind: "systemEvent" as const, text: systemEvent };
               }
-              const timeoutSeconds = parsePositiveIntOrUndefined(opts.timeoutSeconds);
+              const timeoutSeconds = parseStrictPositiveIntOrUndefined(opts.timeoutSeconds);
+              if (opts.timeoutSeconds !== undefined && timeoutSeconds === undefined) {
+                throw new Error("Invalid --timeout-seconds (must be a positive integer).");
+              }
               if (commandShell || commandArgv) {
                 const rawNoOutputTimeoutSeconds =
                   opts.noOutputTimeoutSeconds ??
@@ -248,6 +256,7 @@ export function registerCronAddCommand(cron: Command) {
                 kind: "agentTurn" as const,
                 message,
                 model: normalizeOptionalString(opts.model),
+                fallbacks: parseCronFallbacks(opts.fallbacks),
                 thinking: normalizeOptionalString(opts.thinking),
                 timeoutSeconds:
                   timeoutSeconds && Number.isFinite(timeoutSeconds) ? timeoutSeconds : undefined,
