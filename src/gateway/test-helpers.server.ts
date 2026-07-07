@@ -15,6 +15,7 @@ import {
   resolveMainSessionKeyFromConfig,
   type SessionEntry,
 } from "../config/sessions.js";
+import { readSessionStoreForTest } from "../config/sessions/test-helpers.js";
 import { resetAgentRunContextForTest } from "../infra/agent-events.js";
 import {
   loadOrCreateDeviceIdentity,
@@ -227,6 +228,15 @@ export async function writeSessionStore(params: {
   await fs.mkdir(path.dirname(storePath), { recursive: true });
   await fs.writeFile(storePath, serializedStore, "utf-8");
   clearSessionStoreCacheForTest();
+}
+
+/** Reads the raw persisted session store for direct fixture assertions. */
+export function readSessionStore(storePath?: string): Record<string, SessionEntry> {
+  const resolvedStorePath = storePath ?? testState.sessionStorePath;
+  if (!resolvedStorePath) {
+    throw new Error("readSessionStore requires testState.sessionStorePath");
+  }
+  return readSessionStoreForTest(resolvedStorePath);
 }
 
 async function setupGatewayTestHome() {

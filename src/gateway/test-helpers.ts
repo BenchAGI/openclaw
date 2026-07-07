@@ -24,6 +24,7 @@ export {
   installGatewayTestHooks,
   onceMessage,
   readConnectChallengeNonce,
+  readSessionStore,
   rpcReq,
   startConnectedServerWithClient,
   startGatewayServer,

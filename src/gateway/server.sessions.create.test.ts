@@ -3,7 +3,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test, vi } from "vitest";
-import { agentDiscoveryMock, rpcReq, testState, writeSessionStore } from "./test-helpers.js";
+import {
+  agentDiscoveryMock,
+  readSessionStore,
+  rpcReq,
+  testState,
+  writeSessionStore,
+} from "./test-helpers.js";
 import {
   setupGatewaySessionsTestHarness,
   sessionStoreEntry,

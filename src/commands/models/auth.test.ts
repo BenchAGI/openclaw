@@ -1353,7 +1353,7 @@ describe("modelsAuthLoginCommand", () => {
 
   it("adopts provider-owned token defaults for default-agent pasted tokens when unset", async () => {
     const runtime = createRuntime();
-    mocks.clackText.mockResolvedValue(`sk-ant-oat01-${"a".repeat(80)}`);
+    mocks.clackPassword.mockResolvedValue(`sk-ant-oat01-${"a".repeat(80)}`);
     mocks.loadModelCatalog.mockResolvedValue([
       { provider: "anthropic", id: "claude-opus-4-8", name: "Claude Opus 4.8" },
     ]);

@@ -33,6 +33,9 @@ const BUNDLED_PLUGIN_METADATA_TEST_TIMEOUT_MS = 300_000;
 const EXPECTED_BUNDLED_STARTUP_PLUGIN_IDS = [
   "acpx",
   "active-memory",
+  // Fork (#88): anthropic activates eagerly so the runtime registry always holds
+  // both claude-cli backends (claude-cli-ultracode harness durability).
+  "anthropic",
   "bonjour",
   "browser",
   "canvas",
@@ -58,6 +61,8 @@ const EXPECTED_BUNDLED_STARTUP_PLUGIN_IDS = [
 ] as const;
 const EXPECTED_EMPTY_CONFIG_GATEWAY_STARTUP_PLUGIN_IDS = [
   "acpx",
+  // Fork (#88): anthropic is a declared-startup plugin on empty config too.
+  "anthropic",
   "browser",
   "canvas",
   "device-pair",

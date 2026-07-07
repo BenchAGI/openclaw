@@ -173,7 +173,9 @@ describe("loadExtraBootstrapFilesWithDiagnostics", () => {
     await fs.mkdir(memoryDir, { recursive: true });
     await fs.writeFile(path.join(memoryDir, "ACTIVE_TASKS.md"), "today's plate", "utf-8");
 
-    const files = await loadExtraBootstrapFiles(workspaceDir, ["memory/ACTIVE_TASKS.md"]);
+    const { files } = await loadExtraBootstrapFilesWithDiagnostics(workspaceDir, [
+      "memory/ACTIVE_TASKS.md",
+    ]);
 
     expect(files).toStrictEqual([
       {
