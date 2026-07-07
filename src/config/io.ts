@@ -171,7 +171,7 @@ const warnedFutureTouchedVersions = new Set<string>();
 
 export type ParseConfigJson5Result = { ok: true; parsed: unknown } | { ok: false; error: string };
 export type ConfigWriteResult = { persistedHash: string; persistedConfig: OpenClawConfig };
-const configWritePostCommitRollback = Symbol("configWritePostCommitRollback");
+export const configWritePostCommitRollback: unique symbol = Symbol("configWritePostCommitRollback");
 type InternalConfigWriteResult = ConfigWriteResult & {
   [configWritePostCommitRollback]?: () => void;
 };
