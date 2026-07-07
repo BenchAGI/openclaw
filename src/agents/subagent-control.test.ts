@@ -4,10 +4,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  readSessionStoreForTest,
-  writeSessionStoreForTest,
-} from "../config/sessions/test-helpers.js";
+import type {
+  SessionAccessScope,
+  SessionEntryPatchContext,
+  SessionEntryPatchOptions,
+} from "../config/sessions/session-accessor.js";
 import type { SessionEntry } from "../config/sessions/types.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { CallGatewayOptions } from "../gateway/call.js";
@@ -124,14 +125,33 @@ function setSubagentControlDepsForTest(
   testing.setDepsForTest({
     abortEmbeddedAgentRun: () => false,
     clearSessionQueues: () => ({ followupCleared: 0, laneCleared: 0, keys: [] }),
-    updateSessionStore: async <T>(
-      storePath: string,
-      mutator: (store: Record<string, SessionEntry>) => Promise<T> | T,
+    patchSessionEntry: async (
+      scope: SessionAccessScope,
+      patcher: (
+        entry: SessionEntry,
+        context: SessionEntryPatchContext,
+      ) => Promise<Partial<SessionEntry> | null> | Partial<SessionEntry> | null,
+      options: SessionEntryPatchOptions = {},
     ) => {
-      const store = readSessionStoreForTest(storePath);
-      const result = await mutator(store);
-      writeSessionStoreForTest(storePath, store);
-      return result;
+      if (!scope.storePath) {
+        return null;
+      }
+      const store = JSON.parse(fs.readFileSync(scope.storePath, "utf-8")) as Record<
+        string,
+        SessionEntry
+      >;
+      const entry = store[scope.sessionKey];
+      if (!entry) {
+        return null;
+      }
+      const patch = await patcher(entry, { existingEntry: { ...entry } });
+      if (!patch) {
+        return entry;
+      }
+      const next = options.replaceEntry ? (patch as SessionEntry) : { ...entry, ...patch };
+      store[scope.sessionKey] = next;
+      fs.writeFileSync(scope.storePath, JSON.stringify(store, null, 2), "utf-8");
+      return next;
     },
     ...overrides,
   });
@@ -161,7 +181,7 @@ function cfgWithSessionStore(storePath = nextSessionStorePath("sessions")): Open
 
 function writeSessionStoreFixture(label: string, store: Record<string, unknown>) {
   const storePath = nextSessionStorePath(label);
-  writeSessionStoreForTest(storePath, store);
+  fs.writeFileSync(storePath, JSON.stringify(store, null, 2), "utf-8");
   return storePath;
 }
 
@@ -643,7 +663,7 @@ describe("killSubagentRunAdmin", () => {
     });
 
     setSubagentControlDepsForTest({
-      updateSessionStore: async () => {
+      patchSessionEntry: async () => {
         throw new Error("session store unavailable");
       },
     });
@@ -715,7 +735,10 @@ describe("killControlledSubagentRun", () => {
       label: "stale task",
       text: "stale task is already finished.",
     });
-    const persisted = readSessionStoreForTest<{ abortedLastRun?: boolean }>(storePath);
+    const persisted = JSON.parse(fs.readFileSync(storePath, "utf-8")) as Record<
+      string,
+      { abortedLastRun?: boolean }
+    >;
     expect(persisted[childSessionKey]?.abortedLastRun).toBeUndefined();
     expect(getSubagentRunByChildSessionKey(childSessionKey)?.runId).toBe("run-current");
   });
@@ -963,7 +986,10 @@ describe("killAllControlledSubagentRuns", () => {
       killed: 0,
       labels: [],
     });
-    const persisted = readSessionStoreForTest<{ abortedLastRun?: boolean }>(storePath);
+    const persisted = JSON.parse(fs.readFileSync(storePath, "utf-8")) as Record<
+      string,
+      { abortedLastRun?: boolean }
+    >;
     expect(persisted[childSessionKey]?.abortedLastRun).toBeUndefined();
     expect(getSubagentRunByChildSessionKey(childSessionKey)?.runId).toBe("run-current-bulk");
   });

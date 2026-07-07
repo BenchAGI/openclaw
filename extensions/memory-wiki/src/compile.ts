@@ -31,6 +31,7 @@ import type { ResolvedMemoryWikiConfig } from "./config.js";
 import { appendMemoryWikiLog } from "./log.js";
 import {
   formatWikiLink,
+  isUnmanagedRawSourceSummary,
   parseWikiMarkdown,
   renderWikiMarkdown,
   toWikiPageSummary,
@@ -42,6 +43,7 @@ import {
   WIKI_RELATED_END_MARKER,
   WIKI_RELATED_START_MARKER,
 } from "./markdown.js";
+import { readMemoryWikiSourceSyncState } from "./source-sync-state.js";
 import { initializeMemoryWikiVault } from "./vault.js";
 import { collectWikiMarkdownFiles } from "./wiki-files.js";
 
@@ -73,6 +75,7 @@ type DashboardPageDefinition = {
   buildBody: (params: {
     config: ResolvedMemoryWikiConfig;
     pages: WikiPageSummary[];
+    managedImportedSourcePagePaths: Set<string>;
     now: Date;
     sourceRelativeTo: string;
   }) => string;
@@ -215,9 +218,19 @@ const DASHBOARD_PAGES: DashboardPageDefinition[] = [
     id: "report.stale-pages",
     title: "Stale Pages",
     relativePath: "reports/stale-pages.md",
-    buildBody: ({ config, pages, now, sourceRelativeTo }) => {
+    buildBody: ({ config, managedImportedSourcePagePaths, pages, now, sourceRelativeTo }) => {
       const matches = pages
-        .filter((page) => page.kind !== "report")
+        .filter(
+          (page) =>
+            page.kind !== "report" &&
+            // concept/synthesis are intentionally durable references
+            page.kind !== "concept" &&
+            page.kind !== "synthesis" &&
+            !(
+              isUnmanagedRawSourceSummary(page) &&
+              !managedImportedSourcePagePaths.has(page.relativePath)
+            ),
+        )
         .flatMap((page) => {
           const freshness = assessPageFreshness(page, now);
           if (freshness.level === "fresh") {
@@ -915,6 +928,7 @@ async function writeDashboardPage(params: {
   config: ResolvedMemoryWikiConfig;
   rootDir: string;
   definition: DashboardPageDefinition;
+  managedImportedSourcePagePaths: Set<string>;
   pages: WikiPageSummary[];
   now: Date;
 }): Promise<boolean> {
@@ -940,6 +954,7 @@ async function writeDashboardPage(params: {
     endMarker: `<!-- openclaw:wiki:${path.basename(params.definition.relativePath, ".md")}:end -->`,
     body: params.definition.buildBody({
       config: params.config,
+      managedImportedSourcePagePaths: params.managedImportedSourcePagePaths,
       pages: params.pages,
       now: params.now,
       sourceRelativeTo: params.definition.relativePath,
@@ -990,6 +1005,7 @@ async function writeDashboardPage(params: {
 
 async function refreshDashboardPages(params: {
   config: ResolvedMemoryWikiConfig;
+  managedImportedSourcePagePaths: Set<string>;
   rootDir: string;
   pages: WikiPageSummary[];
 }): Promise<string[]> {
@@ -1004,6 +1020,7 @@ async function refreshDashboardPages(params: {
         config: params.config,
         rootDir: params.rootDir,
         definition,
+        managedImportedSourcePagePaths: params.managedImportedSourcePagePaths,
         pages: params.pages,
         now,
       })
@@ -1359,12 +1376,21 @@ export async function compileMemoryWikiVault(
 ): Promise<CompileMemoryWikiResult> {
   await initializeMemoryWikiVault(config);
   const rootDir = config.vault.path;
+  const sourceSyncState = await readMemoryWikiSourceSyncState(rootDir);
+  const managedImportedSourcePagePaths = new Set(
+    Object.values(sourceSyncState.entries).map((entry) => entry.pagePath.split(path.sep).join("/")),
+  );
   let pages = await readPageSummaries(rootDir);
   const updatedFiles = await refreshPageRelatedBlocks({ config, pages });
   if (updatedFiles.length > 0) {
     pages = await readPageSummaries(rootDir);
   }
-  const dashboardUpdatedFiles = await refreshDashboardPages({ config, rootDir, pages });
+  const dashboardUpdatedFiles = await refreshDashboardPages({
+    config,
+    managedImportedSourcePagePaths,
+    rootDir,
+    pages,
+  });
   updatedFiles.push(...dashboardUpdatedFiles);
   if (dashboardUpdatedFiles.length > 0) {
     pages = await readPageSummaries(rootDir);

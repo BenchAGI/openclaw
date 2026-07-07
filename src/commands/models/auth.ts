@@ -67,7 +67,7 @@ import { createClackPrompter } from "../../wizard/clack-prompter.js";
 import { validateAnthropicSetupToken } from "../auth-token.js";
 import { repairCodexRuntimePluginInstallForModelSelection } from "../codex-runtime-plugin-install.js";
 import { repairCopilotRuntimePluginInstallForModelSelection } from "../copilot-runtime-plugin-install.js";
-import { isRemoteEnvironment } from "../oauth-env.js";
+import { isRemoteEnvironment } from "../../infra/remote-env.js";
 import {
   applyDefaultModelPrimaryUpdate,
   loadValidConfigOrThrow,
@@ -797,7 +797,7 @@ export async function modelsAuthPasteTokenCommand(
   };
   const tokenInput = await readPastedSecret({
     message: `Paste token for ${provider}`,
-    masked: false,
+    masked: true,
     validate: validateTokenInput,
   });
   const token =

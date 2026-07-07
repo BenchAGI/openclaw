@@ -167,7 +167,7 @@ vi.mock("../onboard-helpers.js", () => ({
   openUrl: mocks.openUrl,
 }));
 
-vi.mock("../oauth-env.js", () => ({
+vi.mock("../../infra/remote-env.js", () => ({
   isRemoteEnvironment: mocks.isRemoteEnvironment,
 }));
 
@@ -1295,7 +1295,7 @@ describe("modelsAuthLoginCommand", () => {
     }) as typeof process.exit);
     try {
       const cancelSymbol = Symbol.for("clack:cancel");
-      mocks.clackText.mockResolvedValue(cancelSymbol);
+      mocks.clackPassword.mockResolvedValue(cancelSymbol);
       mocks.clackIsCancel.mockImplementation((value: unknown) => value === cancelSymbol);
 
       await expect(modelsAuthPasteTokenCommand({ provider: "openai" }, runtime)).rejects.toThrow(
@@ -1310,9 +1310,24 @@ describe("modelsAuthLoginCommand", () => {
     }
   });
 
+  it("reads the pasted token through the masked password prompt", async () => {
+    const runtime = createRuntime();
+    mocks.clackPassword.mockResolvedValue("openai-token");
+
+    await modelsAuthPasteTokenCommand({ provider: "openai" }, runtime);
+
+    expect(mocks.clackPassword).toHaveBeenCalledTimes(1);
+    expect(mocks.clackText).not.toHaveBeenCalled();
+    expect(mocks.upsertAuthProfileWithLock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credential: expect.objectContaining({ type: "token", token: "openai-token" }),
+      }),
+    );
+  });
+
   it("writes pasted Anthropic setup-tokens and logs the preference note", async () => {
     const runtime = createRuntime();
-    mocks.clackText.mockResolvedValue(`sk-ant-oat01-${"a".repeat(80)}`);
+    mocks.clackPassword.mockResolvedValue(`sk-ant-oat01-${"a".repeat(80)}`);
 
     await modelsAuthPasteTokenCommand({ provider: "anthropic" }, runtime);
 
@@ -1338,7 +1353,7 @@ describe("modelsAuthLoginCommand", () => {
 
   it("adopts provider-owned token defaults for default-agent pasted tokens when unset", async () => {
     const runtime = createRuntime();
-    mocks.clackText.mockResolvedValue(`sk-ant-oat01-${"a".repeat(80)}`);
+    mocks.clackPassword.mockResolvedValue(`sk-ant-oat01-${"a".repeat(80)}`);
     mocks.loadModelCatalog.mockResolvedValue([
       { provider: "anthropic", id: "claude-opus-4-8", name: "Claude Opus 4.8" },
     ]);
@@ -1431,7 +1446,7 @@ describe("modelsAuthLoginCommand", () => {
   it("writes pasted tokens to the requested agent store", async () => {
     const runtime = createRuntime();
     useCoderAgentConfig();
-    mocks.clackText.mockResolvedValue("openai-token");
+    mocks.clackPassword.mockResolvedValue("openai-token");
 
     await modelsAuthPasteTokenCommand({ provider: "openai", agent: "coder" }, runtime);
 
@@ -1477,7 +1492,7 @@ describe("modelsAuthLoginCommand", () => {
   it("rejects pasted token expiries that cannot fit in the Date timestamp range", async () => {
     const runtime = createRuntime();
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(MAX_DATE_TIMESTAMP_MS);
-    mocks.clackText.mockResolvedValue("openai-token");
+    mocks.clackPassword.mockResolvedValue("openai-token");
     try {
       await expect(
         modelsAuthPasteTokenCommand({ provider: "openai", expiresIn: "1ms" }, runtime),
@@ -1493,7 +1508,7 @@ describe("modelsAuthLoginCommand", () => {
   it("rejects OpenAI API keys pasted as OpenAI Codex token material", async () => {
     const runtime = createRuntime();
     const validateMessages: string[] = [];
-    mocks.clackText.mockImplementation(
+    mocks.clackPassword.mockImplementation(
       async (params: { validate?: (value: string) => string | undefined }) => {
         const message = params.validate?.("sk-openai-chatgpt-api-key-value");
         if (message) {
@@ -1524,7 +1539,7 @@ describe("modelsAuthLoginCommand", () => {
       "paste-api-key --provider openai",
     );
 
-    expect(mocks.clackText).not.toHaveBeenCalled();
+    expect(mocks.clackPassword).not.toHaveBeenCalled();
     expect(mocks.upsertAuthProfileWithLock).not.toHaveBeenCalled();
     expect(mocks.updateConfig).not.toHaveBeenCalled();
   });
@@ -1538,7 +1553,7 @@ describe("modelsAuthLoginCommand", () => {
       "paste-api-key --provider openai",
     );
 
-    expect(mocks.clackText).not.toHaveBeenCalled();
+    expect(mocks.clackPassword).not.toHaveBeenCalled();
     expect(mocks.upsertAuthProfileWithLock).not.toHaveBeenCalled();
     expect(mocks.updateConfig).not.toHaveBeenCalled();
   });
@@ -1649,7 +1664,7 @@ describe("modelsAuthLoginCommand", () => {
       'Unknown agent id "missing". Use "openclaw agents list" to see configured agents.',
     );
 
-    expect(mocks.clackText).not.toHaveBeenCalled();
+    expect(mocks.clackPassword).not.toHaveBeenCalled();
     expect(mocks.upsertAuthProfileWithLock).not.toHaveBeenCalled();
     expect(mocks.updateConfig).not.toHaveBeenCalled();
   });
@@ -1785,10 +1800,8 @@ describe("modelsAuthLoginCommand", () => {
     useCoderAgentConfig();
     mocks.resolvePluginProviders.mockReturnValue([]);
     mocks.clackSelect.mockResolvedValue("custom");
-    mocks.clackText
-      .mockResolvedValueOnce("openai")
-      .mockResolvedValueOnce("openai:manual")
-      .mockResolvedValueOnce("openai-token");
+    mocks.clackText.mockResolvedValueOnce("openai").mockResolvedValueOnce("openai:manual");
+    mocks.clackPassword.mockResolvedValue("openai-token");
     mocks.clackConfirm.mockResolvedValue(false);
 
     await modelsAuthAddCommand({ agent: "coder" }, runtime);

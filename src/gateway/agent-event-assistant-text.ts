@@ -157,3 +157,15 @@ export function extractAskUserQuestionFromClaudeStreamJson(
   }
   return null;
 }
+
+export function isReplaceableAssistantStreamEvent(evt: AgentEventPayload): boolean {
+  return evt.data.replaceable === true;
+}
+
+export function resolveAssistantStreamSnapshotText(evt: AgentEventPayload): string {
+  const text = evt.data.text;
+  if (typeof text === "string") {
+    return text;
+  }
+  return resolveAssistantStreamDeltaText(evt);
+}

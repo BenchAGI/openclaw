@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
-import { loadSessionStore } from "../config/sessions/store.js";
 import { withTempDir } from "../test-helpers/temp-dir.js";
 import {
   migrateOrphanedSessionKeys,
@@ -16,7 +15,7 @@ function writeStore(storePath: string, store: Record<string, unknown>): void {
 }
 
 function readStore(storePath: string): Record<string, unknown> {
-  return loadSessionStore(storePath, { skipCache: true }) as Record<string, unknown>;
+  return JSON.parse(fs.readFileSync(storePath, "utf-8"));
 }
 
 function requireStoreEntry(
@@ -156,7 +155,6 @@ describe("migrateOrphanedSessionKeys", () => {
       const store = readStore(storePath);
       expect(requireStoreEntry(store, "agent:ops:work").sessionId).toBe("abc-123");
       expect(store["agent:main:main"]).toBeUndefined();
-      expect(fs.existsSync(storePath)).toBe(false);
     });
   });
 
@@ -192,7 +190,42 @@ describe("migrateOrphanedSessionKeys", () => {
     });
   });
 
-  it("imports stores that are already fully canonical", async () => {
+  it("lowercases mixed-case session keys, keeping the freshest duplicate", async () => {
+    await withStateFixture(async ({ stateDir }) => {
+      const storePath = opsSessionStorePath(stateDir);
+      writeStore(storePath, {
+        "agent:ops:MySession": { sessionId: "mixed", updatedAt: 1000 },
+        "agent:ops:mysession": { sessionId: "lower", updatedAt: 2000 },
+        "agent:ops:OtherCase": { sessionId: "other", updatedAt: 1500 },
+      });
+
+      await migrateFixtureState(stateDir);
+
+      const store = readStore(storePath);
+      expect(requireStoreEntry(store, "agent:ops:mysession").sessionId).toBe("lower");
+      expect(store["agent:ops:MySession"]).toBeUndefined();
+      expect(requireStoreEntry(store, "agent:ops:othercase").sessionId).toBe("other");
+      expect(store["agent:ops:OtherCase"]).toBeUndefined();
+    });
+  });
+
+  it("canonicalizes mixed-case agent segments in ACP keys, preserving the opaque id", async () => {
+    await withStateFixture(async ({ stateDir }) => {
+      const storePath = opsSessionStorePath(stateDir);
+      const acpId = "33333333-3333-4333-8333-333333333333";
+      writeStore(storePath, {
+        [`agent:OPS:acp:${acpId}`]: { sessionId: "sess-acp", updatedAt: 1000 },
+      });
+
+      await migrateFixtureState(stateDir);
+
+      const store = readStore(storePath);
+      expect(requireStoreEntry(store, `agent:ops:acp:${acpId}`).sessionId).toBe("sess-acp");
+      expect(store[`agent:OPS:acp:${acpId}`]).toBeUndefined();
+    });
+  });
+
+  it("skips stores that are already fully canonical", async () => {
     await withStateFixture(async ({ stateDir }) => {
       const storePath = opsSessionStorePath(stateDir);
       writeStore(storePath, {
@@ -201,13 +234,8 @@ describe("migrateOrphanedSessionKeys", () => {
 
       const result = await migrateFixtureState(stateDir);
 
-      expect(result.changes).toContain(
-        `Imported 1 session metadata row(s) from ${storePath} → agent SQLite state`,
-      );
-      expect(result.changes.some((change) => change.includes("Canonicalized"))).toBe(false);
+      expect(result.changes).toHaveLength(0);
       expect(result.warnings).toHaveLength(0);
-      expect(readStore(storePath)["agent:ops:work"]).toBeDefined();
-      expect(fs.existsSync(storePath)).toBe(false);
     });
   });
 
@@ -278,7 +306,7 @@ describe("migrateOrphanedSessionKeys", () => {
     });
   });
 
-  it("imports default main/main stores without key changes", async () => {
+  it("no-ops when default agentId is main and mainKey is main", async () => {
     await withStateFixture(async ({ stateDir }) => {
       const storePath = path.join(stateDir, "agents", "main", "sessions", "sessions.json");
       writeStore(storePath, {
@@ -292,13 +320,9 @@ describe("migrateOrphanedSessionKeys", () => {
         env: { OPENCLAW_STATE_DIR: stateDir },
       });
 
-      expect(result.changes).toContain(
-        `Imported 1 session metadata row(s) from ${storePath} → agent SQLite state`,
-      );
-      expect(result.changes.some((change) => change.includes("Canonicalized"))).toBe(false);
+      expect(result.changes).toHaveLength(0);
       const store = readStore(storePath);
       expect(requireStoreEntry(store, "agent:main:main").sessionId).toBe("abc-123");
-      expect(fs.existsSync(storePath)).toBe(false);
     });
   });
 });

@@ -1,19 +1,19 @@
 {
   "name": "@openclaw/whatsapp",
-  "version": "2026.6.2",
+  "version": "2026.6.11",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "@openclaw/whatsapp",
-      "version": "2026.6.2",
+      "version": "2026.6.11",
       "dependencies": {
         "audio-decode": "2.2.3",
         "baileys": "7.0.0-rc13",
         "typebox": "1.1.39"
       },
       "peerDependencies": {
-        "openclaw": ">=2026.6.2"
+        "openclaw": ">=2026.6.11"
       },
       "peerDependenciesMeta": {
         "openclaw": {
@@ -666,10 +666,9 @@
       "license": "MIT"
     },
     "node_modules/protobufjs": {
-      "version": "8.4.2",
-      "resolved": "https://registry.npmjs.org/protobufjs/-/protobufjs-8.4.2.tgz",
-      "integrity": "sha512-64rfNzkWOZAIazXzpBFPWq6F9up6gMvTzjE2oWIzApx2N/dqVUEE7+bCn2+40780dFVtKOUab8QfxJ6KJDWbqA==",
-      "hasInstallScript": true,
+      "version": "8.6.0",
+      "resolved": "https://registry.npmjs.org/protobufjs/-/protobufjs-8.6.0.tgz",
+      "integrity": "sha512-PIOO89BMGMXGz2333TVv/OqPNVWm7w30ll/4FtLbtLBaonzJMYwTbAZSSlobjIy9MoUgIAxSVUpK7aP7EpTtkg==",
       "license": "BSD-3-Clause",
       "dependencies": {
         "long": "^5.3.2"
