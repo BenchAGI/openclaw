@@ -50,7 +50,8 @@ export type CliToolResultDelta = {
 };
 
 function isClaudeCliProvider(providerId: string): boolean {
-  return normalizeLowercaseStringOrEmpty(providerId) === "claude-cli";
+  const id = normalizeLowercaseStringOrEmpty(providerId);
+  return id === "claude-cli" || id.startsWith("claude-cli-");
 }
 
 function usesClaudeStreamJsonDialect(params: {
