@@ -18,10 +18,10 @@
   "devDependencies": {
     "@openclaw/plugin-sdk": "workspace:*",
     "@types/ws": "8.18.1",
-    "openclaw": "2026.5.28"
+    "openclaw": "2026.6.11"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.6.2"
+    "openclaw": ">=2026.6.5"
   },
   "peerDependenciesMeta": {
     "openclaw": {

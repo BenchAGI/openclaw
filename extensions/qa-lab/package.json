@@ -16,10 +16,10 @@
     "@openclaw/plugin-sdk": "workspace:*",
     "@openclaw/slack": "workspace:*",
     "@openclaw/whatsapp": "workspace:*",
-    "openclaw": "2026.5.28"
+    "openclaw": "2026.6.11"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.6.2"
+    "openclaw": ">=2026.6.5"
   },
   "peerDependenciesMeta": {
     "openclaw": {
