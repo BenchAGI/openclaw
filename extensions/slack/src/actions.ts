@@ -360,6 +360,32 @@ export async function getSlackMemberInfo(userId: string, opts: SlackActionClient
   return await client.users.info({ user: userId });
 }
 
+/**
+ * Early-exit membership probe; intentionally not the monitor allowlist fetch
+ * (monitor/auth.ts fetchSlackChannelMemberIds), whose TTL cache is bound to
+ * the live monitor context that token-based actions do not have.
+ */
+export async function isSlackUserChannelMember(
+  channelId: string,
+  userId: string,
+  opts: SlackActionClientOpts = {},
+): Promise<boolean> {
+  const client = await getClient(opts);
+  let cursor: string | undefined;
+  do {
+    const result = await client.conversations.members({
+      channel: channelId,
+      limit: 999,
+      cursor,
+    });
+    if (result.members?.includes(userId)) {
+      return true;
+    }
+    cursor = result.response_metadata?.next_cursor?.trim() || undefined;
+  } while (cursor);
+  return false;
+}
+
 export async function listSlackEmojis(opts: SlackActionClientOpts = {}) {
   const client = await getClient(opts);
   return await client.emoji.list();

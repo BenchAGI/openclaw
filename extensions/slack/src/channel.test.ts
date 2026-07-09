@@ -378,7 +378,11 @@ describe("slackPlugin actions", () => {
       messageId: "1712345678.654321",
     });
     expect(requireMockCallArgValue(handleSlackActionMock, 0, 1)).toEqual({});
-    expect(requireMockCallArgValue(handleSlackActionMock, 0, 2)).toBeUndefined();
+    // Reads always carry an explicit server-derived read authority; a
+    // context-free invocation resolves to operator (config policy only).
+    expect(requireMockCallArgValue(handleSlackActionMock, 0, 2)).toEqual({
+      requesterReadAuthority: { mode: "operator" },
+    });
   });
 
   it("forwards media access through the bundled Slack action invoke path", async () => {
