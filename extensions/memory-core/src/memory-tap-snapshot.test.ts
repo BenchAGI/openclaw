@@ -487,6 +487,50 @@ describe("buildMemoryTapSnapshot", () => {
     expect(JSON.stringify(snapshot)).not.toContain("Old warranty dream");
   });
 
+  it("parses embedded diary timestamps even when the diary was edited after the requested window", async () => {
+    const workspaceDir = await createTempWorkspace("memory-tap-diary-past-window-");
+    const nowMs = Date.parse("2026-07-12T04:00:00.000Z");
+    await appendNarrativeEntry({
+      workspaceDir,
+      narrative: "A synthetic warranty note belongs to the earlier window.",
+      nowMs: Date.parse("2026-07-12T02:30:00.000Z"),
+      timezone: "UTC",
+    });
+    await appendNarrativeEntry({
+      workspaceDir,
+      narrative: "A later synthetic warranty note belongs outside the requested window.",
+      nowMs: Date.parse("2026-07-12T03:30:00.000Z"),
+      timezone: "UTC",
+    });
+    await setFileMtime(path.join(workspaceDir, "DREAMS.md"), nowMs - 30_000);
+
+    const snapshot = await buildMemoryTapSnapshot({
+      cfg: dreamingConfig(workspaceDir, "inline"),
+      agentId: "main",
+      workspaceDir,
+      request: normalizeMemoryTapSnapshotParams(
+        {
+          since: "2026-07-12T02:00:00.000Z",
+          until: "2026-07-12T03:00:00.000Z",
+          kinds: ["dream"],
+        },
+        nowMs,
+      ),
+      nowMs,
+    });
+
+    expect(snapshot.candidates.map((candidate) => candidate.excerpt)).toEqual([
+      "A synthetic warranty note belongs to the earlier window.",
+    ]);
+    expect(JSON.stringify(snapshot)).not.toContain("later synthetic warranty note");
+    expect(snapshot.health.checks).toContainEqual({
+      id: "dreaming",
+      status: "warn",
+      detail:
+        "enabled; diary=present but outside requested window; reports=not required by storage mode",
+    });
+  });
+
   it("includes a legacy minute-precision dream that overlaps a second-precision window", async () => {
     const workspaceDir = await createTempWorkspace("memory-tap-legacy-diary-time-");
     const dreamsPath = path.join(workspaceDir, "DREAMS.md");

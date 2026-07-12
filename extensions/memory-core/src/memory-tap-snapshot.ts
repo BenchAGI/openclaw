@@ -218,18 +218,7 @@ async function collectDiary(params: {
       examined: 0,
     };
   }
-  if (!isWithinWindow(updatedAtMs, params.window)) {
-    return {
-      candidates: [],
-      health: {
-        status: "warn",
-        detail: "present but outside requested window",
-        fresh: false,
-        required: true,
-      },
-      examined: 0,
-    };
-  }
+  const diaryFresh = isWithinWindow(updatedAtMs, params.window);
   let entries;
   try {
     entries = await readRecentDreamDiaryRecords({
@@ -246,7 +235,14 @@ async function collectDiary(params: {
   if (!params.includeCandidates) {
     return {
       candidates: [],
-      health: { status: "ok", detail: "fresh", fresh: true, required: true },
+      health: diaryFresh
+        ? { status: "ok", detail: "fresh", fresh: true, required: true }
+        : {
+            status: "warn",
+            detail: "present but outside requested window",
+            fresh: false,
+            required: true,
+          },
       examined: 0,
     };
   }
@@ -256,7 +252,8 @@ async function collectDiary(params: {
     // Legacy blocks without a parseable embedded timestamp may use the file
     // mtime only when they are the newest block. Appending a new entry must not
     // make every older legacy dream look newly observed.
-    const rawObservedAtMs = entry.observedAtMs ?? (index === 0 ? updatedAtMs : Number.NaN);
+    const rawObservedAtMs =
+      entry.observedAtMs ?? (index === 0 && diaryFresh ? updatedAtMs : Number.NaN);
     const overlapsWindow =
       Number.isFinite(rawObservedAtMs) &&
       rawObservedAtMs < params.window.untilMs &&
@@ -295,10 +292,13 @@ async function collectDiary(params: {
   return {
     candidates,
     health: {
-      status: "ok",
-      detail:
-        entries.length === 0 ? "fresh with no diary entries" : `fresh; entries=${entries.length}`,
-      fresh: true,
+      status: diaryFresh ? "ok" : "warn",
+      detail: diaryFresh
+        ? entries.length === 0
+          ? "fresh with no diary entries"
+          : `fresh; entries=${entries.length}`
+        : "present but outside requested window",
+      fresh: diaryFresh,
       required: true,
     },
     examined,

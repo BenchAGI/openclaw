@@ -17,7 +17,7 @@ export function registerMemoryTapGatewayMethod(api: OpenClawPluginApi): void {
         const cfg = context.getRuntimeConfig();
         const agentId = resolveDefaultAgentId(cfg);
         const request = normalizeMemoryTapSnapshotParams(params);
-        const searchHealth = await runtime.inspectMemoryTapSearchHealth({ cfg, agentId });
+        const searchHealth = runtime.inspectMemoryTapSearchHealth({ cfg, agentId });
         respond(
           true,
           await runtime.buildMemoryTapSnapshot({
