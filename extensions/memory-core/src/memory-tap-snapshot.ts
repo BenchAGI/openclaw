@@ -2,7 +2,11 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import { redactToolPayloadText } from "openclaw/plugin-sdk/logging-core";
-import { truncateUtf16Safe } from "openclaw/plugin-sdk/memory-core-host-engine-foundation";
+import {
+  resolveMemorySearchConfig,
+  truncateUtf16Safe,
+} from "openclaw/plugin-sdk/memory-core-host-engine-foundation";
+import { resolveMemoryBackendConfig } from "openclaw/plugin-sdk/memory-core-host-engine-storage";
 import {
   resolveMemoryDreamingConfig,
   resolveMemoryDreamingPluginConfig,
@@ -36,6 +40,13 @@ const DAILY_MEMORY_PATH_RE = /^memory\/(\d{4}-\d{2}-\d{2})(?:-[^/]+)?\.md$/i;
 const OPAQUE_TOKEN_RE = /(?:^|[^\p{L}\p{N}])[A-Za-z0-9_+/=-]{48,}(?:$|[^\p{L}\p{N}])/u;
 const SELF_INGESTION_RE =
   /(?:write a dream diary entry from these memory fragments|dreaming-narrative|__openclaw_memory_core_[a-z_]+_dream__|memory[-_. ]?tap|forgePackets|memoryTapRuns)/i;
+const LOCAL_PATH_PATTERNS = [
+  /(?:^|[\s"'`([{=:])(?:~\/|file:\/\/|\/(?!\/)(?:[^\s/]+\/)+[^\s/]*)/i,
+  /(?:^|[\s"'`([{=:])(?:[A-Za-z]:\\[^\s]+|[A-Za-z]:\/[^\s]+|\\\\[^\\\s]+\\[^\\\s]+)/i,
+  /(?:^|[\s"'`([{=])\/\/[^/\s]+\/[^\s]+/i,
+];
+const RAW_IDENTITY_RE =
+  /\b(?:raw[-_ ]?(?:identit(?:y|ies)|transcripts?|sessions?)|session[-_ ]?(?:transcripts?|ids?|markers?|keys?|files?|paths?)|tenant[-_ ]?(?:ids?|markers?)|instance[-_ ]?ids?|customer[-_ ]?ids?|absolute[-_ ]?paths?)\b/i;
 
 type SnapshotWindow = {
   sinceMs: number;
@@ -55,11 +66,24 @@ type SelfIngestionFilterCounter = {
   count: number;
 };
 
+type RawEvidenceFilterCounter = {
+  count: number;
+};
+
 type ArtifactHealth = {
   status: MemoryTapHealthStatus;
   detail: string;
   fresh: boolean;
   required: boolean;
+};
+
+export type MemoryTapSearchHealth = {
+  status: MemoryTapHealthStatus;
+  detail:
+    | "hybrid search configured"
+    | "vector search configured"
+    | "full-text-only search configured"
+    | "search unavailable";
 };
 
 function digest(value: string): string {
@@ -83,6 +107,7 @@ function safeExcerpt(
   maxChars: number,
   filtered: SecretFilterCounter,
   selfIngestionFiltered: SelfIngestionFilterCounter,
+  rawEvidenceFiltered: RawEvidenceFilterCounter,
 ): string | null {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) {
@@ -90,6 +115,13 @@ function safeExcerpt(
   }
   if (SELF_INGESTION_RE.test(normalized)) {
     selfIngestionFiltered.count += 1;
+    return null;
+  }
+  if (
+    LOCAL_PATH_PATTERNS.some((pattern) => pattern.test(normalized)) ||
+    RAW_IDENTITY_RE.test(normalized)
+  ) {
+    rawEvidenceFiltered.count += 1;
     return null;
   }
   const redacted = redactToolPayloadText(normalized);
@@ -171,6 +203,7 @@ async function collectDiary(params: {
   includeCandidates: boolean;
   filtered: SecretFilterCounter;
   selfIngestionFiltered: SelfIngestionFilterCounter;
+  rawEvidenceFiltered: RawEvidenceFilterCounter;
 }): Promise<{
   candidates: CollectedCandidate[];
   health: ArtifactHealth;
@@ -241,6 +274,7 @@ async function collectDiary(params: {
       params.maxQuoteChars,
       params.filtered,
       params.selfIngestionFiltered,
+      params.rawEvidenceFiltered,
     );
     if (!excerpt) {
       continue;
@@ -349,6 +383,7 @@ function collectEvidence(params: {
   phaseHitCounts: ReadonlyMap<string, number>;
   filtered: SecretFilterCounter;
   selfIngestionFiltered: SelfIngestionFilterCounter;
+  rawEvidenceFiltered: RawEvidenceFilterCounter;
 }): {
   candidates: CollectedCandidate[];
   memoryCount: number;
@@ -382,6 +417,7 @@ function collectEvidence(params: {
         MEMORY_TAP_MIN_QUOTE_CHARS,
         params.filtered,
         params.selfIngestionFiltered,
+        params.rawEvidenceFiltered,
       );
       if (!safeSessionEvidence) {
         continue;
@@ -411,6 +447,7 @@ function collectEvidence(params: {
       params.maxQuoteChars,
       params.filtered,
       params.selfIngestionFiltered,
+      params.rawEvidenceFiltered,
     );
     if (!excerpt) {
       continue;
@@ -484,12 +521,43 @@ function dedupeCandidates(candidates: CollectedCandidate[]): CollectedCandidate[
   return deduped;
 }
 
+export function inspectMemoryTapSearchHealth(params: {
+  cfg: OpenClawConfig;
+  agentId: string;
+}): MemoryTapSearchHealth {
+  const backend = resolveMemoryBackendConfig(params);
+  if (backend.backend === "qmd") {
+    if (backend.qmd?.searchMode === "search") {
+      return { status: "warn", detail: "full-text-only search configured" };
+    }
+    return backend.qmd?.searchMode === "vsearch"
+      ? { status: "ok", detail: "vector search configured" }
+      : { status: "ok", detail: "hybrid search configured" };
+  }
+
+  const memory = resolveMemorySearchConfig(params.cfg, params.agentId);
+  if (!memory) {
+    return { status: "error", detail: "search unavailable" };
+  }
+  const fullTextEnabled = memory.query.hybrid.enabled;
+  const vectorEnabled = memory.provider !== "none" && memory.store.vector.enabled;
+  if (!vectorEnabled) {
+    return fullTextEnabled
+      ? { status: "warn", detail: "full-text-only search configured" }
+      : { status: "error", detail: "search unavailable" };
+  }
+  return fullTextEnabled
+    ? { status: "ok", detail: "hybrid search configured" }
+    : { status: "ok", detail: "vector search configured" };
+}
+
 export async function buildMemoryTapSnapshot(params: {
   cfg: OpenClawConfig;
   agentId: string;
   workspaceDir: string;
   request: MemoryTapSnapshotParams;
   nowMs?: number;
+  searchHealth?: MemoryTapSearchHealth;
 }): Promise<MemoryTapSnapshot> {
   const nowMs = params.nowMs ?? Date.now();
   const window: SnapshotWindow = {
@@ -498,6 +566,7 @@ export async function buildMemoryTapSnapshot(params: {
   };
   const filtered: SecretFilterCounter = { count: 0 };
   const selfIngestionFiltered: SelfIngestionFilterCounter = { count: 0 };
+  const rawEvidenceFiltered: RawEvidenceFilterCounter = { count: 0 };
   const kinds = new Set(params.request.kinds);
   const dreaming = resolveMemoryDreamingConfig({
     cfg: params.cfg,
@@ -511,6 +580,7 @@ export async function buildMemoryTapSnapshot(params: {
     includeCandidates: kinds.has("dream"),
     filtered,
     selfIngestionFiltered,
+    rawEvidenceFiltered,
   });
   const reports = await inspectDreamReports({
     cfg: params.cfg,
@@ -543,6 +613,7 @@ export async function buildMemoryTapSnapshot(params: {
       phaseHitCounts,
       filtered,
       selfIngestionFiltered,
+      rawEvidenceFiltered,
     });
     evidenceCandidates = evidence.candidates;
     memoryCount = evidence.memoryCount;
@@ -574,9 +645,9 @@ export async function buildMemoryTapSnapshot(params: {
     { id: "gateway", status: "ok", detail: "authenticated read succeeded" },
     {
       id: "memory",
-      status: evidenceStoreReadable ? "ok" : "error",
+      status: evidenceStoreReadable ? (params.searchHealth?.status ?? "ok") : "error",
       detail: evidenceStoreReadable
-        ? `readable; memory=${memoryCount}; sessions=${sessionCount}`
+        ? `readable; memory=${memoryCount}; sessions=${sessionCount}${params.searchHealth ? `; ${params.searchHealth.detail}` : ""}`
         : "evidence store unavailable",
     },
     {
@@ -598,8 +669,13 @@ export async function buildMemoryTapSnapshot(params: {
     },
     {
       id: "artifact-provenance",
-      status: "ok",
-      detail: candidates.length === 0 ? "no eligible artifacts" : "virtual references verified",
+      status: rawEvidenceFiltered.count > 0 ? "warn" : "ok",
+      detail:
+        rawEvidenceFiltered.count > 0
+          ? `filtered raw evidence=${rawEvidenceFiltered.count}`
+          : candidates.length === 0
+            ? "no eligible artifacts"
+            : "virtual references verified",
     },
     {
       id: "self-ingestion",

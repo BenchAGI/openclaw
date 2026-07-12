@@ -9,7 +9,7 @@ import {
   MemoryTapInvalidRequestError,
   normalizeMemoryTapSnapshotParams,
 } from "./memory-tap-contract.js";
-import { buildMemoryTapSnapshot } from "./memory-tap-snapshot.js";
+import { buildMemoryTapSnapshot, inspectMemoryTapSearchHealth } from "./memory-tap-snapshot.js";
 import {
   readShortTermRecallEntries,
   recordDreamingPhaseSignals,
@@ -100,6 +100,26 @@ describe("normalizeMemoryTapSnapshotParams", () => {
 });
 
 describe("buildMemoryTapSnapshot", () => {
+  it("reports usable full-text-only search as degraded instead of failed", async () => {
+    const workspaceDir = await createTempWorkspace("memory-tap-fts-only-");
+    const nowMs = Date.parse("2026-07-12T04:00:00.000Z");
+    const snapshot = await buildMemoryTapSnapshot({
+      cfg: dreamingConfig(workspaceDir),
+      agentId: "main",
+      workspaceDir,
+      request: normalizeMemoryTapSnapshotParams({}, nowMs),
+      nowMs,
+      searchHealth: { status: "warn", detail: "full-text-only search configured" },
+    });
+
+    expect(snapshot.health.ok).toBe(true);
+    expect(snapshot.health.checks).toContainEqual({
+      id: "memory",
+      status: "warn",
+      detail: "readable; memory=0; sessions=0; full-text-only search configured",
+    });
+  });
+
   it("returns deterministic bounded evidence without paths, transcript rows, or secrets", async () => {
     const workspaceDir = await createTempWorkspace("memory-tap-evidence-");
     const observedMs = Date.parse("2026-07-12T03:30:00.000Z");
@@ -852,5 +872,176 @@ describe("buildMemoryTapSnapshot", () => {
       detail: "filtered=1",
     });
     expect(JSON.stringify(snapshot)).not.toContain("CUSTOMSECRET-ALPHA");
+  });
+
+  it("hard-drops absolute paths and raw identity markers before export", async () => {
+    const workspaceDir = await createTempWorkspace("memory-tap-raw-evidence-");
+    const nowMs = Date.parse("2026-07-12T03:30:00.000Z");
+    const observedAt = new Date(nowMs - 5_000).toISOString();
+    const unsafeSnippets = [
+      "/Users/example/private/session.json",
+      "/home/example/private/session.json",
+      "/private/var/folders/example/session.json",
+      "/var/log/example.log",
+      "/opt/example/session.json",
+      "/etc/example/config.json",
+      "/root/.openclaw/sessions/example.json",
+      "/tmp/openclaw/example.json",
+      "/srv/openclaw/example.json",
+      "/Volumes/Customer Data/example.json",
+      "~/private/session.json",
+      "file:///tmp/private/session.json",
+      "C:\\Users\\example\\session.json",
+      "C:/Users/example/session.json",
+      "\\\\server\\share\\session.json",
+      "//server/share/session.json",
+      "workspace:/root/.openclaw/sessions/example.json",
+      "cwd:/srv/openclaw/example.json",
+      "workspace:\\\\server\\share\\session.json",
+      "rawTranscript=private-row",
+      "raw_session=private-row",
+      "sessionId=private-session",
+      "session_marker=private-session",
+      "sessionKey=agent:main:discord:channel:synthetic",
+      "session_key=agent:main:slack:channel:synthetic",
+      "session-key=agent:main:web:synthetic",
+      "sessionFile=main.jsonl",
+      "session_path=sessions/main.jsonl",
+      "sessionFiles=[main.jsonl]",
+      "sessionKeys=[agent:main:web:synthetic]",
+      "rawSessions=[synthetic-session]",
+      "tenantId=private-tenant",
+      "instanceId=private-instance",
+      "customerId=private-customer",
+      "absolutePath=private-path",
+    ];
+    await shortTermTesting.writeRawRecallStore(workspaceDir, {
+      version: 1,
+      updatedAt: observedAt,
+      entries: Object.fromEntries(
+        unsafeSnippets.map((snippet, index) => [
+          `unsafe-${index}`,
+          {
+            key: `unsafe-${index}`,
+            path: "memory/2026-07-12.md",
+            startLine: index + 1,
+            endLine: index + 1,
+            source: "memory",
+            snippet,
+            recallCount: 1,
+            dailyCount: 1,
+            groundedCount: 1,
+            totalScore: 1,
+            maxScore: 1,
+            firstRecalledAt: observedAt,
+            lastRecalledAt: observedAt,
+            queryHashes: [],
+            recallDays: ["2026-07-12"],
+            conceptTags: [],
+          },
+        ]),
+      ),
+    });
+
+    const snapshot = await buildMemoryTapSnapshot({
+      cfg: dreamingConfig(workspaceDir, "inline"),
+      agentId: "main",
+      workspaceDir,
+      request: normalizeMemoryTapSnapshotParams({ kinds: ["memory"] }, nowMs),
+      nowMs,
+    });
+
+    expect(snapshot.candidates).toEqual([]);
+    expect(snapshot.provenance.filteredSecretCount).toBe(0);
+    expect(snapshot.health.checks).toContainEqual({
+      id: "artifact-provenance",
+      status: "warn",
+      detail: `filtered raw evidence=${unsafeSnippets.length}`,
+    });
+    for (const snippet of unsafeSnippets) {
+      expect(JSON.stringify(snapshot)).not.toContain(snippet);
+    }
+  });
+});
+
+describe("inspectMemoryTapSearchHealth", () => {
+  const builtinConfig = (params: {
+    enabled?: boolean;
+    provider?: string;
+    vector?: boolean;
+    fullText?: boolean;
+  }): OpenClawConfig =>
+    ({
+      agents: {
+        defaults: {
+          workspace: "/tmp/memory-tap-search-health",
+          memorySearch: {
+            enabled: params.enabled ?? true,
+            provider: params.provider ?? "openai",
+            store: { vector: { enabled: params.vector ?? true } },
+            query: { hybrid: { enabled: params.fullText ?? true } },
+          },
+        },
+      },
+    }) as OpenClawConfig;
+
+  const qmdConfig = (searchMode: "query" | "search" | "vsearch"): OpenClawConfig =>
+    ({
+      agents: { defaults: { workspace: "/tmp/memory-tap-search-health" } },
+      memory: { backend: "qmd", qmd: { searchMode } },
+    }) as OpenClawConfig;
+
+  it.each([
+    {
+      label: "disabled builtin search",
+      cfg: builtinConfig({ enabled: false }),
+      expected: { status: "error", detail: "search unavailable" },
+    },
+    {
+      label: "builtin FTS-only",
+      cfg: builtinConfig({ provider: "none" }),
+      expected: { status: "warn", detail: "full-text-only search configured" },
+    },
+    {
+      label: "builtin with no configured search path",
+      cfg: builtinConfig({ provider: "none", fullText: false }),
+      expected: { status: "error", detail: "search unavailable" },
+    },
+    {
+      label: "builtin vectors disabled with FTS",
+      cfg: builtinConfig({ vector: false }),
+      expected: { status: "warn", detail: "full-text-only search configured" },
+    },
+    {
+      label: "builtin hybrid",
+      cfg: builtinConfig({}),
+      expected: { status: "ok", detail: "hybrid search configured" },
+    },
+    {
+      label: "builtin vector-only",
+      cfg: builtinConfig({ fullText: false }),
+      expected: { status: "ok", detail: "vector search configured" },
+    },
+    {
+      label: "QMD lexical-only",
+      cfg: qmdConfig("search"),
+      expected: { status: "warn", detail: "full-text-only search configured" },
+    },
+    {
+      label: "QMD hybrid",
+      cfg: qmdConfig("query"),
+      expected: { status: "ok", detail: "hybrid search configured" },
+    },
+    {
+      label: "QMD vector-only",
+      cfg: qmdConfig("vsearch"),
+      expected: { status: "ok", detail: "vector search configured" },
+    },
+  ] satisfies Array<{
+    label: string;
+    cfg: OpenClawConfig;
+    expected: { status: string; detail: string };
+  }>)("classifies $label without a live provider probe", ({ cfg, expected }) => {
+    expect(inspectMemoryTapSearchHealth({ cfg, agentId: "main" })).toEqual(expected);
   });
 });
