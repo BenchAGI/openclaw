@@ -17,6 +17,7 @@ import type { TSchema } from "typebox";
 import { configureMemoryCoreDreamingState } from "./src/dreaming-state.js";
 import { registerShortTermPromotionDreaming } from "./src/dreaming.js";
 import { buildMemoryFlushPlan } from "./src/flush-plan.js";
+import { registerMemoryTapGatewayMethod } from "./src/memory-tap-gateway.js";
 import { buildPromptSection } from "./src/prompt-section.js";
 
 type MemoryToolsModule = typeof import("./src/tools.js");
@@ -185,6 +186,7 @@ export default definePluginEntry({
       api.runtime.state.openKeyedStore<T>(options),
     );
     registerShortTermPromotionDreaming(api);
+    registerMemoryTapGatewayMethod(api);
     api.registerMemoryCapability({
       promptBuilder: buildPromptSection,
       flushPlanResolver: buildMemoryFlushPlan,
