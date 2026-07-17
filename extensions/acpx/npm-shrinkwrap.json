@@ -701,7 +701,6 @@
       "version": "0.15.0",
       "resolved": "https://registry.npmjs.org/@zed-industries/codex-acp/-/codex-acp-0.15.0.tgz",
       "integrity": "sha512-eAv7sGBeiYrYkOulF729nrM51szS7WIhBtugRj5wWq6csRKZUhAZfoUZlF8xUWdHPtOIzd/eT6MNG6gMHu6z0w==",
-      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates.",
       "license": "Apache-2.0",
       "bin": {
         "codex-acp": "bin/codex-acp.js"
@@ -713,7 +712,8 @@
         "@zed-industries/codex-acp-linux-x64": "0.15.0",
         "@zed-industries/codex-acp-win32-arm64": "0.15.0",
         "@zed-industries/codex-acp-win32-x64": "0.15.0"
-      }
+      },
+      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates."
     },
     "node_modules/@zed-industries/codex-acp-darwin-arm64": {
       "version": "0.15.0",
@@ -722,7 +722,6 @@
       "cpu": [
         "arm64"
       ],
-      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates.",
       "license": "Apache-2.0",
       "optional": true,
       "os": [
@@ -730,7 +729,8 @@
       ],
       "bin": {
         "codex-acp-darwin-arm64": "bin/codex-acp"
-      }
+      },
+      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates."
     },
     "node_modules/@zed-industries/codex-acp-darwin-x64": {
       "version": "0.15.0",
@@ -739,7 +739,6 @@
       "cpu": [
         "x64"
       ],
-      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates.",
       "license": "Apache-2.0",
       "optional": true,
       "os": [
@@ -747,7 +746,8 @@
       ],
       "bin": {
         "codex-acp-darwin-x64": "bin/codex-acp"
-      }
+      },
+      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates."
     },
     "node_modules/@zed-industries/codex-acp-linux-arm64": {
       "version": "0.15.0",
@@ -756,7 +756,6 @@
       "cpu": [
         "arm64"
       ],
-      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates.",
       "license": "Apache-2.0",
       "optional": true,
       "os": [
@@ -764,7 +763,8 @@
       ],
       "bin": {
         "codex-acp-linux-arm64": "bin/codex-acp"
-      }
+      },
+      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates."
     },
     "node_modules/@zed-industries/codex-acp-linux-x64": {
       "version": "0.15.0",
@@ -773,7 +773,6 @@
       "cpu": [
         "x64"
       ],
-      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates.",
       "license": "Apache-2.0",
       "optional": true,
       "os": [
@@ -781,7 +780,8 @@
       ],
       "bin": {
         "codex-acp-linux-x64": "bin/codex-acp"
-      }
+      },
+      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates."
     },
     "node_modules/@zed-industries/codex-acp-win32-arm64": {
       "version": "0.15.0",
@@ -790,7 +790,6 @@
       "cpu": [
         "arm64"
       ],
-      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates.",
       "license": "Apache-2.0",
       "optional": true,
       "os": [
@@ -798,7 +797,8 @@
       ],
       "bin": {
         "codex-acp-win32-arm64": "bin/codex-acp.exe"
-      }
+      },
+      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates."
     },
     "node_modules/@zed-industries/codex-acp-win32-x64": {
       "version": "0.15.0",
@@ -807,7 +807,6 @@
       "cpu": [
         "x64"
       ],
-      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates.",
       "license": "Apache-2.0",
       "optional": true,
       "os": [
@@ -815,7 +814,8 @@
       ],
       "bin": {
         "codex-acp-win32-x64": "bin/codex-acp.exe"
-      }
+      },
+      "deprecated": "This package has been replaced by @agentclientprotocol/codex-acp. Please migrate to continue receiving updates."
     },
     "node_modules/accepts": {
       "version": "2.0.0",
