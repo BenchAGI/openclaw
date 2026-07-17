@@ -88,7 +88,7 @@ openclaw plugins install @openclaw/slack
   <Tab title="Socket Mode (default)">
     <Steps>
       <Step title="Create a new Slack app">
-        Open [api.slack.com/apps](https://api.slack.com/apps/new) → **Create New App** → **From a manifest** → select your workspace → paste one of the manifests below → **Next** → **Create**.
+        Open [api.slack.com/apps](https://api.slack.com/apps/new) → **Create New App** → **From scratch** → select your workspace and create the app. Then open **Agents & AI Apps**, enable the Agent experience, open **App Manifest**, paste one of the manifests below, and save it.
 
         <CodeGroup>
 
@@ -105,6 +105,9 @@ openclaw plugins install @openclaw/slack
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
+    "agent_view": {
+      "agent_description": "OpenClaw connects Slack conversations to OpenClaw agents."
+    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -117,6 +120,7 @@ openclaw plugins install @openclaw/slack
     "scopes": {
       "bot": [
         "app_mentions:read",
+        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -146,6 +150,7 @@ openclaw plugins install @openclaw/slack
     "event_subscriptions": {
       "bot_events": [
         "app_home_opened",
+        "app_context_changed",
         "app_mention",
         "channel_rename",
         "member_joined_channel",
@@ -177,6 +182,9 @@ openclaw plugins install @openclaw/slack
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
+    "agent_view": {
+      "agent_description": "OpenClaw connects Slack conversations to OpenClaw agents."
+    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -189,6 +197,7 @@ openclaw plugins install @openclaw/slack
     "scopes": {
       "bot": [
         "app_mentions:read",
+        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -207,6 +216,7 @@ openclaw plugins install @openclaw/slack
     "event_subscriptions": {
       "bot_events": [
         "app_home_opened",
+        "app_context_changed",
         "app_mention",
         "message.channels",
         "message.groups",
@@ -220,7 +230,7 @@ openclaw plugins install @openclaw/slack
         </CodeGroup>
 
         <Note>
-          **Recommended** matches the Slack plugin's full feature set: App Home, slash commands, files, reactions, pins, group DMs, and emoji/usergroup reads. Pick **Minimal** when workspace policy restricts scopes — it covers DMs, channel/group history, mentions, and slash commands but drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read`. Both default manifests intentionally leave Slack's AI assistant view off so DMs arrive through `message.im`; see [Manifest and scope checklist](#manifest-and-scope-checklist) for per-scope rationale and opt-in additions.
+          **Recommended** matches the Slack plugin's full feature set: App Home, slash commands, files, reactions, pins, group DMs, and emoji/usergroup reads. Pick **Minimal** when workspace policy restricts scopes — it covers Agent DMs, channel/group history, mentions, and slash commands but drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read`. Both manifests use Slack's current Agent messaging experience. Slack Agents can require a paid Slack plan and are unavailable to workspace guests; use an ordinary non-Agent Slack app instead when either constraint applies.
         </Note>
 
         After Slack creates the app:
@@ -276,7 +286,7 @@ openclaw gateway
   <Tab title="HTTP Request URLs">
     <Steps>
       <Step title="Create a new Slack app">
-        Open [api.slack.com/apps](https://api.slack.com/apps/new) → **Create New App** → **From a manifest** → select your workspace → paste one of the manifests below → replace `https://gateway-host.example.com/slack/events` with your public Gateway URL → **Next** → **Create**.
+        Open [api.slack.com/apps](https://api.slack.com/apps/new) → **Create New App** → **From scratch** → select your workspace and create the app. Then open **Agents & AI Apps**, enable the Agent experience, open **App Manifest**, paste one of the manifests below, replace `https://gateway-host.example.com/slack/events` with your public Gateway URL, and save it.
 
         <CodeGroup>
 
@@ -293,6 +303,9 @@ openclaw gateway
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
+    "agent_view": {
+      "agent_description": "OpenClaw connects Slack conversations to OpenClaw agents."
+    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -306,6 +319,7 @@ openclaw gateway
     "scopes": {
       "bot": [
         "app_mentions:read",
+        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -335,6 +349,7 @@ openclaw gateway
       "request_url": "https://gateway-host.example.com/slack/events",
       "bot_events": [
         "app_home_opened",
+        "app_context_changed",
         "app_mention",
         "channel_rename",
         "member_joined_channel",
@@ -371,6 +386,9 @@ openclaw gateway
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
+    "agent_view": {
+      "agent_description": "OpenClaw connects Slack conversations to OpenClaw agents."
+    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -384,6 +402,7 @@ openclaw gateway
     "scopes": {
       "bot": [
         "app_mentions:read",
+        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -402,6 +421,7 @@ openclaw gateway
       "request_url": "https://gateway-host.example.com/slack/events",
       "bot_events": [
         "app_home_opened",
+        "app_context_changed",
         "app_mention",
         "message.channels",
         "message.groups",
@@ -420,7 +440,7 @@ openclaw gateway
         </CodeGroup>
 
         <Note>
-          **Recommended** matches the Slack plugin's full feature set; **Minimal** drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read` for restrictive workspaces. Both default manifests intentionally leave Slack's AI assistant view off so DMs arrive through `message.im`; see [Manifest and scope checklist](#manifest-and-scope-checklist) for per-scope rationale.
+          **Recommended** matches the Slack plugin's full feature set; **Minimal** drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read` for restrictive workspaces. Both manifests use Slack's current Agent messaging experience. Slack Agents can require a paid Slack plan and are unavailable to workspace guests; use an ordinary non-Agent Slack app instead when either constraint applies.
         </Note>
 
         <Info>
@@ -525,6 +545,9 @@ Base manifest (Socket Mode default):
       "messages_tab_enabled": true,
       "messages_tab_read_only_enabled": false
     },
+    "agent_view": {
+      "agent_description": "OpenClaw connects Slack conversations to OpenClaw agents."
+    },
     "slash_commands": [
       {
         "command": "/openclaw",
@@ -537,6 +560,7 @@ Base manifest (Socket Mode default):
     "scopes": {
       "bot": [
         "app_mentions:read",
+        "assistant:write",
         "channels:history",
         "channels:read",
         "chat:write",
@@ -566,6 +590,7 @@ Base manifest (Socket Mode default):
     "event_subscriptions": {
       "bot_events": [
         "app_home_opened",
+        "app_context_changed",
         "app_mention",
         "channel_rename",
         "member_joined_channel",
