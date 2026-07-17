@@ -143,7 +143,7 @@ describe("slackSetupWizard.prepare", () => {
     expect(lines.join("\n")).toContain("Agent experience or an ordinary bot");
     expect(lines.join("\n")).not.toContain("Manifest (JSON):");
     expect(lines.join("\n")).not.toContain('"display_information"');
-    expect(lines.join("\n")).toContain("matching setup steps and manifest JSON");
+    expect(lines.join("\n")).toContain("quickstart uses the universally supported ordinary bot");
   });
 
   it("prints the manifest as plain JSON when Slack is not configured", async () => {
@@ -296,20 +296,27 @@ describe("slackSetupWizard.prepare", () => {
     expect(manifest.settings.event_subscriptions.bot_events).toContain("message.im");
   });
 
-  it("uses the ordinary bot manifest for non-interactive quickstart", async () => {
+  it("uses the universally supported ordinary bot manifest for quickstart", async () => {
     const plain = vi.fn<NonNullable<WizardPrompter["plain"]>>(async () => {});
+    const select = vi.fn(async () => "agent");
 
     await runSetupWizardPrepare({
       prepare: slackSetupWizard.prepare,
       cfg: { channels: { slack: {} } } as OpenClawConfig,
       options: { quickstartDefaults: true },
-      prompter: createTestWizardPrompter({ plain }),
+      prompter: createTestWizardPrompter({
+        plain,
+        select: select as WizardPrompter["select"],
+      }),
     });
 
+    expect(select).not.toHaveBeenCalled();
     const manifest = JSON.parse(requireFirstStringArg(plain, "Slack quickstart manifest")) as {
       features: { agent_view?: unknown };
+      oauth_config: { scopes: { bot: string[] } };
     };
     expect(manifest.features.agent_view).toBeUndefined();
+    expect(manifest.oauth_config.scopes.bot).not.toContain("assistant:write");
   });
 
   it("does not print the manifest after Slack credentials are configured", async () => {

@@ -121,7 +121,7 @@ export function buildSlackSetupChoiceLines(): string[] {
   return [
     "Slack can be installed as an Agent experience or an ordinary bot.",
     "Agent mode uses Slack's current Agent schema but may require a paid plan and is unavailable to workspace guests.",
-    "Choose a mode next; the wizard will print matching setup steps and manifest JSON.",
+    "Interactive setup asks which mode to use; quickstart uses the universally supported ordinary bot manifest.",
   ];
 }
 

@@ -127,6 +127,24 @@ describe("resolveSlackThreadTargets", () => {
     }
   });
 
+  it("keeps Agent DM root replies and status updates in the Slack thread", () => {
+    const { replyThreadTs, statusThreadTs, isThreadReply } = resolveSlackThreadTargets({
+      replyToMode: "off",
+      isDirectMessage: true,
+      message: {
+        type: "message",
+        channel: "D1",
+        channel_type: "im",
+        ts: "123",
+        thread_ts: "123",
+      },
+    });
+
+    expect(isThreadReply).toBe(false);
+    expect(replyThreadTs).toBe("123");
+    expect(statusThreadTs).toBe("123");
+  });
+
   it("uses normalized direct-message state for DM assistant thread-root messages", () => {
     for (const channelType of ["channel", undefined] as const) {
       const message = {
