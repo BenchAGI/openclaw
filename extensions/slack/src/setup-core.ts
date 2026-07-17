@@ -27,6 +27,7 @@ import { inspectSlackAccount } from "./account-inspect.js";
 import { resolveSlackAccount } from "./accounts.js";
 import {
   buildSlackManifest,
+  buildSlackSetupChoiceLines,
   buildSlackSetupLines,
   isSlackSetupAccountConfigured,
   SLACK_CHANNEL as channel,
@@ -179,15 +180,34 @@ export function createSlackSetupWizardBase(handlers: {
     }),
     introNote: {
       title: t("wizard.slack.socketModeTokensTitle"),
-      lines: buildSlackSetupLines(),
+      lines: buildSlackSetupChoiceLines(),
       shouldShow: ({ cfg, accountId }) =>
         !isSlackSetupAccountConfigured(resolveSlackAccount({ cfg, accountId })),
     },
-    prepare: async ({ cfg, accountId, prompter }) => {
+    prepare: async ({ cfg, accountId, prompter, options }) => {
       if (isSlackSetupAccountConfigured(resolveSlackAccount({ cfg, accountId }))) {
         return;
       }
-      const manifest = buildSlackManifest();
+      const mode = options?.quickstartDefaults
+        ? "agent"
+        : ((await prompter.select({
+            message: "Choose the Slack app experience",
+            options: [
+              {
+                value: "agent",
+                label: "Agent experience (recommended)",
+                hint: "Current Slack Agent schema; plan eligibility required",
+              },
+              {
+                value: "bot",
+                label: "Ordinary bot",
+                hint: "Works for guests and workspaces without Agent access",
+              },
+            ],
+            initialValue: "agent",
+          })) as "agent" | "bot");
+      await prompter.note(buildSlackSetupLines(mode).join("\n"), "Slack app setup");
+      const manifest = buildSlackManifest("OpenClaw", mode);
       if (prompter.plain) {
         await prompter.plain(manifest);
       } else {

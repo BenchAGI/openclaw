@@ -8,7 +8,11 @@ import {
 import type { WizardPrompter } from "openclaw/plugin-sdk/plugin-test-runtime";
 import { describe, expect, it, vi } from "vitest";
 import { createSlackSetupWizardBase } from "./setup-core.js";
-import { buildSlackManifest, buildSlackSetupLines } from "./setup-shared.js";
+import {
+  buildSlackManifest,
+  buildSlackSetupChoiceLines,
+  buildSlackSetupLines,
+} from "./setup-shared.js";
 
 const slackSetupWizard = createSlackSetupWizardBase({
   promptAllowFrom: async ({ cfg }) => cfg,
@@ -72,6 +76,16 @@ describe("buildSlackManifest", () => {
     const manifest = JSON.parse(buildSlackManifest("Aurelius COO Agent")) as SlackManifest;
     expect(manifest.features.bot_user.display_name).toBe("aurelius-coo-agent");
   });
+
+  it("preserves an ordinary bot manifest for guests and workspaces without Agent access", () => {
+    const manifest = JSON.parse(buildSlackManifest("OpenClaw", "bot")) as SlackManifest;
+
+    expect(manifest.features.agent_view).toBeUndefined();
+    expect(manifest.features.assistant_view).toBeUndefined();
+    expect(manifest.oauth_config.scopes.bot).not.toContain("assistant:write");
+    expect(manifest.settings.event_subscriptions.bot_events).not.toContain("app_context_changed");
+    expect(manifest.settings.event_subscriptions.bot_events).toContain("message.im");
+  });
 });
 
 describe("slackSetupWizard.finalize", () => {
@@ -124,17 +138,18 @@ describe("slackSetupWizard.finalize", () => {
 
 describe("slackSetupWizard.prepare", () => {
   it("keeps the manifest out of framed intro note lines", () => {
-    const lines = buildSlackSetupLines();
+    const lines = buildSlackSetupChoiceLines();
 
-    expect(lines).toContain("2) Agents & AI Apps -> enable the Agent experience");
+    expect(lines.join("\n")).toContain("Agent experience or an ordinary bot");
     expect(lines.join("\n")).not.toContain("Manifest (JSON):");
     expect(lines.join("\n")).not.toContain('"display_information"');
-    expect(lines).toContain("Manifest JSON follows as plain text for copy/paste.");
+    expect(lines.join("\n")).toContain("matching setup steps and manifest JSON");
   });
 
   it("prints the manifest as plain JSON when Slack is not configured", async () => {
     const plain = vi.fn<NonNullable<WizardPrompter["plain"]>>(async () => {});
     const note = vi.fn(async () => {});
+    const select = vi.fn(async () => "agent");
 
     await runSetupWizardPrepare({
       prepare: slackSetupWizard.prepare,
@@ -142,11 +157,28 @@ describe("slackSetupWizard.prepare", () => {
       prompter: createTestWizardPrompter({
         plain,
         note,
+        select: select as WizardPrompter["select"],
       }),
     });
 
     expect(plain).toHaveBeenCalledTimes(1);
-    expect(note).not.toHaveBeenCalled();
+    expect(select).toHaveBeenCalledWith({
+      message: "Choose the Slack app experience",
+      options: [
+        {
+          value: "agent",
+          label: "Agent experience (recommended)",
+          hint: "Current Slack Agent schema; plan eligibility required",
+        },
+        {
+          value: "bot",
+          label: "Ordinary bot",
+          hint: "Works for guests and workspaces without Agent access",
+        },
+      ],
+      initialValue: "agent",
+    });
+    expect(note).toHaveBeenCalledWith(buildSlackSetupLines("agent").join("\n"), "Slack app setup");
     const manifest = requireFirstStringArg(plain, "Slack manifest plain text");
     expect(JSON.parse(manifest)).toEqual({
       display_information: {
@@ -239,6 +271,29 @@ describe("slackSetupWizard.prepare", () => {
         },
       },
     });
+  });
+
+  it("prints an ordinary bot manifest when selected", async () => {
+    const plain = vi.fn<NonNullable<WizardPrompter["plain"]>>(async () => {});
+
+    await runSetupWizardPrepare({
+      prepare: slackSetupWizard.prepare,
+      cfg: { channels: { slack: {} } } as OpenClawConfig,
+      prompter: createTestWizardPrompter({
+        plain,
+        select: vi.fn(async () => "bot") as WizardPrompter["select"],
+      }),
+    });
+
+    const manifest = JSON.parse(requireFirstStringArg(plain, "Slack bot manifest")) as {
+      features: { agent_view?: unknown };
+      oauth_config: { scopes: { bot: string[] } };
+      settings: { event_subscriptions: { bot_events: string[] } };
+    };
+    expect(manifest.features.agent_view).toBeUndefined();
+    expect(manifest.oauth_config.scopes.bot).not.toContain("assistant:write");
+    expect(manifest.settings.event_subscriptions.bot_events).not.toContain("app_context_changed");
+    expect(manifest.settings.event_subscriptions.bot_events).toContain("message.im");
   });
 
   it("does not print the manifest after Slack credentials are configured", async () => {

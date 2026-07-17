@@ -9,7 +9,9 @@ import type { OpenClawConfig } from "./channel-api.js";
 
 export const SLACK_CHANNEL = "slack" as const;
 
-export function buildSlackManifest(botName = "OpenClaw") {
+export type SlackManifestMode = "agent" | "bot";
+
+export function buildSlackManifest(botName = "OpenClaw", mode: SlackManifestMode = "agent") {
   const safeName = botName.trim() || "OpenClaw";
   const botDisplayName =
     safeName
@@ -32,23 +34,27 @@ export function buildSlackManifest(botName = "OpenClaw") {
         messages_tab_enabled: true,
         messages_tab_read_only_enabled: false,
       },
-      agent_view: {
-        agent_description: `${safeName} connects Slack conversations to OpenClaw agents.`,
-        suggested_prompts: [
-          {
-            title: "What can you do?",
-            message: "What can you help me with?",
-          },
-          {
-            title: "Summarize this channel",
-            message: "Summarize the recent activity in this channel.",
-          },
-          {
-            title: "Draft a reply",
-            message: "Help me draft a reply.",
-          },
-        ],
-      },
+      ...(mode === "agent"
+        ? {
+            agent_view: {
+              agent_description: `${safeName} connects Slack conversations to OpenClaw agents.`,
+              suggested_prompts: [
+                {
+                  title: "What can you do?",
+                  message: "What can you help me with?",
+                },
+                {
+                  title: "Summarize this channel",
+                  message: "Summarize the recent activity in this channel.",
+                },
+                {
+                  title: "Draft a reply",
+                  message: "Help me draft a reply.",
+                },
+              ],
+            },
+          }
+        : {}),
       slash_commands: [
         {
           command: "/openclaw",
@@ -61,7 +67,7 @@ export function buildSlackManifest(botName = "OpenClaw") {
       scopes: {
         bot: [
           "app_mentions:read",
-          "assistant:write",
+          ...(mode === "agent" ? ["assistant:write"] : []),
           "channels:history",
           "channels:read",
           "chat:write",
@@ -91,7 +97,7 @@ export function buildSlackManifest(botName = "OpenClaw") {
       event_subscriptions: {
         bot_events: [
           "app_home_opened",
-          "app_context_changed",
+          ...(mode === "agent" ? ["app_context_changed"] : []),
           "app_mention",
           "channel_rename",
           "member_joined_channel",
@@ -111,10 +117,22 @@ export function buildSlackManifest(botName = "OpenClaw") {
   return JSON.stringify(manifest, null, 2);
 }
 
-export function buildSlackSetupLines(): string[] {
+export function buildSlackSetupChoiceLines(): string[] {
+  return [
+    "Slack can be installed as an Agent experience or an ordinary bot.",
+    "Agent mode uses Slack's current Agent schema but may require a paid plan and is unavailable to workspace guests.",
+    "Choose a mode next; the wizard will print matching setup steps and manifest JSON.",
+  ];
+}
+
+export function buildSlackSetupLines(mode: SlackManifestMode = "agent"): string[] {
+  const modeStep =
+    mode === "agent"
+      ? "2) Agents & AI Apps -> enable the Agent experience"
+      : "2) Keep Agents & AI Apps disabled for an ordinary bot install";
   return [
     "1) Slack API -> Create App -> From scratch, then name the app",
-    "2) Agents & AI Apps -> enable the Agent experience",
+    modeStep,
     "3) App Manifest -> paste the JSON below and save it",
     "4) Add Socket Mode + enable it to get the app-level token (xapp-...)",
     "5) Install App to workspace to get the xoxb- bot token",

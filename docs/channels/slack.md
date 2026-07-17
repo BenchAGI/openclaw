@@ -230,7 +230,7 @@ openclaw plugins install @openclaw/slack
         </CodeGroup>
 
         <Note>
-          **Recommended** matches the Slack plugin's full feature set: App Home, slash commands, files, reactions, pins, group DMs, and emoji/usergroup reads. Pick **Minimal** when workspace policy restricts scopes — it covers Agent DMs, channel/group history, mentions, and slash commands but drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read`. Both manifests use Slack's current Agent messaging experience. Slack Agents can require a paid Slack plan and are unavailable to workspace guests; use an ordinary non-Agent Slack app instead when either constraint applies.
+          **Recommended** matches the Slack plugin's full feature set: App Home, slash commands, files, reactions, pins, group DMs, and emoji/usergroup reads. Pick **Minimal** when workspace policy restricts scopes — it covers Agent DMs, channel/group history, mentions, and slash commands but drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read`. Both manifests use Slack's current Agent messaging experience. Slack Agents can require a paid Slack plan and are unavailable to workspace guests; the interactive OpenClaw setup wizard can generate an ordinary non-Agent manifest when either constraint applies.
         </Note>
 
         After Slack creates the app:
@@ -440,7 +440,7 @@ openclaw gateway
         </CodeGroup>
 
         <Note>
-          **Recommended** matches the Slack plugin's full feature set; **Minimal** drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read` for restrictive workspaces. Both manifests use Slack's current Agent messaging experience. Slack Agents can require a paid Slack plan and are unavailable to workspace guests; use an ordinary non-Agent Slack app instead when either constraint applies.
+          **Recommended** matches the Slack plugin's full feature set; **Minimal** drops files, reactions, pins, group-DM (`mpim:*`), `emoji:read`, and `usergroups:read` for restrictive workspaces. Both manifests use Slack's current Agent messaging experience. Slack Agents can require a paid Slack plan and are unavailable to workspace guests; the interactive OpenClaw setup wizard can generate an ordinary non-Agent manifest when either constraint applies.
         </Note>
 
         <Info>
