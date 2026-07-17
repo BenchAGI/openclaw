@@ -40,46 +40,37 @@ function requireFirstStringArg(mock: ReturnType<typeof vi.fn>, label: string): s
 
 describe("buildSlackManifest", () => {
   type SlackManifest = {
-    features: { assistant_view?: unknown };
+    features: {
+      agent_view?: unknown;
+      assistant_view?: unknown;
+      bot_user: { display_name: string };
+    };
     oauth_config: { scopes: { bot: string[] } };
     settings: { event_subscriptions: { bot_events: string[] } };
   };
 
-  it("omits the AI assistant view by default so DMs reach the bot via message.im", () => {
+  it("uses Slack's current Agent experience and DM events", () => {
     const manifest = JSON.parse(buildSlackManifest()) as SlackManifest;
 
-    // The assistant pane silently drops DMs; the default install must not declare it.
+    expect(manifest.features.agent_view).toBeDefined();
     expect(manifest.features.assistant_view).toBeUndefined();
-    expect(manifest.oauth_config.scopes.bot).not.toContain("assistant:write");
+    expect(manifest.features.bot_user.display_name).toBe("openclaw");
+    expect(manifest.oauth_config.scopes.bot).toContain("assistant:write");
+    expect(manifest.settings.event_subscriptions.bot_events).toContain("app_context_changed");
     expect(manifest.settings.event_subscriptions.bot_events).not.toContain(
       "assistant_thread_started",
     );
     expect(manifest.settings.event_subscriptions.bot_events).not.toContain(
       "assistant_thread_context_changed",
     );
-    // DMs still arrive through the normal message.im subscription.
     expect(manifest.settings.event_subscriptions.bot_events).toContain("message.im");
     expect(manifest.oauth_config.scopes.bot).toContain("im:history");
     expect(manifest.oauth_config.scopes.bot).toContain("im:write");
   });
 
-  it("includes the assistant view (pane + scope + thread events) when opted in", () => {
-    const manifest = JSON.parse(
-      buildSlackManifest("Aurelius", { assistantView: true }),
-    ) as SlackManifest;
-
-    expect(manifest.features.assistant_view).toBeDefined();
-    expect(manifest.oauth_config.scopes.bot).toContain("assistant:write");
-    expect(manifest.settings.event_subscriptions.bot_events).toContain("assistant_thread_started");
-    expect(manifest.settings.event_subscriptions.bot_events).toContain(
-      "assistant_thread_context_changed",
-    );
-    // Scopes stay alphabetically sorted with assistant:write spliced in.
-    expect(manifest.oauth_config.scopes.bot.slice(0, 3)).toEqual([
-      "app_mentions:read",
-      "assistant:write",
-      "channels:history",
-    ]);
+  it("normalizes custom bot names to Slack's lowercase display-name contract", () => {
+    const manifest = JSON.parse(buildSlackManifest("Aurelius COO Agent")) as SlackManifest;
+    expect(manifest.features.bot_user.display_name).toBe("aurelius-coo-agent");
   });
 });
 
@@ -135,6 +126,7 @@ describe("slackSetupWizard.prepare", () => {
   it("keeps the manifest out of framed intro note lines", () => {
     const lines = buildSlackSetupLines();
 
+    expect(lines).toContain("2) Agents & AI Apps -> enable the Agent experience");
     expect(lines.join("\n")).not.toContain("Manifest (JSON):");
     expect(lines.join("\n")).not.toContain('"display_information"');
     expect(lines).toContain("Manifest JSON follows as plain text for copy/paste.");
@@ -163,13 +155,30 @@ describe("slackSetupWizard.prepare", () => {
       },
       features: {
         bot_user: {
-          display_name: "OpenClaw",
+          display_name: "openclaw",
           always_online: true,
         },
         app_home: {
           home_tab_enabled: true,
           messages_tab_enabled: true,
           messages_tab_read_only_enabled: false,
+        },
+        agent_view: {
+          agent_description: "OpenClaw connects Slack conversations to OpenClaw agents.",
+          suggested_prompts: [
+            {
+              title: "What can you do?",
+              message: "What can you help me with?",
+            },
+            {
+              title: "Summarize this channel",
+              message: "Summarize the recent activity in this channel.",
+            },
+            {
+              title: "Draft a reply",
+              message: "Help me draft a reply.",
+            },
+          ],
         },
         slash_commands: [
           {
@@ -183,6 +192,7 @@ describe("slackSetupWizard.prepare", () => {
         scopes: {
           bot: [
             "app_mentions:read",
+            "assistant:write",
             "channels:history",
             "channels:read",
             "chat:write",
@@ -212,6 +222,7 @@ describe("slackSetupWizard.prepare", () => {
         event_subscriptions: {
           bot_events: [
             "app_home_opened",
+            "app_context_changed",
             "app_mention",
             "channel_rename",
             "member_joined_channel",

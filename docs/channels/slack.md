@@ -99,7 +99,7 @@ openclaw plugins install @openclaw/slack
     "description": "Slack connector for OpenClaw"
   },
   "features": {
-    "bot_user": { "display_name": "OpenClaw", "always_online": true },
+    "bot_user": { "display_name": "openclaw", "always_online": true },
     "app_home": {
       "home_tab_enabled": true,
       "messages_tab_enabled": true,
@@ -171,7 +171,7 @@ openclaw plugins install @openclaw/slack
     "description": "Slack connector for OpenClaw"
   },
   "features": {
-    "bot_user": { "display_name": "OpenClaw", "always_online": true },
+    "bot_user": { "display_name": "openclaw", "always_online": true },
     "app_home": {
       "home_tab_enabled": true,
       "messages_tab_enabled": true,
@@ -287,7 +287,7 @@ openclaw gateway
     "description": "Slack connector for OpenClaw"
   },
   "features": {
-    "bot_user": { "display_name": "OpenClaw", "always_online": true },
+    "bot_user": { "display_name": "openclaw", "always_online": true },
     "app_home": {
       "home_tab_enabled": true,
       "messages_tab_enabled": true,
@@ -365,7 +365,7 @@ openclaw gateway
     "description": "Slack connector for OpenClaw"
   },
   "features": {
-    "bot_user": { "display_name": "OpenClaw", "always_online": true },
+    "bot_user": { "display_name": "openclaw", "always_online": true },
     "app_home": {
       "home_tab_enabled": true,
       "messages_tab_enabled": true,
@@ -519,7 +519,7 @@ Base manifest (Socket Mode default):
     "description": "Slack connector for OpenClaw"
   },
   "features": {
-    "bot_user": { "display_name": "OpenClaw", "always_online": true },
+    "bot_user": { "display_name": "openclaw", "always_online": true },
     "app_home": {
       "home_tab_enabled": true,
       "messages_tab_enabled": true,
@@ -630,19 +630,21 @@ For **HTTP Request URLs mode**, replace `settings` with the HTTP variant and add
 
 Surface different features that extend the above defaults.
 
-The default manifest enables the Slack App Home **Home** tab and subscribes to `app_home_opened`. When a workspace member opens the Home tab, OpenClaw publishes a safe default Home view with `views.publish`; no conversation payload or private configuration is included. The **Messages** tab remains enabled for Slack DMs, and the default event list keeps `message.im` so direct messages arrive through the normal message path. Slack's AI assistant view is opt-in because Slack routes assistant-enabled DMs through assistant threads, while OpenClaw's normal DM path expects ordinary `message.im` events.
+The default manifest enables Slack's current Agent messaging experience with
+`features.agent_view`. It subscribes to `app_home_opened`,
+`app_context_changed`, and `message.im`, so direct messages continue through
+OpenClaw's normal message path while Slack can attach the user's active context.
+New Slack apps cannot use the legacy `assistant_view` experience.
 
 <AccordionGroup>
-  <Accordion title="Optional Slack AI assistant view">
-    Slack's [app manifest reference](https://docs.slack.dev/reference/app-manifest/) lists `features.assistant_view` as optional, and Slack's [agent guide](https://docs.slack.dev/ai/developing-agents/) requires `assistant:write` plus `assistant_thread_started`, `assistant_thread_context_changed`, and `message.im` subscriptions for apps that enable the assistant surface.
-
-    Keep this off for normal DM-first installs. Add it only when you explicitly want Slack's assistant container and have tested the assistant-thread post-back path in your workspace. Merge these fields into the existing manifest; do not replace the existing scope or event arrays.
+  <Accordion title="Slack Agent messaging experience">
+    Slack's [app manifest reference](https://docs.slack.dev/reference/app-manifest/) requires new apps to use `features.agent_view`. Before importing the generated manifest, create the app from scratch and enable **Agents & AI Apps > Agent experience**. Do not add `features.assistant_view` or the legacy `assistant_thread_*` subscriptions.
 
 ```json
 {
   "features": {
-    "assistant_view": {
-      "assistant_description": "OpenClaw connects Slack assistant threads to OpenClaw agents.",
+    "agent_view": {
+      "agent_description": "OpenClaw connects Slack conversations to OpenClaw agents.",
       "suggested_prompts": [
         { "title": "What can you do?", "message": "What can you help me with?" },
         {
@@ -660,7 +662,7 @@ The default manifest enables the Slack App Home **Home** tab and subscribes to `
   },
   "settings": {
     "event_subscriptions": {
-      "bot_events": ["assistant_thread_context_changed", "assistant_thread_started"]
+      "bot_events": ["app_home_opened", "app_context_changed", "message.im"]
     }
   }
 }
