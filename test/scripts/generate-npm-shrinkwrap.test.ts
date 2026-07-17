@@ -12,6 +12,7 @@ import {
   exactOverrideRulesFromOverrides,
   exactVersionFromOverrideSpec,
   normalizeNpmVersionDrift,
+  normalizeMutableRegistryMetadata,
   packageDependencyInputsChanged,
   pnpmLockOverrideVersionForVersions,
   parsePnpmPackageKey,
@@ -56,6 +57,30 @@ describe("generate-npm-shrinkwrap", () => {
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 10 * 60 * 1000,
     });
+  });
+
+  it("preserves committed deprecation metadata for an unchanged registry artifact", () => {
+    const current = {
+      packages: {
+        "node_modules/example": {
+          version: "1.2.3",
+          resolved: "https://registry.npmjs.org/example/-/example-1.2.3.tgz",
+          integrity: "sha512-same",
+        },
+      },
+    };
+    const generated = {
+      packages: {
+        "node_modules/example": {
+          version: "1.2.3",
+          resolved: "https://registry.npmjs.org/example/-/example-1.2.3.tgz",
+          integrity: "sha512-same",
+          deprecated: "new mutable registry notice",
+        },
+      },
+    };
+
+    expect(normalizeMutableRegistryMetadata(generated, current)).toEqual(current);
   });
 
   it("rejects short flag package selectors before resolving shrinkwrap targets", () => {
