@@ -111,6 +111,7 @@ let mockedReplyThreadTs: string | undefined = THREAD_TS;
 let mockedReplyThreadTsSequence: Array<string | undefined> | undefined;
 let mockedSlackReplyBlocks: unknown[] | undefined;
 let mockedSlackIsThreadReply = true;
+let mockedSlackReplyThreadTs: string | undefined = THREAD_TS;
 let capturedTyping:
   | {
       start: () => Promise<void>;
@@ -873,6 +874,7 @@ vi.mock("../../message-sent-hook.js", () => ({
 
 vi.mock("../../threading.js", () => ({
   resolveSlackThreadTargets: () => ({
+    replyThreadTs: mockedSlackReplyThreadTs,
     statusThreadTs: THREAD_TS,
     isThreadReply: mockedSlackIsThreadReply,
   }),
@@ -1252,6 +1254,7 @@ describe("dispatchPreparedSlackMessage preview fallback", () => {
     mockedReplyThreadTsSequence = undefined;
     mockedSlackReplyBlocks = undefined;
     mockedSlackIsThreadReply = true;
+    mockedSlackReplyThreadTs = THREAD_TS;
     mockedDispatchSequence = [{ kind: "final", payload: { text: FINAL_REPLY_TEXT } }];
     mockedQueuedDispatchCounts = { tool: 0, block: 0, final: 0 };
     mockedDispatcherCapturesDeliveryErrors = false;
@@ -1304,6 +1307,7 @@ describe("dispatchPreparedSlackMessage preview fallback", () => {
   it("does not create a Slack thread for top-level messages when replyToMode is off", async () => {
     mockedSlackStreamingMode = "off";
     mockedSlackIsThreadReply = false;
+    mockedSlackReplyThreadTs = undefined;
 
     await dispatchPreparedSlackMessage(createPreparedSlackMessage({ replyToMode: "off" }));
 
@@ -1316,6 +1320,23 @@ describe("dispatchPreparedSlackMessage preview fallback", () => {
     mockedSlackIsThreadReply = true;
 
     await dispatchPreparedSlackMessage(createPreparedSlackMessage({ replyToMode: "off" }));
+
+    expect(deliverRepliesMock).toHaveBeenCalledTimes(1);
+    expectDeliverReplyCall(0, FINAL_REPLY_TEXT, { replyThreadTs: THREAD_TS });
+  });
+
+  it("keeps an Agent DM root in its Slack thread when replyToMode is off", async () => {
+    mockedSlackStreamingMode = "off";
+    mockedSlackIsThreadReply = false;
+    mockedSlackReplyThreadTs = THREAD_TS;
+
+    await dispatchPreparedSlackMessage(
+      createPreparedSlackMessage({
+        replyToMode: "off",
+        isDirectMessage: true,
+        message: { ts: THREAD_TS, thread_ts: THREAD_TS },
+      }),
+    );
 
     expect(deliverRepliesMock).toHaveBeenCalledTimes(1);
     expectDeliverReplyCall(0, FINAL_REPLY_TEXT, { replyThreadTs: THREAD_TS });
@@ -3283,6 +3304,7 @@ describe("dispatchPreparedSlackMessage preview fallback", () => {
     createSlackDraftStreamMock.mockReturnValueOnce(draftStream);
     finalizeSlackPreviewEditMock.mockResolvedValueOnce(undefined);
     mockedSlackIsThreadReply = false;
+    mockedSlackReplyThreadTs = undefined;
     mockedReplyThreadTsSequence = [undefined, undefined];
     const payload = {
       text: "Spoken answer",
@@ -3324,6 +3346,7 @@ describe("dispatchPreparedSlackMessage preview fallback", () => {
     createSlackDraftStreamMock.mockReturnValueOnce(draftStream);
     finalizeSlackPreviewEditMock.mockResolvedValueOnce(undefined);
     mockedSlackIsThreadReply = false;
+    mockedSlackReplyThreadTs = undefined;
     mockedReplyThreadTsSequence = [undefined];
     const payload = {
       text: "Spoken answer",

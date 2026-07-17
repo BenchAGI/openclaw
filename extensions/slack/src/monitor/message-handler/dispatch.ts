@@ -510,11 +510,13 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
   const threadTargets = resolveSlackThreadTargets({
     message,
     replyToMode: prepared.replyToMode,
+    isDirectMessage: prepared.isDirectMessage,
   });
   const forcedReplyThreadTs = prepared.forcedReplyThreadTs;
   const slackMessageMetadata = prepared.slackMessageMetadata;
+  const resolvedReplyThreadTs = forcedReplyThreadTs ?? threadTargets.replyThreadTs;
+  const hasThreadDeliveryTarget = Boolean(resolvedReplyThreadTs);
   const statusThreadTs = forcedReplyThreadTs ?? threadTargets.statusThreadTs;
-  const isThreadReply = threadTargets.isThreadReply;
   const replyDeliveryMode = forcedReplyThreadTs ? "off" : prepared.replyToMode;
   const sourceReplyDeliveryMode = resolveChannelMessageSourceReplyDeliveryMode({
     cfg,
@@ -600,7 +602,7 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
     incomingThreadTs: forcedReplyThreadTs ?? incomingThreadTs,
     messageTs,
     hasRepliedRef,
-    isThreadReply: Boolean(forcedReplyThreadTs) || isThreadReply,
+    isThreadReply: hasThreadDeliveryTarget,
   });
 
   const typingTarget = statusThreadTs ? `${message.channel}/${statusThreadTs}` : message.channel;
@@ -681,7 +683,7 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
       replyToMode: replyDeliveryMode,
       incomingThreadTs,
       messageTs,
-      isThreadReply,
+      isThreadReply: hasThreadDeliveryTarget,
     });
   const previewStreamingEnabled =
     !sourceRepliesAreToolOnly &&
@@ -946,11 +948,9 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
     if (params.payload.isReasoning === true) {
       return undefined;
     }
-    const replyThreadTs = resolveDeliveryThreadTs(params);
+    const plannedReplyThreadTs = resolveDeliveryThreadTs(params);
     const deliveryReplyThreadTs =
-      replyDeliveryMode === "off" && !forcedReplyThreadTs && !isThreadReply
-        ? undefined
-        : replyThreadTs;
+      replyDeliveryMode === "off" && !hasThreadDeliveryTarget ? undefined : plannedReplyThreadTs;
     if (
       deliveryTracker.hasDelivered({
         kind: params.kind,

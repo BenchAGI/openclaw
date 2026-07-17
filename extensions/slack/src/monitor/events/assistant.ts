@@ -51,7 +51,6 @@ type SlackAssistantEventRegistrar = {
 
 const DEFAULT_ASSISTANT_PROMPTS: SlackAssistantSuggestedPrompt[] = [
   { title: "What can you do?", message: "What can you help me with?" },
-  { title: "Summarize this channel", message: "Summarize the recent activity in this channel." },
   { title: "Draft a reply", message: "Help me draft a reply." },
 ];
 

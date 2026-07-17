@@ -708,6 +708,45 @@ function normalizeNpmVersionDrift(lockfile, current) {
   return lockfile;
 }
 
+function normalizeMutableRegistryMetadata(generated, current) {
+  const generatedPackages = generated?.packages;
+  const currentPackages = current?.packages;
+  if (
+    !generatedPackages ||
+    typeof generatedPackages !== "object" ||
+    !currentPackages ||
+    typeof currentPackages !== "object"
+  ) {
+    return generated;
+  }
+  for (const [lockPath, metadata] of Object.entries(generatedPackages)) {
+    const currentMetadata = currentPackages[lockPath];
+    if (
+      !metadata ||
+      typeof metadata !== "object" ||
+      Array.isArray(metadata) ||
+      !currentMetadata ||
+      typeof currentMetadata !== "object" ||
+      Array.isArray(currentMetadata) ||
+      metadata.version !== currentMetadata.version ||
+      metadata.resolved !== currentMetadata.resolved ||
+      metadata.integrity !== currentMetadata.integrity
+    ) {
+      continue;
+    }
+    // npm copies the registry's mutable deprecation notice into lockfiles. A
+    // later registry edit must not make an unchanged dependency graph fail its
+    // reproducibility check; preserve the committed notice for the same exact
+    // artifact instead.
+    if (Object.hasOwn(currentMetadata, "deprecated")) {
+      metadata.deprecated = currentMetadata.deprecated;
+    } else {
+      delete metadata.deprecated;
+    }
+  }
+  return generated;
+}
+
 function generateShrinkwrap(packageDir, options = {}) {
   const tempDir = mkdtempSync(path.join(tmpdir(), "openclaw-shrinkwrap-"));
   try {
@@ -741,10 +780,12 @@ function generateShrinkwrap(packageDir, options = {}) {
       tempDir,
     );
     normalizeShrinkwrapOverrides(tempDir, shrinkwrapOverrides, npmInstallArgs);
-    const generated = restoreCurrentPnpmLockedPackages(
-      normalizeNpmVersionDrift(
-        applyPackageExtensionPeerMetadata(
-          JSON.parse(readFileSync(path.join(tempDir, "npm-shrinkwrap.json"), "utf8")),
+    const generated = normalizeMutableRegistryMetadata(
+      restoreCurrentPnpmLockedPackages(
+        normalizeNpmVersionDrift(
+          applyPackageExtensionPeerMetadata(
+            JSON.parse(readFileSync(path.join(tempDir, "npm-shrinkwrap.json"), "utf8")),
+          ),
         ),
         currentShrinkwrap,
       ),
@@ -1334,6 +1375,7 @@ export {
   mergeOverrides,
   applyPackageExtensionPeerMetadata,
   normalizeNpmVersionDrift,
+  normalizeMutableRegistryMetadata,
   packageJsonForShrinkwrap,
   packageDependencyInputsChanged,
   pnpmLockOverrideVersionForVersions,

@@ -66,6 +66,22 @@ describe("resolveSlackThreadTargets", () => {
     expectAutoCreatedTopLevelThreadTsBehavior("off");
   });
 
+  it("keeps Agent DM roots threaded when replyToMode is off", () => {
+    const { replyThreadTs, statusThreadTs } = resolveSlackThreadTargets({
+      replyToMode: "off",
+      isDirectMessage: true,
+      message: {
+        type: "message",
+        channel: "D1",
+        ts: "123",
+        thread_ts: "123",
+      },
+    });
+
+    expect(replyThreadTs).toBe("123");
+    expect(statusThreadTs).toBe("123");
+  });
+
   it("keeps first-mode behavior for auto-created top-level thread_ts", () => {
     expectAutoCreatedTopLevelThreadTsBehavior("first");
   });
@@ -109,6 +125,24 @@ describe("resolveSlackThreadTargets", () => {
       expect(context.messageThreadId).toBe("123");
       expect(context.replyToId).toBe("123");
     }
+  });
+
+  it("keeps Agent DM root replies and status updates in the Slack thread", () => {
+    const { replyThreadTs, statusThreadTs, isThreadReply } = resolveSlackThreadTargets({
+      replyToMode: "off",
+      isDirectMessage: true,
+      message: {
+        type: "message",
+        channel: "D1",
+        channel_type: "im",
+        ts: "123",
+        thread_ts: "123",
+      },
+    });
+
+    expect(isThreadReply).toBe(false);
+    expect(replyThreadTs).toBe("123");
+    expect(statusThreadTs).toBe("123");
   });
 
   it("uses normalized direct-message state for DM assistant thread-root messages", () => {

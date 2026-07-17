@@ -9,23 +9,16 @@ import type { OpenClawConfig } from "./channel-api.js";
 
 export const SLACK_CHANNEL = "slack" as const;
 
-export interface SlackManifestOptions {
-  /**
-   * Include Slack's AI **assistant view** (the assistant pane). Default `false`.
-   *
-   * When the assistant view is declared, Slack routes DMs to the assistant pane,
-   * where they arrive as `message_changed` events that only deliver if metadata
-   * resolves exactly one sender - a fragile path that silently drops DMs (see
-   * `monitor/events/messages.ts`). With it off (the default), DMs arrive as
-   * ordinary `message.im` events and reply through the normal send path. Opt in
-   * only once the assistant-pane post-back path is hardened.
-   */
-  assistantView?: boolean;
-}
+export type SlackManifestMode = "agent" | "bot";
 
-export function buildSlackManifest(botName = "OpenClaw", options: SlackManifestOptions = {}) {
+export function buildSlackManifest(botName = "OpenClaw", mode: SlackManifestMode = "agent") {
   const safeName = botName.trim() || "OpenClaw";
-  const assistantView = options.assistantView ?? false;
+  const botDisplayName =
+    safeName
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "openclaw";
   const manifest = {
     display_information: {
       name: safeName,
@@ -33,7 +26,7 @@ export function buildSlackManifest(botName = "OpenClaw", options: SlackManifestO
     },
     features: {
       bot_user: {
-        display_name: safeName,
+        display_name: botDisplayName,
         always_online: true,
       },
       app_home: {
@@ -41,18 +34,14 @@ export function buildSlackManifest(botName = "OpenClaw", options: SlackManifestO
         messages_tab_enabled: true,
         messages_tab_read_only_enabled: false,
       },
-      ...(assistantView
+      ...(mode === "agent"
         ? {
-            assistant_view: {
-              assistant_description: `${safeName} connects Slack assistant threads to OpenClaw agents.`,
+            agent_view: {
+              agent_description: `${safeName} connects Slack conversations to OpenClaw agents.`,
               suggested_prompts: [
                 {
                   title: "What can you do?",
                   message: "What can you help me with?",
-                },
-                {
-                  title: "Summarize this channel",
-                  message: "Summarize the recent activity in this channel.",
                 },
                 {
                   title: "Draft a reply",
@@ -74,7 +63,7 @@ export function buildSlackManifest(botName = "OpenClaw", options: SlackManifestO
       scopes: {
         bot: [
           "app_mentions:read",
-          ...(assistantView ? ["assistant:write"] : []),
+          ...(mode === "agent" ? ["assistant:write"] : []),
           "channels:history",
           "channels:read",
           "chat:write",
@@ -104,10 +93,8 @@ export function buildSlackManifest(botName = "OpenClaw", options: SlackManifestO
       event_subscriptions: {
         bot_events: [
           "app_home_opened",
+          ...(mode === "agent" ? ["app_context_changed"] : []),
           "app_mention",
-          ...(assistantView
-            ? ["assistant_thread_context_changed", "assistant_thread_started"]
-            : []),
           "channel_rename",
           "member_joined_channel",
           "member_left_channel",
@@ -126,13 +113,25 @@ export function buildSlackManifest(botName = "OpenClaw", options: SlackManifestO
   return JSON.stringify(manifest, null, 2);
 }
 
-export function buildSlackSetupLines(): string[] {
+export function buildSlackSetupChoiceLines(): string[] {
   return [
-    "1) Slack API -> Create App -> From scratch or From manifest (with the JSON below)",
-    "2) Add Socket Mode + enable it to get the app-level token (xapp-...)",
-    "3) Install App to workspace to get the xoxb- bot token",
-    "4) Enable Event Subscriptions (socket) for message and App Home events",
-    "5) App Home -> enable the Home tab and the Messages tab so DMs reach the bot",
+    "Slack can be installed as an Agent experience or an ordinary bot.",
+    "Agent mode uses Slack's current Agent schema but may require a paid plan and is unavailable to workspace guests.",
+    "Interactive setup asks which mode to use; quickstart uses the universally supported ordinary bot manifest.",
+  ];
+}
+
+export function buildSlackSetupLines(mode: SlackManifestMode = "agent"): string[] {
+  const modeStep =
+    mode === "agent"
+      ? "2) Agents & AI Apps -> enable the Agent experience"
+      : "2) Keep Agents & AI Apps disabled for an ordinary bot install";
+  return [
+    "1) Slack API -> Create App -> From scratch, then name the app",
+    modeStep,
+    "3) App Manifest -> paste the JSON below and save it",
+    "4) Add Socket Mode + enable it to get the app-level token (xapp-...)",
+    "5) Install App to workspace to get the xoxb- bot token",
     "Manifest JSON follows as plain text for copy/paste.",
     "Tip: set SLACK_BOT_TOKEN + SLACK_APP_TOKEN in your env.",
     `Docs: ${formatDocsLink("/slack", "slack")}`,

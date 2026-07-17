@@ -53,14 +53,17 @@ export function resolveSlackThreadContext(params: {
 export function resolveSlackThreadTargets(params: {
   message: SlackMessageEvent | SlackAppMentionEvent;
   replyToMode: ReplyToMode;
+  isDirectMessage?: boolean;
 }) {
   const ctx = resolveSlackThreadContext(params);
   const { incomingThreadTs, messageTs, isThreadReply } = ctx;
   const replyThreadTs = isThreadReply
     ? incomingThreadTs
-    : params.replyToMode === "all"
-      ? messageTs
-      : undefined;
+    : params.isDirectMessage === true && incomingThreadTs
+      ? incomingThreadTs
+      : params.replyToMode === "all"
+        ? messageTs
+        : undefined;
   const statusThreadTs = replyThreadTs;
   return { replyThreadTs, statusThreadTs, isThreadReply };
 }
