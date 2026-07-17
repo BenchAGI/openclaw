@@ -18,6 +18,7 @@ export type SlackActionClientOpts = {
   accountId?: string;
   token?: string;
   client?: WebClient;
+  requireChannelEvidence?: boolean;
 };
 
 export type SlackMessageSummary = {
@@ -512,6 +513,7 @@ function hasSlackScopeMismatch(params: {
   file: SlackFileInfoSummary;
   channelId?: string;
   threadId?: string;
+  requireChannelEvidence?: boolean;
 }): boolean {
   const channelId = normalizeSlackScopeValue(params.channelId);
   if (!channelId) {
@@ -523,6 +525,9 @@ function hasSlackScopeMismatch(params: {
   const sharedIds = collectSlackSharedChannelIds(params.file);
   const hasChannelEvidence = directIds.size > 0 || sharedIds.size > 0;
   const inChannel = directIds.has(channelId) || sharedIds.has(channelId);
+  if (params.requireChannelEvidence && !hasChannelEvidence) {
+    return true;
+  }
   if (hasChannelEvidence && !inChannel) {
     return true;
   }
@@ -560,7 +565,14 @@ export async function downloadSlackFile(
   if (!file?.url_private_download && !file?.url_private) {
     return null;
   }
-  if (hasSlackScopeMismatch({ file, channelId: opts.channelId, threadId: opts.threadId })) {
+  if (
+    hasSlackScopeMismatch({
+      file,
+      channelId: opts.channelId,
+      threadId: opts.threadId,
+      requireChannelEvidence: opts.requireChannelEvidence,
+    })
+  ) {
     return null;
   }
 

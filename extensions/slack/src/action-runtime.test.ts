@@ -1145,7 +1145,7 @@ describe("handleSlackAction", () => {
       await expect(
         handleSlackAction({ action: "readMessages", channelId: "C_OTHER" }, slackConfig(), {
           currentChannelId: "C_CURRENT",
-          requesterReadAuthority: { mode: "unverified" },
+          requesterReadAuthority: { mode: "unverified", sameAccount: false },
         }),
       ).rejects.toThrow(
         "Slack read outside the current conversation requires a known requesting Slack user.",
@@ -1159,11 +1159,23 @@ describe("handleSlackAction", () => {
 
       await handleSlackAction({ action: "readMessages", channelId: "C_CURRENT" }, slackConfig(), {
         currentChannelId: "C_CURRENT",
-        requesterReadAuthority: { mode: "unverified" },
+        requesterReadAuthority: { mode: "unverified", sameAccount: true },
       });
 
       expect(isSlackUserChannelMember).not.toHaveBeenCalled();
       expect(readSlackMessages).toHaveBeenCalled();
+    });
+
+    it("fails closed when an unverified cross-account target reuses the current channel id", async () => {
+      await expect(
+        handleSlackAction({ action: "readMessages", channelId: "C_CURRENT" }, slackConfig(), {
+          currentChannelId: "C_CURRENT",
+          requesterReadAuthority: { mode: "unverified", sameAccount: false },
+        }),
+      ).rejects.toThrow(
+        "Slack read outside the current conversation requires a known requesting Slack user.",
+      );
+      expect(readSlackMessages).not.toHaveBeenCalled();
     });
 
     it("requires membership for cross-channel reads even when group policy is open", async () => {

@@ -87,7 +87,7 @@ export const slackActionRuntime = {
 export type SlackRequesterReadAuthority =
   | { mode: "operator" }
   | { mode: "requester"; userId: string }
-  | { mode: "unverified" };
+  | { mode: "unverified"; sameAccount: boolean };
 
 export type SlackActionContext = {
   /** See SlackRequesterReadAuthority; absent means operator (config policy only). */
@@ -227,7 +227,10 @@ async function assertSlackRequesterCanReadChannel(params: {
   }
   // The requester is already conversing in the current channel; reading it
   // discloses nothing they cannot already see.
-  if (slackContextTargetsMatch(params.channelId, context)) {
+  if (
+    slackContextTargetsMatch(params.channelId, context) &&
+    (authority.mode !== "unverified" || authority.sameAccount)
+  ) {
     return;
   }
   if (authority.mode === "unverified") {
@@ -526,6 +529,7 @@ export async function handleSlackAction(
           maxBytes,
           channelId,
           threadId: threadId ?? undefined,
+          requireChannelEvidence: context?.requesterReadAuthority?.mode !== "operator",
         });
         if (!downloaded) {
           return jsonResult({

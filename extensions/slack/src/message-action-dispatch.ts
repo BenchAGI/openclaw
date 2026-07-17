@@ -41,14 +41,21 @@ function resolveTrustedSlackRequesterUserId(
   if (normalizeOptionalLowercaseString(ctx.toolContext?.currentChannelProvider) !== "slack") {
     return undefined;
   }
+  if (!slackRequesterTargetsSameAccount(ctx, accountId)) {
+    return undefined;
+  }
+  return normalizeOptionalString(ctx.requesterSenderId);
+}
+
+function slackRequesterTargetsSameAccount(
+  ctx: ChannelMessageActionContext,
+  accountId: string | undefined,
+): boolean {
   const requesterAccountId = ctx.requesterAccountId
     ? normalizeAccountId(ctx.requesterAccountId)
     : undefined;
   const targetAccountId = normalizeAccountId(accountId ?? resolveDefaultSlackAccountId(ctx.cfg));
-  if (requesterAccountId === undefined || requesterAccountId !== targetAccountId) {
-    return undefined;
-  }
-  return normalizeOptionalString(ctx.requesterSenderId);
+  return requesterAccountId === targetAccountId;
 }
 
 /**
@@ -67,8 +74,9 @@ function resolveSlackRequesterReadAuthority(
   if (normalizeOptionalLowercaseString(ctx.toolContext?.currentChannelProvider) !== "slack") {
     return { mode: "operator" };
   }
+  const sameAccount = slackRequesterTargetsSameAccount(ctx, accountId);
   const userId = resolveTrustedSlackRequesterUserId(ctx, accountId);
-  return userId ? { mode: "requester", userId } : { mode: "unverified" };
+  return userId ? { mode: "requester", userId } : { mode: "unverified", sameAccount };
 }
 
 /** Translate generic channel action requests into Slack-specific tool invocations and payload shapes. */

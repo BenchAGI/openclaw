@@ -439,7 +439,29 @@ describe("handleSlackMessageAction", () => {
 
     expect(firstInvokeCall(invoke)[2]).toEqual({
       ...context.toolContext,
-      requesterReadAuthority: { mode: "unverified" },
+      requesterReadAuthority: { mode: "unverified", sameAccount: false },
+    });
+  });
+
+  it("keeps same-account current-conversation reads available without a sender id", async () => {
+    const invoke = createInvokeSpy();
+
+    await handleSlackMessageAction({
+      providerId: "slack",
+      ctx: {
+        action: "read",
+        cfg: {},
+        params: { channelId: "C2" },
+        accountId: "default",
+        requesterAccountId: "DEFAULT",
+        toolContext: { currentChannelProvider: "slack" },
+      } as never,
+      invoke: invoke as never,
+    });
+
+    expect(firstInvokeCall(invoke)[2]).toEqual({
+      currentChannelProvider: "slack",
+      requesterReadAuthority: { mode: "unverified", sameAccount: true },
     });
   });
 
@@ -495,7 +517,7 @@ describe("handleSlackMessageAction", () => {
 
     expect(firstInvokeCall(invoke)[2]).toEqual({
       currentChannelProvider: "slack",
-      requesterReadAuthority: { mode: "unverified" },
+      requesterReadAuthority: { mode: "unverified", sameAccount: false },
     });
   });
 
