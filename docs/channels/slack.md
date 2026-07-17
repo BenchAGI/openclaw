@@ -936,6 +936,8 @@ Current Slack message actions include `send`, `upload-file`, `download-file`, `r
 
     Runtime note: if `channels.slack` is completely missing (env-only setup), runtime falls back to `groupPolicy="allowlist"` and logs a warning (even if `channels.defaults.groupPolicy` is set).
 
+    Read-scoped agent actions (`readMessages`, `listPins`, `reactions`, and the channel scope of `downloadFile`) add an end-user membership gate on top of `groupPolicy`: when the request comes from a Slack conversation, reading any channel other than that conversation requires the requesting Slack user to be a member of the target channel. This applies under `groupPolicy: "open"` too, and the check fails closed when membership cannot be verified. Owner-authenticated senders (per `allowFrom`/owner config) and requests that do not originate from a Slack conversation keep operator-level reads gated by config policy only.
+
     Name/ID resolution:
 
     - channel allowlist entries and DM allowlist entries are resolved at startup when token access allows

@@ -222,6 +222,40 @@ describe("downloadSlackFile", () => {
     expectResolveSlackMediaCalledWithDefaults();
   });
 
+  it("fails closed for requester-scoped downloads without channel evidence", async () => {
+    const client = createClient();
+    mockSuccessfulMediaDownload(client);
+
+    const result = await downloadSlackFile("F123", {
+      client,
+      token: "xoxb-test",
+      maxBytes: 1024,
+      channelId: "C123",
+      requireChannelEvidence: true,
+    });
+
+    expectNoMediaDownload(result);
+  });
+
+  it("allows requester-scoped downloads with a positive channel share", async () => {
+    const client = createClient();
+    client.files.info.mockResolvedValueOnce({
+      file: makeSlackFileInfo({ channels: ["C123"] }),
+    });
+    resolveSlackMedia.mockResolvedValueOnce([makeResolvedSlackMedia()]);
+
+    const result = await downloadSlackFile("F123", {
+      client,
+      token: "xoxb-test",
+      maxBytes: 1024,
+      channelId: "C123",
+      requireChannelEvidence: true,
+    });
+
+    expect(result).toEqual(makeResolvedSlackMedia());
+    expectResolveSlackMediaCalledWithDefaults();
+  });
+
   it("resolves the bot token from cfg when no explicit token or client is provided", async () => {
     // Regression guard for the 95331e5cc5 migration: downloadSlackFile must
     // thread opts.cfg into resolveToken so the cfg-only resolution branch works

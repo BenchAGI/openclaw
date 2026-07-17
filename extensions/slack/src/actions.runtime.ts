@@ -4,6 +4,7 @@ export {
   downloadSlackFile,
   editSlackMessage,
   getSlackMemberInfo,
+  isSlackUserChannelMember,
   listSlackEmojis,
   listSlackPins,
   listSlackReactions,

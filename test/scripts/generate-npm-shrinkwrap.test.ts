@@ -375,6 +375,46 @@ describe("generate-npm-shrinkwrap", () => {
     });
   });
 
+  it("stabilizes mutable npm deprecation metadata", () => {
+    expect(
+      normalizeNpmVersionDrift(
+        {
+          packages: {
+            "node_modules/audio-decode": {
+              version: "2.2.3",
+              deprecated: "Renamed to @audio/decode — current registry text",
+            },
+            "node_modules/new-package": {
+              version: "1.0.0",
+              deprecated: "This package is deprecated",
+            },
+          },
+        },
+        {
+          packages: {
+            "node_modules/audio-decode": {
+              version: "2.2.3",
+              deprecated: "Renamed to @audio/decode",
+            },
+            "node_modules/new-package": {
+              version: "1.0.0",
+            },
+          },
+        },
+      ),
+    ).toEqual({
+      packages: {
+        "node_modules/audio-decode": {
+          version: "2.2.3",
+          deprecated: "Renamed to @audio/decode",
+        },
+        "node_modules/new-package": {
+          version: "1.0.0",
+        },
+      },
+    });
+  });
+
   it("uses legacy peer resolution when package extensions mark dependency peers optional", () => {
     expect(
       shouldUseLegacyPeerDepsForShrinkwrap(
