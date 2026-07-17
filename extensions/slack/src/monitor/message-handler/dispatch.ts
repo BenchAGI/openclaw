@@ -510,6 +510,7 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
   const threadTargets = resolveSlackThreadTargets({
     message,
     replyToMode: prepared.replyToMode,
+    isDirectMessage: prepared.isDirectMessage,
   });
   const forcedReplyThreadTs = prepared.forcedReplyThreadTs;
   const slackMessageMetadata = prepared.slackMessageMetadata;

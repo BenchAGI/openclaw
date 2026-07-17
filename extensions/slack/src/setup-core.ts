@@ -189,7 +189,7 @@ export function createSlackSetupWizardBase(handlers: {
         return;
       }
       const mode = options?.quickstartDefaults
-        ? "agent"
+        ? "bot"
         : ((await prompter.select({
             message: "Choose the Slack app experience",
             options: [

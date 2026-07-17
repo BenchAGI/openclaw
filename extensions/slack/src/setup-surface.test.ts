@@ -296,6 +296,22 @@ describe("slackSetupWizard.prepare", () => {
     expect(manifest.settings.event_subscriptions.bot_events).toContain("message.im");
   });
 
+  it("uses the ordinary bot manifest for non-interactive quickstart", async () => {
+    const plain = vi.fn<NonNullable<WizardPrompter["plain"]>>(async () => {});
+
+    await runSetupWizardPrepare({
+      prepare: slackSetupWizard.prepare,
+      cfg: { channels: { slack: {} } } as OpenClawConfig,
+      options: { quickstartDefaults: true },
+      prompter: createTestWizardPrompter({ plain }),
+    });
+
+    const manifest = JSON.parse(requireFirstStringArg(plain, "Slack quickstart manifest")) as {
+      features: { agent_view?: unknown };
+    };
+    expect(manifest.features.agent_view).toBeUndefined();
+  });
+
   it("does not print the manifest after Slack credentials are configured", async () => {
     const plain = vi.fn<NonNullable<WizardPrompter["plain"]>>(async () => {});
 

@@ -66,6 +66,22 @@ describe("resolveSlackThreadTargets", () => {
     expectAutoCreatedTopLevelThreadTsBehavior("off");
   });
 
+  it("keeps Agent DM roots threaded when replyToMode is off", () => {
+    const { replyThreadTs, statusThreadTs } = resolveSlackThreadTargets({
+      replyToMode: "off",
+      isDirectMessage: true,
+      message: {
+        type: "message",
+        channel: "D1",
+        ts: "123",
+        thread_ts: "123",
+      },
+    });
+
+    expect(replyThreadTs).toBe("123");
+    expect(statusThreadTs).toBe("123");
+  });
+
   it("keeps first-mode behavior for auto-created top-level thread_ts", () => {
     expectAutoCreatedTopLevelThreadTsBehavior("first");
   });
