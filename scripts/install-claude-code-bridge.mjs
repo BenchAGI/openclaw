@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,10 +56,25 @@ const launchAgentsDir = path.join(home, "Library", "LaunchAgents");
 const mirrorPlistPath = path.join(launchAgentsDir, "ai.openclaw.claude-code-mirror.plist");
 const launchAgentLogDir = path.join(openclawHome, "logs");
 
+const requiredBridgeImports = ["@modelcontextprotocol/sdk/server/mcp.js", "zod"];
+
+function resolveCommandPath(command) {
+  if (!command) {
+    return null;
+  }
+  if (path.isAbsolute(command) || command.includes("/") || command.includes("\\")) {
+    return path.resolve(command);
+  }
+  const result =
+    process.platform === "win32"
+      ? spawnSync("where.exe", [command], { encoding: "utf8", windowsHide: true })
+      : spawnSync("/bin/sh", ["-c", 'command -v "$1"', "sh", command], { encoding: "utf8" });
+  const resolved = result.status === 0 ? result.stdout.trim().split(/\r?\n/u)[0] : "";
+  return resolved || null;
+}
+
 function detectNodeBin() {
-  const found = spawnSync("/bin/bash", ["-lc", "command -v node"], { encoding: "utf8" });
-  const candidate = found.status === 0 ? found.stdout.trim() : "";
-  return candidate || process.execPath;
+  return resolveCommandPath("node") ?? process.execPath;
 }
 
 const nodeBin = values.get("--node") ?? detectNodeBin();
@@ -70,6 +85,230 @@ if (!existsSync(sourceDir)) {
 
 function log(message) {
   process.stdout.write(`[openclaw-bridge] ${message}\n`);
+}
+
+function packageNameFromSpecifier(specifier) {
+  const parts = specifier.split("/");
+  return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
+}
+
+async function lstatOrNull(filePath) {
+  try {
+    return await fs.lstat(filePath);
+  } catch (err) {
+    if (err?.code === "ENOENT") {
+      return null;
+    }
+    throw err;
+  }
+}
+
+async function preferStablePnpmPackageRoot(packageRootPath) {
+  const marker = `${path.sep}node_modules${path.sep}.pnpm${path.sep}`;
+  const markerIndex = packageRootPath.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    return packageRootPath;
+  }
+  const globalNodeModules = packageRootPath.slice(
+    0,
+    markerIndex + `${path.sep}node_modules`.length,
+  );
+  // Pnpm upgrades replace versioned store paths but retarget this package link.
+  const stablePackageRoot = path.join(globalNodeModules, "openclaw");
+  try {
+    return (await fs.realpath(stablePackageRoot)) === (await fs.realpath(packageRootPath))
+      ? stablePackageRoot
+      : packageRootPath;
+  } catch {
+    return packageRootPath;
+  }
+}
+
+async function findOpenClawRuntime(startPath) {
+  let currentPath;
+  try {
+    const absoluteStartPath = path.resolve(startPath);
+    const startStat = await fs.stat(absoluteStartPath);
+    if (startStat.isDirectory()) {
+      // Preserve package-manager-owned symlink paths so upgrades can retarget them.
+      currentPath = absoluteStartPath;
+    } else if ((await fs.lstat(absoluteStartPath)).isSymbolicLink()) {
+      const linkTarget = await fs.readlink(absoluteStartPath);
+      currentPath = path.dirname(path.resolve(path.dirname(absoluteStartPath), linkTarget));
+    } else {
+      currentPath = path.dirname(await fs.realpath(absoluteStartPath));
+    }
+  } catch {
+    return null;
+  }
+
+  while (true) {
+    try {
+      const manifest = JSON.parse(
+        await fs.readFile(path.join(currentPath, "package.json"), "utf8"),
+      );
+      if (manifest?.name === "openclaw") {
+        currentPath = await preferStablePnpmPackageRoot(currentPath);
+        const nodeModulesPath = path.join(currentPath, "node_modules");
+        const realNodeModulesPath = await fs.realpath(nodeModulesPath);
+        const resolver = createRequire(path.join(currentPath, "package.json"));
+        for (const specifier of requiredBridgeImports) {
+          await fs.lstat(path.join(nodeModulesPath, packageNameFromSpecifier(specifier)));
+          resolver.resolve(specifier);
+        }
+        return {
+          packageRoot: currentPath,
+          nodeModulesPath,
+          realNodeModulesPath,
+          version: typeof manifest.version === "string" ? manifest.version : "unknown",
+        };
+      }
+    } catch {
+      // Keep walking toward the filesystem root.
+    }
+    const parentPath = path.dirname(currentPath);
+    if (parentPath === currentPath) {
+      return null;
+    }
+    currentPath = parentPath;
+  }
+}
+
+function resolveGlobalPackageRoot(manager) {
+  const managerBin = resolveCommandPath(manager);
+  if (!managerBin) {
+    return null;
+  }
+  const result = spawnSync(managerBin, ["root", "-g"], {
+    encoding: "utf8",
+    timeout: 3_000,
+    windowsHide: true,
+    shell: process.platform === "win32",
+  });
+  const globalRoot = result.status === 0 ? result.stdout.trim().split(/\r?\n/u)[0] : "";
+  return globalRoot ? path.join(globalRoot, "openclaw") : null;
+}
+
+async function resolveBridgeRuntimeDependencies() {
+  const activeCandidates = [];
+  const configuredBin = process.env.OPENCLAW_BIN?.trim();
+  const openclawBin = resolveCommandPath(configuredBin || "openclaw");
+  if (openclawBin) {
+    activeCandidates.push(
+      openclawBin,
+      path.join(path.dirname(openclawBin), "node_modules", "openclaw"),
+    );
+  }
+  for (const candidate of activeCandidates) {
+    const runtime = await findOpenClawRuntime(candidate);
+    if (runtime) {
+      return runtime;
+    }
+  }
+
+  const globalCandidates = ["npm", "pnpm"]
+    .map(resolveGlobalPackageRoot)
+    .filter((candidate) => candidate !== null);
+  const bunInstall = process.env.BUN_INSTALL?.trim() || path.join(os.homedir(), ".bun");
+  globalCandidates.push(path.join(bunInstall, "install", "global", "node_modules", "openclaw"));
+  for (const candidate of globalCandidates) {
+    const runtime = await findOpenClawRuntime(candidate);
+    if (runtime) {
+      return runtime;
+    }
+  }
+  const packageRuntime = await findOpenClawRuntime(packageRoot);
+  if (packageRuntime) {
+    return packageRuntime;
+  }
+  throw new Error(
+    `cannot locate OpenClaw-owned dependencies for ${requiredBridgeImports.join(
+      " and ",
+    )}; install this package's dependencies or set OPENCLAW_BIN to the active OpenClaw executable`,
+  );
+}
+
+async function stageBridgeDependencies(runtime) {
+  const dependencyPath = path.join(targetDir, "node_modules");
+  const existing = await lstatOrNull(dependencyPath);
+  if (existing?.isDirectory() && !existing.isSymbolicLink()) {
+    log(`using existing bridge dependency directory ${dependencyPath}`);
+    return { mode: "unchanged", dependencyPath };
+  }
+  if (existing?.isSymbolicLink()) {
+    try {
+      const currentTarget = await fs.realpath(dependencyPath);
+      if (currentTarget === runtime.realNodeModulesPath) {
+        log(`using existing bridge dependency link ${dependencyPath}`);
+        return { mode: "unchanged", dependencyPath };
+      }
+    } catch {
+      // A broken dependency link is safe to repair below.
+    }
+  }
+  if (existing && !existing.isSymbolicLink()) {
+    throw new Error(`refusing to replace non-directory bridge dependency path: ${dependencyPath}`);
+  }
+
+  if (dryRun) {
+    log(`link ${dependencyPath} -> ${runtime.nodeModulesPath}`);
+    return { mode: "unchanged", dependencyPath };
+  }
+
+  await fs.mkdir(targetDir, { recursive: true });
+  const backupPath = `${dependencyPath}.backup-${process.pid}-${Date.now()}`;
+  let backedUpExistingLink = false;
+  try {
+    if (existing?.isSymbolicLink()) {
+      await fs.rename(dependencyPath, backupPath);
+      backedUpExistingLink = true;
+    }
+    await fs.symlink(
+      runtime.nodeModulesPath,
+      dependencyPath,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+  } catch (err) {
+    if (backedUpExistingLink) {
+      try {
+        await fs.rename(backupPath, dependencyPath);
+      } catch (restoreError) {
+        throw new Error(
+          `failed to stage bridge dependencies (${err.message}) and restore ${backupPath}`,
+          { cause: restoreError },
+        );
+      }
+    }
+    throw err;
+  }
+  log(
+    `linked bridge dependencies to OpenClaw ${runtime.version} runtime at ${runtime.packageRoot}`,
+  );
+  return backedUpExistingLink
+    ? { mode: "replaced", dependencyPath, backupPath }
+    : { mode: "created", dependencyPath };
+}
+
+async function rollbackBridgeDependencies(stage) {
+  if (stage.mode === "unchanged") {
+    return;
+  }
+  const current = await lstatOrNull(stage.dependencyPath);
+  if (current && !current.isSymbolicLink()) {
+    throw new Error(`refusing to remove changed dependency path: ${stage.dependencyPath}`);
+  }
+  if (current) {
+    await fs.rm(stage.dependencyPath);
+  }
+  if (stage.mode === "replaced") {
+    await fs.rename(stage.backupPath, stage.dependencyPath);
+  }
+}
+
+async function finalizeBridgeDependencies(stage) {
+  if (stage.mode === "replaced") {
+    await fs.rm(stage.backupPath);
+  }
 }
 
 function shellQuote(value) {
@@ -133,6 +372,40 @@ async function copyBridgeFiles() {
     await fs.copyFile(path.join(sourceDir, "mirror.mjs"), mirrorAlias);
     await fs.chmod(mirrorAlias, 0o755);
   }
+}
+
+function verifyBridgeRuntime() {
+  const serverPath = path.join(targetDir, "serve.mjs");
+  if (dryRun) {
+    log(`verify ${serverPath} --once-list-tools`);
+    return;
+  }
+
+  const result = spawnSync(nodeBin, [serverPath, "--once-list-tools"], {
+    encoding: "utf8",
+    timeout: 10_000,
+    env: {
+      ...process.env,
+      OPENCLAW_HOME: openclawHome,
+      OPENCLAW_BRIDGE_AUTOSTART: "false",
+      BENCH_HARNESS_MANIFEST_ENFORCE: "false",
+    },
+  });
+  if (result.status !== 0) {
+    const detail = result.stderr?.trim() || result.error?.message || "unknown runtime error";
+    throw new Error(`staged bridge runtime verification failed: ${detail}`);
+  }
+  try {
+    const descriptors = JSON.parse(result.stdout);
+    if (!Array.isArray(descriptors) || descriptors.length === 0) {
+      throw new Error("tool descriptor list is empty");
+    }
+  } catch (err) {
+    throw new Error(`staged bridge runtime verification returned invalid output: ${err.message}`, {
+      cause: err,
+    });
+  }
+  log("verified staged bridge runtime imports");
 }
 
 async function readJsonFile(filePath) {
@@ -278,7 +551,22 @@ async function installLaunchAgent() {
   );
 }
 
-await copyBridgeFiles();
+const bridgeRuntime = await resolveBridgeRuntimeDependencies();
+const dependencyStage = await stageBridgeDependencies(bridgeRuntime);
+try {
+  await copyBridgeFiles();
+  verifyBridgeRuntime();
+} catch (err) {
+  try {
+    await rollbackBridgeDependencies(dependencyStage);
+  } catch (rollbackError) {
+    throw new Error(`bridge staging failed (${err.message}) and dependency rollback failed`, {
+      cause: rollbackError,
+    });
+  }
+  throw err;
+}
+await finalizeBridgeDependencies(dependencyStage);
 await updateClaudeSettings();
 await installLaunchAgent();
 

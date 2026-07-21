@@ -15,7 +15,7 @@ Hand-authored ESM files and launchd templates, no build step, no openclaw plugin
 | `statusline.mjs`                         | Fast (<100ms) filesystem-based status string for Claude Code's `statusLine` command. Never invokes the openclaw CLI.                                                       |
 | `ai.openclaw.wiki-mirror.plist.template` | LaunchAgent template for `cloud-mirror.mjs`.                                                                                                                               |
 
-The MCP server imports from the openclaw fork's existing `node_modules` (`@modelcontextprotocol/sdk`, `zod`) — no extension-local install needed.
+The MCP server imports `@modelcontextprotocol/sdk` and `zod` from an OpenClaw-owned dependency tree. The installer discovers and validates the active OpenClaw runtime through `OPENCLAW_BIN`, `PATH`, or supported global package-manager roots, falling back to the package it is running from. It stages a `node_modules` link beside `serve.mjs`; it does not download a second dependency tree or hardcode a Homebrew/npm prefix.
 
 ## Why not a real OpenClaw extension?
 
@@ -30,6 +30,7 @@ If/when this bridge graduates to a proper extension (e.g., for upstream PR or pr
 ## Deployment
 
 - **Installer**: `pnpm bridge:install` from a checkout, or `node scripts/install-claude-code-bridge.mjs` from the npm package. It stages stable copies under `~/.openclaw/claude-code-bridge/`.
+- **Runtime dependencies**: the staged `node_modules` link points at a validated OpenClaw package, and the installer runs an import-only tool-list probe before changing Claude settings. Probe/copy failure removes a fresh link or restores the prior link. A real pre-existing `node_modules` directory is preserved when it resolves the required imports and rejected (never deleted) when it does not.
 - **MCP registration**: user-scope Claude Code config, added via `claude mcp add openclaw --scope user -- node ~/.openclaw/claude-code-bridge/serve.mjs`.
 - **Session start**: `~/.claude/settings.json` → `hooks.SessionStart` runs `~/.openclaw/claude-code-bridge/session-bootstrap.mjs`.
 - **Statusline**: `~/.claude/settings.json` → `statusLine.command` runs `~/.openclaw/claude-code-bridge/statusline.mjs`.
