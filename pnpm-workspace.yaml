@@ -109,7 +109,8 @@ overrides:
   "@aws-sdk/xml-builder": 3.972.25
   hono: 4.12.25
   "@hono/node-server": 1.19.14
-  axios: 1.16.0
+  # GHSA-gcfj-64vw-6mp9: inherited proxy reuse after interceptor config cloning (<1.18.0).
+  axios: 1.18.1
   fast-uri: 3.1.2
   follow-redirects: 1.16.0
   defu: 6.1.5
@@ -125,7 +126,11 @@ overrides:
   qs: 6.15.2
   node-domexception: "npm:@nolyfill/domexception@1.0.28"
   typebox: 1.1.39
-  tar: 7.5.16 # GHSA-vmf3-w455-68vh: PAX size override on GNU long-name headers desyncs extraction (<=7.5.15)
+  # GHSA-vmf3-w455-68vh + GHSA-23hp-3jrh-7fpw + GHSA-8x88-c5mf-7j5w:
+  # archive parser/extractor denial of service (<=7.5.18).
+  tar: 7.5.20
+  # GHSA-3jxr-9vmj-r5cp: exponential-time consecutive empty-brace expansion (<5.0.7).
+  brace-expansion: 5.0.7
   tough-cookie: 4.1.3
   yauzl: 3.2.1
   # GHSA-wcpc-wj8m-hjx6 (Any-expansion DoS <=8.4.0) + GHSA-94rc-8x27-4472 (unknown-field

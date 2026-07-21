@@ -721,16 +721,16 @@ describe("createBackupArchive", () => {
 
           const originalReaddir = fs.readdir.bind(fs);
           let createdLatePath = false;
+          const canonicalStateDir = await fs.realpath(state.stateDir);
           const readdirSpy = vi.spyOn(fs, "readdir").mockImplementation((async (
             ...args: unknown[]
           ) => {
             const entries = await (
               originalReaddir as (...readdirArgs: unknown[]) => Promise<unknown>
             )(...args);
-            if (
-              !createdLatePath &&
-              path.resolve(String(args[0])) === path.resolve(state.stateDir)
-            ) {
+            // Compare canonical paths so this remains stable across node-tar
+            // releases and macOS's /var -> /private/var filesystem alias.
+            if (!createdLatePath && (await fs.realpath(String(args[0]))) === canonicalStateDir) {
               createdLatePath = true;
               await fs.writeFile(latePath, "late SQLite state");
             }
