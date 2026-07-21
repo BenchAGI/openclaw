@@ -1302,6 +1302,27 @@ export async function loadShortTermPromotionDreamingStats(params: {
   };
 }
 
+/** Returns the canonical aggregate phase-hit count for every tracked recall entry. */
+export async function loadShortTermPromotionPhaseHitCounts(params: {
+  workspaceDir: string;
+  nowMs?: number;
+}): Promise<ReadonlyMap<string, number>> {
+  const workspaceDir = params.workspaceDir.trim();
+  if (!workspaceDir) {
+    return new Map();
+  }
+  const nowMs = resolveMemoryCoreNowMs(params.nowMs);
+  const phaseStore = await readPhaseSignalStore(workspaceDir, resolveMemoryCoreTimestamp(nowMs));
+  const counts = new Map<string, number>();
+  for (const [key, entry] of Object.entries(phaseStore.entries)) {
+    const phaseHitCount = toNonNegativeInt(entry.lightHits) + toNonNegativeInt(entry.remHits);
+    if (phaseHitCount > 0) {
+      counts.set(key, phaseHitCount);
+    }
+  }
+  return counts;
+}
+
 async function shortTermRecallSourceIsFile(sourcePath: string): Promise<boolean> {
   try {
     const stat = await fs.stat(sourcePath);

@@ -4,6 +4,7 @@ import { readBooleanParam } from "openclaw/plugin-sdk/boolean-param";
 import { isSingleUseReplyToMode } from "openclaw/plugin-sdk/reply-reference";
 import { resolveOpenProviderRuntimeGroupPolicy } from "openclaw/plugin-sdk/runtime-group-policy";
 import type { ResolvedSlackAccount } from "./accounts.js";
+import type { SlackActionClientOpts } from "./actions.js";
 import { parseSlackBlocksInput } from "./blocks-input.js";
 import { resolveSlackChannelConfig } from "./monitor/channel-config.js";
 import { isSlackChannelAllowedByPolicy } from "./monitor/policy.js";
@@ -62,6 +63,7 @@ export const slackActionRuntime = {
   downloadSlackFile: createLazySlackAction("downloadSlackFile"),
   editSlackMessage: createLazySlackAction("editSlackMessage"),
   getSlackMemberInfo: createLazySlackAction("getSlackMemberInfo"),
+  isSlackUserChannelMember: createLazySlackAction("isSlackUserChannelMember"),
   listSlackEmojis: createLazySlackAction("listSlackEmojis"),
   listSlackPins: createLazySlackAction("listSlackPins"),
   listSlackReactions: createLazySlackAction("listSlackReactions"),
@@ -75,7 +77,21 @@ export const slackActionRuntime = {
   unpinSlackMessage: createLazySlackAction("unpinSlackMessage"),
 };
 
+/**
+ * End-user read authority for read-like Slack actions, decided at dispatch
+ * from server-injected inbound identity. Never derived from tool/model params.
+ * - "operator": no untrusted Slack end user to bind (owner, CLI, non-Slack surface).
+ * - "requester": a Slack end user; membership required outside the current conversation.
+ * - "unverified": Slack end-user surface without a trusted id; current conversation only.
+ */
+export type SlackRequesterReadAuthority =
+  | { mode: "operator" }
+  | { mode: "requester"; userId: string }
+  | { mode: "unverified"; sameAccount: boolean };
+
 export type SlackActionContext = {
+  /** See SlackRequesterReadAuthority; absent means operator (config policy only). */
+  requesterReadAuthority?: SlackRequesterReadAuthority;
   /** Current channel ID for auto-threading. */
   currentChannelId?: string;
   /** Routable target for the current conversation when it differs from the channel ID. */
@@ -152,10 +168,12 @@ function isImageContentType(value: string | undefined): boolean {
   return value?.trim().toLowerCase().startsWith("image/") === true;
 }
 
-function assertSlackReadTargetAllowed(params: {
+async function assertSlackReadTargetAllowed(params: {
   account: ResolvedSlackAccount;
   cfg: OpenClawConfig;
   channelId: string;
+  context: SlackActionContext | undefined;
+  readOpts: SlackActionClientOpts;
 }) {
   const channels = params.account.config.channels;
   const channelKeys = Object.keys(channels ?? {});
@@ -185,6 +203,56 @@ function assertSlackReadTargetAllowed(params: {
   }
   if (!channelAllowed && (groupPolicy !== "open" || channelConfig?.matchSource)) {
     throw new Error("Slack read target channel is not allowed.");
+  }
+  await assertSlackRequesterCanReadChannel(params);
+}
+
+/**
+ * Second read gate after config groupPolicy: bind read access to the requesting
+ * Slack end user. The bot token often sees many channels (especially under
+ * groupPolicy "open"), so bot visibility alone must not let one user read a
+ * channel they are not a member of.
+ */
+async function assertSlackRequesterCanReadChannel(params: {
+  channelId: string;
+  context: SlackActionContext | undefined;
+  readOpts: SlackActionClientOpts;
+}) {
+  const context = params.context;
+  const authority = context?.requesterReadAuthority;
+  // Absent authority means no untrusted Slack end user is attached to the
+  // request (owner, CLI/cron, non-Slack surface): config policy already ran.
+  if (!authority || authority.mode === "operator") {
+    return;
+  }
+  // The requester is already conversing in the current channel; reading it
+  // discloses nothing they cannot already see.
+  if (
+    slackContextTargetsMatch(params.channelId, context) &&
+    (authority.mode !== "unverified" || authority.sameAccount)
+  ) {
+    return;
+  }
+  if (authority.mode === "unverified") {
+    // Fail closed: without a trusted requester id a Slack-originated request
+    // must not read beyond its own conversation on the bot token.
+    throw new Error(
+      "Slack read outside the current conversation requires a known requesting Slack user.",
+    );
+  }
+  let isMember: boolean;
+  try {
+    isMember = await slackActionRuntime.isSlackUserChannelMember(
+      params.channelId,
+      authority.userId,
+      params.readOpts,
+    );
+  } catch (err) {
+    // Fail closed on Slack API errors: unverifiable membership is not access.
+    throw new Error("Slack read target membership check failed; denying read.", { cause: err });
+  }
+  if (!isMember) {
+    throw new Error("Slack read target channel is not available to the requesting user.");
   }
 }
 
@@ -264,7 +332,7 @@ export async function handleSlackAction(
       }
       return jsonResult({ ok: true, added: emoji });
     }
-    assertSlackReadTargetAllowed({ account, cfg, channelId });
+    await assertSlackReadTargetAllowed({ account, cfg, channelId, context, readOpts });
     const reactions = readOpts
       ? await slackActionRuntime.listSlackReactions(channelId, messageId, readOpts)
       : await slackActionRuntime.listSlackReactions(channelId, messageId);
@@ -413,7 +481,7 @@ export async function handleSlackAction(
       }
       case "readMessages": {
         const channelId = resolveChannelId();
-        assertSlackReadTargetAllowed({ account, cfg, channelId });
+        await assertSlackReadTargetAllowed({ account, cfg, channelId, context, readOpts });
         const limit = readPositiveIntegerParam(params, "limit", {
           message: "limit must be a positive integer.",
         });
@@ -449,7 +517,7 @@ export async function handleSlackAction(
           );
         }
         const channelId = resolveSlackChannelId(channelTarget);
-        assertSlackReadTargetAllowed({ account, cfg, channelId });
+        await assertSlackReadTargetAllowed({ account, cfg, channelId, context, readOpts });
         const threadId = readStringParam(params, "threadId") ?? readStringParam(params, "replyTo");
         const maxBytes = account.config?.mediaMaxMb
           ? account.config.mediaMaxMb * 1024 * 1024
@@ -461,6 +529,7 @@ export async function handleSlackAction(
           maxBytes,
           channelId,
           threadId: threadId ?? undefined,
+          requireChannelEvidence: context?.requesterReadAuthority?.mode !== "operator",
         });
         if (!downloaded) {
           return jsonResult({
@@ -526,7 +595,7 @@ export async function handleSlackAction(
       }
       return jsonResult({ ok: true });
     }
-    assertSlackReadTargetAllowed({ account, cfg, channelId });
+    await assertSlackReadTargetAllowed({ account, cfg, channelId, context, readOpts });
     const pins = writeOpts
       ? await slackActionRuntime.listSlackPins(channelId, readOpts)
       : await slackActionRuntime.listSlackPins(channelId);

@@ -13,17 +13,71 @@ import {
   normalizeOptionalString,
 } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { resolveDefaultSlackAccountId } from "./accounts.js";
+import type { SlackActionContext, SlackRequesterReadAuthority } from "./action-runtime.js";
 import {
   buildSlackInteractiveBlocks,
   buildSlackPresentationBlocks,
   resolveSlackInteractiveBlockOffsets,
 } from "./blocks-render.js";
 
+type SlackActionToolContext = NonNullable<ChannelMessageActionContext["toolContext"]> &
+  Pick<SlackActionContext, "requesterReadAuthority">;
+
 type SlackActionInvoke = (
   action: Record<string, unknown>,
   cfg: ChannelMessageActionContext["cfg"],
-  toolContext?: ChannelMessageActionContext["toolContext"],
+  toolContext?: SlackActionToolContext,
 ) => Promise<AgentToolResult<unknown>>;
+
+/**
+ * Requester identity is only trusted when the current conversation is a Slack
+ * conversation on the same account; sender ids from other providers or Slack
+ * accounts must not be treated as workspace users of the target account.
+ */
+function resolveTrustedSlackRequesterUserId(
+  ctx: ChannelMessageActionContext,
+  accountId: string | undefined,
+): string | undefined {
+  if (normalizeOptionalLowercaseString(ctx.toolContext?.currentChannelProvider) !== "slack") {
+    return undefined;
+  }
+  if (!slackRequesterTargetsSameAccount(ctx, accountId)) {
+    return undefined;
+  }
+  return normalizeOptionalString(ctx.requesterSenderId);
+}
+
+function slackRequesterTargetsSameAccount(
+  ctx: ChannelMessageActionContext,
+  accountId: string | undefined,
+): boolean {
+  const requesterAccountId = ctx.requesterAccountId
+    ? normalizeAccountId(ctx.requesterAccountId)
+    : undefined;
+  const targetAccountId = normalizeAccountId(accountId ?? resolveDefaultSlackAccountId(ctx.cfg));
+  return requesterAccountId === targetAccountId;
+}
+
+/**
+ * Decide the end-user read authority from server-injected ctx fields only.
+ * Owner-authenticated senders and non-Slack surfaces keep operator-level reads
+ * (config policy only); a Slack conversation without a trusted requester id
+ * fails closed to current-conversation reads in the action runtime.
+ */
+function resolveSlackRequesterReadAuthority(
+  ctx: ChannelMessageActionContext,
+  accountId: string | undefined,
+): SlackRequesterReadAuthority {
+  if (ctx.senderIsOwner === true) {
+    return { mode: "operator" };
+  }
+  if (normalizeOptionalLowercaseString(ctx.toolContext?.currentChannelProvider) !== "slack") {
+    return { mode: "operator" };
+  }
+  const sameAccount = slackRequesterTargetsSameAccount(ctx, accountId);
+  const userId = resolveTrustedSlackRequesterUserId(ctx, accountId);
+  return userId ? { mode: "requester", userId } : { mode: "unverified", sameAccount };
+}
 
 /** Translate generic channel action requests into Slack-specific tool invocations and payload shapes. */
 export async function handleSlackMessageAction(params: {
@@ -42,6 +96,14 @@ export async function handleSlackMessageAction(params: {
       readStringParam(actionParams, "to", { required: true });
     return normalizeChannelId ? normalizeChannelId(channelId) : channelId;
   };
+  // Read-like actions carry the end-user read authority so the action runtime
+  // can enforce channel membership outside the current conversation. Always
+  // overwrite the field: it must come from server-injected identity, never
+  // from a caller-supplied tool context.
+  const readToolContext = (): SlackActionToolContext => ({
+    ...ctx.toolContext,
+    requesterReadAuthority: resolveSlackRequesterReadAuthority(ctx, accountId),
+  });
 
   if (action === "send") {
     const to = readStringParam(actionParams, "to", { required: true });
@@ -126,6 +188,7 @@ export async function handleSlackMessageAction(params: {
         accountId,
       },
       cfg,
+      readToolContext(),
     );
   }
 
@@ -145,7 +208,7 @@ export async function handleSlackMessageAction(params: {
     if (includeReadThreadId) {
       readAction.threadId = readStringParam(actionParams, "threadId");
     }
-    return await invoke(readAction, cfg);
+    return await invoke(readAction, cfg, readToolContext());
   }
 
   if (action === "edit") {
@@ -199,21 +262,13 @@ export async function handleSlackMessageAction(params: {
         accountId,
       },
       cfg,
+      readToolContext(),
     );
   }
 
   if (action === "member-info") {
-    const requesterAccountId = ctx.requesterAccountId
-      ? normalizeAccountId(ctx.requesterAccountId)
-      : undefined;
-    const targetAccountId = normalizeAccountId(accountId ?? resolveDefaultSlackAccountId(cfg));
-    const requesterUserId =
-      normalizeOptionalLowercaseString(ctx.toolContext?.currentChannelProvider) === "slack" &&
-      requesterAccountId !== undefined &&
-      requesterAccountId === targetAccountId
-        ? normalizeOptionalString(ctx.requesterSenderId)
-        : undefined;
-    const userId = readStringParam(actionParams, "userId") ?? requesterUserId;
+    const userId =
+      readStringParam(actionParams, "userId") ?? resolveTrustedSlackRequesterUserId(ctx, accountId);
     if (!userId) {
       throw new Error("member-info requires a userId outside a current Slack conversation.");
     }
@@ -250,7 +305,7 @@ export async function handleSlackMessageAction(params: {
         accountId,
       },
       cfg,
-      ctx.toolContext,
+      readToolContext(),
     );
   }
 

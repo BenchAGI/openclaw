@@ -385,6 +385,142 @@ describe("handleSlackMessageAction", () => {
     expect(firstInvokeCall(invoke)[1]).toEqual({});
   });
 
+  it.each([
+    { action: "read", params: { channelId: "C2" } },
+    { action: "reactions", params: { channelId: "C2", messageId: "123.456" } },
+    { action: "list-pins", params: { channelId: "C2" } },
+    { action: "download-file", params: { channelId: "C2", fileId: "F123" } },
+  ] as const)(
+    "injects requester read authority into $action tool context",
+    async ({ action, params }) => {
+      const invoke = createInvokeSpy();
+      const toolContext = { currentChannelProvider: "slack", currentChannelId: "C1" };
+
+      await handleSlackMessageAction({
+        providerId: "slack",
+        ctx: {
+          action,
+          cfg: {},
+          params,
+          accountId: "OPS",
+          requesterAccountId: "ops",
+          requesterSenderId: "U123",
+          toolContext,
+        } as never,
+        invoke: invoke as never,
+      });
+
+      expect(firstInvokeCall(invoke)[2]).toEqual({
+        ...toolContext,
+        requesterReadAuthority: { mode: "requester", userId: "U123" },
+      });
+    },
+  );
+
+  it.each([
+    [
+      "targets another Slack account",
+      {
+        accountId: "other",
+        requesterAccountId: "default",
+        requesterSenderId: "U123",
+        toolContext: { currentChannelProvider: "slack" },
+      },
+    ],
+    ["has no inbound sender", { toolContext: { currentChannelProvider: "slack" } }],
+  ])("marks read authority unverified when the request %s", async (_label, context) => {
+    const invoke = createInvokeSpy();
+
+    await handleSlackMessageAction({
+      providerId: "slack",
+      ctx: { action: "read", cfg: {}, params: { channelId: "C2" }, ...context } as never,
+      invoke: invoke as never,
+    });
+
+    expect(firstInvokeCall(invoke)[2]).toEqual({
+      ...context.toolContext,
+      requesterReadAuthority: { mode: "unverified", sameAccount: false },
+    });
+  });
+
+  it("keeps same-account current-conversation reads available without a sender id", async () => {
+    const invoke = createInvokeSpy();
+
+    await handleSlackMessageAction({
+      providerId: "slack",
+      ctx: {
+        action: "read",
+        cfg: {},
+        params: { channelId: "C2" },
+        accountId: "default",
+        requesterAccountId: "DEFAULT",
+        toolContext: { currentChannelProvider: "slack" },
+      } as never,
+      invoke: invoke as never,
+    });
+
+    expect(firstInvokeCall(invoke)[2]).toEqual({
+      currentChannelProvider: "slack",
+      requesterReadAuthority: { mode: "unverified", sameAccount: true },
+    });
+  });
+
+  it.each([
+    [
+      "comes from another provider",
+      {
+        requesterAccountId: "default",
+        requesterSenderId: "U123",
+        toolContext: { currentChannelProvider: "telegram" },
+      },
+    ],
+    [
+      "comes from an owner-authenticated sender",
+      {
+        requesterAccountId: "default",
+        requesterSenderId: "U123",
+        senderIsOwner: true,
+        toolContext: { currentChannelProvider: "slack" },
+      },
+    ],
+  ])("marks read authority operator when the request %s", async (_label, context) => {
+    const invoke = createInvokeSpy();
+
+    await handleSlackMessageAction({
+      providerId: "slack",
+      ctx: { action: "read", cfg: {}, params: { channelId: "C2" }, ...context } as never,
+      invoke: invoke as never,
+    });
+
+    expect(firstInvokeCall(invoke)[2]).toEqual({
+      ...context.toolContext,
+      requesterReadAuthority: { mode: "operator" },
+    });
+  });
+
+  it("overwrites a caller-supplied read authority with the server-derived one", async () => {
+    const invoke = createInvokeSpy();
+
+    await handleSlackMessageAction({
+      providerId: "slack",
+      ctx: {
+        action: "read",
+        cfg: {},
+        params: { channelId: "C2" },
+        toolContext: {
+          currentChannelProvider: "slack",
+          requesterReadAuthority: { mode: "requester", userId: "U_SMUGGLED" },
+        },
+      } as never,
+      invoke: invoke as never,
+    });
+
+    expect(firstInvokeCall(invoke)[2]).toEqual({
+      currentChannelProvider: "slack",
+      requesterReadAuthority: { mode: "unverified", sameAccount: false },
+    });
+  });
+
   it("rejects fractional read limits before invoking Slack actions", async () => {
     const invoke = createInvokeSpy();
 
@@ -470,7 +606,10 @@ describe("handleSlackMessageAction", () => {
     expect(action.fileId).toBe("F123");
     expect(action.channelId).toBeUndefined();
     expectForwardedCfg(invoke, cfg);
-    expect(firstInvokeCall(invoke)[2]).toBe(toolContext);
+    expect(firstInvokeCall(invoke)[2]).toEqual({
+      ...toolContext,
+      requesterReadAuthority: { mode: "operator" },
+    });
   });
 
   it("maps download-file target aliases to scope fields", async () => {

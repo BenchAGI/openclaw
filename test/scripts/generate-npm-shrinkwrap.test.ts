@@ -12,6 +12,7 @@ import {
   exactOverrideRulesFromOverrides,
   exactVersionFromOverrideSpec,
   normalizeNpmVersionDrift,
+  normalizeMutableRegistryMetadata,
   packageDependencyInputsChanged,
   pnpmLockOverrideVersionForVersions,
   parsePnpmPackageKey,
@@ -56,6 +57,30 @@ describe("generate-npm-shrinkwrap", () => {
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 10 * 60 * 1000,
     });
+  });
+
+  it("preserves committed deprecation metadata for an unchanged registry artifact", () => {
+    const current = {
+      packages: {
+        "node_modules/example": {
+          version: "1.2.3",
+          resolved: "https://registry.npmjs.org/example/-/example-1.2.3.tgz",
+          integrity: "sha512-same",
+        },
+      },
+    };
+    const generated = {
+      packages: {
+        "node_modules/example": {
+          version: "1.2.3",
+          resolved: "https://registry.npmjs.org/example/-/example-1.2.3.tgz",
+          integrity: "sha512-same",
+          deprecated: "new mutable registry notice",
+        },
+      },
+    };
+
+    expect(normalizeMutableRegistryMetadata(generated, current)).toEqual(current);
   });
 
   it("rejects short flag package selectors before resolving shrinkwrap targets", () => {
@@ -370,6 +395,46 @@ describe("generate-npm-shrinkwrap", () => {
         "node_modules/keeps-peer-false": {
           version: "1.0.0",
           peer: false,
+        },
+      },
+    });
+  });
+
+  it("stabilizes mutable npm deprecation metadata", () => {
+    expect(
+      normalizeNpmVersionDrift(
+        {
+          packages: {
+            "node_modules/audio-decode": {
+              version: "2.2.3",
+              deprecated: "Renamed to @audio/decode — current registry text",
+            },
+            "node_modules/new-package": {
+              version: "1.0.0",
+              deprecated: "This package is deprecated",
+            },
+          },
+        },
+        {
+          packages: {
+            "node_modules/audio-decode": {
+              version: "2.2.3",
+              deprecated: "Renamed to @audio/decode",
+            },
+            "node_modules/new-package": {
+              version: "1.0.0",
+            },
+          },
+        },
+      ),
+    ).toEqual({
+      packages: {
+        "node_modules/audio-decode": {
+          version: "2.2.3",
+          deprecated: "Renamed to @audio/decode",
+        },
+        "node_modules/new-package": {
+          version: "1.0.0",
         },
       },
     });

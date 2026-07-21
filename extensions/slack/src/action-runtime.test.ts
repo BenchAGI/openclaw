@@ -9,6 +9,7 @@ const deleteSlackMessage = vi.fn(async (..._args: unknown[]) => ({}));
 const downloadSlackFile = vi.fn(async (..._args: unknown[]): Promise<unknown> => null);
 const editSlackMessage = vi.fn(async (..._args: unknown[]) => ({}));
 const getSlackMemberInfo = vi.fn(async (..._args: unknown[]) => ({}));
+const isSlackUserChannelMember = vi.fn(async (..._args: unknown[]) => true);
 const listSlackEmojis = vi.fn(async (..._args: unknown[]) => ({}));
 const listSlackPins = vi.fn(async (..._args: unknown[]) => ({}));
 const listSlackReactions = vi.fn(async (..._args: unknown[]) => ({}));
@@ -206,6 +207,7 @@ describe("handleSlackAction", () => {
       downloadSlackFile,
       editSlackMessage,
       getSlackMemberInfo,
+      isSlackUserChannelMember,
       listSlackEmojis,
       listSlackPins,
       listSlackReactions,
@@ -1086,6 +1088,157 @@ describe("handleSlackAction", () => {
       handleSlackAction({ action: "listPins", channelId: "C_OTHER" }, cfg),
     ).rejects.toThrow("Slack read target channel is not allowed.");
     expect(listSlackPins).not.toHaveBeenCalled();
+  });
+
+  describe("requester channel membership gate", () => {
+    const requesterContext = {
+      currentChannelId: "C_CURRENT",
+      requesterReadAuthority: { mode: "requester", userId: "U_REQ" } as const,
+    };
+
+    it("allows cross-channel reads when the requesting user is a member", async () => {
+      readSlackMessages.mockResolvedValueOnce({ messages: [], hasMore: false });
+      isSlackUserChannelMember.mockResolvedValueOnce(true);
+      const cfg = slackConfig();
+
+      await handleSlackAction(
+        { action: "readMessages", channelId: "C_OTHER" },
+        cfg,
+        requesterContext,
+      );
+
+      expect(isSlackUserChannelMember).toHaveBeenCalledWith(
+        "C_OTHER",
+        "U_REQ",
+        expect.objectContaining({ cfg }),
+      );
+      expect(readSlackMessages).toHaveBeenCalled();
+    });
+
+    it("skips the membership call when reading the current conversation", async () => {
+      readSlackMessages.mockResolvedValueOnce({ messages: [], hasMore: false });
+
+      await handleSlackAction(
+        { action: "readMessages", channelId: "C_CURRENT" },
+        slackConfig(),
+        requesterContext,
+      );
+
+      expect(isSlackUserChannelMember).not.toHaveBeenCalled();
+      expect(readSlackMessages).toHaveBeenCalled();
+    });
+
+    it("fails closed when the membership check errors", async () => {
+      isSlackUserChannelMember.mockRejectedValueOnce(new Error("conversations.members failed"));
+
+      await expect(
+        handleSlackAction(
+          { action: "readMessages", channelId: "C_OTHER" },
+          slackConfig(),
+          requesterContext,
+        ),
+      ).rejects.toThrow("Slack read target membership check failed; denying read.");
+      expect(readSlackMessages).not.toHaveBeenCalled();
+    });
+
+    it("fails closed for Slack-originated reads without a trusted requester id", async () => {
+      await expect(
+        handleSlackAction({ action: "readMessages", channelId: "C_OTHER" }, slackConfig(), {
+          currentChannelId: "C_CURRENT",
+          requesterReadAuthority: { mode: "unverified", sameAccount: false },
+        }),
+      ).rejects.toThrow(
+        "Slack read outside the current conversation requires a known requesting Slack user.",
+      );
+      expect(isSlackUserChannelMember).not.toHaveBeenCalled();
+      expect(readSlackMessages).not.toHaveBeenCalled();
+    });
+
+    it("allows unverified requesters to read the current conversation", async () => {
+      readSlackMessages.mockResolvedValueOnce({ messages: [], hasMore: false });
+
+      await handleSlackAction({ action: "readMessages", channelId: "C_CURRENT" }, slackConfig(), {
+        currentChannelId: "C_CURRENT",
+        requesterReadAuthority: { mode: "unverified", sameAccount: true },
+      });
+
+      expect(isSlackUserChannelMember).not.toHaveBeenCalled();
+      expect(readSlackMessages).toHaveBeenCalled();
+    });
+
+    it("fails closed when an unverified cross-account target reuses the current channel id", async () => {
+      await expect(
+        handleSlackAction({ action: "readMessages", channelId: "C_CURRENT" }, slackConfig(), {
+          currentChannelId: "C_CURRENT",
+          requesterReadAuthority: { mode: "unverified", sameAccount: false },
+        }),
+      ).rejects.toThrow(
+        "Slack read outside the current conversation requires a known requesting Slack user.",
+      );
+      expect(readSlackMessages).not.toHaveBeenCalled();
+    });
+
+    it("requires membership for cross-channel reads even when group policy is open", async () => {
+      isSlackUserChannelMember.mockResolvedValueOnce(false);
+      const cfg = slackConfig({ groupPolicy: "open" });
+
+      await expect(
+        handleSlackAction({ action: "readMessages", channelId: "C_OTHER" }, cfg, requesterContext),
+      ).rejects.toThrow("Slack read target channel is not available to the requesting user.");
+      expect(readSlackMessages).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: "no authority", context: { currentChannelId: "C_CURRENT" } },
+      {
+        name: "operator authority",
+        context: {
+          currentChannelId: "C_CURRENT",
+          requesterReadAuthority: { mode: "operator" } as const,
+        },
+      },
+    ])("does not gate cross-channel reads under $name", async ({ context }) => {
+      readSlackMessages.mockResolvedValueOnce({ messages: [], hasMore: false });
+
+      await handleSlackAction(
+        { action: "readMessages", channelId: "C_OTHER" },
+        slackConfig(),
+        context,
+      );
+
+      expect(isSlackUserChannelMember).not.toHaveBeenCalled();
+      expect(readSlackMessages).toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        name: "readMessages",
+        params: { action: "readMessages", channelId: "C_OTHER" },
+        mock: readSlackMessages,
+      },
+      {
+        name: "listPins",
+        params: { action: "listPins", channelId: "C_OTHER" },
+        mock: listSlackPins,
+      },
+      {
+        name: "reactions",
+        params: { action: "reactions", channelId: "C_OTHER", messageId: "123.456" },
+        mock: listSlackReactions,
+      },
+      {
+        name: "downloadFile",
+        params: { action: "downloadFile", fileId: "F123", channelId: "C_OTHER" },
+        mock: downloadSlackFile,
+      },
+    ])("rejects non-member $name reads before the Slack call", async ({ params, mock }) => {
+      isSlackUserChannelMember.mockResolvedValueOnce(false);
+
+      await expect(handleSlackAction(params, slackConfig(), requesterContext)).rejects.toThrow(
+        "Slack read target channel is not available to the requesting user.",
+      );
+      expect(mock).not.toHaveBeenCalled();
+    });
   });
 
   it("passes messageId through to readSlackMessages", async () => {

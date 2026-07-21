@@ -2,6 +2,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import type { OpenClawPluginCommandDefinition } from "openclaw/plugin-sdk/core";
 import type { MemoryPluginRuntime } from "openclaw/plugin-sdk/memory-core-host-runtime-core";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import { createTestPluginApi } from "openclaw/plugin-sdk/plugin-test-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -102,6 +103,42 @@ describe("memory-core plugin runtime registration", () => {
     expect(command?.name).toBe("dreaming");
     expect(command?.acceptsArgs).toBe(true);
     expect(command?.description).toContain("Enable or disable");
+  });
+
+  it("registers the memory tap snapshot as an operator-read gateway method", async () => {
+    type GatewayMethodHandler = Parameters<OpenClawPluginApi["registerGatewayMethod"]>[1];
+    let registration:
+      | {
+          method: string;
+          handler: GatewayMethodHandler;
+          options?: { scope?: string };
+        }
+      | undefined;
+    plugin.register(
+      createTestPluginApi({
+        registerGatewayMethod(method, _handler, options) {
+          if (method === "memory.tap.snapshot") {
+            registration = { method, handler: _handler, options };
+          }
+        },
+      }),
+    );
+
+    expect(registration?.method).toBe("memory.tap.snapshot");
+    expect(registration?.options).toEqual({ scope: "operator.read" });
+    if (!registration) {
+      throw new Error("memory.tap.snapshot registration missing");
+    }
+    const respond = vi.fn();
+    await registration.handler({
+      params: null as unknown as Record<string, unknown>,
+      context: { getRuntimeConfig: () => ({}) },
+      respond,
+    } as unknown as Parameters<GatewayMethodHandler>[0]);
+    expect(respond).toHaveBeenCalledWith(false, undefined, {
+      code: "invalid_request",
+      message: "params must be an object.",
+    });
   });
 
   it("wires scoped memory search cleanup through the lazy runtime", async () => {

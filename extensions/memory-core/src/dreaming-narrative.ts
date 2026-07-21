@@ -491,9 +491,10 @@ function isOptionalDiaryContextReadError(err: unknown): boolean {
   return err instanceof Error && err.message === "path must be a regular file";
 }
 
-export async function readRecentDreamDiaryEntries(params: {
+async function readRecentDreamDiaryBlocks(params: {
   workspaceDir: string;
   limit?: number;
+  tolerateReadErrors?: boolean;
 }): Promise<string[]> {
   const limit = Math.max(0, Math.floor(params.limit ?? RECENT_DIARY_CONTEXT_LIMIT));
   if (limit === 0) {
@@ -504,7 +505,7 @@ export async function readRecentDreamDiaryEntries(params: {
     const dreamsPath = await resolveDreamsPath(params.workspaceDir);
     existing = await readDreamsFile(dreamsPath);
   } catch (err) {
-    if (isOptionalDiaryContextReadError(err)) {
+    if (params.tolerateReadErrors !== false && isOptionalDiaryContextReadError(err)) {
       return [];
     }
     throw err;
@@ -512,14 +513,80 @@ export async function readRecentDreamDiaryEntries(params: {
   const startIdx = existing.indexOf(DIARY_START_MARKER);
   const endIdx = existing.indexOf(DIARY_END_MARKER);
   if (startIdx < 0 || endIdx < 0 || endIdx < startIdx) {
-    return [];
+    if (params.tolerateReadErrors !== false) {
+      return [];
+    }
+    throw new Error("dream diary managed markers are missing or invalid");
   }
   const inner = existing.slice(startIdx + DIARY_START_MARKER.length, endIdx);
-  return splitDiaryBlocks(inner)
-    .map(normalizeDiaryBlockBody)
-    .filter((entry) => entry.length > 0)
-    .slice(-limit)
-    .toReversed();
+  return splitDiaryBlocks(inner).slice(-limit).toReversed();
+}
+
+export async function readRecentDreamDiaryEntries(params: {
+  workspaceDir: string;
+  limit?: number;
+}): Promise<string[]> {
+  const blocks = await readRecentDreamDiaryBlocks({ ...params, tolerateReadErrors: true });
+  return blocks.map(normalizeDiaryBlockBody).filter((entry) => entry.length > 0);
+}
+
+export type RecentDreamDiaryRecord = {
+  text: string;
+  observedAtMs: number | null;
+  precisionMs: number;
+};
+
+function parseDiaryBlockObservedAt(block: string): {
+  observedAtMs: number | null;
+  precisionMs: number;
+} {
+  const lines = block.split("\n").map((line) => line.trim());
+  const dateLineIndex = lines.findIndex(
+    (line) => line.startsWith("*") && line.endsWith("*") && line.length > 2,
+  );
+  const dateLine = dateLineIndex >= 0 ? lines[dateLineIndex] : undefined;
+  const metadataLine = dateLineIndex >= 0 ? lines[dateLineIndex + 1] : undefined;
+  const machineTimestamp = metadataLine
+    ? /^<!-- openclaw:dreaming:observed-at:([^\s]+) -->$/.exec(metadataLine)?.[1]
+    : undefined;
+  if (machineTimestamp !== undefined) {
+    const parsed = Date.parse(machineTimestamp);
+    if (Number.isFinite(parsed)) {
+      return { observedAtMs: parsed, precisionMs: 1 };
+    }
+  }
+  if (!dateLine) {
+    return { observedAtMs: null, precisionMs: 1 };
+  }
+  // Intl renders the stored human timestamp as "... at ...". Date.parse accepts
+  // the same locale form after replacing that connector with a comma.
+  const parsed = Date.parse(
+    dateLine
+      .slice(1, -1)
+      .trim()
+      .replace(/\s+at\s+/i, ", "),
+  );
+  return Number.isFinite(parsed)
+    ? { observedAtMs: parsed, precisionMs: 60_000 }
+    : { observedAtMs: null, precisionMs: 1 };
+}
+
+/** Newest-first diary records for consumers that must enforce a real time window. */
+export async function readRecentDreamDiaryRecords(params: {
+  workspaceDir: string;
+  limit?: number;
+}): Promise<RecentDreamDiaryRecord[]> {
+  const blocks = await readRecentDreamDiaryBlocks({ ...params, tolerateReadErrors: false });
+  return blocks
+    .map((block) => {
+      const observedAt = parseDiaryBlockObservedAt(block);
+      return {
+        text: normalizeDiaryBlockBody(block),
+        observedAtMs: observedAt.observedAtMs,
+        precisionMs: observedAt.precisionMs,
+      };
+    })
+    .filter((entry) => entry.text.length > 0);
 }
 
 function normalizeDiaryBlockFingerprint(block: string): string {
@@ -731,8 +798,9 @@ export async function dedupeDreamDiaryEntries(params: {
   });
 }
 
-export function buildDiaryEntry(narrative: string, dateStr: string): string {
-  return `\n---\n\n*${dateStr}*\n\n${narrative}\n`;
+export function buildDiaryEntry(narrative: string, dateStr: string, observedAt?: string): string {
+  const marker = observedAt ? `\n<!-- openclaw:dreaming:observed-at:${observedAt} -->` : "";
+  return `\n---\n\n*${dateStr}*${marker}\n\n${narrative}\n`;
 }
 
 export async function appendNarrativeEntry(params: {
@@ -742,7 +810,7 @@ export async function appendNarrativeEntry(params: {
   timezone?: string;
 }): Promise<string> {
   const dateStr = formatNarrativeDate(params.nowMs, params.timezone);
-  const entry = buildDiaryEntry(params.narrative, dateStr);
+  const entry = buildDiaryEntry(params.narrative, dateStr, new Date(params.nowMs).toISOString());
   return await updateDreamsFile({
     workspaceDir: params.workspaceDir,
     updater: (existing, dreamsPath) => {
