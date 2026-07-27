@@ -851,6 +851,7 @@ export type PluginHookGatewayCronDeliveryStatus =
   | "not-requested"
   | "delivered"
   | "not-delivered"
+  | "blocked-by-policy"
   | "unknown";
 
 export type PluginHookGatewayCronJobState = {

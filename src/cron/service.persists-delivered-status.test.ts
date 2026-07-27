@@ -91,6 +91,8 @@ function createIsolatedCronWithFinishedBarrier(params: {
   storePath: string;
   status?: "ok" | "error";
   delivered?: boolean;
+  deliveryBlockedReason?: string;
+  deliveryFailedError?: string;
   error?: string;
   onFinished?: (evt: {
     jobId: string;
@@ -115,6 +117,12 @@ function createIsolatedCronWithFinishedBarrier(params: {
       summary: "done",
       ...(params.error === undefined ? {} : { error: params.error }),
       ...(params.delivered === undefined ? {} : { delivered: params.delivered }),
+      ...(params.deliveryBlockedReason === undefined
+        ? {}
+        : { deliveryBlockedReason: params.deliveryBlockedReason }),
+      ...(params.deliveryFailedError === undefined
+        ? {}
+        : { deliveryFailedError: params.deliveryFailedError }),
     })),
     onEvent: (evt) => {
       if (evt.action === "finished") {
@@ -189,6 +197,8 @@ async function runIsolatedJobAndReadState(params: {
   job: CronAddInput;
   status?: "ok" | "error";
   delivered?: boolean;
+  deliveryBlockedReason?: string;
+  deliveryFailedError?: string;
   error?: string;
   onFinished?: (evt: {
     jobId: string;
@@ -207,6 +217,12 @@ async function runIsolatedJobAndReadState(params: {
     storePath: store.storePath,
     ...(params.status !== undefined ? { status: params.status } : {}),
     ...(params.delivered !== undefined ? { delivered: params.delivered } : {}),
+    ...(params.deliveryBlockedReason !== undefined
+      ? { deliveryBlockedReason: params.deliveryBlockedReason }
+      : {}),
+    ...(params.deliveryFailedError !== undefined
+      ? { deliveryFailedError: params.deliveryFailedError }
+      : {}),
     ...(params.error !== undefined ? { error: params.error } : {}),
     onFinished: (evt) => {
       params.onFinished?.(evt);
@@ -256,6 +272,55 @@ describe("CronService persists delivered status", () => {
     expect(updated?.state.lastDeliveryError).toBeUndefined();
     expect(updated?.state.lastFailureNotificationDelivered).toBeUndefined();
     expect(updated?.state.lastFailureNotificationDeliveryStatus).toBe("not-requested");
+  });
+
+  it("persists blocked-by-policy when the announce send was cancelled by a policy hook", async () => {
+    let capturedEvent: { deliveryStatus?: string } | undefined;
+    const updated = await runIsolatedJobAndReadState({
+      job: buildAnnounceIsolatedAgentTurnJob("blocked-by-policy"),
+      delivered: false,
+      deliveryBlockedReason:
+        "cancelled_by_message_sending_hook: external disclosure requires approval",
+      onFinished: (evt) => {
+        capturedEvent = evt;
+      },
+    });
+    expectSuccessfulCronRun(updated);
+    expect(updated?.state.lastDelivered).toBe(false);
+    expect(updated?.state.lastDeliveryStatus).toBe("blocked-by-policy");
+    expect(updated?.state.lastDeliveryError).toBe(
+      "cancelled_by_message_sending_hook: external disclosure requires approval",
+    );
+    // A deliberate policy block is terminal, not a transport failure streak.
+    expect(updated?.state.consecutiveErrors ?? 0).toBe(0);
+    expect(capturedEvent?.deliveryStatus).toBe("blocked-by-policy");
+  });
+
+  it("counts an unconfirmed bestEffort transport failure as a consecutive error while the run stays ok", async () => {
+    const updated = await runIsolatedJobAndReadState({
+      job: buildAnnounceIsolatedAgentTurnJob("unconfirmed-send"),
+      delivered: false,
+      deliveryFailedError: "telegram send failed: ETIMEDOUT",
+    });
+    // The job ran, but the delivery never got transport confirmation:
+    // run status stays ok while delivery state and the error streak tell the truth.
+    expectSuccessfulCronRun(updated);
+    expect(updated?.state.lastDelivered).toBe(false);
+    expect(updated?.state.lastDeliveryStatus).toBe("not-delivered");
+    expect(updated?.state.lastDeliveryError).toBe("telegram send failed: ETIMEDOUT");
+    expect(updated?.state.consecutiveErrors).toBe(1);
+  });
+
+  it("never reports delivered when only a failure marker arrives without an ack", async () => {
+    const updated = await runIsolatedJobAndReadState({
+      job: buildAnnounceIsolatedAgentTurnJob("failed-without-ack"),
+      deliveryFailedError: "provider error before ack",
+    });
+    expectSuccessfulCronRun(updated);
+    expect(updated?.state.lastDelivered).toBe(false);
+    expect(updated?.state.lastDeliveryStatus).toBe("not-delivered");
+    expect(updated?.state.lastDeliveryError).toBe("provider error before ack");
+    expect(updated?.state.consecutiveErrors).toBe(1);
   });
 
   it("keeps failure notification delivery separate from successful result delivery", async () => {

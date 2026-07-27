@@ -32,6 +32,11 @@ minimumReleaseAgeExclude:
   - "@vitest/browser"
   - "@vitest/browser-playwright"
   - "@vitest/coverage-v8"
+  - "@opentelemetry/propagator-jaeger"
+  - "postcss"
+  - "linkify-it"
+  - "fast-uri"
+  - "brace-expansion"
   - "@cloudflare/workers-types"
   - "@hono/node-server"
   - "@mariozechner/*"
@@ -111,7 +116,8 @@ overrides:
   "@hono/node-server": 1.19.14
   # GHSA-gcfj-64vw-6mp9: inherited proxy reuse after interceptor config cloning (<1.18.0).
   axios: 1.18.1
-  fast-uri: 3.1.2
+  # GHSA-v2hh-gcrm-f6hx + GHSA-4c8g-83qw-93j6: host confusion (<=3.1.3).
+  fast-uri: 3.1.4
   follow-redirects: 1.16.0
   defu: 6.1.5
   fast-xml-parser: 5.7.0
@@ -130,7 +136,8 @@ overrides:
   # archive parser/extractor denial of service (<=7.5.18).
   tar: 7.5.20
   # GHSA-3jxr-9vmj-r5cp: exponential-time consecutive empty-brace expansion (<5.0.7).
-  brace-expansion: 5.0.7
+  # GHSA-mh99-v99m-4gvg: unbounded expansion DoS (<=5.0.7).
+  brace-expansion: 5.0.8
   tough-cookie: 4.1.3
   yauzl: 3.2.1
   # GHSA-wcpc-wj8m-hjx6 (Any-expansion DoS <=8.4.0) + GHSA-94rc-8x27-4472 (unknown-field
@@ -154,7 +161,16 @@ overrides:
   # Security: GHSA-g8mr-85jm-7xhm (@vitest/browser Browser Mode API can proxy CDP
   # and overwrite config files -> RCE, <=4.1.7). Pin to the patched release,
   # aligned with the workspace vitest 4.1.8 pin (post-2026.6.11 merge).
-  "@vitest/browser": 4.1.8
+  # GHSA-p63j-vcc4-9vmv: browser mode provider command file-access bypass (<4.1.10).
+  "@vitest/browser": 4.1.10
+  "@vitest/browser-playwright": 4.1.10
+  "@vitest/coverage-v8": 4.1.10
+  # GHSA-v245-v573-v5vm: linkify-it mailto DoS (<=5.0.1).
+  linkify-it: 5.0.2
+  # GHSA-r28c-9q8g-f849: postcss source map path traversal (<=8.5.17).
+  postcss: 8.5.18
+  # GHSA-45rx-2jwx-cxfr: JaegerPropagator unhandled exception DoS (<2.9.0).
+  "@opentelemetry/propagator-jaeger": 2.9.0
 
 allowBuilds:
   "@openclaw/fs-safe": true

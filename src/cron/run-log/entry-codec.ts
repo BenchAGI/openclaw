@@ -100,6 +100,7 @@ export function parseCronRunLogEntryObject(
   if (
     entryObj.deliveryStatus === "delivered" ||
     entryObj.deliveryStatus === "not-delivered" ||
+    entryObj.deliveryStatus === "blocked-by-policy" ||
     entryObj.deliveryStatus === "unknown" ||
     entryObj.deliveryStatus === "not-requested"
   ) {

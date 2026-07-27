@@ -80,8 +80,23 @@ export type CronDeliveryPatch = Partial<Pick<CronDelivery, "mode" | "bestEffort"
 /** Execution outcome, separate from delivery outcome. */
 export type CronRunStatus = "ok" | "error" | "skipped";
 
-/** Delivery outcome for completion or failure-notification sends. */
-export type CronDeliveryStatus = "delivered" | "not-delivered" | "unknown" | "not-requested";
+/**
+ * Delivery outcome for completion or failure-notification sends.
+ *
+ * - `delivered`: transport confirmed the send (provider returned ok).
+ * - `not-delivered`: a send was attempted and the provider reported an error,
+ *   or the run finished without producing the requested delivery.
+ * - `blocked-by-policy`: the send was suppressed by an approval/policy gate
+ *   (message-sending hook cancellation) before reaching the provider.
+ * - `unknown`: no transport confirmation is available for this run.
+ * - `not-requested`: the job does not request primary delivery.
+ */
+export type CronDeliveryStatus =
+  | "delivered"
+  | "not-delivered"
+  | "blocked-by-policy"
+  | "unknown"
+  | "not-requested";
 
 /** Delivery target snapshot recorded for audit/debug output. */
 export type CronDeliveryTraceTarget = {

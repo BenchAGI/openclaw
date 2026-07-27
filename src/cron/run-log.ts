@@ -229,6 +229,7 @@ function normalizeDeliveryStatuses(opts?: {
       (status): status is CronDeliveryStatus =>
         status === "delivered" ||
         status === "not-delivered" ||
+        status === "blocked-by-policy" ||
         status === "unknown" ||
         status === "not-requested",
     );
@@ -239,6 +240,7 @@ function normalizeDeliveryStatuses(opts?: {
   if (
     opts?.deliveryStatus === "delivered" ||
     opts?.deliveryStatus === "not-delivered" ||
+    opts?.deliveryStatus === "blocked-by-policy" ||
     opts?.deliveryStatus === "unknown" ||
     opts?.deliveryStatus === "not-requested"
   ) {

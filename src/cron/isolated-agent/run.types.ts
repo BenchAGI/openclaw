@@ -18,6 +18,10 @@ export type RunCronAgentTurnResult = {
    * cannot guarantee a final delivery ack synchronously.
    */
   deliveryAttempted?: boolean;
+  /** Set when the announce send was cancelled by an approval/policy hook. */
+  deliveryBlockedReason?: string;
+  /** Set when a send was attempted and transport failed while the run stayed ok. */
+  deliveryFailedError?: string;
   delivery?: CronDeliveryTrace;
 } & CronRunOutcome &
   CronRunTelemetry;

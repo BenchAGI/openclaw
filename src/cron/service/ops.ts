@@ -942,6 +942,8 @@ async function finishPreparedManualRun(
           error: coreResult.error,
           diagnostics: coreResult.diagnostics,
           delivered: coreResult.delivered,
+          deliveryBlockedReason: coreResult.deliveryBlockedReason,
+          deliveryFailedError: coreResult.deliveryFailedError,
           provider: coreResult.provider,
           startedAt,
           endedAt,

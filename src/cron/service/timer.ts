@@ -114,6 +114,8 @@ type TimedCronRunOutcome = CronRunOutcome &
     taskRunId?: string;
     delivered?: boolean;
     deliveryAttempted?: boolean;
+    deliveryBlockedReason?: string;
+    deliveryFailedError?: string;
     isolatedAgentSetupTimeout?: IsolatedAgentSetupTimeoutSignal;
     activeJobMarker?: CronActiveJobMarker;
     startedAt: number;
@@ -576,6 +578,8 @@ function resolveDeliveryState(params: {
   runStatus: CronRunStatus;
   delivered?: boolean;
   error?: string;
+  deliveryBlockedReason?: string;
+  deliveryFailedError?: string;
   globalFailureDestination?: CronConfig["failureDestination"];
 }): {
   delivered?: boolean;
@@ -598,6 +602,10 @@ function resolveDeliveryState(params: {
       },
     };
   }
+  // Policy-gate cancellations are terminal: the send was deliberately
+  // suppressed before transport, so the state must say so instead of
+  // reporting a transport failure — or worse, a delivery.
+  const blockedByPolicy = params.delivered !== true && Boolean(params.deliveryBlockedReason);
   if (params.runStatus === "error") {
     const failureNotification: CronFailureNotificationDelivery =
       alternateFailureNotificationRequested ? { status: "unknown" } : { status: "delivered" };
@@ -609,6 +617,20 @@ function resolveDeliveryState(params: {
         failureNotification: alternateFailureNotificationRequested
           ? failureNotification
           : { delivered: true, status: "delivered" },
+      };
+    }
+    if (blockedByPolicy) {
+      return {
+        delivered: false,
+        status: "blocked-by-policy",
+        error: params.deliveryBlockedReason,
+        failureNotification: alternateFailureNotificationRequested
+          ? failureNotification
+          : {
+              delivered: false,
+              status: "not-delivered",
+              ...(params.deliveryBlockedReason ? { error: params.deliveryBlockedReason } : {}),
+            },
       };
     }
     if (params.delivered === false) {
@@ -638,11 +660,29 @@ function resolveDeliveryState(params: {
       failureNotification: { status: "not-requested" },
     };
   }
+  if (blockedByPolicy) {
+    return {
+      delivered: false,
+      status: "blocked-by-policy",
+      error: params.deliveryBlockedReason,
+      failureNotification: { status: "not-requested" },
+    };
+  }
   if (params.delivered === false) {
     return {
       delivered: false,
       status: "not-delivered",
-      error: params.error,
+      error: params.deliveryFailedError ?? params.error,
+      failureNotification: { status: "not-requested" },
+    };
+  }
+  if (params.deliveryFailedError) {
+    // A send was attempted and the transport reported an error, but the run
+    // finished ok (bestEffort). The delivery is unconfirmed — never delivered.
+    return {
+      delivered: false,
+      status: "not-delivered",
+      error: params.deliveryFailedError,
       failureNotification: { status: "not-requested" },
     };
   }
@@ -658,6 +698,8 @@ export function applyJobResult(
     error?: string;
     diagnostics?: CronRunOutcome["diagnostics"];
     delivered?: boolean;
+    deliveryBlockedReason?: string;
+    deliveryFailedError?: string;
     provider?: string;
     startedAt: number;
     endedAt: number;
@@ -705,12 +747,15 @@ export function applyJobResult(
     runStatus: result.status,
     delivered: result.delivered,
     error: result.error,
+    deliveryBlockedReason: result.deliveryBlockedReason,
+    deliveryFailedError: result.deliveryFailedError,
     globalFailureDestination: state.deps.cronConfig?.failureDestination,
   });
   job.state.lastDelivered = deliveryState.delivered;
   job.state.lastDeliveryStatus = deliveryState.status;
   job.state.lastDeliveryError =
-    deliveryState.status === "not-delivered" && deliveryState.error
+    (deliveryState.status === "not-delivered" || deliveryState.status === "blocked-by-policy") &&
+    deliveryState.error
       ? deliveryState.error
       : undefined;
   job.state.lastFailureNotificationDelivered = deliveryState.failureNotification.delivered;
@@ -749,9 +794,31 @@ export function applyJobResult(
       job.state.lastFailureAlertAtMs = undefined;
     }
   } else {
-    job.state.consecutiveErrors = 0;
-    job.state.consecutiveSkipped = 0;
-    job.state.lastFailureAlertAtMs = undefined;
+    // The job ran ok, but an attempted send may still be unconfirmed: bestEffort
+    // and partial transport failures keep the run status ok while the announce
+    // never verifiably reached its destination. Count those like errors so
+    // health surfaces (status, heartbeat, monitoring) stop reporting a clean
+    // streak for silently-dropped sends. Deliberate policy blocks and silent
+    // replies are terminal non-failures and keep the counter reset.
+    const deliveryUnconfirmed =
+      deliveryState.status === "not-delivered" && Boolean(result.deliveryFailedError);
+    if (deliveryUnconfirmed) {
+      job.state.consecutiveErrors = previousConsecutiveErrors + 1;
+      job.state.consecutiveSkipped = 0;
+      state.deps.log.warn(
+        {
+          jobId: job.id,
+          jobName: job.name,
+          deliveryError: result.deliveryFailedError,
+          consecutiveErrors: job.state.consecutiveErrors,
+        },
+        "cron: run ok but delivery unconfirmed; counting as consecutive error",
+      );
+    } else {
+      job.state.consecutiveErrors = 0;
+      job.state.consecutiveSkipped = 0;
+      job.state.lastFailureAlertAtMs = undefined;
+    }
   }
 
   const shouldDelete =
@@ -977,6 +1044,8 @@ function applyOutcomeToStoredJob(state: CronServiceState, result: TimedCronRunOu
         error: result.error,
         diagnostics: result.diagnostics,
         delivered: result.delivered,
+        deliveryBlockedReason: result.deliveryBlockedReason,
+        deliveryFailedError: result.deliveryFailedError,
         provider: result.provider,
         startedAt: result.startedAt,
         endedAt: result.endedAt,
@@ -1000,6 +1069,8 @@ function applyOutcomeToStoredJob(state: CronServiceState, result: TimedCronRunOu
     error: result.error,
     diagnostics: result.diagnostics,
     delivered: result.delivered,
+    deliveryBlockedReason: result.deliveryBlockedReason,
+    deliveryFailedError: result.deliveryFailedError,
     provider: result.provider,
     startedAt: result.startedAt,
     endedAt: result.endedAt,
@@ -1877,6 +1948,8 @@ export async function executeJobCore(
     CronRunTelemetry & {
       delivered?: boolean;
       deliveryAttempted?: boolean;
+      deliveryBlockedReason?: string;
+      deliveryFailedError?: string;
       delivery?: CronDeliveryTrace;
     }
 > {
@@ -1928,6 +2001,8 @@ async function executeMainSessionCronJob(
     CronRunTelemetry & {
       delivered?: boolean;
       deliveryAttempted?: boolean;
+      deliveryBlockedReason?: string;
+      deliveryFailedError?: string;
       delivery?: CronDeliveryTrace;
     }
 > {
@@ -2067,6 +2142,8 @@ async function executeDetachedCronJob(
     CronRunTelemetry & {
       delivered?: boolean;
       deliveryAttempted?: boolean;
+      deliveryBlockedReason?: string;
+      deliveryFailedError?: string;
       delivery?: CronDeliveryTrace;
     }
 > {
@@ -2154,6 +2231,8 @@ async function executeDetachedCronJob(
     summary: res.summary,
     delivered: res.delivered,
     deliveryAttempted: res.deliveryAttempted,
+    deliveryBlockedReason: res.deliveryBlockedReason,
+    deliveryFailedError: res.deliveryFailedError,
     delivery: res.delivery,
     sessionId: res.sessionId,
     sessionKey: res.sessionKey,

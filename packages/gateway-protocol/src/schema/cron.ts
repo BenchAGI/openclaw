@@ -106,6 +106,7 @@ const CronRunsStatusValueSchema = Type.Union([
 const CronDeliveryStatusSchema = Type.Union([
   Type.Literal("delivered"),
   Type.Literal("not-delivered"),
+  Type.Literal("blocked-by-policy"),
   Type.Literal("unknown"),
   Type.Literal("not-requested"),
 ]);
