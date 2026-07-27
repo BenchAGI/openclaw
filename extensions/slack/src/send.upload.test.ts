@@ -238,6 +238,26 @@ describe("sendMessageSlack file upload with user IDs", () => {
     });
   });
 
+  it("opens an MPIM before posting to a comma-delimited user target", async () => {
+    const client = createUploadTestClient();
+    client.conversations.open.mockResolvedValueOnce({ channel: { id: "G99RESOLVED" } });
+
+    const result = await sendMessageSlack("user:U11111111,U22222222,U33333333", "hello team", {
+      token: "xoxb-test",
+      cfg: SLACK_TEST_CFG,
+      client,
+    });
+
+    expectOnlyCallFirstArg(client.conversations.open, {
+      users: "U11111111,U22222222,U33333333",
+    });
+    expectOnlyCallFirstArg(client.chat.postMessage, {
+      channel: "G99RESOLVED",
+      text: "hello team",
+    });
+    expect(result.channelId).toBe("G99RESOLVED");
+  });
+
   it("serializes concurrent sends to the same Slack target", async () => {
     const client = createUploadTestClient();
     let resolveFirst: (() => void) | undefined;

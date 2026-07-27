@@ -535,7 +535,11 @@ function resolveDirectUserPostChannelId(params: {
   hasMedia: boolean;
   threadTs?: string;
 }): string | undefined {
-  if (!isSlackUserRecipient(params.recipient) || params.hasMedia || params.threadTs) {
+  const isSingleUserId =
+    isSlackUserRecipient(params.recipient) && /^[UW][A-Z0-9]+$/i.test(params.recipient.id);
+  // Slack accepts one user ID in chat.postMessage, while comma-delimited MPIM
+  // members must first resolve to a concrete channel via conversations.open.
+  if (!isSingleUserId || params.hasMedia || params.threadTs) {
     return undefined;
   }
   return params.recipient.id;
@@ -558,7 +562,7 @@ async function resolveChannelId(
   // to "channel"). chat.postMessage tolerates user IDs directly, but
   // files.uploadV2 → completeUploadExternal validates channel_id against
   // ^[CGDZ][A-Z0-9]{8,}$ and rejects U-prefixed IDs. Resolve user IDs via
-  // conversations.open only for paths that require the concrete DM channel ID.
+  // conversations.open only for paths that require a concrete DM or MPIM channel ID.
   if (!isSlackUserRecipient(recipient)) {
     return { channelId: recipient.id };
   }
