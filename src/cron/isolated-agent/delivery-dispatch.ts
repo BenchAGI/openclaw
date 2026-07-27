@@ -136,6 +136,14 @@ export type DispatchCronDeliveryState = {
   delivered: boolean;
   deliveryAttempted: boolean;
   cronRunSessionCleanupAttempted: boolean;
+  /** Set when the send was suppressed by an approval/policy hook cancellation. */
+  deliveryBlockedReason?: string;
+  /**
+   * Set when a send was attempted and the transport reported an error while the
+   * run itself stayed `ok` (bestEffort / partial failures). Lets cron state
+   * count the unconfirmed send instead of reporting a clean streak.
+   */
+  deliveryFailedError?: string;
   summary?: string;
   outputText?: string;
   synthesizedText?: string;
@@ -166,6 +174,37 @@ const PERMANENT_DIRECT_CRON_DELIVERY_ERROR_PATTERNS: readonly RegExp[] = [
 ];
 
 const STALE_CRON_DELIVERY_MAX_START_DELAY_MS = 3 * 60 * 60_000;
+
+/**
+ * Suppression reasons that mean an approval/policy hook cancelled the send.
+ * Distinguished from "nothing visible to send" suppressions so cron state can
+ * report blocked-by-policy instead of a transport failure (or worse, delivered).
+ */
+const POLICY_BLOCKED_SUPPRESSION_REASONS: ReadonlySet<string> = new Set([
+  "cancelled_by_message_sending_hook",
+  "cancelled_by_reply_payload_sending_hook",
+]);
+
+/** Returns the policy-gate cancellation reason when a batch send was hook-suppressed. */
+export function resolvePolicyBlockedSendReason(send: {
+  status: string;
+  reason?: string;
+  payloadOutcomes?: Array<{
+    status: string;
+    hookEffect?: { cancelReason?: string };
+  }>;
+}): string | undefined {
+  if (send.status !== "suppressed" || !send.reason) {
+    return undefined;
+  }
+  if (!POLICY_BLOCKED_SUPPRESSION_REASONS.has(send.reason)) {
+    return undefined;
+  }
+  const cancelReason = send.payloadOutcomes?.find(
+    (outcome) => outcome.status === "suppressed" && outcome.hookEffect?.cancelReason,
+  )?.hookEffect?.cancelReason;
+  return cancelReason ? `${send.reason}: ${cancelReason}` : send.reason;
+}
 
 type CompletedDirectCronDelivery = {
   ts: number;
@@ -916,12 +955,16 @@ export async function dispatchCronDelivery(
 
   let delivered = verifiedMessageToolDelivery;
   let deliveryAttempted = verifiedMessageToolDelivery;
+  let deliveryBlockedReason: string | undefined;
+  let deliveryFailedError: string | undefined;
   let directCronSessionCleanupAttempted = false;
   const buildDeliveryState = (result?: RunCronAgentTurnResult): DispatchCronDeliveryState => ({
     ...(result ? { result } : {}),
     delivered,
     deliveryAttempted,
     cronRunSessionCleanupAttempted: directCronSessionCleanupAttempted,
+    ...(deliveryBlockedReason ? { deliveryBlockedReason } : {}),
+    ...(deliveryFailedError ? { deliveryFailedError } : {}),
     summary,
     outputText,
     synthesizedText,
@@ -1092,6 +1135,7 @@ export async function dispatchCronDelivery(
       const onError = params.deliveryBestEffort
         ? (err: unknown, _payload: unknown) => {
             hadPartialFailure = true;
+            deliveryFailedError ??= formatErrorMessage(err);
             logCronDeliveryErrorDeferred(
               `[cron:${params.job.id}] delivery payload failed (bestEffort): ${formatErrorMessage(err)}`,
             );
@@ -1133,6 +1177,19 @@ export async function dispatchCronDelivery(
             throw send.error;
           }
           hadPartialFailure = true;
+          deliveryFailedError ??= formatErrorMessage(send.error);
+        }
+        if (send.status === "suppressed") {
+          const blockedReason = resolvePolicyBlockedSendReason(send);
+          if (blockedReason) {
+            // The approval/policy gate cancelled the send. This is a terminal
+            // outcome distinct from a transport failure: the run may stay ok,
+            // but the job state must never read "delivered" for it.
+            deliveryBlockedReason = blockedReason;
+            await logCronDeliveryWarn(
+              `[cron:${params.job.id}] delivery blocked by policy: ${blockedReason}`,
+            );
+          }
         }
         return send.status === "sent" || send.status === "partial_failed" ? send.results : [];
       };
@@ -1264,6 +1321,7 @@ export async function dispatchCronDelivery(
           ...params.telemetry,
         });
       }
+      deliveryFailedError ??= formatErrorMessage(err);
       await logCronDeliveryError(
         `[cron:${params.job.id}] delivery failed (bestEffort): ${formatErrorMessage(err)}`,
       );

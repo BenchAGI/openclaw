@@ -49,8 +49,15 @@ type CronRunsRequestParams = CronJobIdParams & {
   offset?: number;
   statuses?: Array<"ok" | "error" | "skipped">;
   status?: "all" | "ok" | "error" | "skipped";
-  deliveryStatuses?: Array<"delivered" | "not-delivered" | "unknown" | "not-requested">;
-  deliveryStatus?: "delivered" | "not-delivered" | "unknown" | "not-requested";
+  deliveryStatuses?: Array<
+    "delivered" | "not-delivered" | "blocked-by-policy" | "unknown" | "not-requested"
+  >;
+  deliveryStatus?:
+    | "delivered"
+    | "not-delivered"
+    | "blocked-by-policy"
+    | "unknown"
+    | "not-requested";
   query?: string;
   sortDir?: "asc" | "desc";
 };

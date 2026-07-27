@@ -1185,6 +1185,8 @@ async function finalizeCronRun(params: {
   const resolveRunOutcome = (result?: {
     delivered?: boolean;
     deliveryAttempted?: boolean;
+    deliveryBlockedReason?: string;
+    deliveryFailedError?: string;
     delivery?: CronDeliveryTrace;
   }) =>
     prepared.withRunSession({
@@ -1196,6 +1198,8 @@ async function finalizeCronRun(params: {
       outputText,
       delivered: result?.delivered,
       deliveryAttempted: result?.deliveryAttempted,
+      deliveryBlockedReason: result?.deliveryBlockedReason,
+      deliveryFailedError: result?.deliveryFailedError,
       delivery: result?.delivery,
       diagnostics: hasFatalErrorPayload
         ? mergeCronRunDiagnostics(
@@ -1307,6 +1311,10 @@ async function finalizeCronRun(params: {
       ...deliveryResult.result,
       deliveryAttempted:
         deliveryResult.result.deliveryAttempted ?? deliveryResult.deliveryAttempted,
+      deliveryBlockedReason:
+        deliveryResult.result.deliveryBlockedReason ?? deliveryResult.deliveryBlockedReason,
+      deliveryFailedError:
+        deliveryResult.result.deliveryFailedError ?? deliveryResult.deliveryFailedError,
       delivery: deliveryTrace,
       diagnostics: mergeCronRunDiagnostics(
         agentDiagnostics,
@@ -1325,6 +1333,8 @@ async function finalizeCronRun(params: {
     return resolveRunOutcome({
       delivered: deliveryResult.result.delivered,
       deliveryAttempted: resultWithDeliveryMeta.deliveryAttempted,
+      deliveryBlockedReason: resultWithDeliveryMeta.deliveryBlockedReason,
+      deliveryFailedError: resultWithDeliveryMeta.deliveryFailedError,
       delivery: deliveryTrace,
     });
   }
@@ -1334,6 +1344,8 @@ async function finalizeCronRun(params: {
   return resolveRunOutcome({
     delivered: deliveryResult.delivered,
     deliveryAttempted: deliveryResult.deliveryAttempted,
+    deliveryBlockedReason: deliveryResult.deliveryBlockedReason,
+    deliveryFailedError: deliveryResult.deliveryFailedError,
     delivery: deliveryTrace,
   });
 }
