@@ -123,6 +123,7 @@ export function buildAnthropicCliBackendUltracode(): CliBackendPlugin {
         "claude-opus-4-8-ultracode": "claude-opus-4-8",
         "claude-opus-4-7-ultracode": "claude-opus-4-7",
         "claude-opus-4-6-ultracode": "claude-opus-4-6",
+        "claude-fable-5-ultracode": "claude-fable-5",
         "claude-sonnet-4-6-ultracode": "claude-sonnet-4-6",
       },
     },

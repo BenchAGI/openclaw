@@ -1,6 +1,10 @@
 // Anthropic tests cover cli shared plugin behavior.
 import { describe, expect, it } from "vitest";
-import { buildAnthropicCliBackend } from "./cli-backend.js";
+import {
+  buildAnthropicCliBackend,
+  buildAnthropicCliBackendUltracode,
+  CLAUDE_CLI_ULTRACODE_BACKEND_ID,
+} from "./cli-backend.js";
 import {
   CLAUDE_CLI_CLEAR_ENV,
   normalizeClaudeBackendConfig,
@@ -97,6 +101,15 @@ describe("Claude CLI model aliases", () => {
     expect(aliases?.["claude-opus-4-8"]).toBe("claude-opus-4-8");
     expect(aliases?.["claude-opus-4-7"]).toBe("claude-opus-4-7");
     expect(aliases?.["claude-opus-4-6"]).toBe("claude-opus-4-6");
+  });
+
+  it("maps the Fable 5 Ultracode variant to its real base model", () => {
+    const backend = buildAnthropicCliBackendUltracode();
+    const normalized = backend.normalizeConfig?.(backend.config);
+
+    expect(backend.id).toBe(CLAUDE_CLI_ULTRACODE_BACKEND_ID);
+    expect(backend.config.modelAliases?.["claude-fable-5-ultracode"]).toBe("claude-fable-5");
+    expect(normalized?.args).toEqual(expect.arrayContaining(["--settings", '{"ultracode":true}']));
   });
 });
 
