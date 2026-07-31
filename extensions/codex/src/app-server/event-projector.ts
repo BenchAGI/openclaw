@@ -26,6 +26,7 @@ import type { AssistantMessage, Usage } from "openclaw/plugin-sdk/llm";
 import { saveMediaBuffer } from "openclaw/plugin-sdk/media-store";
 import { asDateTimestampMs } from "openclaw/plugin-sdk/number-runtime";
 import { resolveCodexLocalRuntimeAttribution } from "./local-runtime-attribution.js";
+import { nativeCommandRecoveryFingerprint } from "./native-command-recovery.js";
 import {
   readCodexNotificationThreadId,
   readCodexNotificationTurnId,
@@ -1245,7 +1246,9 @@ export class CodexAppServerEventProjector {
         this.lastNativeToolError = undefined;
         return;
       }
-      const actionFingerprint = nativeToolActionFingerprint(params.item);
+      const actionFingerprint =
+        nativeCommandRecoveryFingerprint(params.item, this.lastNativeToolError.error) ??
+        nativeToolActionFingerprint(params.item);
       if (
         this.lastNativeToolError.actionFingerprint &&
         actionFingerprint &&
@@ -1256,7 +1259,9 @@ export class CodexAppServerEventProjector {
       return;
     }
     const error = itemToolError(params.item, params.status, this.toolResultOutputTextByItem);
-    const actionFingerprint = nativeToolActionFingerprint(params.item);
+    const actionFingerprint =
+      nativeCommandRecoveryFingerprint(params.item, error) ??
+      nativeToolActionFingerprint(params.item);
     this.lastNativeToolError = {
       toolName: params.name,
       ...(params.meta ? { meta: params.meta } : {}),

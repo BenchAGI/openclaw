@@ -2536,6 +2536,102 @@ describe("CodexAppServerEventProjector", () => {
     expect(projector.buildResult(buildEmptyToolTelemetry()).lastToolError).toBeUndefined();
   });
 
+  it("clears a git identity failure after the same commit succeeds", async () => {
+    const projector = await createProjector();
+    const commit = "git commit -m 'fix: refresh expired cowork seat tokens'";
+
+    await projector.handleNotification(
+      forCurrentTurn("item/completed", {
+        item: {
+          type: "commandExecution",
+          id: "cmd-git-identity-failed",
+          command: `/bin/zsh -lc "pnpm test && git add src && ${commit} && git push origin fix/token"`,
+          cwd: "/workspace",
+          processId: null,
+          source: "agent",
+          status: "failed",
+          commandActions: [],
+          aggregatedOutput:
+            "PASS\nAuthor identity unknown\nfatal: unable to auto-detect email address",
+          exitCode: 128,
+          durationMs: 1,
+        },
+      }),
+    );
+
+    expect(projector.buildResult(buildEmptyToolTelemetry()).lastToolError).toMatchObject({
+      toolName: "bash",
+      mutatingAction: true,
+      actionFingerprint: expect.stringContaining("gitCommitAfterIdentityConfiguration"),
+    });
+
+    await projector.handleNotification(
+      forCurrentTurn("item/completed", {
+        item: {
+          type: "commandExecution",
+          id: "cmd-git-identity-recovered",
+          command: `/bin/zsh -lc "git config user.name Aurelius && ${commit} && git push origin fix/token"`,
+          cwd: "/workspace",
+          processId: null,
+          source: "agent",
+          status: "completed",
+          commandActions: [],
+          aggregatedOutput: "committed and pushed",
+          exitCode: 0,
+          durationMs: 1,
+        },
+      }),
+    );
+
+    expect(projector.buildResult(buildEmptyToolTelemetry()).lastToolError).toBeUndefined();
+  });
+
+  it("keeps a git identity failure when a different commit succeeds", async () => {
+    const projector = await createProjector();
+
+    await projector.handleNotification(
+      forCurrentTurn("item/completed", {
+        item: {
+          type: "commandExecution",
+          id: "cmd-git-identity-failed",
+          command: `/bin/zsh -lc "git add src && git commit -m 'fix: intended change'"`,
+          cwd: "/workspace",
+          processId: null,
+          source: "agent",
+          status: "failed",
+          commandActions: [],
+          aggregatedOutput: "Author identity unknown",
+          exitCode: 128,
+          durationMs: 1,
+        },
+      }),
+    );
+
+    await projector.handleNotification(
+      forCurrentTurn("item/completed", {
+        item: {
+          type: "commandExecution",
+          id: "cmd-unrelated-commit",
+          command: `/bin/zsh -lc "git commit -m 'fix: unrelated change'"`,
+          cwd: "/workspace",
+          processId: null,
+          source: "agent",
+          status: "completed",
+          commandActions: [],
+          aggregatedOutput: "committed",
+          exitCode: 0,
+          durationMs: 1,
+        },
+      }),
+    );
+
+    expect(projector.buildResult(buildEmptyToolTelemetry()).lastToolError).toMatchObject({
+      toolName: "bash",
+      error: "Author identity unknown",
+      mutatingAction: true,
+    });
+  });
+
   it("does not clear a declined native tool error with a different action", async () => {
     const projector = await createProjector();
 
