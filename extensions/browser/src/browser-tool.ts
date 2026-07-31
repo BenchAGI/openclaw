@@ -49,6 +49,7 @@ import {
   resolveProfile,
   saveMediaBuffer,
   selectDefaultNodeFromList,
+  stageBrowserScreenshotForSharing,
   touchSessionBrowserTab,
   trackSessionBrowserTab,
   untrackSessionBrowserTab,
@@ -80,6 +81,7 @@ const browserToolDeps = {
   callGatewayTool,
   normalizeBrowserScreenshot,
   saveMediaBuffer,
+  stageBrowserScreenshotForSharing,
   touchSessionBrowserTab,
   trackSessionBrowserTab,
   untrackSessionBrowserTab,
@@ -109,6 +111,7 @@ export const testing = {
       callGatewayTool: typeof callGatewayTool;
       normalizeBrowserScreenshot: typeof normalizeBrowserScreenshot;
       saveMediaBuffer: typeof saveMediaBuffer;
+      stageBrowserScreenshotForSharing: typeof stageBrowserScreenshotForSharing;
       touchSessionBrowserTab: typeof touchSessionBrowserTab;
       trackSessionBrowserTab: typeof trackSessionBrowserTab;
       untrackSessionBrowserTab: typeof untrackSessionBrowserTab;
@@ -138,6 +141,8 @@ export const testing = {
     browserToolDeps.normalizeBrowserScreenshot =
       overrides?.normalizeBrowserScreenshot ?? normalizeBrowserScreenshot;
     browserToolDeps.saveMediaBuffer = overrides?.saveMediaBuffer ?? saveMediaBuffer;
+    browserToolDeps.stageBrowserScreenshotForSharing =
+      overrides?.stageBrowserScreenshotForSharing ?? stageBrowserScreenshotForSharing;
     browserToolDeps.touchSessionBrowserTab =
       overrides?.touchSessionBrowserTab ?? touchSessionBrowserTab;
     browserToolDeps.trackSessionBrowserTab =
@@ -161,6 +166,13 @@ function readTargetUrlParam(params: Record<string, unknown>) {
     readStringParam(params, "url", { required: true, label: "targetUrl" })
   );
 }
+
+function formatScreenshotShareHint(filePath: string): string {
+  return `[Screenshot saved to ${JSON.stringify(filePath)}. Use this path with the message tool to share the screenshot explicitly.]`;
+}
+
+const SCREENSHOT_SHARE_UNAVAILABLE =
+  "[Screenshot sharing is unavailable because an outbound copy could not be prepared.]";
 
 const LEGACY_BROWSER_ACT_REQUEST_KEYS = [
   "kind",
@@ -820,6 +832,24 @@ export function createBrowserTool(opts?: {
           const screenshotPath = result.path;
           const screenshotCfg = browserToolDeps.getRuntimeConfig();
           const imageSanitization = resolveRuntimeImageSanitization();
+          let shareHint = SCREENSHOT_SHARE_UNAVAILABLE;
+          try {
+            // The original result remains private. Only this bounded outbound
+            // copy may cross the sandbox boundary after an explicit message call.
+            const sharePath = await browserToolDeps.stageBrowserScreenshotForSharing(
+              screenshotPath,
+              imageSanitization?.maxDimensionPx,
+            );
+            shareHint = formatScreenshotShareHint(sharePath);
+          } catch {
+            // Screenshot viewing remains useful when optional outbound staging fails.
+          }
+          // Screenshots stay in the tool result for agent vision, but channel
+          // delivery must remain an explicit message-tool action.
+          const screenshotDetails = {
+            ...(result as Record<string, unknown>),
+            media: { outbound: false },
+          };
           try {
             const described = await describeBrowserScreenshot(
               {
@@ -853,7 +883,7 @@ export function createBrowserTool(opts?: {
                   includeWarning: true,
                 },
               );
-              const text = `${headerLines.join("\n")}\n${wrappedDescription}`;
+              const text = `${headerLines.join("\n")}\n${wrappedDescription}\n${shareHint}`;
               return {
                 content: [{ type: "text", text }],
                 details: {
@@ -861,8 +891,8 @@ export function createBrowserTool(opts?: {
                   // Do NOT include details.media here — the vision path returns
                   // a text description as the deliverable output. Exposing the raw
                   // screenshot as media would cause channel delivery to auto-send
-                  // potentially sensitive page content. The local screenshot file
-                  // is still referenced in result.path for diagnostic purposes.
+                  // potentially sensitive page content. The text block carries the
+                  // staged outbound-copy path for an explicit message-tool send.
                   vision: {
                     provider: described.provider,
                     model: described.model,
@@ -877,19 +907,20 @@ export function createBrowserTool(opts?: {
             // input too, so defang line-start final-reply media directives.
             const rawReason = err instanceof Error ? err.message : String(err);
             const reason = neutralizeMediaDirectives(rawReason);
-            const extraText = `[browser screenshot vision failed: ${reason}]`;
+            const extraText = `[browser screenshot vision failed: ${reason}]\n${shareHint}`;
             return await browserToolDeps.imageResultFromFile({
               label: "browser:screenshot",
               path: screenshotPath,
               extraText,
-              details: result,
+              details: screenshotDetails,
               imageSanitization,
             });
           }
           return await browserToolDeps.imageResultFromFile({
             label: "browser:screenshot",
             path: screenshotPath,
-            details: result,
+            extraText: shareHint,
+            details: screenshotDetails,
             imageSanitization,
           });
         }
