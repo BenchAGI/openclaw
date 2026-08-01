@@ -44,6 +44,48 @@ concrete benefit and use user-facing language. If there is no user-visible
 impact, say so plainly.
 -->
 
+## Customer Harness Delivery
+
+<!-- REQUIRED: select exactly one. OpenClaw runtime paths require Yes. -->
+
+- Customer harness impact: <!-- Yes / No -->
+
+<!--
+If Yes, include exactly one machine-readable impact contract. Remove the
+spaces in the example delimiters (`< !--` and `-- >`) when adding it.
+This declaration does not publish, deploy, restart, or change a customer.
+-->
+
+```text
+< !-- bench:customer-harness
+{
+  "version": 1,
+  "components": [
+    {
+      "kind": "openclaw",
+      "delivery": "channel-pull",
+      "restart": "gateway",
+      "rollback": "previous-release"
+    }
+  ],
+  "compatibility": {
+    "kind": "requires-minimum-openclaw",
+    "minimumOpenClaw": "2026.7.1"
+  },
+  "rollout": {
+    "strategy": "canary-cohorts",
+    "soakMinutes": 60,
+    "maxParallel": 1
+  },
+  "proof": {
+    "kind": "no-send-turn",
+    "checks": ["artifact-loaded", "gateway-rpc", "rollback-ready"]
+  },
+  "humanGates": ["customer-canary"]
+}
+-- >
+```
+
 ## Evidence
 
 <!--

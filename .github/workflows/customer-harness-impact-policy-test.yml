@@ -1,0 +1,38 @@
+name: Customer Harness Impact Policy Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/scripts/customer-harness-*"
+      - ".github/workflows/customer-harness-impact*.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  policy-tests:
+    name: Customer harness impact policy tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+
+      - name: Test proposed customer harness policy
+        run: >-
+          node --test
+          .github/scripts/customer-harness-contract.test.mjs
+          .github/scripts/customer-harness-impact.test.mjs
