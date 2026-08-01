@@ -140,6 +140,50 @@ describe("runEmbeddedAgent incomplete-turn safety", () => {
     expect(result.payloads?.[0]?.text).toContain("verify before retrying");
   });
 
+  it("surfaces a blocked tool when the completed turn has no final assistant reply", async () => {
+    mockedClassifyFailoverReason.mockReturnValue(null);
+    mockedRunEmbeddedAttempt.mockResolvedValueOnce(
+      makeAttemptResult({
+        assistantTexts: [],
+        toolMetas: [{ toolName: "bash", meta: "command=render", replaySafe: false }],
+        lastToolError: {
+          toolName: "bash",
+          error: "codex native tool blocked",
+          mutatingAction: true,
+        },
+        replayMetadata: {
+          hadPotentialSideEffects: true,
+          replaySafe: false,
+        },
+        lastAssistant: undefined,
+        currentAttemptAssistant: undefined,
+        agentHarnessResultClassification: "empty",
+      }),
+    );
+
+    const result = await runEmbeddedAgent({
+      ...overflowBaseRunParams,
+      provider: "codex",
+      model: "gpt-5.5-codex",
+      runId: "run-blocked-tool-missing-final-reply",
+    });
+
+    expect(mockedRunEmbeddedAttempt).toHaveBeenCalledTimes(1);
+    expect(result.payloads).toEqual([
+      {
+        text: "⚠️ Agent couldn't generate a response. Note: some tool actions may have already been executed — please verify before retrying.",
+        isError: true,
+      },
+    ]);
+    expect(result.meta.replayInvalid).toBe(true);
+    expect(result.meta.livenessState).toBe("abandoned");
+    expect(result.meta.error).toMatchObject({
+      kind: "incomplete_turn",
+      fallbackSafe: false,
+    });
+    expectWarnMessageWith("incomplete turn detected");
+  });
+
   it("surfaces internal aborts after tool-use as visible incomplete-turn failures", async () => {
     mockedClassifyFailoverReason.mockReturnValue(null);
     mockedRunEmbeddedAttempt.mockResolvedValueOnce(

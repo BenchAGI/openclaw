@@ -253,14 +253,17 @@ export function resolveIncompleteTurnPayloadText(params: {
     !hasTerminalOutput &&
     Boolean(assistant && hasOnlyAssistantReasoningContent(assistant));
 
+  // Do not exempt lastToolError here. Tool-warning policy can intentionally
+  // suppress ordinary exec errors, leaving payloadCount at zero. Without a
+  // final assistant reply, that must still close as an incomplete turn rather
+  // than a successful silent response.
   if (
     (params.payloadCount !== 0 && !toolUseTerminal && !lengthTerminal && !thinkingOnlyTerminal) ||
     (params.aborted && params.externalAbort) ||
     params.timedOut ||
     params.attempt.clientToolCalls ||
     params.attempt.yieldDetected ||
-    params.attempt.didSendDeterministicApprovalPrompt ||
-    params.attempt.lastToolError
+    params.attempt.didSendDeterministicApprovalPrompt
   ) {
     return null;
   }
