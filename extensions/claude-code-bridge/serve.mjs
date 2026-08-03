@@ -271,7 +271,16 @@ async function callGatewayMethod(method, params, opts = {}) {
     timeoutMs: wrapperTimeoutMs,
     env: childEnv,
   });
-  if (res.exitCode !== 0) {
+  const trimmed = res.stdout.trim();
+  // A non-zero exit is NOT sufficient to call this a failure. The CLI exits 1
+  // whenever legacy state-migration warnings are present, and those warnings are
+  // permanent on a migrated install — they fire on every invocation and never
+  // clear. Treating that as an error made every CLI-backed tool here return
+  // ok:false while discarding perfectly good stdout, which trained agents to
+  // stop reaching for the harness at all. Trust the payload over the exit code:
+  // if the command produced usable output and stderr shows no hard failure,
+  // surface the data and carry the warnings alongside it.
+  if (res.exitCode !== 0 && !(trimmed.length > 0 && isWarningOnlyStderr(res.stderr))) {
     return {
       ok: false,
       error: res.stderr.trim() || `openclaw exited with code ${res.exitCode}`,
@@ -279,15 +288,46 @@ async function callGatewayMethod(method, params, opts = {}) {
       stderr: res.stderr,
     };
   }
-  const trimmed = res.stdout.trim();
+  const degraded = res.exitCode !== 0;
   if (trimmed.length === 0) {
     return { ok: true, data: null, exitCode: 0, stderr: res.stderr };
   }
   try {
-    return { ok: true, data: JSON.parse(trimmed), exitCode: 0, stderr: res.stderr };
+    return { ok: true, data: JSON.parse(trimmed), exitCode: 0, stderr: res.stderr, degraded };
   } catch {
-    return { ok: true, data: trimmed, exitCode: 0, stderr: res.stderr };
+    return { ok: true, data: trimmed, exitCode: 0, stderr: res.stderr, degraded };
   }
+}
+
+// True when stderr carries only known-benign advisory output. Deliberately
+// conservative: anything that looks like a real fault (error/fatal/panic, an
+// unhandled rejection, a stack frame, a non-zero "exited with code") disqualifies
+// the whole buffer, so a genuine failure can never be laundered into a success.
+const BENIGN_STDERR_PREFIXES = [
+  "[state-migrations]",
+  "Legacy state migration warnings:",
+  "- Left ",
+  "- Skipped ",
+  "- Migrated ",
+];
+const HARD_FAILURE_PATTERN =
+  /\b(error|fatal|panic|unhandled|traceback|exception|refused|denied|not found|cannot|failed)\b/i;
+
+export function isWarningOnlyStderr(stderr) {
+  // eslint-disable-next-line no-control-regex
+  const plain = String(stderr ?? "").replace(/\x1b?\[[0-9;]*m/g, "");
+  const lines = plain
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) {
+    return false;
+  }
+  return lines.every(
+    (line) =>
+      !HARD_FAILURE_PATTERN.test(line) &&
+      BENIGN_STDERR_PREFIXES.some((prefix) => line.startsWith(prefix)),
+  );
 }
 
 function runCommand(command, args, opts) {
