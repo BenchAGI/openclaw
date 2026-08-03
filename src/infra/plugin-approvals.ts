@@ -51,25 +51,30 @@ export const DEFAULT_PLUGIN_APPROVAL_TIMEOUT_MS = 120_000;
 export const MAX_PLUGIN_APPROVAL_TIMEOUT_MS = 600_000;
 
 /**
- * Idle budget of the host turn runtime, in ms.
+ * Assumed idle budget of the host turn runtime, in ms.
  *
- * The Codex app-server ends a turn after ~60s without activity and reports
+ * The Codex app-server ends a turn after a period without activity and reports
  * `turn idle timed out waiting for turn/completed`. An approval wait is silent by
- * nature, so a wait longer than this budget is not a risk — it is a guarantee: the
+ * nature, so a wait longer than that budget is not a risk — it is a guarantee: the
  * turn is killed while it is correctly waiting for a person, and the user gets
  * "Codex stopped before confirming the turn was complete" instead of an answer.
- *
- * That timer is inside the app-server, which OpenClaw consumes rather than owns —
- * `agent-runner-execution.ts` can only regex-match the resulting error string. So
- * the only half of the arithmetic we control is our own wait, and it must land
- * inside the budget.
  *
  * Observed 2026-08-01: a 119,977 ms approval wait against a 60,000 ms budget ended
  * the turn with no recoverable reply. It was not unlucky; it was arithmetic.
  *
- * Override via OPENCLAW_TURN_IDLE_BUDGET_MS for runtimes that have no such killer
- * (or a longer one) — set 0 to disable clamping entirely and restore the full
- * requested wait.
+ * WHY 60_000, AND WHY MIRRORED RATHER THAN IMPORTED: the real timer is
+ * `turnCompletionIdleTimeoutMs`, a per-run app-server option that defaults to 60_000
+ * (extensions/codex/src/app-server/config.ts:677, enforced in
+ * attempt-turn-watches.ts:129). That app-server lives in the `@openclaw/codex`
+ * extension package, and core `src/` must not depend on an extension, so the value
+ * cannot be imported without inverting the dependency. It is mirrored here as an
+ * assumed default and overridden per-runtime via the env var below. If the app-server
+ * default ever changes, this constant and that config default must move together —
+ * approval-wait-ceiling.test.ts pins the relationship so the drift is caught.
+ *
+ * Override via OPENCLAW_TURN_IDLE_BUDGET_MS for runtimes that configure a different
+ * turnCompletionIdleTimeoutMs, or that have no idle killer at all — set 0 to disable
+ * clamping entirely and restore the full requested wait.
  */
 export const DEFAULT_TURN_IDLE_BUDGET_MS = 60_000;
 
@@ -119,10 +124,13 @@ export function resolvePluginApprovalTimeoutMs(value: unknown): number {
     typeof value === "number" && Number.isFinite(value)
       ? value
       : DEFAULT_PLUGIN_APPROVAL_TIMEOUT_MS;
-  const bounded = Math.min(MAX_PLUGIN_APPROVAL_TIMEOUT_MS, Math.max(1, Math.floor(candidate)));
-  // Never hand back a wait the host turn cannot survive — see
-  // resolveApprovalWaitCeilingMs. A caller asking for less keeps its own value.
-  return Math.min(bounded, resolveApprovalWaitCeilingMs());
+  // Deliberately NOT clamped to resolveApprovalWaitCeilingMs. This function also
+  // serves gateway paths that run outside any host turn — node-invoke-plugin-policy.ts
+  // and server-methods/plugin-approval.ts — where a long wait is correct and no idle
+  // killer is counting. Clamping here would silently shorten approvals that were never
+  // at risk. Only the in-turn caller applies the ceiling; see
+  // resolvePluginToolApprovalTimeoutMs in agents/agent-tools.before-tool-call.ts.
+  return Math.min(MAX_PLUGIN_APPROVAL_TIMEOUT_MS, Math.max(1, Math.floor(candidate)));
 }
 
 /** Format an approval decision for user-facing messages. */

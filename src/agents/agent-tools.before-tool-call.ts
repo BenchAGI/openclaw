@@ -156,6 +156,11 @@ function resolvePluginToolApprovalTimeoutMs(approval: PluginApprovalRequest): nu
   // The ceiling keeps the wait inside the host turn's idle budget. A silent wait
   // longer than that budget does not risk the turn — it ends it, while the system is
   // correctly waiting for a person (observed 2026-08-01: 119,977 ms against 60,000 ms).
+  //
+  // Applied HERE and not in resolvePluginApprovalTimeoutMs on purpose: this is the
+  // before-tool-call path, which only ever runs inside a host turn, so the idle timer
+  // is always counting. The shared resolver also serves gateway approvals that run
+  // outside any turn, where clamping would shorten a wait that was never at risk.
   const ceiling = resolveApprovalWaitCeilingMs();
   if (
     typeof approval.timeoutMs !== "number" ||

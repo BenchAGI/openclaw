@@ -16,7 +16,10 @@ import {
   type DiagnosticEventPrivateData,
   type DiagnosticToolLoopEvent,
 } from "../infra/diagnostic-events.js";
-import { MAX_PLUGIN_APPROVAL_TIMEOUT_MS } from "../infra/plugin-approvals.js";
+import {
+  MAX_PLUGIN_APPROVAL_TIMEOUT_MS,
+  resolveApprovalWaitCeilingMs,
+} from "../infra/plugin-approvals.js";
 import { resetDiagnosticSessionStateForTest } from "../logging/diagnostic-session-state.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import { createEmptyPluginRegistry } from "../plugins/registry-empty.js";
@@ -1457,18 +1460,55 @@ describe("before_tool_call requireApproval handling", () => {
       ctx: { agentId: "main", sessionKey: "main" },
     });
 
+    // This path runs inside a host turn, so the cap is the turn-idle ceiling rather
+    // than MAX_PLUGIN_APPROVAL_TIMEOUT_MS: a wait past the idle budget does not risk
+    // the turn, it ends it while the system is correctly waiting for a person.
+    const ceiling = resolveApprovalWaitCeilingMs();
+    expect(ceiling).toBeLessThan(MAX_PLUGIN_APPROVAL_TIMEOUT_MS);
+
     expect(result.blocked).toBe(false);
     const requestCall = requireGatewayCall(0);
     expect(requireRecord(requestCall[1], "approval request gateway client").timeoutMs).toBe(
-      MAX_PLUGIN_APPROVAL_TIMEOUT_MS + 10_000,
+      ceiling + 10_000,
     );
-    expect(requireRecord(requestCall[2], "approval request params").timeoutMs).toBe(
-      MAX_PLUGIN_APPROVAL_TIMEOUT_MS,
-    );
+    expect(requireRecord(requestCall[2], "approval request params").timeoutMs).toBe(ceiling);
     const waitCall = requireGatewayCall(1);
     expect(requireRecord(waitCall[1], "approval wait gateway client").timeoutMs).toBe(
-      MAX_PLUGIN_APPROVAL_TIMEOUT_MS + 10_000,
+      ceiling + 10_000,
     );
+  });
+
+  it("restores the full requested timeout when the runtime has no idle killer", async () => {
+    // OPENCLAW_TURN_IDLE_BUDGET_MS=0 is the documented escape hatch; it must give back
+    // the whole supported window, not a shortened one.
+    const prior = process.env.OPENCLAW_TURN_IDLE_BUDGET_MS;
+    process.env.OPENCLAW_TURN_IDLE_BUDGET_MS = "0";
+    try {
+      hookRunner.runBeforeToolCall.mockResolvedValue({
+        requireApproval: {
+          title: "Oversized timeout",
+          description: "Still valid gateway payload",
+          pluginId: "sage",
+          timeoutMs: Number.MAX_SAFE_INTEGER,
+        },
+      });
+      mockCallGateway.mockResolvedValueOnce({ id: "server-id-nokiller", status: "accepted" });
+      mockCallGateway.mockResolvedValueOnce({ id: "server-id-nokiller", decision: "allow-once" });
+
+      const result = await runBeforeToolCallHook({
+        toolName: "bash",
+        params: { command: "rm -rf" },
+        ctx: { agentId: "main", sessionKey: "main" },
+      });
+
+      expect(result.blocked).toBe(false);
+      expect(requireRecord(requireGatewayCall(0)[2], "approval request params").timeoutMs).toBe(
+        MAX_PLUGIN_APPROVAL_TIMEOUT_MS,
+      );
+    } finally {
+      if (prior === undefined) delete process.env.OPENCLAW_TURN_IDLE_BUDGET_MS;
+      else process.env.OPENCLAW_TURN_IDLE_BUDGET_MS = prior;
+    }
   });
 
   it("blocks on deny decision", async () => {
