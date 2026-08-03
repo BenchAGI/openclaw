@@ -49,6 +49,62 @@ export type PluginApprovalResolved = {
 
 export const DEFAULT_PLUGIN_APPROVAL_TIMEOUT_MS = 120_000;
 export const MAX_PLUGIN_APPROVAL_TIMEOUT_MS = 600_000;
+
+/**
+ * Idle budget of the host turn runtime, in ms.
+ *
+ * The Codex app-server ends a turn after ~60s without activity and reports
+ * `turn idle timed out waiting for turn/completed`. An approval wait is silent by
+ * nature, so a wait longer than this budget is not a risk — it is a guarantee: the
+ * turn is killed while it is correctly waiting for a person, and the user gets
+ * "Codex stopped before confirming the turn was complete" instead of an answer.
+ *
+ * That timer is inside the app-server, which OpenClaw consumes rather than owns —
+ * `agent-runner-execution.ts` can only regex-match the resulting error string. So
+ * the only half of the arithmetic we control is our own wait, and it must land
+ * inside the budget.
+ *
+ * Observed 2026-08-01: a 119,977 ms approval wait against a 60,000 ms budget ended
+ * the turn with no recoverable reply. It was not unlucky; it was arithmetic.
+ *
+ * Override via OPENCLAW_TURN_IDLE_BUDGET_MS for runtimes that have no such killer
+ * (or a longer one) — set 0 to disable clamping entirely and restore the full
+ * requested wait.
+ */
+export const DEFAULT_TURN_IDLE_BUDGET_MS = 60_000;
+
+/**
+ * Headroom reserved inside the budget so that when an approval times out, the agent
+ * still has time to compose and deliver a real reply — which itself counts as
+ * activity and settles the turn cleanly. Without this the wait could expire at the
+ * exact moment the turn dies and still strand the user.
+ */
+export const TURN_IDLE_REPLY_RESERVE_MS = 15_000;
+
+function resolveTurnIdleBudgetMs(): number {
+  const raw = process.env.OPENCLAW_TURN_IDLE_BUDGET_MS;
+  if (raw === undefined || raw.trim() === "") return DEFAULT_TURN_IDLE_BUDGET_MS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_TURN_IDLE_BUDGET_MS;
+  return Math.floor(parsed);
+}
+
+/**
+ * Largest approval wait that still resolves inside the host turn budget.
+ *
+ * Deliberately a CEILING, not a replacement default: a caller asking for less than
+ * this keeps its own value, and a runtime with no idle killer
+ * (OPENCLAW_TURN_IDLE_BUDGET_MS=0) keeps the full requested wait. The goal is the
+ * longest window that can actually be answered, not the shortest wait.
+ */
+export function resolveApprovalWaitCeilingMs(): number {
+  const budget = resolveTurnIdleBudgetMs();
+  if (budget <= 0) return MAX_PLUGIN_APPROVAL_TIMEOUT_MS;
+  const ceiling = budget - TURN_IDLE_REPLY_RESERVE_MS;
+  // A budget at or below the reserve leaves no safe window; fall back to half of it
+  // rather than returning zero or negative and blocking approvals outright.
+  return ceiling > 0 ? ceiling : Math.max(1_000, Math.floor(budget / 2));
+}
 export const PLUGIN_APPROVAL_TITLE_MAX_LENGTH = 80;
 export const PLUGIN_APPROVAL_DESCRIPTION_MAX_LENGTH = 256;
 export const DEFAULT_PLUGIN_APPROVAL_DECISIONS = [
@@ -63,7 +119,10 @@ export function resolvePluginApprovalTimeoutMs(value: unknown): number {
     typeof value === "number" && Number.isFinite(value)
       ? value
       : DEFAULT_PLUGIN_APPROVAL_TIMEOUT_MS;
-  return Math.min(MAX_PLUGIN_APPROVAL_TIMEOUT_MS, Math.max(1, Math.floor(candidate)));
+  const bounded = Math.min(MAX_PLUGIN_APPROVAL_TIMEOUT_MS, Math.max(1, Math.floor(candidate)));
+  // Never hand back a wait the host turn cannot survive — see
+  // resolveApprovalWaitCeilingMs. A caller asking for less keeps its own value.
+  return Math.min(bounded, resolveApprovalWaitCeilingMs());
 }
 
 /** Format an approval decision for user-facing messages. */

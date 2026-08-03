@@ -33,6 +33,7 @@ import {
 import {
   DEFAULT_PLUGIN_APPROVAL_TIMEOUT_MS,
   MAX_PLUGIN_APPROVAL_TIMEOUT_MS,
+  resolveApprovalWaitCeilingMs,
 } from "../infra/plugin-approvals.js";
 import type { SessionState } from "../logging/diagnostic-session-state.js";
 import { redactToolDetail } from "../logging/redact.js";
@@ -152,14 +153,18 @@ type HookOutcome =
 type PluginApprovalRequest = NonNullable<PluginHookBeforeToolCallResult["requireApproval"]>;
 
 function resolvePluginToolApprovalTimeoutMs(approval: PluginApprovalRequest): number {
+  // The ceiling keeps the wait inside the host turn's idle budget. A silent wait
+  // longer than that budget does not risk the turn — it ends it, while the system is
+  // correctly waiting for a person (observed 2026-08-01: 119,977 ms against 60,000 ms).
+  const ceiling = resolveApprovalWaitCeilingMs();
   if (
     typeof approval.timeoutMs !== "number" ||
     !Number.isFinite(approval.timeoutMs) ||
     approval.timeoutMs <= 0
   ) {
-    return DEFAULT_PLUGIN_APPROVAL_TIMEOUT_MS;
+    return Math.min(DEFAULT_PLUGIN_APPROVAL_TIMEOUT_MS, ceiling);
   }
-  return Math.min(Math.floor(approval.timeoutMs), MAX_PLUGIN_APPROVAL_TIMEOUT_MS);
+  return Math.min(Math.floor(approval.timeoutMs), MAX_PLUGIN_APPROVAL_TIMEOUT_MS, ceiling);
 }
 
 function resolvePluginToolApprovalGatewayTimeoutMs(timeoutMs: number): number {
