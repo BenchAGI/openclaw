@@ -18,6 +18,50 @@ import {
   triggerInternalHook,
 } from "openclaw/plugin-sdk/hook-runtime";
 import { getGlobalHookRunner } from "openclaw/plugin-sdk/plugin-runtime";
+import { createSubsystemLogger } from "openclaw/plugin-sdk/runtime-env";
+
+const sendLogger = createSubsystemLogger("slack/send");
+
+/**
+ * Record every outbound Slack delivery, successful or not.
+ *
+ * Telegram logs `telegram outbound send ok` on every send; Slack logged
+ * nothing. The gap is not cosmetic — with inbound `app_mention` lines but no
+ * outbound record, a gateway log can show a day of user questions and give no
+ * evidence that any of them were answered. "Did the assistant reply?" then has
+ * to be asked of a human instead of read from the log, and a silent delivery
+ * failure is indistinguishable from a quiet day.
+ *
+ * Content is never logged — only the routing envelope and the outcome. On
+ * failure the Slack error string is included, because `channel_not_found` and
+ * `not_in_channel` are the two that actually happen and both are actionable.
+ */
+function logSlackOutboundDelivery(params: EmitSlackMessageSentHookParams): void {
+  const parts = [`slack outbound send ${params.success ? "ok" : "FAILED"}`, `to=${params.to}`];
+  if (params.accountId) {
+    parts.push(`accountId=${params.accountId}`);
+  }
+  if (params.messageId) {
+    parts.push(`messageId=${params.messageId}`);
+  }
+  if (params.isGroup) {
+    parts.push(`isGroup=true`);
+  }
+  if (params.groupId) {
+    parts.push(`groupId=${params.groupId}`);
+  }
+  // Length, not content: enough to tell an empty reply from a real one.
+  parts.push(`chars=${params.content?.length ?? 0}`);
+  if (!params.success && params.error) {
+    parts.push(`error=${params.error}`);
+  }
+  const line = parts.join(" ");
+  if (params.success) {
+    sendLogger.info(line);
+  } else {
+    sendLogger.error(line);
+  }
+}
 
 export type EmitSlackMessageSentHookParams = {
   /** Optional canonical session key. When set, the internal `message:sent` hook fires too. */
@@ -108,6 +152,10 @@ function emitMessageSentHooks(
  * incur no cost.
  */
 export function emitSlackMessageSentHooks(params: EmitSlackMessageSentHookParams): void {
+  // Logged unconditionally, BEFORE the hook gating below. The hook path
+  // self-gates on registered listeners, so an operator with no plugins would
+  // otherwise still have no outbound record at all.
+  logSlackOutboundDelivery(params);
   const hookRunner = getGlobalHookRunner();
   emitMessageSentHooks({
     ...params,
