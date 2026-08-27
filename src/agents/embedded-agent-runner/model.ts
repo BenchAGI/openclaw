@@ -23,7 +23,6 @@ import { ensureAuthProfileStore, resolveAuthProfileOrder } from "../auth-profile
 import type { AuthProfileCredential } from "../auth-profiles/types.js";
 import { DEFAULT_CONTEXT_TOKENS } from "../defaults.js";
 import { resolveAgentHarnessPolicy } from "../harness/policy.js";
-import { formatMissingProviderModelRegistrationHint } from "../missing-provider-model-registration-hint.js";
 import { resolveModelWorkspaceDir } from "../model-discovery-context.js";
 import { modelKey, normalizeStaticProviderModelId } from "../model-ref-shared.js";
 import { findNormalizedProviderValue, normalizeProviderId } from "../model-selection.js";
@@ -1935,9 +1934,5 @@ function buildMissingProviderModelRegistrationHint(params: {
   if (hasProviderModel) {
     return undefined;
   }
-  return formatMissingProviderModelRegistrationHint({
-    provider: params.provider,
-    modelId: params.modelId,
-    agentModelKey,
-  });
+  return `Found agents.defaults.models["${agentModelKey}"], but no matching models.providers["${params.provider}"].models[] entry. Add { "id": "${params.modelId}", "name": "${params.modelId}" } to models.providers["${params.provider}"].models[] to register this provider model. For custom or proxy providers, also set api and baseUrl so requests route to the intended endpoint. See https://docs.openclaw.ai/concepts/model-providers.`;
 }

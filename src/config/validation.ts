@@ -5,20 +5,13 @@ import { isCanonicalDottedDecimalIPv4, isLoopbackIpAddress } from "@openclaw/net
 import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
 import { sanitizeForLog } from "../../packages/terminal-core/src/ansi.js";
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
-import { formatMissingProviderModelRegistrationHint } from "../agents/missing-provider-model-registration-hint.js";
-import { normalizeStaticProviderModelId } from "../agents/model-ref-shared.js";
 import {
   type ChannelDmAllowFromMode,
   resolveChannelDmAllowFrom,
   resolveChannelDmPolicy,
 } from "../channels/plugins/dm-access.js";
 import { isPathInside } from "../infra/path-guards.js";
-import {
-  loadOpenClawProviderIndex,
-  planManifestModelCatalogRows,
-  planManifestModelCatalogSuppressions,
-  planProviderIndexModelCatalogRows,
-} from "../model-catalog/index.js";
+import { planManifestModelCatalogSuppressions } from "../model-catalog/index.js";
 import {
   normalizePluginsConfig,
   normalizePluginId,
@@ -1605,96 +1598,6 @@ function validateConfigObjectWithPluginsBase(
     return provider && model ? { provider, model } : null;
   };
 
-  // Agent `models` entries that pin an agentRuntime are resolved by a CLI
-  // runtime, not by the static catalog, so they are never static-catalog misses.
-  const collectAgentModelEntryRefs = (): {
-    agentRuntimeRefs: Set<string>;
-    defaultsModelKeys: Map<string, string>;
-  } => {
-    const agentRuntimeRefs = new Set<string>();
-    const defaultsModelKeys = new Map<string, string>();
-    const collectFromAgent = (agent: unknown, isDefaults: boolean) => {
-      const models = isRecord(agent) && isRecord(agent.models) ? agent.models : undefined;
-      if (!models) {
-        return;
-      }
-      for (const [rawKey, entry] of Object.entries(models)) {
-        const parsed = parseProviderModelRef(rawKey);
-        if (!parsed) {
-          continue;
-        }
-        const modelRef = `${parsed.provider}/${parsed.model}`;
-        if (isRecord(entry) && entry.agentRuntime !== undefined) {
-          agentRuntimeRefs.add(modelRef);
-        }
-        if (isDefaults && !defaultsModelKeys.has(modelRef)) {
-          defaultsModelKeys.set(modelRef, rawKey);
-        }
-      }
-    };
-    const agents = isRecord(config.agents) ? config.agents : undefined;
-    collectFromAgent(agents?.defaults, true);
-    if (Array.isArray(agents?.list)) {
-      for (const entry of agents.list) {
-        collectFromAgent(entry, false);
-      }
-    }
-    return { agentRuntimeRefs, defaultsModelKeys };
-  };
-
-  const resolveConfiguredModelProviderEntry = (
-    provider: string,
-  ): Record<string, unknown> | undefined => {
-    const providers = isRecord(config.models?.providers) ? config.models.providers : undefined;
-    if (!providers) {
-      return undefined;
-    }
-    for (const [rawKey, value] of Object.entries(providers)) {
-      if (normalizeLowercaseStringOrEmpty(rawKey) === provider && isRecord(value)) {
-        return value;
-      }
-    }
-    return undefined;
-  };
-
-  const hasConfiguredProviderModel = (
-    providerEntry: Record<string, unknown> | undefined,
-    model: string,
-  ): boolean => {
-    const models = Array.isArray(providerEntry?.models) ? providerEntry.models : [];
-    return models.some(
-      (entry) =>
-        isRecord(entry) &&
-        typeof entry.id === "string" &&
-        normalizeLowercaseStringOrEmpty(entry.id) === model,
-    );
-  };
-
-  // Only plugin-manifest rows make a provider statically enumerable; many
-  // bundled providers (openrouter, google, xai, lmstudio, ...) ship no static
-  // models and list them at runtime, so a miss there means nothing. Provider
-  // index rows are advisory, so they can clear a ref but never make a provider
-  // statically enumerable.
-  const buildStaticCatalog = (
-    registry: PluginManifestRegistry,
-  ): { modelRefs: Set<string>; providers: Set<string> } => {
-    const modelRefs = new Set<string>();
-    const providers = new Set<string>();
-    const addRow = (row: { provider: string; id: string }): string => {
-      const provider = normalizeLowercaseStringOrEmpty(row.provider);
-      modelRefs.add(`${provider}/${normalizeLowercaseStringOrEmpty(row.id)}`);
-      return provider;
-    };
-    for (const row of planManifestModelCatalogRows({ registry }).rows) {
-      providers.add(addRow(row));
-    }
-    for (const row of planProviderIndexModelCatalogRows({ index: loadOpenClawProviderIndex() })
-      .rows) {
-      addRow(row);
-    }
-    return { modelRefs, providers };
-  };
-
   const validateConfiguredModelRefs = () => {
     const configuredRefs = collectConfiguredModelRefs(config);
     if (configuredRefs.length === 0) {
@@ -1718,67 +1621,30 @@ function validateConfigObjectWithPluginsBase(
         });
       }
     }
-    const { agentRuntimeRefs, defaultsModelKeys } = collectAgentModelEntryRefs();
-    let staticCatalog: ReturnType<typeof buildStaticCatalog> | undefined;
+    if (suppressedModels.size === 0) {
+      return;
+    }
     const seen = new Set<string>();
     for (const ref of configuredRefs) {
       const parsed = parseProviderModelRef(ref.value);
       if (!parsed) {
         continue;
       }
-      const modelRef = `${parsed.provider}/${parsed.model}`;
-      const issueKey = `${ref.path}\0${modelRef}`;
+      const suppression = suppressedModels.get(`${parsed.provider}/${parsed.model}`);
+      if (!suppression) {
+        continue;
+      }
+      const issueKey = `${ref.path}\0${parsed.provider}/${parsed.model}`;
       if (seen.has(issueKey)) {
         continue;
       }
-      const suppression = suppressedModels.get(modelRef);
-      if (suppression) {
-        seen.add(issueKey);
-        const suppressedRef = `${suppression.provider}/${suppression.model}`;
-        issues.push({
-          path: ref.path,
-          message: suppression.reason
-            ? `Unknown model: ${suppressedRef}. ${suppression.reason}`
-            : `Unknown model: ${suppressedRef}.`,
-        });
-        continue;
-      }
-      // Provider plugins and CLI runtimes also resolve models dynamically, so a
-      // static-catalog miss is a warning the operator should see, never a load
-      // failure: refs pinned to an agentRuntime, or to a provider carrying its
-      // own baseUrl, are resolved elsewhere and are exempt.
-      if (agentRuntimeRefs.has(modelRef)) {
-        continue;
-      }
-      const providerEntry = resolveConfiguredModelProviderEntry(parsed.provider);
-      if (typeof providerEntry?.baseUrl === "string" && providerEntry.baseUrl.trim()) {
-        continue;
-      }
-      if (hasConfiguredProviderModel(providerEntry, parsed.model)) {
-        continue;
-      }
-      const catalogModelId = normalizeLowercaseStringOrEmpty(
-        normalizeStaticProviderModelId(parsed.provider, parsed.model, {
-          manifestPlugins: registry.plugins,
-        }),
-      );
-      staticCatalog ??= buildStaticCatalog(registry);
-      if (
-        !staticCatalog.providers.has(parsed.provider) ||
-        staticCatalog.modelRefs.has(modelRef) ||
-        staticCatalog.modelRefs.has(`${parsed.provider}/${catalogModelId}`)
-      ) {
-        continue;
-      }
       seen.add(issueKey);
-      const agentModelKey = defaultsModelKeys.get(modelRef);
-      warnings.push({
+      const modelRef = `${suppression.provider}/${suppression.model}`;
+      issues.push({
         path: ref.path,
-        message: `Unknown model: ${modelRef}. ${formatMissingProviderModelRegistrationHint({
-          provider: parsed.provider,
-          modelId: parsed.model,
-          ...(agentModelKey ? { agentModelKey } : {}),
-        })}`,
+        message: suppression.reason
+          ? `Unknown model: ${modelRef}. ${suppression.reason}`
+          : `Unknown model: ${modelRef}.`,
       });
     }
   };
