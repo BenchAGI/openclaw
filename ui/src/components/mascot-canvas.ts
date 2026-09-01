@@ -66,7 +66,8 @@ function drawGlow(ctx: CanvasRenderingContext2D, pose: MascotPose, palette: Masc
   }
   const radius = 52 * clamp(pose.glowScale, 0.6, 1.6);
   const glow = ctx.createRadialGradient(60, 62, radius * 0.25, 60, 62, radius);
-  glow.addColorStop(0, palette.gradientTop);
+  // Electric-blue aura: the bird is copper; the energy around him is blue.
+  glow.addColorStop(0, palette.antenna);
   glow.addColorStop(1, "rgba(0, 0, 0, 0)");
   ctx.save();
   ctx.globalAlpha = alpha;
