@@ -967,7 +967,10 @@ describe("normalizeInitialApplicationLocation", () => {
 
   it("applies and refreshes the saved accent before the gateway connects", () => {
     const previousSettings = loadSettings();
-    saveSettings({ ...previousSettings, accent: "#48D6C2" });
+    // Pin the base theme family: palette-file themes (bench default) defer
+    // appearance application to the stylesheet load event, which this DOM
+    // never fires; the accent path under test is the same either way.
+    saveSettings({ ...previousSettings, theme: "claw", accent: "#48D6C2" });
     const runtime = bootstrapApplication({ sessionPathBuilderReady: deferred<void>().promise });
 
     try {

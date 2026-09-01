@@ -44,6 +44,8 @@ export const TYPEFACES = Object.fromEntries(
 
 export const THEME_TYPEFACES = {
   claw: { ui: "instrument-sans", chat: "instrument-sans" },
+  // Nearest bundled neo-grotesque to the Bench brand's Inter.
+  bench: { ui: "instrument-sans", chat: "instrument-sans" },
   knot: { ui: "geist", chat: "geist" },
   dash: { ui: "dm-sans", chat: "fraunces" },
   absolutely: { ui: "space-grotesk", chat: "lora" },

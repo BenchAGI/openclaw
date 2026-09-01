@@ -152,6 +152,7 @@ describe("Control UI theme contrast", () => {
     const light = readCssVarBlock(baseCss, ':root:where([data-theme-mode="light"])');
     for (const selector of [
       null,
+      ':root[data-theme="bench-light"]',
       ':root[data-theme="openknot-light"]',
       ':root[data-theme="dash-light"]',
       ':root[data-theme="absolutely-light"]',

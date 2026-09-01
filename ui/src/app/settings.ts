@@ -183,7 +183,7 @@ export function normalizeTextScale(value: unknown, fallback: TextScaleStop = 100
 }
 
 export const UI_APPEARANCE_DEFAULTS = {
-  theme: "claw",
+  theme: "bench",
   themeMode: "system",
   textScale: 100,
   sidebarLiveActivity: true,
@@ -528,7 +528,7 @@ export function loadSettings(): UiSettings {
       sessionKey: scopedSessionSelection.sessionKey,
       lastActiveSessionKey: scopedSessionSelection.lastActiveSessionKey,
       selectedAgentId: scopedSessionSelection.selectedAgentId,
-      theme: theme === "custom" && !customTheme ? "claw" : theme,
+      theme: theme === "custom" && !customTheme ? "bench" : theme,
       themeMode: mode,
       accent: normalizeAccentColor(parsed.accent),
       fontUi: normalizeTypefaceOverride(parsed.fontUi),

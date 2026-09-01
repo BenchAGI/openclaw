@@ -494,7 +494,7 @@ describe("settings preference persistence", () => {
     expect(settings.customTheme?.themeId).toBe("cmlhfpjhw000004l4f4ax3m7z");
   });
 
-  it("falls back to claw when persisted custom theme data is invalid", () => {
+  it("falls back to the default theme when persisted custom theme data is invalid", () => {
     setTestLocation({
       protocol: "https:",
       host: "gateway.example:8443",
@@ -531,7 +531,7 @@ describe("settings preference persistence", () => {
     );
 
     const settings = loadSettings();
-    expect(settings.theme).toBe("claw");
+    expect(settings.theme).toBe("bench");
     expect(settings.themeMode).toBe("dark");
   });
 

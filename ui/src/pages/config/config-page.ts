@@ -1023,7 +1023,7 @@ export class ConfigPage extends OpenClawLightDomElement {
     this.customThemeImportOwner.clear({
       apply: () =>
         this.applySettings({
-          theme: this.settings.theme === "custom" ? "claw" : this.settings.theme,
+          theme: this.settings.theme === "custom" ? "bench" : this.settings.theme,
           customTheme: undefined,
         }),
       message: t("configPage.themeRemoved"),

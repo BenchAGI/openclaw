@@ -344,6 +344,13 @@
 
 /* Preview swatches are theme-invariant and must not inherit the active theme. */
 /* stylelint-disable color-no-hex */
+.settings-theme-card--bench,
+.settings-accent-theme--bench {
+  --theme-chip-bg: #111111;
+  --theme-chip-accent: #ff2d55;
+  --theme-chip-accent-2: #b8929c;
+}
+
 .settings-theme-card--claw,
 .settings-accent-theme--claw {
   --theme-chip-bg: #0e1015;
@@ -391,6 +398,12 @@
   --theme-chip-bg: #0a0f0a;
   --theme-chip-accent: #4ade80;
   --theme-chip-accent-2: #8fd6a5;
+}
+
+:root[data-theme-mode="light"] :is(.settings-theme-card--bench, .settings-accent-theme--bench) {
+  --theme-chip-bg: #faf9f9;
+  --theme-chip-accent: #d40f3f;
+  --theme-chip-accent-2: #8c5f69;
 }
 
 :root[data-theme-mode="light"] :is(.settings-theme-card--claw, .settings-accent-theme--claw) {

@@ -2,6 +2,7 @@
 import { inferControlUiPublicAssetPath } from "./public-assets.ts";
 export type ThemeName =
   | "claw"
+  | "bench"
   | "knot"
   | "dash"
   | "absolutely"
@@ -13,6 +14,8 @@ export type ThemeMode = "system" | "light" | "dark";
 export type ResolvedTheme =
   | "dark"
   | "light"
+  | "bench"
+  | "bench-light"
   | "openknot"
   | "openknot-light"
   | "dash"
@@ -30,6 +33,7 @@ export type ResolvedTheme =
 
 const VALID_THEME_NAMES = new Set<ThemeName>([
   "claw",
+  "bench",
   "knot",
   "dash",
   "absolutely",
@@ -55,7 +59,10 @@ export function parseThemeSelection(
   const theme = typeof themeRaw === "string" ? themeRaw : "";
   const mode = typeof modeRaw === "string" ? modeRaw : "";
 
-  const normalizedTheme = VALID_THEME_NAMES.has(theme as ThemeName) ? (theme as ThemeName) : "claw";
+  // Bench build: the brand theme is the default for fresh profiles.
+  const normalizedTheme = VALID_THEME_NAMES.has(theme as ThemeName)
+    ? (theme as ThemeName)
+    : "bench";
   const normalizedMode = VALID_THEME_MODES.has(mode as ThemeMode) ? (mode as ThemeMode) : "system";
 
   return { theme: normalizedTheme, mode: normalizedMode };

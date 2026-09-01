@@ -4080,6 +4080,13 @@ wa-dropdown.sidebar-identity-menu::part(menu) {
   margin-top: 20px;
 }
 
+/* Route mounts fade gently into place. The animation plays once per element
+   creation, so kept-alive or recycled pages never re-run it; opacity-only so
+   sticky descendants keep their containing block during entry. */
+.content > openclaw-router-outlet > * {
+  animation: fade-in var(--duration-slow) var(--ease-out);
+}
+
 .shell--settings .content:has(> .connection-action-block) {
   padding-top: 0;
 }

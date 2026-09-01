@@ -407,6 +407,13 @@
   }
 }
 
+/* New replies rise into place. Scoped to the latest assistant group so the
+   transcript virtualizer's row recycling on scrollback never re-runs
+   entrances for older messages. */
+.chat-group--latest-assistant {
+  animation: rise var(--duration-slow) var(--ease-out);
+}
+
 .chat-group:hover .chat-group-footer-actions button:disabled,
 .chat-reply-context-menu button:disabled {
   opacity: 0.3;

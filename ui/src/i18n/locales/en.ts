@@ -1836,6 +1836,10 @@ export const en: TranslationMap = {
       wizard: "Setup Wizard",
     },
     themes: {
+      bench: {
+        label: "Bench",
+        description: "Obsidian & Infrared",
+      },
       claw: {
         label: "Claw",
         description: "Chroma family",
