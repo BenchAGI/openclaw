@@ -25,12 +25,14 @@ export function resolveCronActiveRuntimeConfig(cfg: OpenClawConfig): OpenClawCon
 function extractCronAgentDefaultsOverride(agentConfigOverride?: ResolvedAgentConfig) {
   const {
     model: overrideModel,
+    models: overrideModels,
     sandbox: _agentSandboxOverride,
     memory: _agentMemoryOverride,
     ...agentOverrideRest
   } = agentConfigOverride ?? {};
   return {
     overrideModel,
+    overrideModels,
     definedOverrides: Object.fromEntries(
       Object.entries(agentOverrideRest).filter(([, value]) => value !== undefined),
     ) as Partial<AgentDefaultsConfig>,
@@ -40,6 +42,7 @@ function extractCronAgentDefaultsOverride(agentConfigOverride?: ResolvedAgentCon
 function mergeCronAgentModelOverride(params: {
   defaults: AgentDefaultsConfig;
   overrideModel: ResolvedAgentConfig["model"] | undefined;
+  overrideModels: ResolvedAgentConfig["models"] | undefined;
 }) {
   const nextDefaults: AgentDefaultsConfig = { ...params.defaults };
   const existingModel =
@@ -48,6 +51,9 @@ function mergeCronAgentModelOverride(params: {
     nextDefaults.model = { ...existingModel, primary: params.overrideModel };
   } else if (params.overrideModel) {
     nextDefaults.model = { ...existingModel, ...params.overrideModel };
+  }
+  if (params.overrideModels) {
+    nextDefaults.models = { ...nextDefaults.models, ...params.overrideModels };
   }
   return nextDefaults;
 }
@@ -58,14 +64,17 @@ export function resolveCronAgentConfig(params: {
   agentConfigOverride?: ResolvedAgentConfig;
 }) {
   const runtimeConfig = resolveCronActiveRuntimeConfig(params.config);
-  const { overrideModel, definedOverrides } = extractCronAgentDefaultsOverride(
+  const { overrideModel, overrideModels, definedOverrides } = extractCronAgentDefaultsOverride(
     params.agentConfigOverride,
   );
   // Keep nested configs owned by agent-aware resolvers out of this flattened snapshot.
-  // Copying partial sandbox or memory objects into defaults destroys their global fields.
+  // Copying partial sandbox or memory objects into defaults destroys their global fields,
+  // and replacing the per-model `models` map drops global runtime rows (e.g. `anthropic/*`
+  // -> claude-cli) that the agent entry never mentioned; merge those per model id instead.
   const agentDefaults = mergeCronAgentModelOverride({
     defaults: Object.assign({}, runtimeConfig.agents?.defaults, definedOverrides),
     overrideModel,
+    overrideModels,
   });
   return {
     runtimeConfig,
