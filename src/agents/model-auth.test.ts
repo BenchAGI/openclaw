@@ -1870,6 +1870,7 @@ describe("resolveApiKeyForProviderCore – synthetic local auth for custom provi
       "http://10.0.0.1:11434/v1",
       "http://172.16.0.1:11434/v1",
       "http://192.168.0.222:11434/v1",
+      "http://100.64.0.2:11434/v1",
       "http://localhost:11434/v1",
       "http://[::1]:8080/v1",
       "http://0.0.0.0:11434/v1",
@@ -1902,6 +1903,21 @@ describe("resolveApiKeyForProviderCore – synthetic local auth for custom provi
           models: {
             providers: {
               "custom-remote": createCustomProviderConfig("http://128.0.0.1:8080/v1"),
+            },
+          },
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("does not widen Tailscale-compatible CGNAT auth to adjacent public space", () => {
+    expect(
+      hasSyntheticLocalProviderAuthConfig({
+        provider: "custom-remote",
+        cfg: {
+          models: {
+            providers: {
+              "custom-remote": createCustomProviderConfig("http://100.128.0.1:8080/v1"),
             },
           },
         },
