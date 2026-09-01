@@ -198,7 +198,7 @@ export function renderApplicationShell(host: ShellViewHost) {
   }
   if (host.routeState.routeId === undefined) {
     return html`<main class="connect-splash" role="status" aria-label=${t("common.loading")}>
-      <openclaw-mascot mood="thinking" .size=${120}></openclaw-mascot>
+      <openclaw-mascot mood="thinking" .size=${176}></openclaw-mascot>
     </main>`;
   }
   const gatewaySnapshot = context.gateway.snapshot;
