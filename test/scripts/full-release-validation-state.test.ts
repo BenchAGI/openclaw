@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   composeReleaseAttemptJobs,
   isReleaseGhArtifactMissingError,
@@ -37,6 +37,21 @@ const SHA = "a".repeat(40);
 const TARGET_SHA = "b".repeat(40);
 const TRUSTED_MAIN = { fullRef: "refs/heads/main", ref: "main", sha: SHA };
 const tempDirs = useAutoCleanupTempDirTracker(afterEach);
+const originalGithubRepository = process.env.GITHUB_REPOSITORY;
+
+// These provenance fixtures model upstream release runs. Keep the suite
+// hermetic when GitHub executes the unchanged tests from a downstream fork.
+beforeEach(() => {
+  process.env.GITHUB_REPOSITORY = "openclaw/openclaw";
+});
+
+afterEach(() => {
+  if (originalGithubRepository === undefined) {
+    delete process.env.GITHUB_REPOSITORY;
+  } else {
+    process.env.GITHUB_REPOSITORY = originalGithubRepository;
+  }
+});
 
 function candidateRequestInput(overrides: Record<string, unknown> = {}) {
   return {
