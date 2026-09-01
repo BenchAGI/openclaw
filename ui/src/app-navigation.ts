@@ -283,7 +283,7 @@ const NAVIGATION_ICONS: NavigationItem = {
   chat: "messageSquare",
   dashboard: "layoutDashboard",
   dashboards: "layoutDashboard",
-  custodian: "lobster",
+  custodian: "aurelius",
   config: "settings",
   profile: "circleUser",
   communications: "send",

@@ -255,12 +255,22 @@ suite.define(() => {
     await currentPage.locator(".chat-reading-indicator").waitFor();
 
     expect(await currentPage.locator(".chat-group.assistant").count()).toBe(2);
+    expect(await currentPage.locator(".chat-reading-indicator .aurelius-icon").count()).toBe(1);
     expect(
       await currentPage
         .locator(".chat-group.assistant", { hasText: "Older run result." })
         .locator(".chat-working-indicator--continuation")
         .count(),
     ).toBe(0);
+    if (process.env.OPENCLAW_CAPTURE_UI_PROOF === "1") {
+      const artifactDir = path.resolve(".artifacts/control-ui-e2e/aurelius-working-mark");
+      await mkdir(artifactDir, { recursive: true });
+      await currentPage.locator(".chat-working-indicator").screenshot({
+        animations: "disabled",
+        path: path.join(artifactDir, "working-indicator.png"),
+        scale: "css",
+      });
+    }
   });
 
   it("restores only the unpersisted assistant response after reconnecting", async () => {

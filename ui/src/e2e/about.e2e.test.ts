@@ -92,9 +92,9 @@ suite.define(() => {
       const xLink = hero.getByRole("link", { name: "X (Twitter)", exact: true });
       await expect.poll(() => xLink.getAttribute("href")).toBe("https://x.com/openclaw");
 
-      const clawd = page.getByRole("button", { name: "Wave hello to Clawd" });
-      // CLAWD_WAVE_MS clears the class after 1400ms, so click and read it in one browser step.
-      const clawdWaving = await clawd.evaluate(async (element) => {
+      const aurelius = page.getByRole("button", { name: "Wave hello to Aurelius" });
+      // AURELIUS_GREETING_MS clears the class after 1400ms, so click and read it in one step.
+      const aureliusGreeting = await aurelius.evaluate(async (element) => {
         const button = element as HTMLButtonElement;
         const owner = element.closest("openclaw-about-page") as
           | (HTMLElement & {
@@ -106,9 +106,9 @@ suite.define(() => {
         }
         button.click();
         await owner.updateComplete;
-        return button.classList.contains("about-hero__clawd--wave");
+        return button.classList.contains("about-hero__aurelius--greeting");
       });
-      expect(clawdWaving).toBe(true);
+      expect(aureliusGreeting).toBe(true);
 
       await expect.poll(() => page.locator(".about-footer").textContent()).toContain("MIT License");
 

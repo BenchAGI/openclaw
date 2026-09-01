@@ -553,7 +553,7 @@ export function renderApplicationShell(host: ShellViewHost) {
                       @click=${() =>
                         window.dispatchEvent(new CustomEvent(CUSTODIAN_PANEL_TOGGLE_EVENT))}
                     >
-                      ${icons.lobster}
+                      ${icons.aurelius}
                     </button>
                   </openclaw-tooltip>`
                 : nothing}

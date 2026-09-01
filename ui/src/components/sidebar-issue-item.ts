@@ -64,7 +64,7 @@ export function renderSidebarAskOpenClawButton(params: {
       @click=${() => window.dispatchEvent(new CustomEvent(CUSTODIAN_PANEL_TOGGLE_EVENT))}
     >
       <span class="sidebar-footer-bar__custodian-glyph">
-        ${icons.lobster}
+        ${icons.aurelius}
         ${params.count
           ? html`<span
               class="session-glyph__badge sidebar-footer-bar__custodian-badge sidebar-footer-bar__custodian-badge--${params.severity ??

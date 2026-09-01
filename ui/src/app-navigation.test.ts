@@ -92,7 +92,7 @@ describe("navigationIconForRoute", () => {
       Object.fromEntries(ALL_ROUTES.map((routeId) => [routeId, navigationIconForRoute(routeId)])),
     ).toEqual({
       chat: "messageSquare",
-      custodian: "lobster",
+      custodian: "aurelius",
       activity: "activity",
       apps: "layoutGrid",
       portals: "monitor",
