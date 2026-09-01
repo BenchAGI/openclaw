@@ -1,4 +1,3 @@
-/* oxlint-disable unicorn/no-array-fill-with-reference-type -- CanvasRenderingContext2D.fill is not Array.fill. */
 import type { MascotPalette, MascotPose } from "./mascot-pose.ts";
 
 const ART_SIZE = 120;
@@ -62,6 +61,7 @@ export function drawMascotEffect(
   ctx: CanvasRenderingContext2D,
   pose: MascotPose,
   palette: MascotPalette,
+  fillPath: (path: Path2D) => void,
 ): void {
   switch (pose.effect) {
     case "none":
@@ -81,7 +81,7 @@ export function drawMascotEffect(
         ctx.save();
         ctx.globalAlpha *= alpha;
         ctx.fillStyle = index % 2 === 0 ? EYE_GLOW : palette.antenna;
-        ctx.fill(sparklePath(center, 2.5 + 2 * alpha));
+        fillPath(sparklePath(center, 2.5 + 2 * alpha));
         ctx.restore();
       }
       return;
@@ -117,7 +117,7 @@ export function drawMascotEffect(
         ctx.save();
         ctx.globalAlpha *= alpha;
         ctx.fillStyle = index % 2 === 0 ? EYE_GLOW : GOLD;
-        ctx.fill(sparklePath(center, particleSize));
+        fillPath(sparklePath(center, particleSize));
         ctx.restore();
       }
       return;
@@ -148,7 +148,7 @@ export function drawMascotEffect(
       ctx.save();
       ctx.globalAlpha *= alpha;
       ctx.fillStyle = "#80d4ff";
-      ctx.fill(drop);
+      fillPath(drop);
       ctx.restore();
     }
   }

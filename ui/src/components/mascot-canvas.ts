@@ -464,6 +464,6 @@ export function drawMascot(
   drawEye(ctx, { x: 75, y: 38 }, pose.rightEyeOpenness, pose);
   drawBeak(ctx, pose);
   drawBenchGlyph(ctx);
-  drawMascotEffect(ctx, pose, palette);
+  drawMascotEffect(ctx, pose, palette, (path) => ctx.fill(path));
   ctx.restore();
 }
