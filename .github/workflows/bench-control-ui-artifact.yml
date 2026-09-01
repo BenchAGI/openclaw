@@ -1,0 +1,73 @@
+# Bench fork lane: gate the branded Control UI and emit a hashed, versioned
+# dist artifact. The artifact is only ever distributed inside a harness
+# release pinned to the SAME OpenClaw version (one install, one version).
+name: Bench Control UI artifact
+
+on:
+  push:
+    branches:
+      - "bench-runtime-**"
+      - "feat/bench-**"
+  pull_request:
+    branches:
+      - "bench-runtime-**"
+      - "feat/bench-**"
+  workflow_dispatch:
+
+concurrency:
+  group: bench-control-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+        with:
+          install-bun: "false"
+
+      - name: Install Playwright Chromium (UI browser tests)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Stylelint
+        run: pnpm lint:ui:styles
+
+      - name: i18n baseline (keyless)
+        run: pnpm ui:i18n:baseline
+
+      - name: Control UI unit + browser tests
+        run: pnpm --dir ui test
+
+      - name: Production build (budget-enforced)
+        run: pnpm ui:build
+
+      - name: Manifest + hash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          HEAD_SHA=$(git rev-parse HEAD)
+          tar -C dist -cf /tmp/control-ui-bench.tar control-ui
+          DIST_SHA=$(sha256sum /tmp/control-ui-bench.tar | cut -d' ' -f1)
+          cat > dist/control-ui/BENCH-ARTIFACT-MANIFEST.json << EOF
+          {
+            "artifact": "control-ui-bench",
+            "openclawVersion": "${VERSION}",
+            "sourceHead": "${HEAD_SHA}",
+            "distTarSha256": "${DIST_SHA}",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "coupling": "distribute only inside a harness release running OpenClaw ${VERSION}"
+          }
+          EOF
+          echo "control-ui-bench ${VERSION} @ ${HEAD_SHA} sha256=${DIST_SHA}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-ui-bench-${{ github.sha }}
+          path: dist/control-ui
+          if-no-files-found: error
+          retention-days: 30
