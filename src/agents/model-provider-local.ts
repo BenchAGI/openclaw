@@ -1,5 +1,9 @@
 /** Shared local model-provider URL classification. */
-import { isLoopbackIpAddress, isRfc1918Ipv4Address } from "@openclaw/net-policy/ip";
+import {
+  isCarrierGradeNatIpv4Address,
+  isLoopbackIpAddress,
+  isRfc1918Ipv4Address,
+} from "@openclaw/net-policy/ip";
 import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
 
 export function isLocalProviderBaseUrl(
@@ -17,6 +21,7 @@ export function isLocalProviderBaseUrl(
       host.endsWith(".local") ||
       additionalHostnames?.has(host) === true ||
       isLoopbackIpAddress(host) ||
+      isCarrierGradeNatIpv4Address(host) ||
       isRfc1918Ipv4Address(host)
     );
   } catch {
