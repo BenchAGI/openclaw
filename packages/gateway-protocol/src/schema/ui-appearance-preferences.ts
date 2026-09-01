@@ -17,6 +17,7 @@ export type UiAppearancePreferenceKey =
 // render it — it stays device-local instead.
 export const UI_APPEARANCE_THEME_VALUES = [
   "claw",
+  "bench",
   "knot",
   "dash",
   "absolutely",

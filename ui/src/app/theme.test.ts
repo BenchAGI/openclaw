@@ -34,8 +34,9 @@ describe("resolveTheme", () => {
 
 describe("parseThemeSelection", () => {
   it("falls back to defaults for unknown stored values", () => {
+    // Bench build: unknown/legacy stored themes land on the brand default.
     expect(parseThemeSelection("fieldmanual", "invalid-mode")).toEqual({
-      theme: "claw",
+      theme: "bench",
       mode: "system",
     });
     expect(parseThemeSelection("dash", "light")).toEqual({

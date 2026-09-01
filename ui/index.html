@@ -23,6 +23,7 @@
       (function () {
         var THEMES = {
           claw: 1,
+          bench: 1,
           knot: 1,
           dash: 1,
           absolutely: 1,
@@ -52,13 +53,15 @@
               if (raw) break;
             }
           }
-          var s = raw ? JSON.parse(raw) : null;
+          // Fresh profiles have no stored settings; they still boot the Bench
+          // brand default below instead of the bare base palette.
+          var s = raw ? JSON.parse(raw) : {};
           var t = s && s.theme;
           var m = s && s.themeMode;
           if (typeof t !== "string") t = "";
           if (typeof m !== "string") m = "";
           var legacy = LEGACY[t];
-          var theme = THEMES[t] ? t : legacy ? legacy.split(":")[0] : "claw";
+          var theme = THEMES[t] ? t : legacy ? legacy.split(":")[0] : "bench";
           var mode = MODES[m] ? m : legacy ? legacy.split(":")[1] : "system";
           if (mode === "system") {
             mode = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
@@ -66,6 +69,7 @@
           // family -> [dark, light] resolved names. Kept in lockstep with
           // resolveTheme() in app/theme.ts and the files in public/themes.
           var FAMILIES = {
+            bench: ["bench", "bench-light"],
             knot: ["openknot", "openknot-light"],
             dash: ["dash", "dash-light"],
             absolutely: ["absolutely", "absolutely-light"],
@@ -126,6 +130,14 @@
       html[data-theme-mode="light"] {
         background: #faf9f7;
         color-scheme: light;
+      }
+
+      html[data-theme="bench"] {
+        background: #111111;
+      }
+
+      html[data-theme="bench-light"] {
+        background: #faf9f9;
       }
 
       html[data-theme="openknot"] {

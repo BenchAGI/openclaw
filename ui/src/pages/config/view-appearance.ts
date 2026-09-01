@@ -51,6 +51,11 @@ type ThemeOption = {
 
 const BUILTIN_THEME_OPTIONS: ThemeOption[] = [
   {
+    id: "bench",
+    labelKey: "configView.themes.bench.label",
+    descriptionKey: "configView.themes.bench.description",
+  },
+  {
     id: "claw",
     labelKey: "configView.themes.claw.label",
     descriptionKey: "configView.themes.claw.description",

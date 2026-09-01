@@ -461,6 +461,10 @@ const enSettings = {
       wizard: "Setup",
     },
     themes: {
+      bench: {
+        label: "Bench",
+        description: "Obsidian & Infrared",
+      },
       claw: {
         label: "Claw",
         description: "Chroma family",
