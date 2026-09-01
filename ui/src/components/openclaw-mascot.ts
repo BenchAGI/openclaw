@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
 import { property } from "lit/decorators.js";
 import { MascotAnimator } from "./mascot-animator.ts";
-import { drawMascot } from "./mascot-canvas.ts";
+import { drawMascot, whenMascotArtReady } from "./mascot-canvas.ts";
 import {
   mascotPalette,
   staticMascotPose,
@@ -111,6 +111,12 @@ class OpenClawMascot extends LitElement {
     this.animator.setTease(this.tease, currentSeconds());
     this.drawCurrentFrame(currentSeconds());
     this.syncPlayback();
+    // Static frames drawn before the bitmap decodes would stay empty.
+    whenMascotArtReady(() => {
+      if (this.isConnected) {
+        this.drawPose(this.lastPose);
+      }
+    });
   }
 
   protected override updated(changed: PropertyValues<this>): void {
