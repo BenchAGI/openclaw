@@ -53,7 +53,19 @@ function mergeCronAgentModelOverride(params: {
     nextDefaults.model = { ...existingModel, ...params.overrideModel };
   }
   if (params.overrideModels) {
-    nextDefaults.models = { ...nextDefaults.models, ...params.overrideModels };
+    nextDefaults.models = { ...nextDefaults.models };
+    for (const [modelId, override] of Object.entries(params.overrideModels)) {
+      const inherited = nextDefaults.models[modelId];
+      nextDefaults.models[modelId] = {
+        ...inherited,
+        ...override,
+        codeMode: override.codeMode ?? inherited?.codeMode,
+        // Model runtime resolution skips empty policies and falls back to defaults.
+        agentRuntime: override.agentRuntime?.id?.trim()
+          ? override.agentRuntime
+          : inherited?.agentRuntime,
+      };
+    }
   }
   return nextDefaults;
 }
@@ -69,8 +81,7 @@ export function resolveCronAgentConfig(params: {
   );
   // Keep nested configs owned by agent-aware resolvers out of this flattened snapshot.
   // Copying partial sandbox or memory objects into defaults destroys their global fields,
-  // and replacing the per-model `models` map drops global runtime rows (e.g. `anthropic/*`
-  // -> claude-cli) that the agent entry never mentioned; merge those per model id instead.
+  // while model rows need field overlays for defaults-only aliases and parameters.
   const agentDefaults = mergeCronAgentModelOverride({
     defaults: Object.assign({}, runtimeConfig.agents?.defaults, definedOverrides),
     overrideModel,

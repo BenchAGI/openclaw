@@ -1,13 +1,17 @@
 // Cron runtime tests cover agent-entry model maps merging over global per-model runtime rows.
 import { describe, expect, it } from "vitest";
 import { resolveAgentConfig } from "../../agents/agent-scope.js";
+import { resolveCodeModeConfig } from "../../agents/code-mode-runtime.js";
+import { resolveModelExtraParamSources } from "../../agents/model-extra-params.js";
 import { resolveModelRuntimePolicy } from "../../agents/model-runtime-policy.js";
+import { buildModelAliasIndex } from "../../agents/model-selection-shared.js";
+import type { AgentModelEntryConfig } from "../../config/types.agent-defaults.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { resolveCronAgentConfig } from "./run-config.js";
 
 const anthropicCliModels = {
-  "anthropic/claude-fable-5-1": { agentRuntime: { id: "claude-cli" } },
-  "anthropic/claude-opus-4-8": { agentRuntime: { id: "claude-cli" } },
+  "anthropic/fixture-primary": { agentRuntime: { id: "claude-cli" } },
+  "anthropic/fixture-secondary": { agentRuntime: { id: "claude-cli" } },
 };
 
 function buildCronConfig(cfg: OpenClawConfig, agentId: string): OpenClawConfig {
@@ -38,38 +42,38 @@ describe("resolveCronAgentConfig model runtime preservation", () => {
         defaults: {
           models: {
             ...anthropicCliModels,
-            "openai/gpt-5.6-sol": { agentRuntime: { id: "codex" } },
+            "openai/fixture-model": { agentRuntime: { id: "fixture-runtime" } },
           },
         },
         list: [
           {
-            id: "aurelius",
-            models: { "openai/gpt-5.6-sol": { agentRuntime: { id: "openclaw" } } },
+            id: "worker",
+            models: { "openai/fixture-model": { agentRuntime: { id: "openclaw" } } },
           },
         ],
       },
     };
 
-    const cronCfg = buildCronConfig(cfg, "aurelius");
+    const cronCfg = buildCronConfig(cfg, "worker");
 
     expect(cronCfg.agents?.defaults?.models).toEqual({
       ...anthropicCliModels,
-      "openai/gpt-5.6-sol": { agentRuntime: { id: "openclaw" } },
+      "openai/fixture-model": { agentRuntime: { id: "openclaw" } },
     });
     expect(
       resolveCronRuntime({
         cfg: cronCfg,
-        agentId: "aurelius",
+        agentId: "worker",
         provider: "anthropic",
-        modelId: "claude-fable-5-1",
+        modelId: "fixture-primary",
       }),
     ).toBe("claude-cli");
     expect(
       resolveCronRuntime({
         cfg: cronCfg,
-        agentId: "aurelius",
+        agentId: "worker",
         provider: "openai",
-        modelId: "gpt-5.6-sol",
+        modelId: "fixture-model",
       }),
     ).toBe("openclaw");
   });
@@ -78,20 +82,20 @@ describe("resolveCronAgentConfig model runtime preservation", () => {
     const cfg: OpenClawConfig = {
       agents: {
         defaults: { models: { ...anthropicCliModels } },
-        list: [{ id: "worker", model: "anthropic/claude-fable-5-1" }],
+        list: [{ id: "worker", model: "anthropic/fixture-primary" }],
       },
     };
 
     const cronCfg = buildCronConfig(cfg, "worker");
 
     expect(cronCfg.agents?.defaults?.models).toEqual(anthropicCliModels);
-    expect(cronCfg.agents?.defaults?.model).toEqual({ primary: "anthropic/claude-fable-5-1" });
+    expect(cronCfg.agents?.defaults?.model).toEqual({ primary: "anthropic/fixture-primary" });
     expect(
       resolveCronRuntime({
         cfg: cronCfg,
         agentId: "worker",
         provider: "anthropic",
-        modelId: "claude-fable-5-1",
+        modelId: "fixture-primary",
       }),
     ).toBe("claude-cli");
   });
@@ -103,5 +107,165 @@ describe("resolveCronAgentConfig model runtime preservation", () => {
     });
 
     expect(agentDefaults).not.toHaveProperty("models");
+  });
+
+  it("projects partial model fields without merging authored parameter objects", () => {
+    const cfg: OpenClawConfig = {
+      agents: {
+        defaults: {
+          models: {
+            "anthropic/fixture-primary": {
+              alias: "fixture-alias",
+              agentRuntime: { id: "claude-cli" },
+              params: { maxTokens: 100, temperature: 1 },
+              streaming: true,
+              codeMode: true,
+            },
+          },
+        },
+        list: [
+          {
+            id: "worker",
+            models: {
+              "anthropic/fixture-primary": {
+                params: { temperature: 0.2 },
+                streaming: false,
+                codeMode: false,
+              },
+              "anthropic/fixture-agent-only": { agentRuntime: { id: "openclaw" } },
+            },
+          },
+        ],
+      },
+    };
+    const original = structuredClone(cfg);
+    const cronCfg = buildCronConfig(cfg, "worker");
+
+    expect(
+      resolveModelExtraParamSources({
+        config: cronCfg,
+        provider: "anthropic",
+        modelId: "fixture-primary",
+        agentId: "worker",
+      }).modelParams,
+    ).toEqual({ temperature: 0.2 });
+    expect(
+      buildModelAliasIndex({
+        cfg: cronCfg,
+        defaultProvider: "anthropic",
+        manifestPlugins: [],
+      }).byAlias.get("fixture-alias")?.ref,
+    ).toEqual({
+      provider: "anthropic",
+      model: "fixture-primary",
+    });
+    expect(cronCfg.agents?.defaults?.models?.["anthropic/fixture-primary"]).toMatchObject({
+      streaming: false,
+      codeMode: false,
+      agentRuntime: { id: "claude-cli" },
+    });
+    expect(
+      resolveCronRuntime({
+        cfg: cronCfg,
+        agentId: "worker",
+        provider: "anthropic",
+        modelId: "fixture-agent-only",
+      }),
+    ).toBe("openclaw");
+    expect(cfg).toEqual(original);
+  });
+
+  it.each([
+    ["alias", { alias: "fixture-alias" }],
+    ["parameters", { params: { temperature: 0.2 } }],
+    ["streaming", { streaming: false }],
+    ["code mode", { codeMode: false }],
+    ["empty entry", {}],
+    ["undefined runtime", { agentRuntime: undefined }],
+    ["empty runtime", { agentRuntime: {} }],
+    ["undefined runtime ID", { agentRuntime: { id: undefined } }],
+    ["empty runtime ID", { agentRuntime: { id: "" } }],
+    ["blank runtime ID", { agentRuntime: { id: "  " } }],
+  ] satisfies Array<[string, AgentModelEntryConfig]>)(
+    "preserves inherited runtime with same-model %s overrides",
+    (_name, entry) => {
+      const cfg: OpenClawConfig = {
+        agents: {
+          defaults: { models: { ...anthropicCliModels } },
+          list: [{ id: "worker", models: { "anthropic/fixture-primary": entry } }],
+        },
+      };
+      const original = structuredClone(cfg);
+      const cronCfg = buildCronConfig(cfg, "worker");
+      const selection = {
+        agentId: "worker",
+        provider: "anthropic",
+        modelId: "fixture-primary",
+      };
+
+      expect(resolveCronRuntime({ cfg, ...selection })).toBe("claude-cli");
+      expect(resolveCronRuntime({ cfg: cronCfg, ...selection })).toBe("claude-cli");
+      expect(cfg).toEqual(original);
+    },
+  );
+
+  it.each([undefined, false])(
+    "preserves nullish model Code Mode with agent-tools override %s",
+    (agentCodeMode) => {
+      const cfg: OpenClawConfig = {
+        tools: { codeMode: false },
+        agents: {
+          defaults: { models: { "anthropic/fixture-primary": { codeMode: true } } },
+          list: [
+            {
+              id: "worker",
+              tools: { codeMode: agentCodeMode },
+              models: { "anthropic/fixture-primary": { codeMode: undefined } },
+            },
+          ],
+        },
+      };
+      const selection = { provider: "anthropic", modelId: "fixture-primary" };
+      const expected = agentCodeMode ?? true;
+
+      expect(resolveCodeModeConfig(cfg, "worker", selection).enabled).toBe(expected);
+      expect(
+        resolveCodeModeConfig(buildCronConfig(cfg, "worker"), "worker", selection).enabled,
+      ).toBe(expected);
+    },
+  );
+
+  it.each(["auto", "default", "openclaw"])("retains explicit runtime %s", (id) => {
+    const cfg: OpenClawConfig = {
+      agents: {
+        defaults: { models: { ...anthropicCliModels } },
+        list: [{ id: "worker", models: { "anthropic/fixture-primary": { agentRuntime: { id } } } }],
+      },
+    };
+    expect(
+      resolveCronRuntime({
+        cfg: buildCronConfig(cfg, "worker"),
+        agentId: "worker",
+        provider: "anthropic",
+        modelId: "fixture-primary",
+      }),
+    ).toBe(id);
+  });
+
+  it("preserves a same-row provider wildcard runtime", () => {
+    const cfg: OpenClawConfig = {
+      agents: {
+        defaults: { models: { "anthropic/*": { agentRuntime: { id: "claude-cli" } } } },
+        list: [{ id: "worker", models: { "anthropic/*": { params: { temperature: 0.2 } } } }],
+      },
+    };
+    expect(
+      resolveCronRuntime({
+        cfg: buildCronConfig(cfg, "worker"),
+        agentId: "worker",
+        provider: "anthropic",
+        modelId: "fixture-primary",
+      }),
+    ).toBe("claude-cli");
   });
 });
