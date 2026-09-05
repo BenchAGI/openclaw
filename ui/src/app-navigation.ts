@@ -316,7 +316,7 @@ const NAVIGATION_PRESENTATION: Record<NavigationRouteId, NavigationPresentation>
   chat: ["messageSquare", "tabs.chat", "subtitles.chat"],
   dashboard: ["layoutDashboard", "tabs.chat", "subtitles.chat"],
   dashboards: ["layoutDashboard", "tabs.dashboards", "subtitles.dashboards"],
-  custodian: ["lobster", "tabs.custodian", "subtitles.custodian"],
+  custodian: ["aurelius", "tabs.custodian", "subtitles.custodian"],
   config: ["settings", "nav.settings", "subtitles.config"],
   profile: ["circleUser", "tabs.profile", "subtitles.profile"],
   communications: ["send", "tabs.communications", "subtitles.communications"],

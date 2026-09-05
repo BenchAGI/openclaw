@@ -3194,7 +3194,7 @@ export const en: TranslationMap & {
   aboutPage: {
     productName: "OpenClaw",
     tagline: "Your personal AI assistant, running on your own devices.",
-    waveHello: "Wave hello to Clawd",
+    waveHello: "Wave hello to Aurelius",
     linksLabel: "Community and resources",
     linkWebsite: "Website",
     linkDocs: "Docs",

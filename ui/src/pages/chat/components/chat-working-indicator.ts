@@ -64,7 +64,7 @@ export function renderChatWorkingIndicator(
   // Providers report exact usage at response boundaries, not per text delta.
   // Keep the latest count visible while the run continues through tools.
   const outputTokens = options.outputTokens;
-  // The animated claw stays decorative; the text status exposes progress without
+  // The animated Aurelius mark stays decorative; the text status exposes progress without
   // announcing every elapsed-time tick to screen readers.
   return html`
     <div
@@ -82,7 +82,7 @@ export function renderChatWorkingIndicator(
                 })}"
                 aria-hidden="true"
               >
-                ${icons.claw}
+                ${icons.aurelius}
               </div>
             `
       }
@@ -121,7 +121,7 @@ export function renderChatWorkingIndicator(
   `;
 }
 
-/** Post-turn recap row: once the run settles, the parked claw reports how
+/** Post-turn recap row: once the run settles, the parked Aurelius mark reports how
  * long the turn took and its latest known output usage. Sticky until the
  * next run replaces it. */
 export function renderTurnRecapRow(
@@ -143,7 +143,7 @@ export function renderTurnRecapRow(
       ${
         continuation
           ? nothing
-          : html`<span class="chat-tasks-status__claw" aria-hidden="true">${icons.claw}</span>`
+          : html`<span class="chat-tasks-status__claw" aria-hidden="true">${icons.aurelius}</span>`
       }
       <span>${t("chat.turnRecap.doneIn", { duration })}</span>
       ${

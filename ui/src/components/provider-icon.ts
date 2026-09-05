@@ -15,6 +15,7 @@ const PROVIDER_ICON_NAMES = new Set([
   "augment",
   "baseten",
   "bedrock",
+  "bench",
   "byteplus",
   "cerebras",
   "chutes",
@@ -129,6 +130,7 @@ const PROVIDER_ICON_ALIASES: Readonly<Record<string, string>> = {
 // Brand display names for provider ids whose title-cased id reads wrong.
 const PROVIDER_DISPLAY_LABELS: Readonly<Record<string, string>> = {
   anthropic: "Anthropic",
+  bench: "Bench",
   google: "Google",
   "github-copilot": "GitHub",
   "llama-cpp": "llama.cpp",

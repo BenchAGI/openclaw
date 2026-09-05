@@ -11,16 +11,14 @@ import { SubscriptionsController } from "../../lit/subscriptions-controller.ts";
 import { renderAbout, type AboutCommitCopyState } from "./view.ts";
 
 const COPY_RESULT_VISIBLE_MS = 1800;
-// Mirrors the about-clawd-wave animation duration in about.css so the wave
-// class comes off right as the claw settles and the next poke can replay it.
-const CLAWD_WAVE_MS = 1400;
+const AURELIUS_GREETING_MS = 1400;
 
 class AboutPage extends OpenClawLightDomElement {
   @consume({ context: applicationContext, subscribe: true })
   private context!: ApplicationContext;
 
   @state() private copyState: AboutCommitCopyState = "idle";
-  @state() private clawdWaving = false;
+  @state() private aureliusGreeting = false;
 
   private copyResetTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   private waveResetTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -42,15 +40,15 @@ class AboutPage extends OpenClawLightDomElement {
     super.disconnectedCallback();
   }
 
-  private pokeClawd() {
-    if (this.clawdWaving) {
+  private greetAurelius() {
+    if (this.aureliusGreeting) {
       return;
     }
-    this.clawdWaving = true;
+    this.aureliusGreeting = true;
     this.waveResetTimer = globalThis.setTimeout(() => {
       this.waveResetTimer = null;
-      this.clawdWaving = false;
-    }, CLAWD_WAVE_MS);
+      this.aureliusGreeting = false;
+    }, AURELIUS_GREETING_MS);
   }
 
   private async copyCommit() {
@@ -84,8 +82,8 @@ class AboutPage extends OpenClawLightDomElement {
       gatewayVersion,
       copyState: this.copyState,
       onCopyCommit: () => void this.copyCommit(),
-      clawdWaving: this.clawdWaving,
-      onPokeClawd: () => this.pokeClawd(),
+      aureliusGreeting: this.aureliusGreeting,
+      onGreetAurelius: () => this.greetAurelius(),
     });
     return html`
       <section class="content-header">
