@@ -312,10 +312,13 @@ const BENIGN_STDERR_PREFIXES = [
 ];
 const HARD_FAILURE_PATTERN =
   /\b(error|fatal|panic|unhandled|traceback|exception|refused|denied|not found|cannot|failed)\b/i;
+// Preserve the CLI warning classifier's optional ESC and SGR-only language;
+// broader ANSI stripping would turn other control-prefixed output into warnings.
+const STDERR_SGR_PATTERN = "\\x1b?\\[[0-9;]*m";
+const STDERR_SGR_REGEX = new RegExp(STDERR_SGR_PATTERN, "g");
 
 export function isWarningOnlyStderr(stderr) {
-  // eslint-disable-next-line no-control-regex
-  const plain = String(stderr ?? "").replace(/\x1b?\[[0-9;]*m/g, "");
+  const plain = String(stderr ?? "").replace(STDERR_SGR_REGEX, "");
   const lines = plain
     .split("\n")
     .map((line) => line.trim())
