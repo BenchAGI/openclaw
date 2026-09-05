@@ -44,7 +44,7 @@ describe("renderAbout", () => {
     render(renderAbout(createProps({ onGreetAurelius })), container);
 
     const hero = container.querySelector(".about-hero");
-    expect(hero?.querySelector(".about-hero__name")?.textContent).toBe("OpenClaw");
+    expect(hero?.querySelector(".about-hero__name")?.textContent).toBe("BenchAGI Aurelius Vault");
     expect(hero?.querySelector(".about-hero__version")?.textContent).toBe("v2026.7.10");
     expect(hero?.querySelector(".about-hero__aurelius openclaw-mascot")).not.toBeNull();
 
