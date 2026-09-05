@@ -16,8 +16,9 @@ const describeCornerShape = canRunPlaywrightChromium(chromiumExecutablePath)
   : describe.skip;
 
 // The `@supports` condition base.css gates the whole refinement on. Rewriting
-// its value to one no engine implements is how this file reproduces Firefox
-// and Safari from the shipped stylesheet instead of a hand-copied fallback.
+// its value to one no engine implements disables the refinement in Chromium
+// using the shipped stylesheet, rather than a hand-copied fallback. This does
+// not execute the fixture in Firefox or Safari.
 const SUPPORTS_CONDITION = "@supports (corner-shape: superellipse(1.5))";
 const UNSUPPORTED_CONDITION = "@supports (corner-shape: openclaw-unsupported-shape)";
 
@@ -36,8 +37,8 @@ type CornerCase = {
 };
 
 // One row per surface family named in the base.css corner block, plus the
-// fully-rounded chrome that must stay a true arc: a superellipse would flatten
-// the ends of every pill, avatar and status dot in the app.
+// fully-rounded chrome that must stay a true arc: the opted-in superellipse(1.5)
+// would flatten the ends of every pill, avatar and status dot in the app.
 const CORNER_CASES: readonly CornerCase[] = [
   {
     circular: "10px",
@@ -260,7 +261,10 @@ async function probeCorners(browser: Browser, fixtureFile: string): Promise<Corn
             const style = getComputedStyle(element);
             const radius =
               corner === "bottomLeft" ? style.borderBottomLeftRadius : style.borderTopLeftRadius;
-            return [selector, { radius, shape: style.getPropertyValue("corner-shape") }];
+            const shape = style.getPropertyValue("corner-shape");
+            // Older Chromium serializes the round keyword instead of its
+            // equivalent computed superellipse. Keep every other value exact.
+            return [selector, { radius, shape: shape === "round" ? "superellipse(1)" : shape }];
           }),
         );
       },
@@ -334,22 +338,25 @@ describeCornerShape("Control UI corner curvature", () => {
         ]),
         ...ROUND_CASES.map((corner) => [
           corner.selector,
-          { radius: corner.superelliptical, shape: "round" },
+          { radius: corner.superelliptical, shape: "superellipse(1)" },
         ]),
         ...EXCLUDED_CASES.map((corner) => [
           corner.selector,
-          { radius: corner.superelliptical, shape: "round" },
+          { radius: corner.superelliptical, shape: "superellipse(1)" },
         ]),
       ]),
     );
   });
 
-  it("keeps today's corners on engines without corner-shape", async () => {
+  it("keeps today's corners when the refinement is forced unsupported", async () => {
     const probe = await probeCorners(browser, circularFixture);
 
     expect(probe).toEqual(
       Object.fromEntries(
-        ALL_CASES.map((corner) => [corner.selector, { radius: corner.circular, shape: "round" }]),
+        ALL_CASES.map((corner) => [
+          corner.selector,
+          { radius: corner.circular, shape: "superellipse(1)" },
+        ]),
       ),
     );
   });
