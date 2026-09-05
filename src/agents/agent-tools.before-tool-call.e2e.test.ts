@@ -1506,8 +1506,11 @@ describe("before_tool_call requireApproval handling", () => {
         MAX_PLUGIN_APPROVAL_TIMEOUT_MS,
       );
     } finally {
-      if (prior === undefined) delete process.env.OPENCLAW_TURN_IDLE_BUDGET_MS;
-      else process.env.OPENCLAW_TURN_IDLE_BUDGET_MS = prior;
+      if (prior === undefined) {
+        delete process.env.OPENCLAW_TURN_IDLE_BUDGET_MS;
+      } else {
+        process.env.OPENCLAW_TURN_IDLE_BUDGET_MS = prior;
+      }
     }
   });
 
