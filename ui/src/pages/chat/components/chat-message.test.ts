@@ -1699,9 +1699,10 @@ describe("grouped chat rendering", () => {
     const group = container.querySelector(".chat-group.assistant");
     expect(group).not.toBeNull();
     expect(group?.classList.contains("chat-group--working")).toBe(true);
-    // Working runs are pure claw: the avatar only arrives with stream text.
+    // Working runs use the Aurelius mark: the avatar only arrives with stream text.
     expect(container.querySelectorAll(".chat-avatar.assistant")).toHaveLength(0);
     expect(container.querySelector(".chat-reading-indicator")).not.toBeNull();
+    expect(container.querySelector(".chat-reading-indicator .aurelius-icon")).not.toBeNull();
     expect(container.querySelector(".chat-working-indicator__elapsed")).not.toBeNull();
     expect(container.querySelector(".chat-working-indicator__status > .sr-only")?.textContent).toBe(
       "Working…",

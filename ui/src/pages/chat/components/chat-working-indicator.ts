@@ -70,7 +70,7 @@ export function renderChatWorkingIndicator(
   // Streaming tokens are the real liveness signal; the whimsical phrase only
   // covers the stretch before any usage data exists.
   const hasTokens = options.outputTokens !== null && options.outputTokens !== undefined;
-  // The animated claw stays decorative; the text status exposes progress without
+  // The animated Aurelius mark stays decorative; the text status exposes progress without
   // announcing every elapsed-time tick to screen readers.
   return html`
     <div
@@ -87,7 +87,7 @@ export function renderChatWorkingIndicator(
               })}"
               aria-hidden="true"
             >
-              ${icons.claw}
+              ${icons.aurelius}
             </div>
           `}
       <span class="chat-working-indicator__status">
@@ -123,7 +123,7 @@ export function renderChatWorkingIndicator(
   `;
 }
 
-/** Post-turn recap row: once the run settles, the parked claw reports how
+/** Post-turn recap row: once the run settles, the parked Aurelius mark reports how
  * long the turn took (and its output tokens when the terminal patch carried
  * them). Sticky until the next run replaces it. */
 export function renderTurnRecapRow(
@@ -144,7 +144,7 @@ export function renderTurnRecapRow(
     >
       ${continuation
         ? nothing
-        : html`<span class="chat-tasks-status__claw" aria-hidden="true">${icons.claw}</span>`}
+        : html`<span class="chat-tasks-status__claw" aria-hidden="true">${icons.aurelius}</span>`}
       <span>${t("chat.turnRecap.doneIn", { duration })}</span>
       ${tokens === null
         ? nothing

@@ -1,54 +1,54 @@
 <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="lobster-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff4d4d"/>
-      <stop offset="100%" stop-color="#991b1b"/>
+    <linearGradient id="aurelius-gold" x1="28" y1="12" x2="88" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe16a"/>
+      <stop offset="0.45" stop-color="#f4a62a"/>
+      <stop offset="1" stop-color="#744019"/>
+    </linearGradient>
+    <linearGradient id="aurelius-beak" x1="50" y1="44" x2="70" y2="65" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe16a"/>
+      <stop offset="0.55" stop-color="#ffd34d"/>
+      <stop offset="1" stop-color="#dc7d14"/>
     </linearGradient>
   </defs>
-  <!-- SMIL, not CSS: Chromium/Safari only run declarative SMIL inside <img>-loaded
-       SVGs, and every app surface loads this file via <img src>. Mirrors the
-       openclaw.ai hero mascot keyframes (float 4s, wiggle 2s, blink 3s, snap 4s). -->
+  <!-- SMIL keeps Aurelius animated when loaded through <img> or as a favicon. -->
   <g>
     <animateTransform attributeName="transform" type="translate" additive="sum"
-      values="0 0; 0 -5; 0 0" keyTimes="0; 0.5; 1" dur="4s" repeatCount="indefinite"
+      values="0 0; 0 -4; 0 0" keyTimes="0; 0.5; 1" dur="4s" repeatCount="indefinite"
       calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
-    <!-- Body -->
-    <path d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z" fill="url(#lobster-gradient)"/>
-    <!-- Left Claw (hinges on its body-facing edge) -->
-    <path d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z" fill="url(#lobster-gradient)">
+    <path d="M39 54C29 55 18 58 8 64l13 5-17 9 19 3L9 93l20-3-7 15 23-10 4-25Z" fill="url(#aurelius-gold)" stroke="#080b12" stroke-width="1.2">
       <animateTransform attributeName="transform" type="rotate"
-        values="0 26 53; 0 26 53; -8 26 53; 0 26 53; 0 26 53" keyTimes="0; 0.85; 0.9; 0.95; 1"
-        dur="4s" repeatCount="indefinite"
-        calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        values="0 41 62; -5 41 62; 0 41 62" keyTimes="0; 0.5; 1" dur="2.4s" repeatCount="indefinite"/>
     </path>
-    <!-- Right Claw (snaps 0.2s after the left) -->
-    <path d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z" fill="url(#lobster-gradient)">
+    <path d="M81 54c10 1 21 4 31 10l-13 5 17 9-19 3 14 12-20-3 7 15-23-10-4-25Z" fill="url(#aurelius-gold)" stroke="#080b12" stroke-width="1.2">
       <animateTransform attributeName="transform" type="rotate"
-        values="0 94 53; 0 94 53; -8 94 53; 0 94 53; 0 94 53" keyTimes="0; 0.85; 0.9; 0.95; 1"
-        dur="4s" begin="0.2s" repeatCount="indefinite"
-        calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        values="0 79 62; 5 79 62; 0 79 62" keyTimes="0; 0.5; 1" dur="2.4s" repeatCount="indefinite"/>
     </path>
-    <!-- Antenna -->
-    <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round">
-      <animateTransform attributeName="transform" type="rotate"
-        values="0 37.5 11; -3 37.5 11; 3 37.5 11; 0 37.5 11" keyTimes="0; 0.25; 0.75; 1"
-        dur="2s" repeatCount="indefinite"
-        calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1"/>
-    </path>
-    <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round">
-      <animateTransform attributeName="transform" type="rotate"
-        values="0 82.5 11; -3 82.5 11; 3 82.5 11; 0 82.5 11" keyTimes="0; 0.25; 0.75; 1"
-        dur="2s" repeatCount="indefinite"
-        calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1"/>
-    </path>
-    <!-- Eyes -->
-    <circle cx="45" cy="35" r="6" fill="#050810"/>
-    <circle cx="75" cy="35" r="6" fill="#050810"/>
-    <circle cx="46" cy="34" r="2.5" fill="#00e5cc">
-      <animate attributeName="opacity" values="1; 1; 0.3; 1" keyTimes="0; 0.9; 0.95; 1" dur="3s" repeatCount="indefinite"/>
+    <path d="M60 7c-13 1-23 8-29 20l-6 12c2 11 5 19 10 26l-9 9 9 5-8 10h14l-4 13 14-6 9 17 9-17 14 6-4-13h14l-8-10 9-5-9-9c5-7 8-15 10-26l-6-12C83 15 73 8 60 7Z" fill="url(#aurelius-gold)" stroke="#080b12" stroke-width="1.4"/>
+    <path d="m34 28 12-7 14 3 14-3 12 7-4 21-12 10-10 4-10-4-12-10Z" fill="#111827" stroke="#223047"/>
+    <path d="m43 69 17-6 17 6-5 22-12 11-12-11Z" fill="#080b12" fill-opacity=".58" stroke="#b85c14"/>
+    <path d="M36 31h6v14l7 7v21l-8 8M84 31h-6v14l-7 7v21l8 8" stroke="#218cff" stroke-width="1.8"/>
+    <g fill="#45adff">
+      <rect x="34.5" y="29.5" width="3" height="3"/><rect x="47.5" y="50.5" width="3" height="3"/>
+      <rect x="39.5" y="79.5" width="3" height="3"/><rect x="82.5" y="29.5" width="3" height="3"/>
+      <rect x="69.5" y="50.5" width="3" height="3"/><rect x="77.5" y="79.5" width="3" height="3"/>
+    </g>
+    <ellipse cx="45" cy="38" rx="6.5" ry="5" fill="#080b12"/>
+    <ellipse cx="75" cy="38" rx="6.5" ry="5" fill="#080b12"/>
+    <circle cx="45" cy="37.6" r="2.2" fill="#45adff">
+      <animate attributeName="opacity" values="1;1;.2;1" keyTimes="0;.9;.95;1" dur="3s" repeatCount="indefinite"/>
     </circle>
-    <circle cx="76" cy="34" r="2.5" fill="#00e5cc">
-      <animate attributeName="opacity" values="1; 1; 0.3; 1" keyTimes="0; 0.9; 0.95; 1" dur="3s" repeatCount="indefinite"/>
+    <circle cx="75" cy="37.6" r="2.2" fill="#45adff">
+      <animate attributeName="opacity" values="1;1;.2;1" keyTimes="0;.9;.95;1" dur="3s" repeatCount="indefinite"/>
     </circle>
+    <path d="M49 47q11-9 22 0l5 4-10 3q-3 5-6 10-3-6-16-11Z" fill="url(#aurelius-beak)" stroke="#8a3f0c" stroke-width=".8"/>
+    <path d="M48 55q11 5 19 0-4 9-9 11-5-4-10-11Z" fill="#dc7d14" stroke="#8a3f0c" stroke-width=".8">
+      <animateTransform attributeName="transform" type="rotate"
+        values="0 59 55; 14 59 55; 0 59 55; 12 59 55; 0 59 55; 0 59 55" keyTimes="0;.1;.16;.24;.32;1" dur="2.4s" repeatCount="indefinite"/>
+    </path>
+    <g fill="#ff2d55">
+      <rect x="55" y="73" width="10" height="2.2"/><rect x="55" y="78" width="10" height="2.2"/>
+      <rect x="56.2" y="75" width="2.2" height="10"/><rect x="61.6" y="75" width="2.2" height="10"/>
+    </g>
   </g>
 </svg>

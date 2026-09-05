@@ -95,15 +95,23 @@ describe("renderChatWorkingIndicator", () => {
     );
   }
 
-  it("routes the seeded surprise class onto the claw bubble", () => {
+  it("renders Aurelius and routes the seeded surprise class onto its bubble", () => {
     const surprisingKey = findRenderKey(true);
     expect(surpriseClassesFor(surprisingKey, false)).toEqual([
       selectWorkingClawSurprise(surprisingKey),
     ]);
     expect(surpriseClassesFor(findRenderKey(false), false)).toEqual([]);
+
+    const container = document.createElement("div");
+    render(
+      renderChatWorkingIndicator({ kind: "reading-indicator", key: "aurelius", startedAt: 1 }),
+      container,
+    );
+    expect(container.querySelector(".aurelius-icon")).not.toBeNull();
+    expect(container.querySelector(".aurelius-icon__beak")).not.toBeNull();
   });
 
-  it("keeps approval waits on the default claw even for surprising keys", () => {
+  it("keeps approval waits on the default motion even for surprising keys", () => {
     expect(surpriseClassesFor(findRenderKey(true), true)).toEqual([]);
   });
 });

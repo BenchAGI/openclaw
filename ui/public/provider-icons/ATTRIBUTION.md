@@ -17,6 +17,13 @@ content otherwise match the cited upstream files.
 
 Provider names and marks remain the property of their respective owners.
 
+## Bench icon
+
+`ProviderIcon-bench.svg` is the canonical Bench glyph, supplied by BenchAGI
+for use on Bench-owned OpenClaw surfaces. The monochrome asset is derived from
+the official Infrared/Obsidian app glyph so the shared provider mask can tint
+it correctly in both themes.
+
 ## Pi icon
 
 `ProviderIcon-pi.svg` is a metadata-cleaned copy of the official Pi logo:

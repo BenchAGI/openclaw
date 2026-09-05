@@ -58,11 +58,14 @@ describe("settings save indicator", () => {
     expect(indicator.querySelector('[role="status"]')).toBeNull();
   });
 
-  it("renders the shared working claw while saving", async () => {
+  it("renders the shared Aurelius mark while saving", async () => {
     await update(props({ status: "saving" }));
 
     expect(indicator.textContent?.trim()).toBe("Saving…");
-    expect(indicator.querySelector(".settings-save-indicator__claw--saving svg")).not.toBeNull();
+    expect(
+      indicator.querySelector(".settings-save-indicator__claw--saving .aurelius-icon"),
+    ).not.toBeNull();
+    expect(indicator.querySelector(".aurelius-icon__beak")).not.toBeNull();
     expect(
       indicator.querySelector(".settings-save-indicator__claw")?.getAttribute("aria-hidden"),
     ).toBe("true");

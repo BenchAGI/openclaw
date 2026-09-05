@@ -132,7 +132,7 @@ export function renderBackgroundTasksStatusRow(
   // the link itself or its center drifts with the claw and elapsed time.
   const aggregate = html`
     <div class="chat-tasks-status" id=${backgroundTasks.statusRowId}>
-      <span class="chat-tasks-status__claw" aria-hidden="true">${icons.claw}</span>
+      <span class="chat-tasks-status__claw" aria-hidden="true">${icons.aurelius}</span>
       ${status.startedMs !== null
         ? html`
             <span class="chat-tasks-status__time" aria-hidden="true">

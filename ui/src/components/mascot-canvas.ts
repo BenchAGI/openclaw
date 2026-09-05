@@ -1,25 +1,36 @@
 /* oxlint-disable unicorn/no-array-fill-with-reference-type -- CanvasRenderingContext2D.fill is not Array.fill. */
-// Canvas-only rendering for the canonical 120x120 Clawd vector.
+// Canvas-only rendering for Aurelius, Bench's canonical 120x120 animatronic eagle.
+import { drawMascotEffect } from "./mascot-effects.ts";
 import type { MascotPalette, MascotPose } from "./mascot-pose.ts";
 
 const ART_SIZE = 120;
 const TAU = Math.PI * 2;
-const EYE = "#050810";
-const EYE_GLOW = "#00e5cc";
-const BLUSH = "#ff9eae";
-const HAT_AMBER = "#f2a833";
-const HAT_LIGHT = "#ffd659";
-const HAT_OUTLINE = "rgba(184, 115, 31, 0.7)";
+const INK = "#080b12";
+const FACE_PLATE = "#111827";
+const FACE_PLATE_LIGHT = "#223047";
+const EYE_GLOW = "#45adff";
+const CIRCUIT_GLOW = "#218cff";
+const BEAK_TOP = "#ffd34d";
+const BEAK_BOTTOM = "#dc7d14";
+const BEAK_SHADOW = "#8a3f0c";
+const COPPER = "#b85c14";
+const GOLD = "#f4a62a";
+const GOLD_LIGHT = "#ffe16a";
+const INFRARED = "#ff2d55";
+const WORK_PLATE = "#252f3e";
+const WORK_PLATE_LIGHT = "#536176";
 
 type Point = { x: number; y: number };
 type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
 type Shape = { path: Path2D; bounds: Bounds };
 type MascotPaths = {
   body: Shape;
-  leftClaw: Shape;
-  rightClaw: Shape;
-  leftAntenna: Path2D;
-  rightAntenna: Path2D;
+  leftWing: Shape;
+  rightWing: Shape;
+  facePlate: Path2D;
+  chestPlate: Path2D;
+  leftCircuit: Path2D;
+  rightCircuit: Path2D;
 };
 
 let cachedPaths: MascotPaths | null = null;
@@ -29,65 +40,104 @@ function mascotPaths(): MascotPaths {
     return cachedPaths;
   }
 
+  // A compact, front-facing eagle bust. The stepped feather tips carry the
+  // pixel-art silhouette while curves keep the mark legible below 80px.
   const body = new Path2D();
-  body.moveTo(60, 10);
-  body.bezierCurveTo(30, 10, 15, 35, 15, 55);
-  body.bezierCurveTo(15, 75, 30, 95, 45, 100);
-  body.lineTo(45, 110);
-  body.lineTo(55, 110);
-  body.lineTo(55, 100);
-  body.bezierCurveTo(55, 100, 60, 102, 65, 100);
-  body.lineTo(65, 110);
-  body.lineTo(75, 110);
-  body.lineTo(75, 100);
-  body.bezierCurveTo(90, 95, 105, 75, 105, 55);
-  body.bezierCurveTo(105, 35, 90, 10, 60, 10);
+  body.moveTo(60, 7);
+  body.bezierCurveTo(47, 8, 37, 15, 31, 27);
+  body.lineTo(25, 39);
+  body.bezierCurveTo(27, 50, 30, 58, 35, 65);
+  body.lineTo(26, 74);
+  body.lineTo(35, 79);
+  body.lineTo(27, 89);
+  body.lineTo(41, 89);
+  body.lineTo(37, 102);
+  body.lineTo(51, 96);
+  body.lineTo(60, 113);
+  body.lineTo(69, 96);
+  body.lineTo(83, 102);
+  body.lineTo(79, 89);
+  body.lineTo(93, 89);
+  body.lineTo(85, 79);
+  body.lineTo(94, 74);
+  body.lineTo(85, 65);
+  body.bezierCurveTo(90, 58, 93, 50, 95, 39);
+  body.lineTo(89, 27);
+  body.bezierCurveTo(83, 15, 73, 8, 60, 7);
   body.closePath();
 
-  const leftClaw = new Path2D();
-  leftClaw.moveTo(20, 45);
-  leftClaw.bezierCurveTo(5, 40, 0, 50, 5, 60);
-  leftClaw.bezierCurveTo(10, 70, 20, 65, 25, 55);
-  leftClaw.bezierCurveTo(28, 48, 25, 45, 20, 45);
-  leftClaw.closePath();
+  const leftWing = new Path2D();
+  leftWing.moveTo(39, 54);
+  leftWing.bezierCurveTo(29, 55, 18, 58, 8, 64);
+  leftWing.lineTo(21, 69);
+  leftWing.lineTo(4, 78);
+  leftWing.lineTo(23, 81);
+  leftWing.lineTo(9, 93);
+  leftWing.lineTo(29, 90);
+  leftWing.lineTo(22, 105);
+  leftWing.lineTo(45, 95);
+  leftWing.lineTo(49, 70);
+  leftWing.closePath();
 
-  const rightClaw = new Path2D();
-  rightClaw.moveTo(100, 45);
-  rightClaw.bezierCurveTo(115, 40, 120, 50, 115, 60);
-  rightClaw.bezierCurveTo(110, 70, 100, 65, 95, 55);
-  rightClaw.bezierCurveTo(92, 48, 95, 45, 100, 45);
-  rightClaw.closePath();
+  const rightWing = new Path2D();
+  rightWing.moveTo(81, 54);
+  rightWing.bezierCurveTo(91, 55, 102, 58, 112, 64);
+  rightWing.lineTo(99, 69);
+  rightWing.lineTo(116, 78);
+  rightWing.lineTo(97, 81);
+  rightWing.lineTo(111, 93);
+  rightWing.lineTo(91, 90);
+  rightWing.lineTo(98, 105);
+  rightWing.lineTo(75, 95);
+  rightWing.lineTo(71, 70);
+  rightWing.closePath();
 
-  const leftAntenna = new Path2D();
-  leftAntenna.moveTo(45, 15);
-  leftAntenna.quadraticCurveTo(35, 5, 30, 8);
+  const facePlate = new Path2D();
+  facePlate.moveTo(34, 28);
+  facePlate.lineTo(46, 21);
+  facePlate.lineTo(60, 24);
+  facePlate.lineTo(74, 21);
+  facePlate.lineTo(86, 28);
+  facePlate.lineTo(82, 49);
+  facePlate.lineTo(70, 59);
+  facePlate.lineTo(60, 63);
+  facePlate.lineTo(50, 59);
+  facePlate.lineTo(38, 49);
+  facePlate.closePath();
 
-  const rightAntenna = new Path2D();
-  rightAntenna.moveTo(75, 15);
-  rightAntenna.quadraticCurveTo(85, 5, 90, 8);
+  const chestPlate = new Path2D();
+  chestPlate.moveTo(43, 69);
+  chestPlate.lineTo(60, 63);
+  chestPlate.lineTo(77, 69);
+  chestPlate.lineTo(72, 91);
+  chestPlate.lineTo(60, 102);
+  chestPlate.lineTo(48, 91);
+  chestPlate.closePath();
+
+  const leftCircuit = new Path2D();
+  leftCircuit.moveTo(36, 31);
+  leftCircuit.lineTo(42, 31);
+  leftCircuit.lineTo(42, 45);
+  leftCircuit.lineTo(49, 52);
+  leftCircuit.lineTo(49, 73);
+  leftCircuit.lineTo(41, 81);
+
+  const rightCircuit = new Path2D();
+  rightCircuit.moveTo(84, 31);
+  rightCircuit.lineTo(78, 31);
+  rightCircuit.lineTo(78, 45);
+  rightCircuit.lineTo(71, 52);
+  rightCircuit.lineTo(71, 73);
+  rightCircuit.lineTo(79, 81);
 
   cachedPaths = {
-    body: { path: body, bounds: { minX: 15, minY: 10, maxX: 105, maxY: 110 } },
-    leftClaw: {
-      path: leftClaw,
-      bounds: {
-        minX: 3.125,
-        minY: 43.670_068_381_445_48,
-        maxX: 26.196_938_456_699_073,
-        maxY: 65.450_849_718_747_38,
-      },
-    },
-    rightClaw: {
-      path: rightClaw,
-      bounds: {
-        minX: 93.803_061_543_300_93,
-        minY: 43.670_068_381_445_48,
-        maxX: 116.875,
-        maxY: 65.450_849_718_747_38,
-      },
-    },
-    leftAntenna,
-    rightAntenna,
+    body: { path: body, bounds: { minX: 25, minY: 7, maxX: 95, maxY: 113 } },
+    leftWing: { path: leftWing, bounds: { minX: 4, minY: 54, maxX: 49, maxY: 105 } },
+    rightWing: { path: rightWing, bounds: { minX: 71, minY: 54, maxX: 116, maxY: 105 } },
+    facePlate,
+    chestPlate,
+    leftCircuit,
+    rightCircuit,
   };
   return cachedPaths;
 }
@@ -102,16 +152,6 @@ function gradient(ctx: CanvasRenderingContext2D, shape: Shape, palette: MascotPa
 
 function radians(degrees: number): number {
   return (degrees * Math.PI) / 180;
-}
-
-function easeInOut(value: number): number {
-  const t = clamp(value, 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
-function bell(value: number): number {
-  const t = clamp(value, 0, 1);
-  return easeInOut(t < 0.5 ? t * 2 : (1 - t) * 2);
 }
 
 function rotated(
@@ -134,23 +174,6 @@ function ellipsePath(center: Point, radiusX: number, radiusY: number): Path2D {
   return path;
 }
 
-function roundedRectPath(x: number, y: number, width: number, height: number, radius: number) {
-  const path = new Path2D();
-  const right = x + width;
-  const bottom = y + height;
-  path.moveTo(x + radius, y);
-  path.lineTo(right - radius, y);
-  path.quadraticCurveTo(right, y, right, y + radius);
-  path.lineTo(right, bottom - radius);
-  path.quadraticCurveTo(right, bottom, right - radius, bottom);
-  path.lineTo(x + radius, bottom);
-  path.quadraticCurveTo(x, bottom, x, bottom - radius);
-  path.lineTo(x, y + radius);
-  path.quadraticCurveTo(x, y, x + radius, y);
-  path.closePath();
-  return path;
-}
-
 function drawEye(ctx: CanvasRenderingContext2D, center: Point, openness: number, pose: MascotPose) {
   const shifted = {
     x: center.x + pose.gaze.x * 2,
@@ -158,17 +181,11 @@ function drawEye(ctx: CanvasRenderingContext2D, center: Point, openness: number,
   };
 
   if (pose.happyEyes < 1) {
-    const height = Math.max(1.2, 12 * openness * (1 - 0.6 * pose.happyEyes));
+    const height = Math.max(1.2, 10 * openness * (1 - 0.6 * pose.happyEyes));
     ctx.save();
     ctx.globalAlpha *= 1 - pose.happyEyes;
-    ctx.fillStyle = EYE;
-    ctx.fill(
-      ellipsePath(
-        { x: shifted.x, y: shifted.y - 6 + (12 - height) * 0.65 + height / 2 },
-        6,
-        height / 2,
-      ),
-    );
+    ctx.fillStyle = INK;
+    ctx.fill(ellipsePath({ x: shifted.x, y: shifted.y + (10 - height) * 0.45 }, 6.5, height / 2));
     ctx.restore();
   }
 
@@ -178,7 +195,7 @@ function drawEye(ctx: CanvasRenderingContext2D, center: Point, openness: number,
     arc.quadraticCurveTo(shifted.x, shifted.y - 5.5, shifted.x + 6, shifted.y + 2);
     ctx.save();
     ctx.globalAlpha *= pose.happyEyes;
-    ctx.strokeStyle = EYE;
+    ctx.strokeStyle = INK;
     ctx.lineWidth = 2.6;
     ctx.lineCap = "round";
     ctx.stroke(arc);
@@ -202,222 +219,164 @@ function drawEye(ctx: CanvasRenderingContext2D, center: Point, openness: number,
   if (glowVisibility <= 0.01) {
     return;
   }
-  const glowRadius = 2 * pose.glowScale;
+  const glowRadius = 2.1 * pose.glowScale;
   const glowCenter = {
-    x: shifted.x + 1 + pose.gaze.x * 1.2,
-    y: shifted.y - 1 + pose.gaze.y * 0.9,
+    x: shifted.x + pose.gaze.x * 1.2,
+    y: shifted.y - 0.4 + pose.gaze.y * 0.9,
   };
   ctx.save();
   ctx.globalAlpha *= glowVisibility;
+  ctx.shadowColor = EYE_GLOW;
+  ctx.shadowBlur = 5;
   ctx.fillStyle = EYE_GLOW;
   ctx.fill(ellipsePath(glowCenter, glowRadius, glowRadius));
   ctx.restore();
 }
 
-function drawMouth(ctx: CanvasRenderingContext2D, pose: MascotPose): void {
-  ctx.fillStyle = EYE;
-  ctx.strokeStyle = EYE;
-  ctx.lineCap = "round";
-  if (pose.mouthRound > 0.05) {
-    const radiusX = 1 + 3.2 * pose.mouthRound;
-    const radiusY = 1 + 4.2 * pose.mouthRound;
-    ctx.fill(ellipsePath({ x: 60, y: 51 }, radiusX, radiusY));
-    return;
+function drawBeak(ctx: CanvasRenderingContext2D, pose: MascotPose): void {
+  const upper = new Path2D();
+  upper.moveTo(49, 47);
+  upper.quadraticCurveTo(60, 38, 71, 47);
+  upper.lineTo(76, 51);
+  upper.lineTo(66, 54);
+  upper.quadraticCurveTo(63, 59, 60, 64);
+  upper.quadraticCurveTo(57, 58, 44, 53);
+  upper.closePath();
+  const upperFill = ctx.createLinearGradient(48, 43, 70, 59);
+  upperFill.addColorStop(0, GOLD_LIGHT);
+  upperFill.addColorStop(0.55, BEAK_TOP);
+  upperFill.addColorStop(1, BEAK_BOTTOM);
+  ctx.fillStyle = upperFill;
+  ctx.fill(upper);
+  ctx.strokeStyle = BEAK_SHADOW;
+  ctx.lineWidth = 0.8;
+  ctx.stroke(upper);
+
+  const opening = Math.max(
+    pose.mouthOpen,
+    pose.mouthRound * 0.85,
+    Math.max(0, pose.mouthCurve) * 0.12,
+  );
+  if (opening > 0.04) {
+    ctx.save();
+    ctx.globalAlpha *= Math.min(1, opening * 2);
+    ctx.fillStyle = INK;
+    ctx.fill(ellipsePath({ x: 59.5, y: 57 + 2.5 * opening }, 6, 1.8 + 3.5 * opening));
+    ctx.restore();
   }
-  if (pose.mouthOpen > 0.05) {
-    const grin = new Path2D();
-    grin.moveTo(52.5, 48.5);
-    grin.quadraticCurveTo(60, 48.5 + 14 * pose.mouthOpen, 67.5, 48.5);
-    grin.closePath();
-    ctx.fill(grin);
-    return;
-  }
-  if (Math.abs(pose.mouthCurve) <= 0.05) {
-    return;
-  }
-  const curve = new Path2D();
-  curve.moveTo(52.5, 49);
-  curve.quadraticCurveTo(60, 49 + 8 * pose.mouthCurve, 67.5, 49);
-  ctx.lineWidth = 2.2;
-  ctx.stroke(curve);
+
+  const lower = new Path2D();
+  lower.moveTo(48, 55);
+  lower.quadraticCurveTo(59, 60, 67, 55);
+  lower.quadraticCurveTo(63, 64, 58, 66);
+  lower.quadraticCurveTo(53, 62, 48, 55);
+  lower.closePath();
+  rotated(ctx, opening * 15 - pose.mouthCurve * 1.5, { x: 59, y: 55 }, () => {
+    ctx.fillStyle = BEAK_BOTTOM;
+    ctx.fill(lower);
+    ctx.strokeStyle = BEAK_SHADOW;
+    ctx.stroke(lower);
+  });
 }
 
-function drawBlush(ctx: CanvasRenderingContext2D, pose: MascotPose): void {
+function drawCheekLights(ctx: CanvasRenderingContext2D, pose: MascotPose): void {
   if (pose.blush <= 0.02) {
     return;
   }
   ctx.save();
-  ctx.globalAlpha *= pose.blush * 0.55;
-  ctx.fillStyle = BLUSH;
-  ctx.fill(ellipsePath({ x: 37, y: 45 }, 4.5, 2.5));
-  ctx.fill(ellipsePath({ x: 83, y: 45 }, 4.5, 2.5));
+  ctx.globalAlpha *= pose.blush * 0.75;
+  ctx.fillStyle = INFRARED;
+  ctx.shadowColor = INFRARED;
+  ctx.shadowBlur = 4;
+  ctx.fillRect(36, 52, 5, 2);
+  ctx.fillRect(79, 52, 5, 2);
   ctx.restore();
 }
 
-function drawHardHat(ctx: CanvasRenderingContext2D, amount: number): void {
+function drawWorkCrest(ctx: CanvasRenderingContext2D, amount: number): void {
   if (amount <= 0.01) {
     return;
   }
-  const dome = new Path2D();
-  dome.moveTo(45, 15);
-  dome.bezierCurveTo(47, 7, 54, 3, 60, 3);
-  dome.bezierCurveTo(66, 3, 73, 7, 75, 15);
-  dome.lineTo(45, 15);
-  dome.closePath();
-  const brim = roundedRectPath(41, 14, 38, 5, 2);
+  const plate = new Path2D();
+  plate.moveTo(41, 21);
+  plate.lineTo(47, 11);
+  plate.lineTo(60, 7);
+  plate.lineTo(73, 11);
+  plate.lineTo(79, 21);
+  plate.lineTo(72, 25);
+  plate.lineTo(48, 25);
+  plate.closePath();
 
   ctx.save();
   ctx.globalAlpha *= amount;
-  ctx.translate(60, 15 - 14 * (1 - amount));
-  ctx.rotate(radians(-5));
-  ctx.translate(-60, -15);
-  const fill = ctx.createLinearGradient(60, 3, 60, 16);
-  fill.addColorStop(0, HAT_LIGHT);
-  fill.addColorStop(1, HAT_AMBER);
+  ctx.translate(60, 20 - 14 * (1 - amount));
+  ctx.rotate(radians(-4));
+  ctx.translate(-60, -20);
+  const fill = ctx.createLinearGradient(60, 7, 60, 25);
+  fill.addColorStop(0, WORK_PLATE_LIGHT);
+  fill.addColorStop(1, WORK_PLATE);
   ctx.fillStyle = fill;
-  ctx.fill(dome);
-  ctx.strokeStyle = HAT_OUTLINE;
-  ctx.lineWidth = 0.8;
-  ctx.stroke(dome);
-  ctx.fillStyle = HAT_AMBER;
-  ctx.fill(brim);
-  ctx.stroke(brim);
+  ctx.fill(plate);
+  ctx.strokeStyle = GOLD;
+  ctx.lineWidth = 1;
+  ctx.stroke(plate);
+  ctx.fillStyle = INFRARED;
+  ctx.fillRect(53, 18, 14, 2.5);
   ctx.restore();
 }
 
-function sparklePath(center: Point, size: number): Path2D {
-  const path = new Path2D();
-  path.moveTo(center.x, center.y - size);
-  for (const [dx, dy] of [
-    [1, 0],
-    [0, 1],
-    [-1, 0],
-    [0, -1],
-  ] as const) {
-    path.quadraticCurveTo(center.x, center.y, center.x + size * dx, center.y + size * dy);
-  }
-  path.closePath();
-  return path;
-}
-
-function drawZ(ctx: CanvasRenderingContext2D, position: Point, size: number, alpha: number): void {
-  const path = new Path2D();
-  const width = size * 0.62;
-  const height = size * 0.78;
-  path.moveTo(position.x - width / 2, position.y - height / 2);
-  path.lineTo(position.x + width / 2, position.y - height / 2);
-  path.lineTo(position.x - width / 2, position.y + height / 2);
-  path.lineTo(position.x + width / 2, position.y + height / 2);
+function drawBenchGlyph(ctx: CanvasRenderingContext2D): void {
   ctx.save();
-  ctx.globalAlpha *= alpha * 0.9;
-  ctx.strokeStyle = EYE_GLOW;
-  ctx.lineWidth = Math.max(1.2, size * 0.16);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.stroke(path);
+  ctx.fillStyle = INFRARED;
+  ctx.fillRect(55, 73, 10, 2.2);
+  ctx.fillRect(55, 78, 10, 2.2);
+  ctx.fillRect(56.2, 75, 2.2, 10);
+  ctx.fillRect(61.6, 75, 2.2, 10);
   ctx.restore();
 }
 
-function drawEffect(ctx: CanvasRenderingContext2D, pose: MascotPose, palette: MascotPalette): void {
-  switch (pose.effect) {
-    case "none":
-      return;
-    case "sparkles":
-      for (let index = 0; index < 6; index += 1) {
-        const phase = (pose.effectPhase + index * 0.37) % 1;
-        const alpha = bell(phase);
-        if (alpha <= 0.05) {
-          continue;
-        }
-        const angle = Math.PI + (Math.PI * (index + 0.5)) / 6;
-        const center = {
-          x: 60 + Math.cos(angle) * (50 + (index % 3) * 4),
-          y: 55 + Math.sin(angle) * (40 + ((index * 5) % 3) * 4),
-        };
-        ctx.save();
-        ctx.globalAlpha *= alpha;
-        ctx.fillStyle = index % 2 === 0 ? EYE_GLOW : palette.antenna;
-        ctx.fill(sparklePath(center, 2.5 + 2 * alpha));
-        ctx.restore();
-      }
-      return;
-    case "zzz":
-      for (let index = 0; index < 3; index += 1) {
-        const phase = (pose.effectPhase + index * 0.33) % 1;
-        const alpha = phase < 0.2 ? phase / 0.2 : 1 - (phase - 0.2) / 0.8;
-        if (alpha <= 0.05) {
-          continue;
-        }
-        drawZ(
-          ctx,
-          {
-            x: 86 + 14 * phase + 2 * Math.sin(phase * 4 * Math.PI),
-            y: 24 - 20 * phase,
-          },
-          6 + 4 * phase,
-          alpha,
-        );
-      }
-      return;
-    case "sparks":
-      for (let index = 0; index < 5; index += 1) {
-        const rawPhase = pose.effectPhase - index * 0.025;
-        if (rawPhase < 0 || rawPhase >= 0.45) {
-          continue;
-        }
-        const alpha = rawPhase < 0.08 ? rawPhase / 0.08 : 1 - (rawPhase - 0.08) / 0.37;
-        const angle = radians(-160 + index * 35);
-        const radius = 5 + (12 * rawPhase) / 0.45;
-        const particleSize = 2.2 + (index % 3) * 0.8;
-        const center = {
-          x: clamp(106 + Math.cos(angle) * radius, particleSize, ART_SIZE - particleSize),
-          y: clamp(66 + Math.sin(angle) * radius, particleSize, ART_SIZE - particleSize),
-        };
-        ctx.save();
-        ctx.globalAlpha *= alpha;
-        ctx.fillStyle = index % 2 === 0 ? EYE_GLOW : HAT_AMBER;
-        ctx.fill(sparklePath(center, particleSize));
-        ctx.restore();
-      }
-      return;
-    case "sweat": {
-      const alpha = bell(pose.effectPhase);
-      if (alpha <= 0.02) {
-        return;
-      }
-      const center = { x: 42, y: 24 + 7 * pose.effectPhase };
-      const drop = new Path2D();
-      drop.moveTo(center.x, center.y - 3);
-      drop.bezierCurveTo(
-        center.x - 4,
-        center.y + 1,
-        center.x - 2,
-        center.y + 3,
-        center.x,
-        center.y + 3,
-      );
-      drop.bezierCurveTo(
-        center.x + 2,
-        center.y + 3,
-        center.x + 4,
-        center.y + 1,
-        center.x,
-        center.y - 3,
-      );
-      ctx.save();
-      ctx.globalAlpha *= alpha;
-      ctx.fillStyle = "#80d4ff";
-      ctx.fill(drop);
-      ctx.restore();
-    }
+function drawCircuitry(ctx: CanvasRenderingContext2D, paths: MascotPaths, pose: MascotPose): void {
+  ctx.save();
+  ctx.globalAlpha *= 0.42 + pose.eyeGlowOpacity * 0.45;
+  ctx.strokeStyle = CIRCUIT_GLOW;
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = "square";
+  ctx.stroke(paths.leftCircuit);
+  ctx.stroke(paths.rightCircuit);
+  ctx.fillStyle = EYE_GLOW;
+  for (const point of [
+    { x: 36, y: 31 },
+    { x: 49, y: 52 },
+    { x: 41, y: 81 },
+    { x: 84, y: 31 },
+    { x: 71, y: 52 },
+    { x: 79, y: 81 },
+  ]) {
+    ctx.fillRect(point.x - 1.5, point.y - 1.5, 3, 3);
   }
+  ctx.restore();
+}
+
+function drawPixelHighlights(ctx: CanvasRenderingContext2D): void {
+  ctx.save();
+  ctx.fillStyle = GOLD_LIGHT;
+  ctx.globalAlpha = 0.72;
+  ctx.fillRect(43, 17, 5, 3);
+  ctx.fillRect(32, 69, 5, 3);
+  ctx.fillRect(75, 91, 4, 3);
+  ctx.fillRect(69, 14, 4, 3);
+  ctx.fillStyle = COPPER;
+  ctx.fillRect(29, 84, 5, 3);
+  ctx.fillRect(86, 69, 4, 3);
+  ctx.fillRect(42, 94, 4, 3);
+  ctx.restore();
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-/** Draw one pose. Whole-body float is applied by the host to avoid canvas clipping. */
+/** Draw one Aurelius pose. Whole-body float is applied by the host to avoid canvas clipping. */
 export function drawMascot(
   pose: MascotPose,
   palette: MascotPalette,
@@ -426,6 +385,7 @@ export function drawMascot(
 ): void {
   const paths = mascotPaths();
   ctx.save();
+  ctx.imageSmoothingEnabled = false;
   ctx.scale(size / ART_SIZE, size / ART_SIZE);
 
   if (pose.bodyStretch !== 1) {
@@ -440,33 +400,70 @@ export function drawMascot(
     ctx.translate(-60, -60);
   }
 
+  rotated(ctx, pose.leftClawDegrees, { x: 41, y: 62 }, () => {
+    ctx.fillStyle = gradient(ctx, paths.leftWing, palette);
+    ctx.fill(paths.leftWing.path);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.2;
+    ctx.stroke(paths.leftWing.path);
+  });
+  rotated(ctx, pose.rightClawDegrees, { x: 79, y: 62 }, () => {
+    ctx.fillStyle = gradient(ctx, paths.rightWing, palette);
+    ctx.fill(paths.rightWing.path);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.2;
+    ctx.stroke(paths.rightWing.path);
+  });
+
   ctx.fillStyle = gradient(ctx, paths.body, palette);
   ctx.fill(paths.body.path);
-  rotated(ctx, pose.leftClawDegrees, { x: 26, y: 53 }, () => {
-    ctx.fillStyle = gradient(ctx, paths.leftClaw, palette);
-    ctx.fill(paths.leftClaw.path);
-  });
-  rotated(ctx, pose.rightClawDegrees, { x: 94, y: 53 }, () => {
-    ctx.fillStyle = gradient(ctx, paths.rightClaw, palette);
-    ctx.fill(paths.rightClaw.path);
-  });
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.4;
+  ctx.stroke(paths.body.path);
 
-  const wiggle = pose.antennaDegrees * (1 - pose.antennaDroop);
+  ctx.fillStyle = FACE_PLATE;
+  ctx.fill(paths.facePlate);
+  ctx.strokeStyle = FACE_PLATE_LIGHT;
+  ctx.lineWidth = 1;
+  ctx.stroke(paths.facePlate);
+
+  ctx.fillStyle = "rgba(8, 11, 18, 0.58)";
+  ctx.fill(paths.chestPlate);
+  ctx.strokeStyle = COPPER;
+  ctx.stroke(paths.chestPlate);
+
+  drawPixelHighlights(ctx);
+  drawCircuitry(ctx, paths, pose);
+
+  const crestWiggle = pose.antennaDegrees * (1 - pose.antennaDroop);
   ctx.strokeStyle = palette.antenna;
-  ctx.lineWidth = 2;
-  ctx.lineCap = "round";
-  rotated(ctx, -pose.antennaDroop * 40, { x: 45, y: 15 }, () => {
-    rotated(ctx, wiggle, { x: 37.5, y: 11 }, () => ctx.stroke(paths.leftAntenna));
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = "square";
+  rotated(ctx, -pose.antennaDroop * 32 + crestWiggle, { x: 50, y: 18 }, () => {
+    ctx.beginPath();
+    ctx.moveTo(50, 18);
+    ctx.lineTo(44, 10);
+    ctx.lineTo(38, 9);
+    ctx.stroke();
+    ctx.fillStyle = EYE_GLOW;
+    ctx.fillRect(36.5, 7.5, 3, 3);
   });
-  rotated(ctx, pose.antennaDroop * 40, { x: 75, y: 15 }, () => {
-    rotated(ctx, wiggle, { x: 82.5, y: 11 }, () => ctx.stroke(paths.rightAntenna));
+  rotated(ctx, pose.antennaDroop * 32 + crestWiggle, { x: 70, y: 18 }, () => {
+    ctx.beginPath();
+    ctx.moveTo(70, 18);
+    ctx.lineTo(76, 10);
+    ctx.lineTo(82, 9);
+    ctx.stroke();
+    ctx.fillStyle = EYE_GLOW;
+    ctx.fillRect(80.5, 7.5, 3, 3);
   });
 
-  drawHardHat(ctx, pose.hardHat);
-  drawBlush(ctx, pose);
-  drawEye(ctx, { x: 45, y: 35 }, pose.leftEyeOpenness, pose);
-  drawEye(ctx, { x: 75, y: 35 }, pose.rightEyeOpenness, pose);
-  drawMouth(ctx, pose);
-  drawEffect(ctx, pose, palette);
+  drawWorkCrest(ctx, pose.hardHat);
+  drawCheekLights(ctx, pose);
+  drawEye(ctx, { x: 45, y: 38 }, pose.leftEyeOpenness, pose);
+  drawEye(ctx, { x: 75, y: 38 }, pose.rightEyeOpenness, pose);
+  drawBeak(ctx, pose);
+  drawBenchGlyph(ctx);
+  drawMascotEffect(ctx, pose, palette, (path) => ctx.fill(path));
   ctx.restore();
 }

@@ -98,7 +98,7 @@ function renderSubagentActivityIndicator(task: TaskSummary): TemplateResult {
     return html`<span
       class="chat-subagent-activity__indicator chat-reading-indicator"
       aria-hidden="true"
-      >${icons.claw}</span
+      >${icons.aurelius}</span
     >`;
   }
   const failed = task.status !== "completed";
