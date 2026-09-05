@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   composeReleaseAttemptJobs,
   isReleaseGhArtifactMissingError,
@@ -28,6 +28,7 @@ import {
   verifyReleaseStateArtifacts,
   updateReleaseTransportEpisode,
 } from "../../scripts/full-release-validation-state.mjs";
+import { captureEnv, setTestEnvValue } from "../../src/test-utils/env.js";
 import { fullReleaseCandidateBindingFixture } from "../helpers/full-release-candidate.js";
 import { waitForChildClose, waitForFile } from "../helpers/process-wait.js";
 import { useAutoCleanupTempDirTracker } from "../helpers/temp-dir.js";
@@ -691,6 +692,13 @@ describe("release child attempt composition", () => {
 });
 
 describe("release decision policy", () => {
+  beforeEach(() => {
+    const env = captureEnv(["GITHUB_REPOSITORY"]);
+    // These synthetic runs belong to upstream, independently of the CI host repository.
+    setTestEnvValue("GITHUB_REPOSITORY", "openclaw/openclaw");
+    return () => env.restore();
+  });
+
   it("reports a decisive blocker while unrelated diagnostics continue", () => {
     const result = classifyReleaseSnapshot({
       children: [
@@ -922,39 +930,46 @@ describe("release decision policy", () => {
     });
   });
 
-  it("fails child provenance mismatches without consuming preserved success", async () => {
-    const planned = child("normalCi");
-    const observed = await readChild(
-      planned,
-      { ...planned, conclusion: "success", status: "completed" },
-      undefined,
-      {
-        readAttemptJobs: async () => [],
-        readRun: async () => ({
-          actor: { login: "github-actions[bot]" },
-          conclusion: "success",
-          display_title: planned.displayTitle,
-          event: "workflow_dispatch",
-          head_branch: planned.workflowRef,
-          head_sha: "c".repeat(40),
-          id: 101,
-          path: ".github/workflows/ci.yml",
-          repository: { full_name: "openclaw/openclaw" },
-          run_attempt: 1,
-          status: "completed",
-          triggering_actor: { login: "github-actions[bot]" },
+  it.each([
+    ["workflow SHA", { head_sha: "c".repeat(40) }],
+    ["repository", { repository: { full_name: "other/openclaw" } }],
+  ] as const)(
+    "fails child %s mismatches without consuming preserved success",
+    async (_name, override) => {
+      const planned = child("normalCi");
+      const observed = await readChild(
+        planned,
+        { ...planned, conclusion: "success", status: "completed" },
+        undefined,
+        {
+          readAttemptJobs: async () => [],
+          readRun: async () => ({
+            actor: { login: "github-actions[bot]" },
+            conclusion: "success",
+            display_title: planned.displayTitle,
+            event: "workflow_dispatch",
+            head_branch: planned.workflowRef,
+            head_sha: planned.workflowSha,
+            id: 101,
+            path: ".github/workflows/ci.yml",
+            repository: { full_name: "openclaw/openclaw" },
+            run_attempt: 1,
+            status: "completed",
+            triggering_actor: { login: "github-actions[bot]" },
+            ...override,
+          }),
+        },
+      );
+      expect(observed.errors).toEqual([expect.objectContaining({ kind: "provenance_mismatch" })]);
+      expect(
+        classifyReleaseSnapshot({
+          children: [observed],
+          releaseProfile: "stable",
+          workflowRef: "main",
         }),
-      },
-    );
-    expect(observed.errors).toEqual([expect.objectContaining({ kind: "provenance_mismatch" })]);
-    expect(
-      classifyReleaseSnapshot({
-        children: [observed],
-        releaseProfile: "stable",
-        workflowRef: "main",
-      }),
-    ).toMatchObject({ state: "orchestration_error" });
-  });
+      ).toMatchObject({ state: "orchestration_error" });
+    },
+  );
 
   it.each(["HTTP 403: Resource not accessible by integration", "HTTP 403: Bad credentials"])(
     "keeps %s terminal",

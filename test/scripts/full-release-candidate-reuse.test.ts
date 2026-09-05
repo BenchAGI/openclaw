@@ -166,6 +166,30 @@ async function fixture() {
   };
 }
 
+async function cliFixture() {
+  // The real subprocess clock also owns discovery deadlines; keep it running.
+  const now = Date.now();
+  const expiresAt = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const manifest = fullReleaseCandidateManifestFixture();
+  for (const { artifact } of [
+    manifest.package,
+    manifest.prepublishPluginRegistry,
+    manifest.sharedImage,
+  ]) {
+    artifact.expiresAt = expiresAt;
+  }
+  const archive = await archiveWithManifest(manifest);
+  return {
+    archive,
+    manifest,
+    metadata: artifactMetadata(archive, {
+      created_at: new Date(now).toISOString(),
+      expires_at: expiresAt,
+    }),
+    now,
+  };
+}
+
 describe("trusted full release candidate selection", () => {
   it("treats malformed metadata and workflow provenance as misses before selection", async () => {
     const { archive, manifest, metadata } = await fixture();
@@ -243,12 +267,16 @@ describe("trusted full release candidate selection", () => {
     const tooShort = artifactMetadata(archive, {
       expires_at: new Date(NOW + 13 * 60 * 60 * 1000).toISOString(),
     });
+    const exactlyAtMinimum = artifactMetadata(archive, {
+      expires_at: new Date(NOW + 14 * 60 * 60 * 1000).toISOString(),
+      id: 303,
+    });
     const longEnough = artifactMetadata(archive, {
       expires_at: new Date(NOW + 15 * 60 * 60 * 1000).toISOString(),
       id: 302,
     });
     const selected = await selectTrustedFullReleaseCandidate({
-      artifacts: [tooShort, longEnough],
+      artifacts: [tooShort, exactlyAtMinimum, longEnough],
       now: NOW,
       readWorkflowRun: async (runId) => workflowRun(runId),
       readWorkflowJobs: async () => workflowJobs(manifest),
@@ -553,15 +581,16 @@ esac
 `,
     );
     chmodSync(ghPath, 0o755);
-    const { archive, manifest } = await fixture();
+    const { manifest, metadata, now } = await cliFixture();
     const artifacts = Array.from({ length: 6 }, (_, index) => {
       const runId = 80 + index;
       const jobs = workflowJobs(manifest, { runId });
       jobs.jobs[1]!.conclusion = runId === 85 ? "success" : "failure";
       writeFileSync(join(responses, `run-${runId}.json`), JSON.stringify(workflowRun(runId)));
       writeFileSync(join(responses, `jobs-${runId}.json`), JSON.stringify([jobs]));
-      return artifactMetadata(archive, {
-        created_at: new Date(NOW - index * 1000).toISOString(),
+      return {
+        ...metadata,
+        created_at: new Date(now - index * 1000).toISOString(),
         id: 400 + index,
         workflow_run: {
           head_repository_id: 1,
@@ -569,7 +598,7 @@ esac
           id: runId,
           repository_id: 1,
         },
-      });
+      };
     });
     writeFileSync(inputPath, JSON.stringify(fullReleaseCandidateManifestFixture().request));
     writeFileSync(artifactListingPath, JSON.stringify({ artifacts }));
@@ -638,7 +667,7 @@ esac
 `,
     );
     chmodSync(ghPath, 0o755);
-    const { archive, manifest, metadata } = await fixture();
+    const { archive, manifest, metadata } = await cliFixture();
     writeFileSync(inputPath, JSON.stringify(fullReleaseCandidateManifestFixture().request));
     writeFileSync(archivePath, archive);
     writeFileSync(artifactListingPath, JSON.stringify({ artifacts: [metadata] }));
@@ -719,6 +748,32 @@ describe("candidate archive deadline", () => {
 });
 
 describe("full release candidate loading", () => {
+  it.each(["package", "prepublishPluginRegistry", "sharedImage"] as const)(
+    "rejects an expired %s constituent behind fresh CLI metadata and a valid archive digest",
+    async (key) => {
+      const { manifest, metadata, now } = await cliFixture();
+      manifest[key].artifact.expiresAt = new Date(now).toISOString();
+      const archive = await archiveWithManifest(manifest);
+      const staleMetadata = {
+        ...metadata,
+        digest: `sha256:${sha256(archive)}`,
+        size_in_bytes: archive.length,
+      };
+      await expect(
+        loadSelectedFullReleaseCandidate({
+          downloadArchive: async () => ({ archiveBytes: archive, artifactMetadata: staleMetadata }),
+          now,
+          readArtifact: constituentArtifactReader(manifest),
+          readRunAttempt: async () => workflowRun(),
+          readWorkflowJobs: async () => workflowJobs(manifest),
+          request: manifest.request,
+          selected: { artifact: staleMetadata },
+          token: "test-token",
+        }),
+      ).rejects.toThrow("binding contains expired or near-expiry artifact evidence");
+    },
+  );
+
   it("binds the exact archive, producer attempt, and producer job", async () => {
     const { archive, manifest, metadata } = await fixture();
     const selected = await selectTrustedFullReleaseCandidate({
