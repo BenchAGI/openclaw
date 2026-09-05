@@ -162,6 +162,22 @@ export const toolIcons = {
   spark: strokeIcon(svg` <path
     d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"
   />`),
+  aurelius: html`
+    <svg class="aurelius-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        fill="#e58a16"
+        d="M3.4 4.2 7 2l6 .8 4 2.5 4 2-4 2.1c.3 4.7-2.2 9.6-7.5 12.6l.8-4.8C6.8 18.4 4 16 3.1 12l2.8-.8C3.5 9.8 2.5 6.9 3.4 4.2Z"
+      />
+      <path fill="#ffd34d" d="m11.8 6.8 10.7 2-6.2 3.3-5-.9Z" />
+      <path class="aurelius-icon__beak" fill="#dc7d14" d="m11.7 10.8 6.2 1.3-4.8 2.2-2.4-1.8Z" />
+      <circle cx="12.2" cy="7.4" r="1.15" fill="#080b12" />
+      <circle cx="12.45" cy="7.2" r="0.48" fill="#45adff" />
+      <path
+        d="m6.2 6.2 2.4 1.6v4.6l2.2 1.5"
+        style="fill: none; stroke: #218cff; stroke-width: 1.1; stroke-linecap: square"
+      />
+    </svg>
+  `,
   // Theme tokens brighten the gradient in dark mode; var() needs style attributes.
   lobster: html`
     <svg viewBox="0 0 120 120" fill="none">

@@ -53,9 +53,9 @@ class SettingsSaveIndicator extends LitElement {
     this.savedTimer = undefined;
   }
 
-  private renderClaw(modifier: string) {
+  private renderAurelius(modifier: string) {
     return html`<span class="settings-save-indicator__claw ${modifier}" aria-hidden="true"
-      >${icons.claw}</span
+      >${icons.aurelius}</span
     >`;
   }
 
@@ -74,7 +74,7 @@ class SettingsSaveIndicator extends LitElement {
         >
         <span>${t("configView.applying")}</span>`;
     } else if (props.status === "saving") {
-      content = html` ${this.renderClaw("settings-save-indicator__claw--saving")}
+      content = html` ${this.renderAurelius("settings-save-indicator__claw--saving")}
         <span>${t("configView.autoSaveSaving")}</span>`;
     } else if (props.status === "error") {
       title = props.lastError?.trim() ?? "";
@@ -111,7 +111,7 @@ class SettingsSaveIndicator extends LitElement {
         </button>`;
     } else if (this.savedVisible) {
       modifier = " settings-save-indicator--saved";
-      content = html` ${this.renderClaw("settings-save-indicator__claw--saved")}
+      content = html` ${this.renderAurelius("settings-save-indicator__claw--saved")}
         <span class="settings-save-indicator__check" aria-hidden="true">${icons.check}</span>
         <span>${t("configView.autoSaveSaved")}</span>`;
     } else if (props.needsApply) {

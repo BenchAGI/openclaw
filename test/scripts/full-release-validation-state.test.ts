@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, assert, describe, expect, it } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it } from "vitest";
 import {
   buildFullReleaseCandidateBinding,
   buildFullReleaseCandidateRequest,
@@ -41,6 +41,23 @@ import {
 } from "../helpers/full-release-candidate.js";
 import { waitForChildClose, waitForFile } from "../helpers/process-wait.js";
 import { useAutoCleanupTempDirTracker } from "../helpers/temp-dir.js";
+
+const originalGithubRepository = process.env.GITHUB_REPOSITORY;
+
+// These provenance fixtures model upstream release runs. Keep the suite
+// hermetic when GitHub executes the unchanged tests from a downstream fork.
+beforeEach(() => {
+  process.env.GITHUB_REPOSITORY = "openclaw/openclaw";
+});
+
+afterEach(() => {
+  if (originalGithubRepository === undefined) {
+    delete process.env.GITHUB_REPOSITORY;
+  } else {
+    process.env.GITHUB_REPOSITORY = originalGithubRepository;
+  }
+});
+
 
 const SCRIPT = resolve("scripts/full-release-validation-state.mjs");
 const SHA = "a".repeat(40);

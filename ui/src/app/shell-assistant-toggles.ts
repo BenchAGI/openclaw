@@ -30,7 +30,7 @@ export function renderCollapsedAssistantToggles(options: {
       label: t("nav.askOpenClaw"),
       tooltip: t("nav.askOpenClaw"),
       event: CUSTODIAN_PANEL_TOGGLE_EVENT,
-      icon: icons.lobster,
+      icon: icons.aurelius,
     },
   ] as const;
   return toggles.map((toggle) =>

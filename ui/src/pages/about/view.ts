@@ -1,13 +1,7 @@
-import { expectDefined } from "@openclaw/normalization-core";
 import { html, nothing, type TemplateResult } from "lit";
 import type { ControlUiBuildInfo } from "../../build-info.ts";
 import { icons } from "../../components/icons.ts";
-import {
-  canonicalLobsterLook,
-  lobsterLookStyle,
-  renderLobsterSvg,
-} from "../../components/lobster-pet-look.ts";
-import { LOBSTER_PET_PALETTES } from "../../components/lobster-pet-palettes.ts";
+import "../../components/openclaw-mascot.ts";
 import {
   renderSettingsPage,
   renderSettingsRow,
@@ -29,8 +23,8 @@ type AboutProps = {
   gatewayVersion: string | null;
   copyState: AboutCommitCopyState;
   onCopyCommit: () => void;
-  clawdWaving: boolean;
-  onPokeClawd: () => void;
+  aureliusGreeting: boolean;
+  onGreetAurelius: () => void;
 };
 
 const SHORT_COMMIT_LENGTH = 12;
@@ -152,23 +146,23 @@ function renderCommit(props: AboutProps) {
   `;
 }
 
-// The same canonical crimson Clawd as the chat welcome hero, rendered big.
-// The poke button replays the claw wave; ambient motion lives in about.css.
+// The same Aurelius animatronic as the chat welcome hero, rendered big.
+// The greeting button briefly shifts him into his celebrating pose.
 function renderHero(props: AboutProps) {
-  const palette =
-    LOBSTER_PET_PALETTES.find((entry) => entry.id === "crimson") ??
-    expectDefined(LOBSTER_PET_PALETTES[0], "about lobster palette");
-  const look = canonicalLobsterLook(palette);
   return html`
     <section class="about-hero">
       <button
         type="button"
-        class="about-hero__clawd ${props.clawdWaving ? "about-hero__clawd--wave" : ""}"
-        style=${lobsterLookStyle(look)}
+        class="about-hero__aurelius ${props.aureliusGreeting
+          ? "about-hero__aurelius--greeting"
+          : ""}"
         aria-label=${t("aboutPage.waveHello")}
-        @click=${props.onPokeClawd}
+        @click=${props.onGreetAurelius}
       >
-        ${renderLobsterSvg(look)}
+        <openclaw-mascot
+          mood=${props.aureliusGreeting ? "celebrating" : "idle"}
+          .size=${168}
+        ></openclaw-mascot>
       </button>
       <h2 class="about-hero__name">${t("aboutPage.productName")}</h2>
       <p class="about-hero__tagline">${t("aboutPage.tagline")}</p>
