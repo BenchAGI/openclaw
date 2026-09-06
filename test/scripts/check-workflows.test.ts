@@ -293,7 +293,8 @@ describe("check-workflows", () => {
     expect(native).not.toBe(probe);
     expect(native.if).toBe("${{ inputs.run_windows_ci }}");
     expect(native["runs-on"]).toBe("windows-2025");
-    expect(probe.if).toBeUndefined();
+    // Bench fork: upstream-only Windows probing stays off the fork.
+    expect(probe.if).toBe("github.repository == 'openclaw/openclaw'");
     expect(probe["runs-on"]).toBe("${{ inputs.runner_label }}");
     for (const job of [probe, native]) {
       expect(job.needs).toBeUndefined();

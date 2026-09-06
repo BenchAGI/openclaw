@@ -90,6 +90,8 @@ type Workflow = {
 };
 type Github = {
   workflow: string;
+  // Bench fork: upstream-only workflows carry `github.repository == 'openclaw/openclaw'`.
+  repository: string;
   event_name: "pull_request" | "workflow_dispatch" | "push";
   run_id: number;
   sha: string;
@@ -110,6 +112,7 @@ function pr(
 ): Github {
   return {
     workflow: workflow.name,
+    repository: "openclaw/openclaw",
     event_name: "pull_request",
     run_id: runId,
     sha: "e".repeat(40),
@@ -127,6 +130,7 @@ function refEvent(
 ): Github {
   return {
     workflow: workflow.name,
+    repository: "openclaw/openclaw",
     event_name: eventName,
     run_id: runId,
     sha: sha.repeat(40),
