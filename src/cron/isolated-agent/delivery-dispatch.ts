@@ -135,6 +135,10 @@ export async function dispatchCronDelivery(
           : undefined;
     deliveryState.error = error;
     deliveryState.deliverySuppressionReason = deliverySuppressionReason;
+    if (status === "delivered") {
+      // A proven-not-sent attempt that succeeded on retry leaves no failure behind.
+      deliveryState.deliveryFailedError = undefined;
+    }
   };
   if (verifiedMessageToolDelivery) {
     recordDelivery("delivered");
@@ -149,10 +153,14 @@ export async function dispatchCronDelivery(
       deliveryState.deliverySuppressionReason,
     );
     // Quiet/best-effort successes retire with their jobs; failed executions retain evidence.
+    // A policy-gate cancellation of required delivery keeps its transcript for review
+    // (Bench fork #100 keeps the run ok; upstream keeps the evidence).
+    const policyBlockedRequiredDelivery =
+      deliveryState.status === "blocked-by-policy" && !params.deliveryBestEffort;
     if (
       deliveryState.status === "delivered" ||
       deliveryState.status === "not-requested" ||
-      completion === "succeeded"
+      (completion === "succeeded" && !policyBlockedRequiredDelivery)
     ) {
       await cleanupDirectCronSessionIfNeeded();
     }
@@ -456,7 +464,11 @@ export async function dispatchCronDelivery(
           deliveryState.deliveryFailedError ??= formatErrorMessage(send.error);
         }
         if (send.status === "suppressed") {
-          const blockedReason = resolvePolicyBlockedSendReason(send);
+          // An identityless platform send may already have reached the recipient;
+          // that uncertainty outranks a policy-gate cancellation elsewhere in the batch.
+          const blockedReason = durableMessageBatchMayHaveReachedRecipient(send)
+            ? undefined
+            : resolvePolicyBlockedSendReason(send);
           if (blockedReason) {
             // The approval/policy gate cancelled the send. This is a terminal
             // outcome distinct from a transport failure: the run may stay ok,
