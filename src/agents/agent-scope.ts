@@ -37,7 +37,6 @@ import {
 import { resolveCanonicalWorkspacePath } from "./workspace-state-identity.js";
 export { hasSessionAutoModelFallbackProvenance } from "../config/sessions/model-override-provenance.js";
 export {
-  canonicalizeAgentId,
   listAgentEntries,
   listAgentEntriesWithSource,
   listAgentIds,
