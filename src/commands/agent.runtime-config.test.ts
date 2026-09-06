@@ -34,6 +34,8 @@ vi.mock("../config/io.js", () => ({
 }));
 
 vi.mock("../cli/command-secret-targets.js", () => ({
+  // Bench fork #63: Tier-1 reranker targets are collected beside the memory ones.
+  getActiveMemoryRerankerSecretTargets: () => [],
   getAgentRuntimeCommandSecretTargetIds: (params?: { includeChannelTargets?: boolean }) =>
     new Set([
       "models.providers.*.apiKey",
