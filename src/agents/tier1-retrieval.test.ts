@@ -31,7 +31,7 @@ type RerankerKnobs = {
 
 function makeConfig(tier1?: Tier1Knobs, reranker?: RerankerKnobs): OpenClawConfig {
   return {
-    agents: { defaults: { memorySearch: { query: { tier1, reranker } } } },
+    memory: { search: { query: { tier1, reranker } } },
   } as unknown as OpenClawConfig;
 }
 
