@@ -3,177 +3,90 @@ packages:
   - ui
   - packages/*
   - extensions/*
+  - examples/*
 
-minimumReleaseAge: 2880
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
 
+# Trusted Codex runtimes are outside the dependency cooldown.
 minimumReleaseAgeExclude:
-  # Except esbuild from the 48h supply-chain hold so the GHSA-gv7w-rqvm-qjhr
-  # security patch (0.28.1, published 2026-06-11) can land now instead of
-  # waiting out the gate. Covers the platform-specific @esbuild/* optionals.
-  - "esbuild"
-  - "@esbuild/*"
-  - "@openclaw/crabline@0.1.6"
-  - "@openclaw/fs-safe@0.3.0"
-  - "@openclaw/proxyline@0.3.3"
-  - "acpx"
-  - "tokenjuice"
-  - "@agentclientprotocol/claude-agent-acp@0.39.0"
-  - "@agentclientprotocol/sdk"
-  - "axios"
-  - "basic-ftp"
-  - "baileys@7.0.0-rc13"
-  - "hono"
-  - "libopus-wasm@0.2.0"
-  - "libsignal@6.0.0"
-  - "openclaw"
-  - "protobufjs"
-  - "vite"
-  - "vitest"
-  - "@vitest/browser"
-  - "@vitest/browser-playwright"
-  - "@vitest/coverage-v8"
-  - "@opentelemetry/propagator-jaeger"
-  - "postcss"
-  - "linkify-it"
-  - "fast-uri"
-  - "brace-expansion"
-  - "@cloudflare/workers-types"
-  - "@hono/node-server"
-  - "@mariozechner/*"
-  - "@aws-sdk/client-bedrock-runtime@3.1053.0"
-  - "@aws-sdk/client-bedrock@3.1053.0"
-  - "@aws-sdk/client-cognito-identity@3.1053.0"
-  - "@aws-sdk/client-s3@3.1053.0"
-  - "@aws-sdk/core"
-  - "@aws-sdk/credential-providers@3.1053.0"
-  - "@aws-sdk/s3-request-presigner@3.1053.0"
-  - "@aws-sdk/token-providers@3.1052.0"
-  - "@aws-sdk/token-providers@3.1053.0"
-  - "@copilotkit/aimock@1.27.1"
-  - "@earendil-works/pi-tui"
-  - "@google/genai@2.6.0"
-  - "@larksuiteoapi/node-sdk@1.66.0"
-  - "@microsoft/teams.api@2.0.12"
-  - "@microsoft/teams.apps@2.0.12"
-  - "@microsoft/teams.cards@2.0.12"
-  - "@microsoft/teams.common@2.0.12"
-  - "@microsoft/teams.graph@2.0.12"
+  # GHSA-vp8m-p9jh-q5pm / GHSA-w293-vg96-wgc3 security fixes; remove after 2026-09-12.
+  - "undici@8.10.2"
+  - "undici@7.29.1"
+  # GHSA-58mr-gqgx-xq4g / GHSA-qw65-cvwx-89v3 security fix; remove after 2026-09-09.
+  - "fast-uri@4.1.4"
+  # GHSA-2x7j-588g-ccc2 security fix; remove after 2026-09-08.
+  - "nodemailer@9.1.1"
+  # Reviewed Crabline bundle fix and its required Zod version; remove after 2026-09-10.
+  - "@openclaw/crabline@0.1.20"
+  - "zod@4.5.2"
   - "@openai/codex"
   - "@openai/codex-*"
-  - "@pierre/diffs@1.2.3"
-  - "@smithy/shared-ini-file-loader@4.5.4"
-  - "@typescript/native-preview*"
-  - "@types/node"
-  - "@rolldown/*"
-  - "@oxlint/*"
-  - "@oxfmt/*"
-  - "@oxc-project/types"
-  - "oxfmt"
-  - "axios@1.15.0"
-  - "discord-api-types"
-  - "esbuild@0.28.1"
-  - "@esbuild/aix-ppc64@0.28.1"
-  - "@esbuild/android-arm@0.28.1"
-  - "@esbuild/android-arm64@0.28.1"
-  - "@esbuild/android-x64@0.28.1"
-  - "@esbuild/darwin-arm64@0.28.1"
-  - "@esbuild/darwin-x64@0.28.1"
-  - "@esbuild/freebsd-arm64@0.28.1"
-  - "@esbuild/freebsd-x64@0.28.1"
-  - "@esbuild/linux-arm@0.28.1"
-  - "@esbuild/linux-arm64@0.28.1"
-  - "@esbuild/linux-ia32@0.28.1"
-  - "@esbuild/linux-loong64@0.28.1"
-  - "@esbuild/linux-mips64el@0.28.1"
-  - "@esbuild/linux-ppc64@0.28.1"
-  - "@esbuild/linux-riscv64@0.28.1"
-  - "@esbuild/linux-s390x@0.28.1"
-  - "@esbuild/linux-x64@0.28.1"
-  - "@esbuild/netbsd-arm64@0.28.1"
-  - "@esbuild/netbsd-x64@0.28.1"
-  - "@esbuild/openbsd-arm64@0.28.1"
-  - "@esbuild/openbsd-x64@0.28.1"
-  - "@esbuild/openharmony-arm64@0.28.1"
-  - "@esbuild/sunos-x64@0.28.1"
-  - "@esbuild/win32-arm64@0.28.1"
-  - "@esbuild/win32-ia32@0.28.1"
-  - "@esbuild/win32-x64@0.28.1"
-  - "rolldown"
-  - "sqlite-vec"
-  - "sqlite-vec-*"
-  - "rastermill"
-  - "clawpdf"
+  # fs-safe 0.8.1 adds retainOnExit for fail-closed build locks; remove after 2026-09-11.
+  - "@openclaw/fs-safe@0.8.1"
+  - "@openclaw/fs-safe-darwin-arm64@0.8.1"
+  - "@openclaw/fs-safe-darwin-x64@0.8.1"
+  - "@openclaw/fs-safe-linux-arm64-gnu@0.8.1"
+  - "@openclaw/fs-safe-linux-arm64-musl@0.8.1"
+  - "@openclaw/fs-safe-linux-x64-gnu@0.8.1"
+  - "@openclaw/fs-safe-linux-x64-musl@0.8.1"
+  - "@openclaw/fs-safe-win32-x64-msvc@0.8.1"
+  # Bot API 10.3 types replace OpenClaw's temporary rich-message bridge.
+  - "@grammyjs/types@5.0.0"
+  - "grammy@1.46.0"
 
-nodeLinker: hoisted
+# Isolated installs let pnpm reuse whole-package APFS clones instead of relinking every file.
+nodeLinker: isolated
+# GWTs share node_modules; script commands must not reconcile that shared install.
+verifyDepsBeforeRun: false
 blockExoticSubdeps: true
 
 overrides:
-  "@anthropic-ai/sdk": 0.100.1
-  "@aws-sdk/core": 3.974.13
-  "@aws-sdk/credential-provider-node": 3.972.52
-  "@aws-sdk/xml-builder": 3.972.25
-  hono: 4.12.25
-  "@hono/node-server": 1.19.14
-  # GHSA-gcfj-64vw-6mp9: inherited proxy reuse after interceptor config cloning (<1.18.0).
-  axios: 1.18.1
-  # GHSA-v2hh-gcrm-f6hx + GHSA-4c8g-83qw-93j6: host confusion (<=3.1.3).
-  fast-uri: 3.1.4
+  # Memory LanceDB supplies vectors; WhatsApp prepares thumbnails with Rastermill.
+  "@lancedb/lancedb>@huggingface/transformers": "-"
+  "baileys>sharp": "-"
+  "@agentclientprotocol/codex-acp@1.6.2>@openai/codex": 0.153.4
+  "@codemirror/commands@6.11.0>@codemirror/view": 6.43.9
+  "@anthropic-ai/sdk": 0.120.0
+  "@opentelemetry/core": 2.10.0
+  "@opentelemetry/propagator-jaeger": 2.10.0
+  "@aws-sdk/core": 3.977.9
+  "@aws-sdk/credential-provider-node": 3.972.81
+  "@aws-sdk/xml-builder": 3.972.40
+  "@hono/node-server": 2.1.1
+  axios: 1.19.0
+  fast-uri: 4.1.4
   follow-redirects: 1.16.0
-  defu: 6.1.5
-  fast-xml-parser: 5.7.0
-  request: "npm:@cypress/request@3.0.10"
+  defu: 6.1.7
+  fast-xml-parser: 5.11.0
+  request: "npm:@cypress/request@4.0.1"
   request-promise: "npm:@cypress/request-promise@5.0.0"
-  basic-ftp: 6.0.1
-  file-type: 22.0.1
-  form-data: 2.5.6
-  ip-address: 10.2.0
-  minimatch: 10.2.5
-  path-to-regexp: 8.4.0
-  qs: 6.15.2
+  basic-ftp: 6.2.0
+  brace-expansion: 5.0.9
+  file-type: 22.0.2
+  form-data: 4.0.6
+  "werift-ice@0.2.2>ip": "npm:neoip@3.1.0"
+  ip-address: 10.5.0
+  # Keep the cooled HTML converter security fix while Mailparser is rolled back.
+  "mailparser@3.9.15>html-to-text": 10.0.1
+  "mailauth@5.0.2>nodemailer": 9.1.1
+  # Mailauth pins vulnerable Undici; remove when its direct dependency is fixed.
+  "mailauth@5.0.2>undici": 8.10.2
+  "mailparser@3.9.15>nodemailer": 9.1.1
+  minimatch: 10.2.6
+  path-to-regexp: 8.4.2
+  qs: 6.15.3
   node-domexception: "npm:@nolyfill/domexception@1.0.28"
-  typebox: 1.1.39
-  # GHSA-vmf3-w455-68vh + GHSA-23hp-3jrh-7fpw + GHSA-8x88-c5mf-7j5w:
-  # archive parser/extractor denial of service (<=7.5.18).
-  tar: 7.5.20
-  # GHSA-3jxr-9vmj-r5cp: exponential-time consecutive empty-brace expansion (<5.0.7).
-  # GHSA-mh99-v99m-4gvg: unbounded expansion DoS (<=5.0.7).
-  brace-expansion: 5.0.8
-  tough-cookie: 4.1.3
-  yauzl: 3.2.1
-  # GHSA-wcpc-wj8m-hjx6 (Any-expansion DoS <=8.4.0) + GHSA-94rc-8x27-4472 (unknown-field
-  # memory amplification <=8.4.2) + GHSA-f38q-mgvj-vph7 (schema-derived name shadowing <=8.5.0).
-  protobufjs: 8.6.0
-  # GHSA-8988-4f7v-96qf: unbounded memory allocation in W3C Baggage propagation (<2.8.0)
-  "@opentelemetry/core": 2.8.0
-  uuid: 14.0.0
-  # GHSA-vmh5-mc38-953g + GHSA-38rv-x7px-6hhq + GHSA-vxpw-j846-p89q + GHSA-hm92-r4w5-c3mj:
-  # undici SOCKS5 TLS cert-validation bypass + WebSocket DoS via fragment
-  # bypass. Patch each major line in place (8.x affected <8.5.0; 7.x affected <7.28.0).
-  "undici@8": 8.5.0
-  "undici@7": 7.28.0
-  # Security: GHSA-gv7w-rqvm-qjhr (esbuild missing binary integrity verification
-  # in the Deno module -> RCE via NPM_CONFIG_REGISTRY). Affects >=0.17.0 <0.28.1;
-  # transitive via vite/vitest/tsx. Pin to the patched release.
-  esbuild: 0.28.1
-  # Security: GHSA-fx2h-pf6j-xcff (vite server.fs.deny bypass on Windows alternate
-  # paths, <=8.0.15). Pin to the patched release.
-  vite: 8.0.16
-  # Security: GHSA-g8mr-85jm-7xhm (@vitest/browser Browser Mode API can proxy CDP
-  # and overwrite config files -> RCE, <=4.1.7). Pin to the patched release,
-  # aligned with the workspace vitest 4.1.8 pin (post-2026.6.11 merge).
-  # GHSA-p63j-vcc4-9vmv: browser mode provider command file-access bypass (<4.1.10).
-  "@vitest/browser": 4.1.10
-  "@vitest/browser-playwright": 4.1.10
-  "@vitest/coverage-v8": 4.1.10
-  # GHSA-v245-v573-v5vm: linkify-it mailto DoS (<=5.0.1).
-  linkify-it: 5.0.2
-  # GHSA-r28c-9q8g-f849: postcss source map path traversal (<=8.5.17).
-  postcss: 8.5.18
-  # GHSA-45rx-2jwx-cxfr: JaegerPropagator unhandled exception DoS (<2.9.0).
-  "@opentelemetry/propagator-jaeger": 2.9.0
+  typebox: 1.3.18
+  tar: 7.5.22
+  tough-cookie: 6.0.2
+  "tsdown>rolldown-plugin-dts": 0.28.2
+  "zca-js@2.1.2>tough-cookie": 5.1.2
+  yauzl: 3.4.0
+  protobufjs: 8.7.2
+  uuid: 14.0.2
 
 allowBuilds:
-  "@openclaw/fs-safe": true
   "@google/genai": true
   "@lydell/node-pty": true
   "@matrix-org/matrix-sdk-crypto-nodejs": true
@@ -184,7 +97,6 @@ allowBuilds:
   "@discordjs/opus": false
   esbuild: true
   koffi: false
-  node-llama-cpp: false
   protobufjs: true
   tree-sitter-bash: false
   openclaw: true
@@ -192,7 +104,9 @@ allowBuilds:
   clawpdf: true
   "@openclaw/crabline": true
   rastermill: true
+  node-pty: true
 
+# The transient npm lock generator also needs the peer marked optional.
 packageExtensions:
   baileys:
     peerDependenciesMeta:
@@ -200,4 +114,8 @@ packageExtensions:
         optional: true
 
 patchedDependencies:
-  "@agentclientprotocol/claude-agent-acp@0.39.0": patches/@agentclientprotocol__claude-agent-acp@0.39.0.patch
+  "@awesome.me/webawesome@3.12.0": patches/@awesome.me__webawesome@3.12.0.patch
+  "@vitest/runner@4.1.11": patches/@vitest__runner@4.1.11.patch
+  "vitest@4.1.11": patches/vitest@4.1.11.patch
+  "matrix-js-sdk@42.2.0": patches/matrix-js-sdk@42.2.0.patch
+  "@novnc/novnc@1.7.0": patches/@novnc__novnc@1.7.0.patch

@@ -63,7 +63,7 @@ function logSlackOutboundDelivery(params: EmitSlackMessageSentHookParams): void 
   }
 }
 
-export type EmitSlackMessageSentHookParams = {
+type EmitSlackMessageSentHookParams = {
   /** Optional canonical session key. When set, the internal `message:sent` hook fires too. */
   sessionKeyForInternalHooks?: string;
   /** Slack target (channel ID `C…`, DM channel ID `D…`, group `G…`, or user ID `U…`). */

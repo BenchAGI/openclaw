@@ -43,6 +43,67 @@ function formatLastFailureReason(
 }
 
 /**
+ * Merges the runner-level execution trace with the reply-level fallback attempts so the
+ * banner sees the full provider journey of this turn. Re-homed from the monolithic
+ * runner's `mergeExecutionTrace` when upstream split the reply pipeline (2026.9.2).
+ */
+export function mergeFallbackModeExecutionTrace(params: {
+  executionTrace?: FallbackModeExecutionTrace;
+  fallbackAttempts?: ReadonlyArray<{
+    provider: string;
+    model: string;
+    reason?: string;
+    status?: number;
+  }>;
+  provider?: string;
+  model?: string;
+  exhausted?: boolean;
+}): FallbackModeExecutionTrace | undefined {
+  const executionAttempts = params.exhausted
+    ? (params.executionTrace?.attempts ?? []).filter((attempt) => attempt.result !== "success")
+    : (params.executionTrace?.attempts ?? []);
+  const attempts: FallbackModeAttempt[] = [
+    ...(params.fallbackAttempts ?? []).map((attempt) => ({
+      provider: attempt.provider,
+      model: attempt.model,
+      result: "error",
+      ...(attempt.reason ? { reason: attempt.reason } : {}),
+      ...(typeof attempt.status === "number" ? { status: attempt.status } : {}),
+    })),
+    ...executionAttempts,
+  ];
+  const winnerProvider = params.exhausted
+    ? undefined
+    : (params.executionTrace?.winnerProvider ?? normalizeOptionalString(params.provider));
+  const winnerModel = params.exhausted
+    ? undefined
+    : (params.executionTrace?.winnerModel ?? normalizeOptionalString(params.model));
+  if (
+    winnerProvider &&
+    winnerModel &&
+    !attempts.some(
+      (attempt) =>
+        attempt.provider === winnerProvider &&
+        attempt.model === winnerModel &&
+        attempt.result === "success",
+    )
+  ) {
+    attempts.push({ provider: winnerProvider, model: winnerModel, result: "success" });
+  }
+  if (attempts.length === 0 && !winnerProvider) {
+    return params.executionTrace;
+  }
+  return {
+    ...params.executionTrace,
+    ...(winnerProvider ? { winnerProvider } : {}),
+    ...(winnerModel ? { winnerModel } : {}),
+    attempts,
+    fallbackUsed:
+      params.executionTrace?.fallbackUsed ?? (params.fallbackAttempts?.length ?? 0) > 0,
+  };
+}
+
+/**
  * Builds the standard fallback-mode banner shown whenever a reply was produced by a
  * fallback provider instead of the requested primary:
  * `⚠ running in fallback mode (<provider>/<model> — <last failure reason>)`.

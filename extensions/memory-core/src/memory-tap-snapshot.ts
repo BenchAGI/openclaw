@@ -15,8 +15,7 @@ import {
   listMemoryWorkspacePublicArtifacts,
   type OpenClawConfig,
 } from "openclaw/plugin-sdk/memory-host-core";
-import { resolveDreamsPath } from "./dreaming-dreams-file.js";
-import { readRecentDreamDiaryRecords } from "./dreaming-narrative.js";
+import { readRecentDreamDiaryRecords, resolveDreamsPath } from "./dreaming-dreams-file.js";
 import {
   MEMORY_TAP_MIN_QUOTE_CHARS,
   type MemoryTapCandidateKind,

@@ -1,81 +1,110 @@
 /** Resolves agent runtime config, including SecretRef materialization for agent command use. */
-import { getAgentRuntimeCommandSecretTargetIds } from "../cli/command-secret-targets.js";
+import {
+  getActiveMemoryRerankerSecretTargets,
+  getAgentRuntimeCommandSecretTargetIds,
+  getAgentRuntimeOptionalCommandSecretPaths,
+  getScopedChannelsCommandSecretTargets,
+} from "../cli/command-secret-targets.js";
 import { getRuntimeConfig, readConfigFileSnapshotForWrite } from "../config/io.js";
 import { setRuntimeConfigSnapshot } from "../config/runtime-snapshot.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { isSecretRef } from "../config/types.secrets.js";
+import { resolvePluginMetadataSnapshot } from "../plugins/plugin-metadata-snapshot.js";
+import type { PluginMetadataSnapshot } from "../plugins/plugin-metadata-snapshot.types.js";
 import type { RuntimeEnv } from "../runtime.js";
-
-const TIER1_RERANKER_DEFAULT_TARGET_ID = "agents.defaults.memorySearch.query.reranker.apiKey";
-const TIER1_RERANKER_AGENT_TARGET_ID = "agents.list[].memorySearch.query.reranker.apiKey";
-
-type MemorySearchLike = {
-  enabled?: boolean;
-  query?: {
-    tier1?: { enabled?: boolean };
-    reranker?: { enabled?: boolean; apiKey?: unknown };
-  };
-};
-type AgentRuntimeSecretAgent = {
-  enabled?: boolean;
-  memorySearch?: MemorySearchLike;
-};
-type Tier1RerankerSecretTargets = {
-  targetIds: Set<string>;
-  optionalActivePaths: Set<string>;
-};
+import { getActiveSecretsRuntimeConfigSnapshot } from "../secrets/runtime-state.js";
+import { discoverConfigSecretTargetsByIds } from "../secrets/target-registry.js";
+import { listAgentEntries } from "./agent-scope.js";
+import { measureAgentStartup } from "./startup-timing.js";
 
 /** Loads runtime/source config and resolves command SecretRefs when the agent path needs them. */
 export async function resolveAgentRuntimeConfig(
   runtime: RuntimeEnv,
-  params?: { runtimeTargetsChannelSecrets?: boolean },
-): Promise<{
-  loadedRaw: OpenClawConfig;
-  sourceConfig: OpenClawConfig;
-  cfg: OpenClawConfig;
-}> {
+  params?: {
+    runtimeTargetsChannelSecrets?: boolean;
+    runtimeChannelSecretScope?: { channel: string; accountId?: string };
+  },
+): Promise<OpenClawConfig> {
   const loadedRaw = getRuntimeConfig();
   const includeChannelTargets = params?.runtimeTargetsChannelSecrets === true;
-  const tier1RerankerTargets = collectActiveTier1RerankerSecretTargets(loadedRaw);
-  const hasRuntimeSecretRefs =
-    hasAgentRuntimeSecretRefs({
-      config: loadedRaw,
-      includeChannelTargets,
-    }) || Boolean(tier1RerankerTargets);
-  const sourceConfig = await (async () => {
-    try {
-      const { snapshot } = await readConfigFileSnapshotForWrite();
-      if (snapshot.valid) {
-        return snapshot.resolved;
-      }
-    } catch {
-      // Fall back to runtime-loaded config when source snapshot is unavailable.
-    }
-    return loadedRaw;
-  })();
-  const targetIds = getAgentRuntimeCommandSecretTargetIds({
+  const channelSecretScope = params?.runtimeChannelSecretScope;
+  const hasRuntimeSecretRefs = hasAgentRuntimeSecretRefs({
+    config: loadedRaw,
     includeChannelTargets,
+    channel: channelSecretScope?.channel,
   });
-  for (const targetId of tier1RerankerTargets?.targetIds ?? []) {
-    targetIds.add(targetId);
-  }
+  const activeSecretsConfig = getActiveSecretsRuntimeConfigSnapshot();
+  let pluginMetadataSnapshot: PluginMetadataSnapshot | undefined;
+  const sourceConfig = activeSecretsConfig
+    ? activeSecretsConfig.sourceConfig
+    : await measureAgentStartup(
+        "config-source",
+        async () => {
+          try {
+            const { snapshot, writeOptions } = await readConfigFileSnapshotForWrite();
+            if (snapshot.valid) {
+              pluginMetadataSnapshot = writeOptions.basePluginMetadataSnapshot;
+              return snapshot.resolved;
+            }
+          } catch {
+            // Fall back to runtime-loaded config when source snapshot is unavailable.
+          }
+          pluginMetadataSnapshot = resolvePluginMetadataSnapshot({ config: loadedRaw });
+          return loadedRaw;
+        },
+        { config: loadedRaw },
+      );
   const cfg = hasRuntimeSecretRefs
-    ? (
-        await (
-          await import("../cli/command-config-resolution.runtime.js")
-        ).resolveCommandConfigWithSecrets({
+    ? await (async () => {
+        const runtimeSecretTargets = resolveAgentRuntimeSecretTargets({
           config: loadedRaw,
-          commandName: "agent",
-          targetIds,
-          ...(tier1RerankerTargets
-            ? { optionalActivePaths: tier1RerankerTargets.optionalActivePaths }
-            : {}),
-          runtime,
-        })
-      ).resolvedConfig
+          includeChannelTargets,
+          channelSecretScope,
+        });
+        return (
+          await (
+            await import("../cli/command-config-resolution.runtime.js")
+          ).resolveCommandConfigWithSecrets({
+            config: loadedRaw,
+            commandName: "agent",
+            targetIds: runtimeSecretTargets.targetIds,
+            ...(runtimeSecretTargets.allowedPaths
+              ? { allowedPaths: runtimeSecretTargets.allowedPaths }
+              : {}),
+            ...(runtimeSecretTargets.optionalActivePaths.size > 0
+              ? { optionalActivePaths: runtimeSecretTargets.optionalActivePaths }
+              : {}),
+            runtime,
+          })
+        ).resolvedConfig;
+      })()
     : loadedRaw;
-  setRuntimeConfigSnapshot(cfg, sourceConfig);
-  return { loadedRaw, sourceConfig, cfg };
+  if (activeSecretsConfig && cfg !== loadedRaw) {
+    // Gateway activation already published loadedRaw with this source config. Republishing the
+    // same object here would advance its lifecycle revision and evict revision-keyed hot caches.
+    setRuntimeConfigSnapshot(cfg, sourceConfig);
+  } else if (!activeSecretsConfig) {
+    // Standalone local agent commands have no Gateway-owned snapshot. Materialize
+    // auth-profile refs too; resolving only config refs leaves selected credentials unusable.
+    const secretsRuntime = await measureAgentStartup(
+      "secrets-runtime-import",
+      () => import("../secrets/runtime.js"),
+      { config: cfg },
+    );
+    const snapshot = await measureAgentStartup(
+      "secrets-snapshot",
+      () =>
+        secretsRuntime.prepareSecretsRuntimeSnapshot({
+          config: sourceConfig,
+          assignmentConfig: cfg,
+          includeConfigRefs: false,
+          ...(pluginMetadataSnapshot ? { pluginMetadataSnapshot } : {}),
+        }),
+      { config: cfg },
+    );
+    secretsRuntime.activateSecretsRuntimeSnapshot(snapshot);
+  }
+  return cfg;
 }
 
 function hasNestedSecretRef(value: unknown): boolean {
@@ -94,21 +123,37 @@ function hasNestedSecretRef(value: unknown): boolean {
 function hasAgentRuntimeSecretRefs(params: {
   config: OpenClawConfig;
   includeChannelTargets: boolean;
+  channel?: string;
 }): boolean {
   const { config } = params;
   if (hasNestedSecretRef(config.models?.providers)) {
     return true;
   }
-  if (hasNestedSecretRef(config.agents?.defaults?.memorySearch?.remote?.apiKey)) {
+  if (hasNestedSecretRef(config.memory?.search?.remote)) {
+    return true;
+  }
+  // Bench fork #63: Tier-1 reranker judge keys (global or per agent).
+  if (hasNestedSecretRef(config.memory?.search?.query?.reranker?.apiKey)) {
     return true;
   }
   if (
-    Array.isArray(config.agents?.list) &&
-    config.agents.list.some((agent) => hasNestedSecretRef(agent?.memorySearch?.remote?.apiKey))
+    listAgentEntries(config).some((agent) =>
+      hasNestedSecretRef(agent.memory?.search?.query?.reranker?.apiKey),
+    )
   ) {
     return true;
   }
-  if (hasNestedSecretRef(config.messages?.tts?.providers)) {
+  if (
+    listAgentEntries(config).some((agent) =>
+      hasNestedSecretRef({
+        memoryRemote: agent.memory?.search?.remote,
+        tts: agent.tts,
+      }),
+    )
+  ) {
+    return true;
+  }
+  if (hasNestedSecretRef(config.tts)) {
     return true;
   }
   if (hasNestedSecretRef(config.skills?.entries)) {
@@ -128,124 +173,60 @@ function hasAgentRuntimeSecretRefs(params: {
   ) {
     return true;
   }
-  return params.includeChannelTargets ? hasNestedSecretRef(config.channels) : false;
+  if (params.includeChannelTargets) {
+    return hasNestedSecretRef(config.channels);
+  }
+  if (!params.channel) {
+    return false;
+  }
+  return hasNestedSecretRef(
+    (config.channels as Record<string, unknown> | undefined)?.[params.channel],
+  );
 }
 
-function collectActiveTier1RerankerSecretTargets(
-  config: OpenClawConfig,
-): Tier1RerankerSecretTargets | undefined {
-  const optionalActivePaths = new Set<string>();
-  const targetIds = new Set<string>();
-  const defaultsMemorySearch = config.agents?.defaults?.memorySearch as
-    | MemorySearchLike
-    | undefined;
-  const defaultsReranker = resolveMemorySearchReranker(defaultsMemorySearch);
-  const agents = (config.agents?.list ?? []) as AgentRuntimeSecretAgent[];
-  if (
-    hasNestedSecretRef(defaultsReranker?.apiKey) &&
-    defaultRerankerSecretRefIsActive(defaultsMemorySearch, agents)
-  ) {
-    optionalActivePaths.add(TIER1_RERANKER_DEFAULT_TARGET_ID);
-    targetIds.add(TIER1_RERANKER_DEFAULT_TARGET_ID);
-  }
-
-  agents.forEach((agent, index) => {
-    const memorySearch = agent.memorySearch;
-    const reranker = resolveMemorySearchReranker(memorySearch);
-    if (
-      !hasNestedSecretRef(reranker?.apiKey) ||
-      !agentRerankerSecretRefIsActive(agent, defaultsMemorySearch)
-    ) {
-      return;
-    }
-    optionalActivePaths.add(`agents.list.${index}.memorySearch.query.reranker.apiKey`);
-    targetIds.add(TIER1_RERANKER_AGENT_TARGET_ID);
+function resolveAgentRuntimeSecretTargets(params: {
+  config: OpenClawConfig;
+  includeChannelTargets: boolean;
+  channelSecretScope?: { channel: string; accountId?: string };
+}): {
+  targetIds: Set<string>;
+  allowedPaths?: Set<string>;
+  optionalActivePaths: Set<string>;
+} {
+  const baseTargetIds = getAgentRuntimeCommandSecretTargetIds({
+    config: params.config,
+    includeChannelTargets: params.includeChannelTargets,
   });
-
-  if (optionalActivePaths.size === 0) {
-    return undefined;
+  const optionalActivePaths = getAgentRuntimeOptionalCommandSecretPaths(params.config);
+  // Bench fork #63: Tier-1 reranker keys resolve only while the reranker is active.
+  const rerankerTargets = getActiveMemoryRerankerSecretTargets(params.config);
+  for (const targetId of rerankerTargets?.targetIds ?? []) {
+    baseTargetIds.add(targetId);
   }
-  return { targetIds, optionalActivePaths };
-}
-
-function defaultRerankerSecretRefIsActive(
-  defaultsMemorySearch: MemorySearchLike | undefined,
-  agents: readonly AgentRuntimeSecretAgent[],
-): boolean {
-  if (agents.length === 0) {
-    return (
-      resolveEffectiveMemorySearchEnabled(defaultsMemorySearch, undefined) &&
-      tier1AndRerankerAreEnabled(defaultsMemorySearch, undefined)
-    );
+  for (const path of rerankerTargets?.optionalActivePaths ?? []) {
+    optionalActivePaths.add(path);
   }
-  return agents.some((agent) => {
-    if (
-      agent.enabled === false ||
-      !resolveEffectiveMemorySearchEnabled(agent.memorySearch, defaultsMemorySearch)
-    ) {
-      return false;
-    }
-    return (
-      tier1AndRerankerAreEnabled(agent.memorySearch, defaultsMemorySearch) &&
-      !hasOwnApiKey(resolveMemorySearchReranker(agent.memorySearch))
-    );
+  if (params.includeChannelTargets || !params.channelSecretScope) {
+    return { targetIds: baseTargetIds, optionalActivePaths };
+  }
+  const channelTargets = getScopedChannelsCommandSecretTargets({
+    config: params.config,
+    channel: params.channelSecretScope.channel,
+    accountId: params.channelSecretScope.accountId,
+    defaultAccountWhenMissing: true,
   });
-}
+  const targetIds = new Set(baseTargetIds);
+  for (const targetId of channelTargets.targetIds) {
+    targetIds.add(targetId);
+  }
+  if (!channelTargets.allowedPaths) {
+    return { targetIds, optionalActivePaths };
+  }
 
-function agentRerankerSecretRefIsActive(
-  agent: AgentRuntimeSecretAgent,
-  defaultsMemorySearch: MemorySearchLike | undefined,
-): boolean {
-  return (
-    agent.enabled !== false &&
-    resolveEffectiveMemorySearchEnabled(agent.memorySearch, defaultsMemorySearch) &&
-    tier1AndRerankerAreEnabled(agent.memorySearch, defaultsMemorySearch)
-  );
-}
-
-function tier1AndRerankerAreEnabled(
-  memorySearch: MemorySearchLike | undefined,
-  defaultsMemorySearch: MemorySearchLike | undefined,
-): boolean {
-  return (
-    resolveEffectiveTier1Enabled(memorySearch, defaultsMemorySearch) &&
-    resolveEffectiveRerankerEnabled(memorySearch, defaultsMemorySearch)
-  );
-}
-
-function resolveEffectiveMemorySearchEnabled(
-  memorySearch: MemorySearchLike | undefined,
-  defaultsMemorySearch: MemorySearchLike | undefined,
-): boolean {
-  return memorySearch?.enabled ?? defaultsMemorySearch?.enabled ?? true;
-}
-
-function resolveEffectiveTier1Enabled(
-  memorySearch: MemorySearchLike | undefined,
-  defaultsMemorySearch: MemorySearchLike | undefined,
-): boolean {
-  return (
-    memorySearch?.query?.tier1?.enabled ?? defaultsMemorySearch?.query?.tier1?.enabled ?? false
-  );
-}
-
-function resolveEffectiveRerankerEnabled(
-  memorySearch: MemorySearchLike | undefined,
-  defaultsMemorySearch: MemorySearchLike | undefined,
-): boolean {
-  return (
-    memorySearch?.query?.reranker?.enabled ??
-    defaultsMemorySearch?.query?.reranker?.enabled ??
-    false
-  );
-}
-
-function resolveMemorySearchReranker(
-  memorySearch: MemorySearchLike | undefined,
-): { enabled?: boolean; apiKey?: unknown } | undefined {
-  return memorySearch?.query?.reranker;
-}
-
-function hasOwnApiKey(value: { apiKey?: unknown } | undefined): boolean {
-  return Boolean(value && Object.hasOwn(value, "apiKey"));
+  // Account scoping must not exclude the agent's model/tool secrets from the same resolution.
+  const allowedPaths = new Set(channelTargets.allowedPaths);
+  for (const target of discoverConfigSecretTargetsByIds(params.config, baseTargetIds)) {
+    allowedPaths.add(target.path);
+  }
+  return { targetIds, allowedPaths, optionalActivePaths };
 }
