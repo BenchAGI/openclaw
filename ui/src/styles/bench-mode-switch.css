@@ -1,0 +1,205 @@
+/* Vault ↔ App mode switch (UI-BRAND-CONTRACT §5.8). Loaded with the element's
+   deferred chunk; layout.css reserves the pill's footprint until then. */
+
+.bench-mode-switch {
+  --bench-mode-switch-size: 28px;
+  --bench-mode-switch-segment: 22px;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--bench-mode-switch-size);
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--bg-accent);
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.bench-mode-switch__segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: var(--bench-mode-switch-segment);
+  padding: 0 9px;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: var(--cursor-action);
+  transition:
+    background var(--duration-normal) var(--ease-out),
+    color var(--duration-normal) var(--ease-out);
+}
+
+.bench-mode-switch__segment:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+  text-decoration: none;
+}
+
+.bench-mode-switch__segment:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.bench-mode-switch__segment--active {
+  background: var(--text-strong);
+  color: var(--bg);
+  cursor: default;
+}
+
+.bench-mode-switch__segment--active:hover {
+  background: var(--text-strong);
+  color: var(--bg);
+}
+
+.bench-mode-switch__icon {
+  display: none;
+}
+
+.bench-mode-switch__icon svg,
+.bench-mode-switch__lock svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The active Vault segment carries the current agent's accent. */
+.bench-mode-switch__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--agent-accent, var(--accent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 60%, transparent);
+}
+
+.bench-mode-switch__hint {
+  margin-left: 2px;
+  color: inherit;
+  font: 500 10px / 1 var(--mono);
+  opacity: 0.75;
+}
+
+/* Switching: the active side steps back, the destination reads "Opening …",
+   and a hairline in the accent runs under the pill. */
+.bench-mode-switch--switching .bench-mode-switch__segment--active {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.bench-mode-switch__progress {
+  position: absolute;
+  right: 6px;
+  bottom: -4px;
+  left: 6px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.bench-mode-switch__progress::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -40%;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: bench-mode-switch-progress 900ms var(--ease-out) infinite;
+}
+
+@keyframes bench-mode-switch-progress {
+  to {
+    transform: translateX(350%);
+  }
+}
+
+/* Disabled: 50%, lock on the unavailable segment, reason in the tooltip. */
+.bench-mode-switch--disabled {
+  opacity: 0.5;
+}
+
+.bench-mode-switch__segment--disabled {
+  cursor: not-allowed;
+}
+
+.bench-mode-switch__segment--disabled:hover {
+  background: transparent;
+  color: var(--muted);
+}
+
+.bench-mode-switch__lock {
+  display: inline-flex;
+}
+
+/* Compact (phone chrome): icon-only segments inside a 36px pill with a 44px
+   hit area; labels live on aria-label. */
+bench-mode-switch[compact] .bench-mode-switch {
+  --bench-mode-switch-size: 36px;
+  --bench-mode-switch-segment: 30px;
+}
+
+bench-mode-switch[compact] .bench-mode-switch__segment {
+  min-width: 30px;
+  padding: 0 8px;
+  justify-content: center;
+}
+
+bench-mode-switch[compact] .bench-mode-switch__segment::before {
+  content: "";
+  position: absolute;
+  inset: -7px 0;
+}
+
+bench-mode-switch[compact] .bench-mode-switch__icon {
+  display: inline-flex;
+}
+
+bench-mode-switch[compact] .bench-mode-switch__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Tablet: the full switch grows to 32px in the chat header (the repo's
+   allowed breakpoints bracket the contract's 768–1279 band as 769–1320). */
+@media (min-width: 769px) and (max-width: 1320px) {
+  .chat-pane__header-trailing .bench-mode-switch {
+    --bench-mode-switch-size: 32px;
+    --bench-mode-switch-segment: 26px;
+  }
+}
+
+/* Phone: the topbar's compact switch owns the flip; hide the header copy. */
+@media (max-width: 768px) {
+  .chat-pane__header-trailing > bench-mode-switch {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bench-mode-switch__segment {
+    transition: none;
+  }
+
+  .bench-mode-switch__progress::after {
+    animation: none;
+    inset: 0;
+    width: auto;
+    opacity: 0.6;
+  }
+}

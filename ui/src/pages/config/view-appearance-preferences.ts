@@ -6,6 +6,7 @@ import {
   normalizeChatSendShortcut,
   UI_APPEARANCE_DEFAULTS,
 } from "../../app/settings.ts";
+import { isBenchThemeFamily } from "../../app/theme.ts";
 import { getLobsterdexEntries } from "../../components/lobster-dex.ts";
 import { previewLobsterChirp } from "../../components/lobster-pet-audio.ts";
 import {
@@ -169,6 +170,36 @@ function renderSettingsCameraField(props: ConfigProps) {
     onRefresh: props.onCameraRefresh,
     onSelect: props.onCameraSelect,
   });
+}
+
+// "Background motion": the Bench gravity fabric behind the shell
+// (UI-BRAND-CONTRACT §8.5). Only the Bench families draw it.
+export function renderBackgroundMotionSection(props: ConfigProps) {
+  if (!isBenchThemeFamily(props.theme)) {
+    return nothing;
+  }
+  const enabled = props.backgroundMotion ?? UI_APPEARANCE_DEFAULTS.backgroundMotion;
+  return html`
+    <section class="settings-section">
+      <div class="settings-section__header">
+        <h2 class="settings-section__heading">${t("configView.appearance.backgroundMotion")}</h2>
+      </div>
+      <div class="settings-group">
+        ${renderSettingsToggleRow({
+          title: t("configView.appearance.backgroundMotionToggle"),
+          description: html`${t(
+              enabled
+                ? "configView.appearance.backgroundMotionOn"
+                : "configView.appearance.backgroundMotionOff",
+            )}<br />
+            ${t("configView.appearance.backgroundMotionHint")}
+            ${t("quickSettings.personal.browserOnly")}`,
+          checked: enabled,
+          onChange: (next) => props.setBackgroundMotion?.(next),
+        })}
+      </div>
+    </section>
+  `;
 }
 
 export function renderChatPreferencesSection(

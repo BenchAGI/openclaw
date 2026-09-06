@@ -129,6 +129,12 @@ export class OpenClawApp extends OpenClawLightDomElement {
   override connectedCallback() {
     super.connectedCallback();
     void import("../components/session-progress-hovercard-registration.ts");
+    // Bench Vault ↔ App switch: the tag renders in the chrome at boot and
+    // upgrades when this chunk lands, keeping the boot bundle in budget.
+    void import("../components/bench-mode-switch.ts");
+    // Gravity fabric host (§8.5): same deferred pattern; the canvas module rides
+    // inside this chunk so nothing of it reaches the boot bundle.
+    void import("../components/bench-gravity-fabric.ts");
     this.resetLoginSensitivePresentation();
     this.runtime = bootstrapApplication();
     const focusTarget = this.focusTarget;

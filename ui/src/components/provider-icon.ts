@@ -94,6 +94,7 @@ const PROVIDER_ICON_NAMES = new Set([
 // under a different slug than their catalog id.
 const PROVIDER_ICON_ALIASES: Readonly<Record<string, string>> = {
   anthropic: "claude",
+  benchagi: "bench",
   "amazon-bedrock": "bedrock",
   "aws-bedrock": "bedrock",
   "claude-cli": "claude",

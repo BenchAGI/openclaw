@@ -412,16 +412,22 @@ export function titleForRoute(routeId: NavigationRouteId): string {
 /** Window/tab title, markers leftmost because tabs truncate from the right.
  * A disconnected Gateway replaces the approval count (a stale queue is not
  * actionable) and carries the pending-outbox total; titles already ending in the brand
- * ("Ask OpenClaw") skip the suffix so it never reads "… OpenClaw — OpenClaw". */
+ * ("Ask Aurelius") skip the suffix so it never reads "… Vault — BenchAGI Aurelius Vault". */
+/** Product brand carried by every document title; the desktop Vault's readiness
+ * witness looks for this exact string, so it must stay in sync with
+ * BenchAGI/aurelius `openclaw_ingress.rs` `CONTROL_UI_TITLES`. */
+export const DOCUMENT_TITLE_BRAND = "BenchAGI Aurelius Vault";
+
 export function formatDocumentTitle(options: {
   context: string;
   attentionCount?: number;
   gatewayDisconnected?: boolean;
   queuedCount?: number;
 }): string {
-  const base = options.context.endsWith("OpenClaw")
-    ? options.context
-    : `${options.context} — OpenClaw`;
+  const base =
+    options.context.endsWith(DOCUMENT_TITLE_BRAND) || options.context === t("nav.askOpenClaw")
+      ? options.context
+      : `${options.context} — ${DOCUMENT_TITLE_BRAND}`;
   if (options.gatewayDisconnected) {
     const queued =
       options.queuedCount && options.queuedCount > 0

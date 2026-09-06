@@ -9,22 +9,24 @@ import type { SessionObserverDigest } from "../../../packages/gateway-protocol/s
 import { isSessionRouteId, pathForRoute } from "../app-route-paths.ts";
 import { beginNativeWindowDragFromTopInset } from "../app/native-window-drag.ts";
 import { t } from "../i18n/index.ts";
+import { benchAgentStyle } from "../lib/agents/bench-agent-identity.ts";
+import { BENCH_CUSTOMER_BUILD } from "../lib/bench-build.ts";
+import { createIdleImport } from "../lib/idle-import.ts";
 import "./session-menu.ts";
 import "./sidebar-agent-card.ts";
 import "./sidebar-attention.ts";
-import { createIdleImport } from "../lib/idle-import.ts";
 import { shouldHandleNavigationClick } from "../lib/navigation-click.ts";
+import type { CatalogSessionKey } from "../lib/sessions/catalog-key.ts";
 import "./theme-mode-toggle.ts";
 import "./tooltip.ts";
-import type { CatalogSessionKey } from "../lib/sessions/catalog-key.ts";
 import type { CatalogProjectGrouping } from "../lib/sessions/catalog-project-grouping.ts";
 import { showToast } from "../lib/toast.ts";
 import { SubscriptionsController } from "../lit/subscriptions-controller.ts";
 import { SETTINGS_ROUTE_TARGETS } from "../pages/config/route-data.ts";
-import "../plugins/control-ui-contributions.ts";
 import { renderPluginSurface } from "../plugins/control-ui-view.ts";
-import "../styles/app-sidebar.css";
+import "../plugins/control-ui-contributions.ts";
 import { sidebarPluginTabs } from "./app-sidebar-nav-menus.ts";
+import "../styles/app-sidebar.css";
 import {
   renderAppSidebarBrand,
   renderAppSidebarFooterBar,
@@ -58,6 +60,10 @@ import {
   storeSidebarCatalogGrouping,
   type SidebarRecentSession,
 } from "./app-sidebar-session-types.ts";
+import {
+  BENCH_AGENT_MENU_TOGGLE_EVENT,
+  type BenchAgentMenuToggleDetail,
+} from "./bench-agent-chip.ts";
 import { renderCommunityInviteCard } from "./community-invite-card.ts";
 import {
   COMMUNITY_INVITE_KEY,
@@ -161,6 +167,13 @@ class AppSidebar extends AppSidebarSessionNavigationElement implements SessionLi
       (plugins, notify) => plugins.subscribe(notify),
     );
   private readonly nativeGatewaysChanged = () => this.sidebarMenus.closeSessionMenu();
+  // The chat header identity chip opens the same agent menu as the identity row.
+  private readonly benchAgentMenuToggle = (event: Event) => {
+    const trigger = (event as CustomEvent<BenchAgentMenuToggleDetail>).detail?.trigger;
+    if (trigger instanceof HTMLElement) {
+      this.sidebarMenus.toggleAgentMenu(trigger);
+    }
+  };
   private readonly refreshAppearanceSettings = () => this.context?.theme.refresh();
   private readonly hiddenSessionCatalogsChanged = () => {
     this.hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
@@ -198,6 +211,7 @@ class AppSidebar extends AppSidebarSessionNavigationElement implements SessionLi
 
   override disconnectedCallback() {
     window.removeEventListener("openclaw:native-gateways-changed", this.nativeGatewaysChanged);
+    window.removeEventListener(BENCH_AGENT_MENU_TOGGLE_EVENT, this.benchAgentMenuToggle);
     window.removeEventListener(
       SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
       this.hiddenSessionCatalogsChanged,
@@ -324,6 +338,7 @@ class AppSidebar extends AppSidebarSessionNavigationElement implements SessionLi
   override connectedCallback() {
     super.connectedCallback();
     window.addEventListener("openclaw:native-gateways-changed", this.nativeGatewaysChanged);
+    window.addEventListener(BENCH_AGENT_MENU_TOGGLE_EVENT, this.benchAgentMenuToggle);
     this.hiddenSessionCatalogsChanged();
     window.addEventListener(
       SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
@@ -351,7 +366,12 @@ class AppSidebar extends AppSidebarSessionNavigationElement implements SessionLi
   };
 
   private syncCommunityInviteState() {
-    if (this.context?.config.current.communityInvite !== true || !isCommunityInviteEligible()) {
+    // Bench builds never show upstream's community invite (lib/bench-build.ts).
+    if (
+      BENCH_CUSTOMER_BUILD ||
+      this.context?.config.current.communityInvite !== true ||
+      !isCommunityInviteEligible()
+    ) {
       this.communityInvitePresentation = "unavailable";
     } else if (this.communityInvitePresentation !== "shown") {
       this.communityInvitePresentation = "pending";
@@ -569,6 +589,7 @@ class AppSidebar extends AppSidebarSessionNavigationElement implements SessionLi
     return html`
       <aside
         class="sidebar"
+        style=${benchAgentStyle(this.activeChipAgent().activeId)}
         @pointerleave=${this.handleSidebarInteractionEnd}
         @focusout=${this.handleSidebarInteractionEnd}
         @contextmenu=${(event: MouseEvent) => {

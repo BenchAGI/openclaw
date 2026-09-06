@@ -4,6 +4,11 @@ import type { GatewaySessionRow, SessionsListResult } from "../../../api/types.t
 import { identityAvatarImage } from "../../../components/identity-avatar-view.ts";
 import "../../../components/openclaw-mascot.ts";
 import { t } from "../../../i18n/index.ts";
+import {
+  benchAgentIdentity,
+  benchAgentPortraitUrl,
+  benchAgentStyle,
+} from "../../../lib/agents/bench-agent-identity.ts";
 import { resolveAssistantTextAvatar, resolveChatAvatarRenderUrl } from "../../../lib/avatar.ts";
 import { formatRelativeTimestamp } from "../../../lib/format.ts";
 import {
@@ -47,6 +52,14 @@ const WELCOME_SUGGESTION_KEYS = [
   "chat.welcome.suggestions.whatCanYouDo",
   "chat.welcome.suggestions.summarizeRecentSessions",
   "chat.welcome.suggestions.configureChannel",
+  "chat.welcome.suggestions.checkSystemHealth",
+];
+
+// Bench agents get the operating-brief suggestions (UI-BRAND-CONTRACT §5.3).
+const BENCH_WELCOME_SUGGESTION_KEYS = [
+  "chat.welcome.suggestions.operatingBrief",
+  "chat.welcome.suggestions.pipelineWeek",
+  "chat.welcome.suggestions.fieldBriefing",
   "chat.welcome.suggestions.checkSystemHealth",
 ];
 
@@ -100,9 +113,35 @@ function selectWelcomeRecentSessions(
   );
 }
 
-function renderWelcomeClawd() {
+/** The agent this welcome speaks for: the session key's agent, else the host default. */
+export function resolveWelcomeAgentId(
+  props: Pick<ChatWelcomeProps, "sessionKey" | "sessionHost">,
+): string | null {
+  return (
+    parseAgentSessionKey(props.sessionKey)?.agentId ??
+    resolveUiSelectedGlobalAgentId(props.sessionHost ?? {}) ??
+    null
+  );
+}
+
+// Aurelius is the mascot (the eagle bitmap the mascot element already draws);
+// every other Bench agent shows its portrait in a rarity halo; other agents
+// keep the mascot fallback.
+function renderWelcomeMascot(agentId: string | null) {
+  const identity = benchAgentIdentity(agentId);
+  const portrait = identity && identity.id !== "aurelius" ? benchAgentPortraitUrl(agentId) : null;
+  if (portrait) {
+    return html`
+      <div class="agent-chat__welcome-clawd" aria-hidden="true" style=${benchAgentStyle(agentId)}>
+        <img class="agent-chat__welcome-portrait bench-agent-halo" src=${portrait} alt="" />
+      </div>
+    `;
+  }
   return html`
-    <div class="agent-chat__welcome-clawd" aria-hidden="true">
+    <div
+      class="agent-chat__welcome-clawd ${identity ? "agent-chat__welcome-clawd--mascot" : ""}"
+      aria-hidden="true"
+    >
       <openclaw-mascot mood="idle" .size=${112}></openclaw-mascot>
     </div>
   `;
@@ -131,10 +170,16 @@ function renderWelcomeRecentSessions(
   `;
 }
 
-function renderWelcomeSuggestions(props: Pick<ChatWelcomeProps, "onDraftChange" | "onSend">) {
+function renderWelcomeSuggestions(
+  props: Pick<ChatWelcomeProps, "onDraftChange" | "onSend">,
+  agentId: string | null,
+) {
+  const keys = benchAgentIdentity(agentId)
+    ? BENCH_WELCOME_SUGGESTION_KEYS
+    : WELCOME_SUGGESTION_KEYS;
   return html`
     <div class="agent-chat__suggestions">
-      ${WELCOME_SUGGESTION_KEYS.map((key) => {
+      ${keys.map((key) => {
         const text = t(key);
         return html`
           <button
@@ -156,11 +201,21 @@ function renderWelcomeSuggestions(props: Pick<ChatWelcomeProps, "onDraftChange" 
 function renderWelcomeHero(
   props: Pick<ChatWelcomeProps, "assistantName" | "assistantAvatar" | "assistantAvatarUrl"> & {
     hint: unknown;
+    agentId: string | null;
   },
 ) {
   const name = props.assistantName || "Assistant";
   const avatar = resolveAssistantAvatarUrl(props);
-  const avatarText = avatar ? null : resolveAssistantTextAvatar(props.assistantAvatar);
+  const bench = benchAgentIdentity(props.agentId);
+  // A Bench agent's own treatment wins over the gateway's text avatar.
+  const avatarText = avatar || bench ? null : resolveAssistantTextAvatar(props.assistantAvatar);
+  // Bench workspace welcome: the title asks the question, the sub names the agent.
+  const title = bench ? t("chat.welcome.title") : name;
+  const sub = bench
+    ? bench.id === "aurelius"
+      ? t("chat.welcome.subAurelius")
+      : t("chat.welcome.subAgent", { name, role: bench.role.toLowerCase() })
+    : props.hint;
   return html`
     <div class="agent-chat__welcome-identity">
       ${
@@ -174,11 +229,11 @@ function renderWelcomeHero(
             ? html`<div class="agent-chat__avatar agent-chat__avatar--text" aria-label=${name}>
                 ${avatarText}
               </div>`
-            : renderWelcomeClawd()
+            : renderWelcomeMascot(props.agentId)
       }
       <div class="agent-chat__welcome-identity-copy">
-        <h2>${name}</h2>
-        <p class="agent-chat__hint">${props.hint}</p>
+        <h2>${title}</h2>
+        <p class="agent-chat__hint ${bench ? "agent-chat__hint--bench" : ""}">${sub}</p>
       </div>
     </div>
   `;
@@ -189,7 +244,7 @@ export function renderWelcomeState(props: ChatWelcomeProps) {
   if (props.modelSetupRequired) {
     return html`
       <div class="agent-chat__welcome agent-chat__welcome--setup" role="alert">
-        ${renderWelcomeClawd()}
+        ${renderWelcomeMascot(null)}
         <h2>${t("modelSetup.required.title")}</h2>
         <p class="agent-chat__hint">${t("modelSetup.required.body")}</p>
         <button class="btn primary" type="button" @click=${props.onModelSetup}>
@@ -244,6 +299,7 @@ export function renderWelcomeState(props: ChatWelcomeProps) {
         assistantName: props.assistantName,
         assistantAvatar: props.assistantAvatar,
         assistantAvatarUrl: props.assistantAvatarUrl,
+        agentId: resolveWelcomeAgentId(props),
         hint:
           props.hint ??
           html`${t("chat.welcome.hintBeforeShortcut")} <kbd>/</kbd> ${t(
@@ -265,7 +321,7 @@ export function renderWelcomeState(props: ChatWelcomeProps) {
                 ${
                   recentSessions.length > 0
                     ? renderWelcomeRecentSessions(recentSessions, props.onOpenSession)
-                    : renderWelcomeSuggestions(props)
+                    : renderWelcomeSuggestions(props, resolveWelcomeAgentId(props))
                 }
               </div>
             </div>`

@@ -1,12 +1,18 @@
-import { html } from "lit";
+import { html, nothing } from "lit";
 import { property } from "lit/decorators.js";
 import type { ControlUiEnvironment } from "../../../src/gateway/control-ui-bootstrap-contract.js";
+import { DOCUMENT_TITLE_BRAND } from "../app-navigation.ts";
 import { beginNativeWindowDrag } from "../app/native-window-drag.ts";
 import { controlUiPublicAssetPath } from "../app/public-assets.ts";
 import { t } from "../i18n/index.ts";
 import { OpenClawLightDomContentsElement } from "../lit/openclaw-element.ts";
+import { type BenchModeSwitchAgent, renderBenchModeSwitch } from "./bench-mode-switch-render.ts";
 import { icons } from "./icons.ts";
 import "./tooltip.ts";
+
+// Short product name for the brand row; the full name stays on the accessible
+// label and the document title (DOCUMENT_TITLE_BRAND).
+const TOPBAR_BRAND_TITLE = "Aurelius Vault";
 
 /** Narrow-viewport header: drawer toggle, brand, and command-palette search.
  * Desktop hides it entirely (layout.css) — the sidebar owns navigation there. */
@@ -14,6 +20,8 @@ class AppTopbar extends OpenClawLightDomContentsElement {
   @property({ attribute: false }) navDrawerOpen = false;
   @property({ attribute: false }) resourceBasePath = "";
   @property({ attribute: false }) environment: ControlUiEnvironment | null = null;
+  /** Current agent for the compact Vault ↔ App switch; null hides it. */
+  @property({ attribute: false }) modeSwitchAgent: BenchModeSwitchAgent | null = null;
   @property({ attribute: false }) onToggleDrawer!: (trigger: HTMLElement) => void;
   @property({ attribute: false }) onOpenPalette!: () => void;
 
@@ -36,14 +44,14 @@ class AppTopbar extends OpenClawLightDomContentsElement {
             </button>
           </openclaw-tooltip>
           <div class="topnav-shell__content" @mousedown=${beginNativeWindowDrag}>
-            <div class="topbar-brand" aria-label="OpenClaw">
+            <div class="topbar-brand" aria-label=${DOCUMENT_TITLE_BRAND}>
               <img
                 class="topbar-brand__logo"
-                src=${controlUiPublicAssetPath("apple-touch-icon.png", this.resourceBasePath)}
+                src=${controlUiPublicAssetPath("favicon.svg", this.resourceBasePath)}
                 alt=""
                 aria-hidden="true"
               />
-              <span class="topbar-brand__title">OpenClaw</span>
+              <span class="topbar-brand__title">${TOPBAR_BRAND_TITLE}</span>
               ${
                 this.environment &&
                 html`<span class="control-ui-environment-pill">${this.environment.label}</span>`
@@ -51,6 +59,14 @@ class AppTopbar extends OpenClawLightDomContentsElement {
             </div>
           </div>
           <div class="topnav-shell__actions">
+            ${
+              this.modeSwitchAgent
+                ? renderBenchModeSwitch(this.modeSwitchAgent, {
+                    compact: true,
+                    className: "topbar-mode-switch",
+                  })
+                : nothing
+            }
             <openclaw-tooltip .content=${t("chat.commandPaletteTitle")}>
               <button
                 class="topbar-search"

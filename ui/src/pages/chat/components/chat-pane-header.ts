@@ -76,6 +76,8 @@ type ChatPaneHeaderProps = {
   workspaceAction: TemplateResult | typeof nothing;
   presence?: TemplateResult | typeof nothing;
   faceControl?: TemplateResult | typeof nothing;
+  /** Bench Vault ↔ App switch; leads the trailing cluster (UI-BRAND-CONTRACT §5.8). */
+  modeSwitch?: TemplateResult | typeof nothing;
   sharingControl?: TemplateResult | typeof nothing;
   placementControl?: TemplateResult | typeof nothing;
   sessionMenuAction: TemplateResult | typeof nothing;
@@ -483,6 +485,7 @@ export function renderChatPaneHeader(props: ChatPaneHeaderProps) {
           : nothing
       }
       <div class="chat-pane__header-trailing">
+        ${props.modeSwitch ?? nothing}
         ${
           !props.catalog && props.branches.length > 1
             ? html`

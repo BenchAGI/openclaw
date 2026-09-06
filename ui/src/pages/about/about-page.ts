@@ -84,6 +84,19 @@ class AboutPage extends OpenClawLightDomElement {
       onCopyCommit: () => void this.copyCommit(),
       aureliusGreeting: this.aureliusGreeting,
       onGreetAurelius: () => this.greetAurelius(),
+      // The Bench runtime line tracks the OpenClaw version this fork rides on.
+      runtime: CONTROL_UI_BUILD_INFO.version
+        ? `bench-runtime-${CONTROL_UI_BUILD_INFO.version}`
+        : null,
+      cell: {
+        name: this.context.config?.current?.environment?.label ?? null,
+        user:
+          gatewaySnapshot.phase === "connected"
+            ? gatewaySnapshot.selfUser?.name?.trim() ||
+              gatewaySnapshot.selfUser?.email?.trim() ||
+              null
+            : null,
+      },
     });
     return html`
       <section class="content-header">

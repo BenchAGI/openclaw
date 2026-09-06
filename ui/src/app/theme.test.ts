@@ -16,6 +16,10 @@ describe("resolveTheme", () => {
     ["manuscript", "manuscript", "manuscript-light"],
     ["rose", "rose", "rose-light"],
     ["miami", "miami", "miami-light"],
+    ["bench", "bench", "bench-light"],
+    ["bench-garden", "bench-garden", "bench-garden-light"],
+    ["bench-forge", "bench-forge", "bench-forge-light"],
+    ["bench-aurelius", "bench-aurelius", "bench-aurelius-light"],
     ["custom", "custom", "custom-light"],
   ] satisfies [ThemeName, string, string][])(
     "resolves %s in both explicit modes",
@@ -34,8 +38,9 @@ describe("resolveTheme", () => {
 
 describe("parseThemeSelection", () => {
   it("falls back to defaults for unknown stored values", () => {
+    // Bench build: unknown/legacy stored themes land on the brand default.
     expect(parseThemeSelection("fieldmanual", "invalid-mode")).toEqual({
-      theme: "claw",
+      theme: "bench",
       mode: "system",
     });
     expect(parseThemeSelection("dash", "light")).toEqual({

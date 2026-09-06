@@ -1,0 +1,169 @@
+/* Secret Garden palette; selected by index.html and app/theme.ts. */
+
+:root[data-theme="bench-garden"] {
+  /*
+   * Accent — garden gold on deep slate, with a reading serif for chat.
+   *
+   * The Bench "Secret Garden" family (UI-BRAND-CONTRACT §1.3): slate-blue
+   * surfaces, gold as the text-carrying accent, a deeper gold for filled
+   * buttons with dark ink on them, and dusk blue as the second series. Chat
+   * prose and display type set in Lora.
+   *
+   * WCAG 2.1 AA audit (bg = #0b1426, relative luminance ≈ 0.0071):
+   *   --accent #d4a056  contrast ≈ 7.9:1 AAA ✓ (7.2:1 on --card)
+   *   --primary-foreground #1b1406 on #b98a3c button: 5.9:1 AA ✓
+   *   --primary-foreground #1b1406 on #c99a4a hover: 7.1:1 AAA ✓
+   *   --destructive-foreground #fafafa on #d32f2f button: 4.8:1 AA ✓
+   *   body text --text #ece6d8: 14.8:1 ✓
+   *   worst text pairing --muted on --bg-muted: 6.4:1 ✓
+   *   --accent-2 #7fa8c9 on bg: 7.3:1 ✓
+   */
+  --ring: #d4a056;
+  --accent: #d4a056;
+  --accent-hover: #e3b874;
+  --accent-muted: #d4a056;
+  --accent-subtle: rgba(212, 160, 86, 0.12);
+  --accent-glow: rgba(212, 160, 86, 0.22);
+  --primary: #b98a3c;
+  --primary-hover: #c99a4a;
+  --primary-foreground: #1b1406;
+
+  --destructive: #d32f2f;
+  --destructive-hover: #bc2a2a;
+  --destructive-foreground: #fafafa;
+
+  --focus: rgba(212, 160, 86, 0.2);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 70%, transparent);
+  --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 16px var(--accent-glow);
+
+  --bg: #0b1426;
+  --bg-accent: #0f1a30;
+  --bg-elevated: #182540;
+  --bg-hover: #1e2c4a;
+  --bg-muted: #1e2c4a;
+
+  --card: #131d33;
+  --card-foreground: #ece6d8;
+  --card-highlight: rgba(236, 230, 216, 0.04);
+  --popover: #182540;
+  --popover-foreground: #ece6d8;
+
+  --panel: #0b1426;
+  --panel-strong: #182540;
+  --panel-hover: #1e2c4a;
+  --chrome: rgba(11, 20, 38, 0.96);
+  --chrome-strong: rgba(11, 20, 38, 0.98);
+
+  --text: #ece6d8;
+  --text-strong: #fbf6ea;
+  --chat-text: #ece6d8;
+  --muted: #a9b0c2;
+  --muted-strong: #bcc2d1;
+  --muted-foreground: #a9b0c2;
+
+  --border: #223050;
+  --border-strong: #2a3550;
+  --border-hover: #3a4868;
+  --input: #223050;
+
+  --secondary: #131d33;
+  --secondary-foreground: #ece6d8;
+  --accent-2: #7fa8c9;
+  --accent-2-muted: rgba(127, 168, 201, 0.7);
+  --accent-2-subtle: rgba(127, 168, 201, 0.12);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
+  --overlay-shadow: var(--shadow-md);
+
+  --grid-line: rgba(236, 230, 216, 0.035);
+
+  /* Typography — Instrument Sans chrome; Lora (fonts/lora.css) for chat prose
+     and display, the editorial register from the Vault presence work. */
+  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Lora", Georgia, "Times New Roman", serif;
+  --font-chat: "Lora", Georgia, "Times New Roman", serif;
+}
+
+:root[data-theme="bench-garden-light"] {
+  /*
+   * Accent — bronze on sage paper (resolved from the web app's `garden` HSL bridge).
+   *
+   * WCAG 2.1 AA audit (bg = #f0f5e8, relative luminance ≈ 0.897):
+   *   --accent #8c6420  contrast ≈ 4.8:1 AA text ✓ (5.1:1 on --card)
+   *   --primary-foreground #1b1406 on #b98a3c button: 5.9:1 AA ✓
+   *   --destructive-foreground #ffffff on #b3261e button: 6.5:1 AA ✓
+   *   body text --text #182518: 14.4:1 ✓
+   *   worst text pairing --muted on --bg-muted: 5.4:1 ✓
+   *   --accent-2 #3b6f8a on bg: 5.0:1 ✓
+   */
+  --ring: #8c6420;
+  --accent: #8c6420;
+  --accent-hover: #6f4e17;
+  --accent-muted: #8c6420;
+  --accent-subtle: rgba(140, 100, 32, 0.1);
+  --accent-glow: rgba(140, 100, 32, 0.14);
+  --primary: #b98a3c;
+  --primary-hover: #a67a33;
+  --primary-foreground: #1b1406;
+
+  --destructive: #b3261e;
+  --destructive-hover: #9c2119;
+  --destructive-foreground: #ffffff;
+
+  --bg: #f0f5e8;
+  --bg-accent: #e8efdd;
+  --bg-elevated: #f9fbf4;
+  --bg-hover: #dfe8d2;
+  --bg-muted: #dfe8d2;
+  --bg-content: #eaf0e0;
+
+  --card: #f9fbf4;
+  --card-foreground: #182518;
+  --card-highlight: rgba(24, 37, 24, 0.02);
+  --popover: #f9fbf4;
+  --popover-foreground: #182518;
+  --session-hovercard-surface: var(--card);
+  --session-hovercard-progress-surface: color-mix(
+    in srgb,
+    var(--card) 52%,
+    var(--panel-strong) 48%
+  );
+
+  --panel: #f0f5e8;
+  --panel-strong: #e8efdd;
+  --panel-hover: #d6e0c8;
+  --chrome: rgba(240, 245, 232, 0.96);
+  --chrome-strong: rgba(240, 245, 232, 0.98);
+
+  --text: #182518;
+  --text-strong: #0f180f;
+  --chat-text: #182518;
+  --muted: #4f5f50;
+  --muted-strong: #3f4d40;
+  --muted-foreground: #4f5f50;
+
+  --border: #c9d3bd;
+  --border-strong: #b2bfa3;
+  --border-hover: #94a385;
+  --input: #c9d3bd;
+
+  --secondary: #e8efdd;
+  --secondary-foreground: #182518;
+  --accent-2: #3b6f8a;
+  --accent-2-muted: rgba(59, 111, 138, 0.75);
+  --accent-2-subtle: rgba(59, 111, 138, 0.1);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.1);
+  --overlay-shadow: var(--shadow-md);
+
+  --grid-line: rgba(24, 37, 24, 0.05);
+
+  /* Typography — see the dark block. */
+  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Lora", Georgia, "Times New Roman", serif;
+  --font-chat: "Lora", Georgia, "Times New Roman", serif;
+}

@@ -12,6 +12,8 @@ import {
 } from "../components/settings-sidebar-lazy.ts";
 import type { ThemeModeChangeDetail } from "../components/theme-mode-toggle.ts";
 import { t } from "../i18n/index.ts";
+import { benchAgentDisplayName } from "../lib/agents/bench-agent-identity.ts";
+import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { canCallGatewayMethod } from "../lib/gateway-methods.ts";
 import {
   formatKeyboardShortcutCombo,
@@ -59,6 +61,7 @@ import {
   normalizeChatSendShortcut,
 } from "./settings.ts";
 import { renderCollapsedAssistantToggles } from "./shell-assistant-toggles.ts";
+import { isBenchThemeFamily } from "./theme.ts";
 import { createUpdateProgressWatcher } from "./update-confirmation.ts";
 
 const EMPTY_SESSION_HAS_DRAFT = () => false;
@@ -172,7 +175,7 @@ export function renderApplicationShell(host: ShellViewHost) {
   }
   if (host.routeState.routeId === undefined) {
     return html`<main class="connect-splash" role="status" aria-label=${t("common.loading")}>
-      <openclaw-mascot mood="thinking" .size=${120}></openclaw-mascot>
+      <openclaw-mascot mood="thinking" .size=${176}></openclaw-mascot>
     </main>`;
   }
   const gatewaySnapshot = context.gateway.snapshot;
@@ -289,6 +292,10 @@ export function renderApplicationShell(host: ShellViewHost) {
     }
   };
   const uiSettings = context.theme.settings;
+  // Bench gravity fabric (UI-BRAND-CONTRACT §8.5): Bench families only, and
+  // off when the operator turned "Background motion" off in Appearance.
+  const benchFabricEnabled =
+    isBenchThemeFamily(uiSettings.theme) && uiSettings.backgroundMotion !== false;
   // The new-session draft shares the chat layout: full-height pane that owns
   // its scrolling and pins the composer dock to the bottom.
   const chatLikeRoute = sessionRoute || activeRoute === "new-session";
@@ -439,10 +446,16 @@ export function renderApplicationShell(host: ShellViewHost) {
         mergedChatChrome ? "shell--merged-chat-chrome" : ""
       } ${navDrawerOpen ? "shell--nav-drawer-open" : ""} ${
         onboarding ? "shell--onboarding" : ""
-      } ${settingsTakeover ? "shell--settings" : ""}"
+      } ${settingsTakeover ? "shell--settings" : ""} ${
+        benchFabricEnabled ? "shell--bench-fabric" : ""
+      }"
       style=${`--shell-nav-expanded-width: ${navigationSnapshot.navWidth}px`}
       @theme-change=${(event: CustomEvent<ThemeModeChangeDetail>) => host.handleThemeChange(event)}
     >
+      <bench-gravity-fabric
+        ?enabled=${benchFabricEnabled}
+        theme=${context.theme.resolvedMode}
+      ></bench-gravity-fabric>
       <a class="shell-skip-link" href="#control-ui-main" ?inert=${navDrawerOpen}>
         ${t("common.skipToMainContent")}
       </a>
@@ -469,6 +482,19 @@ export function renderApplicationShell(host: ShellViewHost) {
         ?inert=${navDrawerOpen}
         .resourceBasePath=${context.resourceBasePath}
         .environment=${config.environment}
+        .modeSwitchAgent=${{
+          id: selectedAgentId,
+          // Test shells mount partial contexts; every read here is guarded.
+          name: benchAgentDisplayName(
+            selectedAgentId,
+            context.agents?.state?.agentsList?.agents
+              .filter((agent) => normalizeAgentId(agent.id) === selectedAgentId)
+              .map((agent) => normalizeAgentLabel(agent))[0] ??
+              config?.assistantIdentity?.name ??
+              selectedAgentId ??
+              "",
+          ),
+        }}
         .navDrawerOpen=${navDrawerOpen}
         .onOpenPalette=${() => host.openPalette()}
         .onToggleDrawer=${(trigger: HTMLElement) => host.toggleNavigationSurface(trigger)}

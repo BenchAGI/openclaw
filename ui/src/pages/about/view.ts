@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from "lit";
 import type { ControlUiBuildInfo } from "../../build-info.ts";
+import { BENCH_LINKS } from "../../components/app-sidebar-agent-menu.ts";
 import { icons } from "../../components/icons.ts";
 import "../../components/openclaw-mascot.ts";
 import {
@@ -12,9 +13,7 @@ import "../../components/tooltip.ts";
 import { i18n, t } from "../../i18n/index.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "../../lib/external-link.ts";
 import { formatRelativeTimestamp } from "../../lib/format.ts";
-import { COMMUNITY_DISCORD_URL } from "../../lib/product-links.ts";
 import "../../styles/about.css";
-import { brandIcons } from "./brand-icons.ts";
 
 export type AboutCommitCopyState = "idle" | "copying" | "copied" | "error";
 
@@ -25,35 +24,22 @@ type AboutProps = {
   onCopyCommit: () => void;
   aureliusGreeting: boolean;
   onGreetAurelius: () => void;
+  /** Bench runtime line this build ships on (e.g. bench-runtime-2026.9.2). */
+  runtime?: string | null;
+  /** Cell name and signed-in user from the gateway; null hides the row. */
+  cell?: { name: string | null; user: string | null } | null;
 };
 
 const SHORT_COMMIT_LENGTH = 12;
 
-// Docs-first where a docs page exists; GitHub/Discord match the native
-// macOS/iOS About screens (AboutSettings.swift, SettingsProTabSections.swift).
+// Bench links for customers (UI-BRAND-CONTRACT §3), the same set as the
+// sidebar identity menu; the GitHub / Discord / X rows of the upstream About
+// screen do not ship in the Vault.
 const ABOUT_LINKS: ReadonlyArray<{ href: string; icon: TemplateResult; label: () => string }> = [
-  { href: "https://openclaw.ai", icon: icons.globe, label: () => t("aboutPage.linkWebsite") },
-  { href: "https://docs.openclaw.ai", icon: icons.book, label: () => t("aboutPage.linkDocs") },
-  {
-    href: "https://github.com/openclaw/openclaw",
-    icon: brandIcons.github,
-    label: () => t("aboutPage.linkGitHub"),
-  },
-  {
-    href: COMMUNITY_DISCORD_URL,
-    icon: brandIcons.discord,
-    label: () => t("aboutPage.linkDiscord"),
-  },
-  {
-    href: "https://x.com/openclaw",
-    icon: brandIcons.x,
-    label: () => t("aboutPage.linkX"),
-  },
-  {
-    href: "https://docs.openclaw.ai/releases",
-    icon: icons.scrollText,
-    label: () => t("aboutPage.linkChangelog"),
-  },
+  { href: BENCH_LINKS.website, icon: icons.globe, label: () => t("aboutPage.linkWebsite") },
+  { href: BENCH_LINKS.help, icon: icons.messageSquare, label: () => t("aboutPage.linkHelp") },
+  { href: BENCH_LINKS.whatsNew, icon: icons.scrollText, label: () => t("aboutPage.linkWhatsNew") },
+  { href: BENCH_LINKS.agents, icon: icons.users, label: () => t("aboutPage.linkAgents") },
 ];
 
 function formatControlUiBuildDate(
@@ -164,7 +150,10 @@ function renderHero(props: AboutProps) {
           .size=${168}
         ></openclaw-mascot>
       </button>
-      <h2 class="about-hero__name">${t("aboutPage.productName")}</h2>
+      <div class="about-hero__name-row">
+        <span class="about-hero__glyph" aria-hidden="true">${icons.benchGlyph}</span>
+        <h2 class="about-hero__name">${t("aboutPage.productName")}</h2>
+      </div>
       <p class="about-hero__tagline">${t("aboutPage.tagline")}</p>
       ${
         props.buildInfo.version
@@ -235,6 +224,31 @@ export function renderAbout(props: AboutProps) {
             : renderUnavailable()
         }
       </dd>
+      ${
+        props.runtime
+          ? html`
+              <dt>${t("aboutPage.runtime")}</dt>
+              <dd><code dir="ltr" title=${props.runtime}>${props.runtime}</code></dd>
+            `
+          : nothing
+      }
+      ${
+        props.cell
+          ? html`
+              <dt>${t("aboutPage.cell")}</dt>
+              <dd>
+                ${
+                  props.cell.user
+                    ? t("aboutPage.cellSignedIn", {
+                        cell: props.cell.name ?? t("aboutPage.cellLocal"),
+                        user: props.cell.user,
+                      })
+                    : (props.cell.name ?? t("aboutPage.cellLocal"))
+                }
+              </dd>
+            `
+          : nothing
+      }
     </dl>
   `;
   return renderSettingsPage([

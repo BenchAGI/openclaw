@@ -12,6 +12,10 @@ export type ThemeName =
   | "manuscript"
   | "rose"
   | "miami"
+  | "bench"
+  | "bench-garden"
+  | "bench-forge"
+  | "bench-aurelius"
   | "custom";
 export type ThemeMode = "system" | "light" | "dark";
 export type ResolvedTheme =
@@ -37,8 +41,31 @@ export type ResolvedTheme =
   | "rose-light"
   | "miami"
   | "miami-light"
+  | "bench"
+  | "bench-light"
+  | "bench-garden"
+  | "bench-garden-light"
+  | "bench-forge"
+  | "bench-forge-light"
+  | "bench-aurelius"
+  | "bench-aurelius-light"
   | "custom"
   | "custom-light";
+
+// Bench fork families. Appended after upstream's eleven everywhere (theme.ts,
+// index.html boot map, wire enum, appearance cards, locales, typography) so
+// upstream merges stay insert-only; `bench` is the fork default.
+export const BENCH_THEME_FAMILIES = [
+  "bench",
+  "bench-garden",
+  "bench-forge",
+  "bench-aurelius",
+] as const satisfies readonly ThemeName[];
+export type BenchThemeFamily = (typeof BENCH_THEME_FAMILIES)[number];
+
+export function isBenchThemeFamily(theme: ThemeName): theme is BenchThemeFamily {
+  return (BENCH_THEME_FAMILIES as readonly ThemeName[]).includes(theme);
+}
 
 const VALID_THEME_NAMES = new Set<ThemeName>([
   "claw",
@@ -52,6 +79,7 @@ const VALID_THEME_NAMES = new Set<ThemeName>([
   "manuscript",
   "rose",
   "miami",
+  ...BENCH_THEME_FAMILIES,
   "custom",
 ]);
 
@@ -71,7 +99,10 @@ export function parseThemeSelection(
   const theme = typeof themeRaw === "string" ? themeRaw : "";
   const mode = typeof modeRaw === "string" ? modeRaw : "";
 
-  const normalizedTheme = VALID_THEME_NAMES.has(theme as ThemeName) ? (theme as ThemeName) : "claw";
+  // Bench build: the brand theme is the default for fresh profiles.
+  const normalizedTheme = VALID_THEME_NAMES.has(theme as ThemeName)
+    ? (theme as ThemeName)
+    : "bench";
   const normalizedMode = VALID_THEME_MODES.has(mode as ThemeMode) ? (mode as ThemeMode) : "system";
 
   return { theme: normalizedTheme, mode: normalizedMode };

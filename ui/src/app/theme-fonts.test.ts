@@ -4,6 +4,7 @@ import {
   applyTypefaceOverrides,
   loadTypefaceSpecimens,
   normalizeTypefaceOverride,
+  resolveDisplayTypeface,
   resolveTypefaces,
   syncTypefaceStylesheets,
   TYPEFACES,
@@ -47,6 +48,32 @@ describe("typeface presentation", () => {
         .filter((face) => face !== "system")
         .map((face) => `/fonts/${face}.css`),
     );
+  });
+
+  it.each([
+    ["bench", ["instrument-sans", "instrument-sans"], "space-grotesk"],
+    ["bench-garden", ["instrument-sans", "lora"], "lora"],
+    ["bench-forge", ["instrument-sans", "instrument-sans"], "space-grotesk"],
+    ["bench-aurelius", ["instrument-sans", "instrument-sans"], "lora"],
+  ] as const)(
+    "loads %s's default faces plus its display face and the shared mono face",
+    (theme, [ui, chat], display) => {
+      const faces = resolveTypefaces(theme);
+      expect(faces).toEqual({ ui, chat });
+      expect(resolveDisplayTypeface(theme)).toBe(display);
+      syncTypefaceStylesheets(faces, theme);
+      // Bench palettes point --font-display at a third face; it is declared with
+      // the pair so headlines never fall through to the system stack.
+      expect(hrefs()).toEqual(
+        [...new Set([ui, chat, display, "jetbrains-mono"])].map((face) => `/fonts/${face}.css`),
+      );
+    },
+  );
+
+  it("declares no display face for upstream families", () => {
+    expect(resolveDisplayTypeface("miami")).toBeUndefined();
+    syncTypefaceStylesheets(resolveTypefaces("miami"), "miami");
+    expect(hrefs()).toEqual(["/fonts/space-grotesk.css", "/fonts/jetbrains-mono.css"]);
   });
 
   it("loads overrides once, retaining them without fetching for system or custom defaults", () => {

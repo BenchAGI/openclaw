@@ -1,0 +1,171 @@
+/* Aurelius palette; selected by index.html and app/theme.ts. */
+
+:root[data-theme="bench-aurelius"] {
+  /*
+   * Accent — gold rim-light on near-black: the planetarium stage.
+   *
+   * The Bench "Aurelius" family (UI-BRAND-CONTRACT §1.5), lifted from the
+   * Aurelius stage tokens (--ax-*): #07070a stage black, gold #e7c182 as the
+   * text-carrying accent with an amber glow, a deeper gold fill for buttons
+   * with dark ink, and Infrared stepping back to the second series. Display
+   * type in Lora; chrome and chat in Instrument Sans.
+   *
+   * WCAG 2.1 AA audit (bg = #07070a, relative luminance ≈ 0.0022):
+   *   --accent #e7c182  contrast ≈ 11.8:1 AAA ✓ (11.4:1 on --card)
+   *   --primary-foreground #1a1206 on #b9925a button: 6.5:1 AA ✓
+   *   --primary-foreground #1a1206 on #c9a26a hover: 7.8:1 AAA ✓
+   *   --destructive-foreground #fafafa on #d32f2f button: 4.8:1 AA ✓
+   *   body text --text #c9c4b8: 11.6:1 ✓
+   *   worst text pairing --muted on --bg-muted: 5.0:1 ✓
+   *   --accent-2 #ff2d55 on bg: 5.5:1 ✓
+   */
+  --ring: #e7c182;
+  --accent: #e7c182;
+  --accent-hover: #f2d5a3;
+  --accent-muted: #e7c182;
+  --accent-subtle: rgba(231, 193, 130, 0.1);
+  /* The --ax-amber-glow rim from the Aurelius stage. */
+  --accent-glow: rgba(255, 178, 122, 0.3);
+  --primary: #b9925a;
+  --primary-hover: #c9a26a;
+  --primary-foreground: #1a1206;
+
+  --destructive: #d32f2f;
+  --destructive-hover: #bc2a2a;
+  --destructive-foreground: #fafafa;
+
+  --focus: rgba(231, 193, 130, 0.2);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 70%, transparent);
+  --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 16px var(--accent-glow);
+
+  --bg: #07070a;
+  --bg-accent: #0b0b10;
+  --bg-elevated: #14141b;
+  --bg-hover: #1b1b24;
+  --bg-muted: #1b1b24;
+
+  --card: #0d0d12;
+  --card-foreground: #ede8dd;
+  --card-highlight: rgba(250, 246, 238, 0.04);
+  --popover: #14141b;
+  --popover-foreground: #ede8dd;
+
+  --panel: #07070a;
+  --panel-strong: #14141b;
+  --panel-hover: #1b1b24;
+  --chrome: rgba(7, 7, 10, 0.96);
+  --chrome-strong: rgba(7, 7, 10, 0.98);
+
+  --text: #c9c4b8;
+  --text-strong: #faf6ee;
+  --chat-text: #c9c4b8;
+  --muted: #8d8a82;
+  --muted-strong: #a09c93;
+  --muted-foreground: #8d8a82;
+
+  --border: #1c1c24;
+  --border-strong: #26262f;
+  --border-hover: #363642;
+  --input: #1c1c24;
+
+  --secondary: #0d0d12;
+  --secondary-foreground: #ede8dd;
+  /* Infrared steps back to the second series on the stage. */
+  --accent-2: #ff2d55;
+  --accent-2-muted: rgba(255, 45, 85, 0.7);
+  --accent-2-subtle: rgba(255, 45, 85, 0.12);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
+  --overlay-shadow: var(--shadow-md);
+
+  --grid-line: rgba(250, 246, 238, 0.035);
+
+  /* Typography — Instrument Sans chrome and chat; Lora (fonts/lora.css) display. */
+  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Lora", Georgia, "Times New Roman", serif;
+  --font-chat: var(--font-body);
+}
+
+:root[data-theme="bench-aurelius-light"] {
+  /*
+   * Accent — bronze on warm ivory.
+   *
+   * WCAG 2.1 AA audit (bg = #fbf7f2, relative luminance ≈ 0.934):
+   *   --accent #8a6a2c  contrast ≈ 4.7:1 AA text ✓ (5.0:1 on --card)
+   *   --primary-foreground #1a1206 on #b9925a button: 6.5:1 AA ✓
+   *   --destructive-foreground #ffffff on #b3261e button: 6.5:1 AA ✓
+   *   body text --text #2b2620: 14.1:1 ✓
+   *   worst text pairing --muted on --bg-muted: 5.6:1 ✓
+   *   --accent-2 #d40f3f on bg: 5.0:1 ✓
+   */
+  --ring: #8a6a2c;
+  --accent: #8a6a2c;
+  --accent-hover: #6e5320;
+  --accent-muted: #8a6a2c;
+  --accent-subtle: rgba(138, 106, 44, 0.1);
+  --accent-glow: rgba(138, 106, 44, 0.14);
+  --primary: #b9925a;
+  --primary-hover: #a6824f;
+  --primary-foreground: #1a1206;
+
+  --destructive: #b3261e;
+  --destructive-hover: #9c2119;
+  --destructive-foreground: #ffffff;
+
+  --bg: #fbf7f2;
+  --bg-accent: #f4eee5;
+  --bg-elevated: #ffffff;
+  --bg-hover: #ece4d8;
+  --bg-muted: #ece4d8;
+  --bg-content: #f7f1e9;
+
+  --card: #ffffff;
+  --card-foreground: #2b2620;
+  --card-highlight: rgba(18, 16, 12, 0.02);
+  --popover: #ffffff;
+  --popover-foreground: #2b2620;
+  --session-hovercard-surface: var(--card);
+  --session-hovercard-progress-surface: color-mix(
+    in srgb,
+    var(--card) 52%,
+    var(--panel-strong) 48%
+  );
+
+  --panel: #fbf7f2;
+  --panel-strong: #f4eee5;
+  --panel-hover: #e6dccd;
+  --chrome: rgba(251, 247, 242, 0.96);
+  --chrome-strong: rgba(251, 247, 242, 0.98);
+
+  --text: #2b2620;
+  --text-strong: #12100c;
+  --chat-text: #2b2620;
+  --muted: #5f584e;
+  --muted-strong: #4c463e;
+  --muted-foreground: #5f584e;
+
+  --border: #e6ddd0;
+  --border-strong: #dfd6c8;
+  --border-hover: #c4b8a6;
+  --input: #e6ddd0;
+
+  --secondary: #f4eee5;
+  --secondary-foreground: #2b2620;
+  --accent-2: #d40f3f;
+  --accent-2-muted: rgba(212, 15, 63, 0.75);
+  --accent-2-subtle: rgba(212, 15, 63, 0.1);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.1);
+  --overlay-shadow: var(--shadow-md);
+
+  --grid-line: rgba(18, 16, 12, 0.05);
+
+  /* Typography — see the dark block. */
+  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Lora", Georgia, "Times New Roman", serif;
+  --font-chat: var(--font-body);
+}

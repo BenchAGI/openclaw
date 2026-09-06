@@ -505,6 +505,24 @@ const enSettings = {
         label: "Miami",
         description: "Magenta & cyan",
       },
+      // Card labels stay one line (upstream's rule); the family's full name
+      // leads the description (UI-BRAND-CONTRACT §2, design seat 2026-09-06).
+      bench: {
+        label: "Infrared",
+        description: "Bench Infrared: obsidian ink, Infrared spark. The Bench default.",
+      },
+      "bench-garden": {
+        label: "Garden",
+        description: "Secret Garden: slate and gold with a reading serif.",
+      },
+      "bench-forge": {
+        label: "Forge",
+        description: "Ink with the Forge cyan spark.",
+      },
+      "bench-aurelius": {
+        label: "Aurelius",
+        description: "The planetarium stage: gold rim-light on near-black.",
+      },
     },
     textSizes: {
       small: "Small",
@@ -574,6 +592,12 @@ const enSettings = {
       intro: "Theme, chat, and sidebar preferences for this Control UI client.",
       theme: "Theme",
       chooseTheme: "Choose a theme family.",
+      moreThemes: "More themes",
+      backgroundMotion: "Background",
+      backgroundMotionToggle: "Background motion",
+      backgroundMotionOn: "The gravity fabric drifts behind your workspace.",
+      backgroundMotionOff: "The background stays still.",
+      backgroundMotionHint: "Bench themes only; your system's reduced-motion setting always wins.",
       typography: "Typography",
       fonts: {
         ui: "Interface",

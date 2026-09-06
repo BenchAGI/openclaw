@@ -470,6 +470,14 @@ describe("chat pane header", () => {
     ).toEqual(["chat-pane__header-leading", "chat-pane__header-trailing"]);
   });
 
+  it("renders the Vault ↔ App mode switch first in the trailing cluster", () => {
+    const { container } = mountHeader({
+      modeSwitch: html`<span data-slot="mode-switch"></span>`,
+    });
+    const trailing = container.querySelector(".chat-pane__header-trailing");
+    expect(trailing?.firstElementChild?.getAttribute("data-slot")).toBe("mode-switch");
+  });
+
   it("leads with the project, then a separator, then the session title", () => {
     const { container } = mountHeader();
     const crumbs = container.querySelector(".chat-pane__crumbs");
