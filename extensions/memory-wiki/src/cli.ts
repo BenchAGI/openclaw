@@ -485,6 +485,9 @@ function addWikiApplyMutationOptions<T extends Command>(command: T): T {
     .option("--status <status>", "Page status");
 }
 
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export async function runWikiStatus(params: {
   config: ResolvedMemoryWikiConfig;
   appConfig?: OpenClawConfig;

@@ -13,8 +13,8 @@ import path from "node:path";
 
 const HOUR_MS = 3600 * 1000;
 
-export type CheckStatus = "ok" | "fail" | "skipped" | "error";
-export type Check = { name: string; status: CheckStatus; detail: string };
+type CheckStatus = "ok" | "fail" | "skipped" | "error";
+type Check = { name: string; status: CheckStatus; detail: string };
 export type Verdict = {
   ok: boolean;
   degraded: boolean;
@@ -41,12 +41,15 @@ export type CheckOptions = {
 
 // ---- pure check logic (unit-tested) -------------------------------------------
 
-export function sha1(buf: Buffer | string): string {
+function sha1(buf: Buffer | string): string {
   return createHash("sha1").update(buf).digest("hex");
 }
 
 // CORE.md must be regenerated recently AND reflect the current MEMORY.md. Cadence-relative: the default
 // 26h tolerates a once-daily reconcile; the 30-min reconcile sets a lower cap so the assertion tightens.
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function coreFreshnessCheck(params: {
   coreText: string | null;
   memoryMtimeMs: number | null;
@@ -88,6 +91,9 @@ export function coreFreshnessCheck(params: {
 }
 
 // The 120s bus syncer must be alive + converged. Reads the EXISTING refs + the sync log — never fetches.
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function busLivenessCheck(params: {
   logTail: string;
   head: string | null;
@@ -147,6 +153,9 @@ export function busLivenessCheck(params: {
 }
 
 // Exactly one live-plate block, and no duplicated heading lines (the union-merge duplication canary).
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function plateDuplicationCheck(params: { memoryText: string }): Check {
   const name = "plate+dup";
   const text = params.memoryText ?? "";
@@ -182,6 +191,9 @@ export function plateDuplicationCheck(params: { memoryText: string }): Check {
   return { name, status: "ok", detail: "one live-plate block, no duplicated headings" };
 }
 
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function summarize(
   checks: Check[],
 ): Pick<Verdict, "ok" | "degraded" | "failed" | "errored"> {

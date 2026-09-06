@@ -294,7 +294,7 @@ function mergeClaudeSettingsJson(existing: string, patch: Record<string, unknown
  * shallow-merged (patch wins) so we never emit conflicting duplicate flags. When
  * no inline settings exist (the common case) the patch is appended as a fresh arg.
  */
-export function injectClaudeSettings(
+function injectClaudeSettings(
   args: readonly string[],
   patch: Record<string, unknown>,
 ): string[] {

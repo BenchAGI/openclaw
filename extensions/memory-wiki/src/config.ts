@@ -143,6 +143,9 @@ function normalizeInstanceId(value: string | undefined | null): string | undefin
 }
 
 /** Bench fork: default global-scope vault, scoped by instanceId (invalid ids fall back to main). */
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function resolveDefaultMemoryWikiVaultPath(
   homedir = os.homedir(),
   instanceId?: string,

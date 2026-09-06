@@ -14,11 +14,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 /** Subdirectory under <workspace>/memory where promoted seat memories land. */
-export const PROMOTED_SUBDIR = "seat";
+const PROMOTED_SUBDIR = "seat";
 /** Marker value written into the provenance block; identifies our artifacts. */
-export const PROMOTION_SOURCE_MARKER = "benchagi-seat-bridge";
+const PROMOTION_SOURCE_MARKER = "benchagi-seat-bridge";
 
-export type PromoteFileStatus =
+type PromoteFileStatus =
   | "created"
   | "updated"
   | "unchanged"
@@ -42,7 +42,7 @@ export type PromoteFileSource = {
   seatKind?: string;
 };
 
-export type PromoteFileResult = {
+type PromoteFileResult = {
   slug: string;
   target: string;
   status: PromoteFileStatus;
@@ -64,6 +64,9 @@ export type PromoteFileSummary = {
 // --- frontmatter helpers (minimal; no YAML dependency) -----------------------
 
 /** Split a markdown document into its leading YAML frontmatter and body. */
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function splitFrontmatter(raw: string): { frontmatter: string | null; body: string } {
   const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   if (match) {
@@ -73,7 +76,7 @@ export function splitFrontmatter(raw: string): { frontmatter: string | null; bod
 }
 
 /** Read a top-level or nested scalar from a frontmatter block by key name. */
-export function readFrontmatterField(frontmatter: string | null, key: string): string | undefined {
+function readFrontmatterField(frontmatter: string | null, key: string): string | undefined {
   if (!frontmatter) {
     return undefined;
   }
@@ -106,6 +109,9 @@ function unquoteScalar(value: string): string {
 }
 
 /** True only for files we previously wrote (carry our promotion marker). */
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function isPromotedArtifact(existing: string): boolean {
   const { frontmatter } = splitFrontmatter(existing);
   if (!frontmatter) {
@@ -117,6 +123,9 @@ export function isPromotedArtifact(existing: string): boolean {
 // --- slug + hash -------------------------------------------------------------
 
 /** Deterministic, traversal-safe slug from frontmatter `name` or basename. */
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function promotionSlug(sourcePath: string, frontmatterName?: string): string {
   const base =
     (frontmatterName && frontmatterName.trim()) || path.basename(sourcePath).replace(/\.md$/i, "");
@@ -130,6 +139,9 @@ export function promotionSlug(sourcePath: string, frontmatterName?: string): str
 }
 
 /** sha256 of the normalized source content; the dedup key. */
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function contentHashOf(content: string): string {
   const normalized = content
     .replace(/\r\n/g, "\n")
@@ -162,6 +174,7 @@ const SECRET_PATTERNS: Array<{ name: string; re: RegExp }> = [
  * Detect high-confidence secret VALUES (not prose mentioning "token").
  * Returns the matched pattern names only — never the matched span — so callers
  * can log/report a block without leaking the secret.
+ * @public Bench fork: exercised directly by its test.
  */
 export function detectSecrets(content: string): string[] {
   const hits: string[] = [];
@@ -220,6 +233,7 @@ function buildPromotionBlock(args: {
  * block injected into its frontmatter (or a fresh frontmatter if it had none).
  * Source frontmatter fields (name/description/type/originSessionId) are
  * preserved untouched — no YAML re-serialization.
+ * @public Bench fork: exercised directly by its test.
  */
 export function renderPromotedMemory(source: PromoteFileSource, promotionBlock: string): string {
   const { frontmatter, body } = splitFrontmatter(source.content);
@@ -238,6 +252,7 @@ const DEFAULT_PROMOTER_VERSION = "memory-core/promote-file@1";
  * Idempotent: deterministic target by slug; content-hash skip; full-file
  * replace (never append); refuses to clobber hand-authored memory; suffixes
  * the slug on a cross-source collision. Does NOT reindex (caller syncs once).
+ * @public Bench fork: exercised directly by its test.
  */
 export async function writePromotedMemoryFile(args: {
   workspaceDir: string;

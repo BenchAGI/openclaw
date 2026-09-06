@@ -1,4 +1,4 @@
-export type CliThinkingLevel = "off" | "low" | "medium" | "high" | "xhigh";
+type CliThinkingLevel = "off" | "low" | "medium" | "high" | "xhigh";
 
 export type BenchCloudBridgeConfig = {
   enabled: boolean;
@@ -39,7 +39,7 @@ export type BenchCloudCliTurnCreateResponse =
       instanceId: string;
     };
 
-export type BenchCloudCliTurnNonCompletedStatus =
+type BenchCloudCliTurnNonCompletedStatus =
   | "pending-approval"
   | "pending"
   | "leased"
@@ -70,7 +70,7 @@ export type BenchCloudCliTurnStatusResponse =
       error?: { code?: string; message?: string };
     };
 
-export class BenchCloudBridgeError extends Error {
+class BenchCloudBridgeError extends Error {
   readonly status?: number;
   readonly code?: string;
 
@@ -194,6 +194,9 @@ export async function createBenchCloudCliTurn(params: {
   return assertTurnCreateResponse(body);
 }
 
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export async function readBenchCloudCliTurnStatus(params: {
   config: BenchCloudBridgeConfig;
   authToken: string;

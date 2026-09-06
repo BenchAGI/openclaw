@@ -309,7 +309,7 @@ export function buildAnthropicCliBackend(
  * turn routes to its distinct, allowlisted model id (per-request, via the
  * x-openclaw-model header). The base `claude-cli` backend stays ultracode-off.
  */
-export const CLAUDE_CLI_ULTRACODE_BACKEND_ID = "claude-cli-ultracode";
+const CLAUDE_CLI_ULTRACODE_BACKEND_ID = "claude-cli-ultracode";
 
 /**
  * Build the ultracode-enabled Claude CLI backend variant. Identical to the base

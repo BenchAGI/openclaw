@@ -120,6 +120,9 @@ export function buildSlackManifest(botName = "OpenClaw", mode: SlackManifestMode
   return JSON.stringify(manifest, null, 2);
 }
 
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function buildSlackSetupChoiceLines(): string[] {
   return [
     "Slack can be installed as an Agent experience or an ordinary bot.",

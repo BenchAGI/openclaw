@@ -32,7 +32,7 @@ import { resolveMemorySearchConfig } from "./memory-search.js";
 export const TIER1_FILE_NAME = "RETRIEVED-CONTEXT-TIER1.md";
 
 /** Durable observability trace, independent of subsystem log routing. */
-export const TIER1_DIAG_LOG = path.join(os.homedir(), ".openclaw", "logs", "tier1-retrieval.jsonl");
+const TIER1_DIAG_LOG = path.join(os.homedir(), ".openclaw", "logs", "tier1-retrieval.jsonl");
 
 function appendTier1DiagLine(line: string): void {
   mkdirSync(path.dirname(TIER1_DIAG_LOG), { recursive: true });
@@ -68,12 +68,12 @@ const DEFAULT_MIN_SCORE = 0.45;
 const DEFAULT_MAX_BYTES = 1600;
 const DEFAULT_TIMEOUT_MS = 1200;
 /** Hard ceilings for caller-supplied overrides — Tier-1 stays small by contract. */
-export const MAX_RESULTS_OVERRIDE_CAP = 8;
-export const MAX_BYTES_OVERRIDE_CAP = 8192;
+const MAX_RESULTS_OVERRIDE_CAP = 8;
+const MAX_BYTES_OVERRIDE_CAP = 8192;
 
 const TIMEOUT = Symbol("tier1-timeout");
 
-export type Tier1RetrievalReason =
+type Tier1RetrievalReason =
   | "disabled"
   | "no-signal"
   | "unavailable"
@@ -125,6 +125,7 @@ export type Tier1RetrievalParams = {
 /**
  * Strips bot-mention / slash-command prefixes and collapses whitespace so the
  * retrieval query reflects the user's actual topic, capped to a sane length.
+ * @public Bench fork: exercised directly by its test.
  */
 export function cleanTier1Query(promptText: string): string {
   if (typeof promptText !== "string") {
@@ -174,6 +175,7 @@ function truncateToBytes(text: string, maxBytes: number): string {
  * Renders the byte-bounded synthetic file body. Stops appending once the cap is
  * reached; truncates a final oversized snippet rather than dropping it whole.
  * Returns the body and how many hits were actually included.
+ * @public Bench fork: exercised directly by its test.
  */
 export function renderTier1Body(
   query: string,
@@ -406,6 +408,7 @@ export async function buildTier1RetrievalContextFile(
  * below cfg.minScore. Catches the topically-adjacent hard negatives the embedder alone can't
  * separate. FAIL-OPEN: on any error/timeout/empty/invalid response it returns the input
  * candidates unchanged — the rerank can refine, never drop, retrieval. Bounded by cfg.timeoutMs.
+ * @public Bench fork: exercised directly by its test.
  */
 export async function rerankTier1Candidates(
   query: string,

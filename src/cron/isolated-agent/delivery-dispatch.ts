@@ -85,6 +85,9 @@ const POLICY_BLOCKED_SUPPRESSION_REASONS: ReadonlySet<string> = new Set([
 ]);
 
 /** Returns the policy-gate cancellation reason when a batch send was hook-suppressed. */
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function resolvePolicyBlockedSendReason(send: {
   status: string;
   reason?: string;
