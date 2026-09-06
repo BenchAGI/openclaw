@@ -484,11 +484,15 @@ export function renderApplicationShell(host: ShellViewHost) {
         .environment=${config.environment}
         .modeSwitchAgent=${{
           id: selectedAgentId,
+          // Test shells mount partial contexts; every read here is guarded.
           name: benchAgentDisplayName(
             selectedAgentId,
-            context.agents.state.agentsList?.agents
+            context.agents?.state?.agentsList?.agents
               .filter((agent) => normalizeAgentId(agent.id) === selectedAgentId)
-              .map((agent) => normalizeAgentLabel(agent))[0] ?? config.assistantIdentity.name,
+              .map((agent) => normalizeAgentLabel(agent))[0] ??
+              config?.assistantIdentity?.name ??
+              selectedAgentId ??
+              "",
           ),
         }}
         .navDrawerOpen=${navDrawerOpen}
