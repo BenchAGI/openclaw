@@ -97,8 +97,15 @@ reds. One cause per commit, in order:
   fallback reasoning-tag tests accept the #66 banner prefix; `models-cli.auth-login` keeps the
   setup-registry surface (#75).
 - Behaviour reconciliations: #107 exempts terminally failed harness turns (upstream keeps their
-  own error); #100 lets identityless uncertainty outrank a policy block, clears the failed error
-  when a retry delivers, and keeps the transcript when required delivery is vetoed.
+  own error); #100 lets identityless uncertainty outrank a policy block, lets the batch outcome
+  (not the per-payload best-effort hook) own failure state so a proven-not-sent attempt that
+  succeeds on retry reads delivered, keeps upstream's "suppressed" wording on a policy veto, and
+  keeps the transcript when required delivery is vetoed.
+- `config/env-var-count-budget.txt` 498→505 for the seven fork-owned `OPENCLAW_*` names
+  (`OPENCLAW_TURN_IDLE_BUDGET_MS`, four `OPENCLAW_BRIDGE_*`, `OPENCLAW_CONFIG`); the file asks
+  for owner approval, recorded in the PR body for Cory.
+- The `agents-other` tsgo shard lists the two fork tests under `files` together with the base
+  declaration files (a child `files` list replaces the inherited one).
 
 ## Follow-ups (explicitly not done here)
 
