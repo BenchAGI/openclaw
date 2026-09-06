@@ -1089,3 +1089,4 @@ describe("inspectMemoryTapSearchHealth", () => {
     expect(inspectMemoryTapSearchHealth({ cfg, agentId: "main" })).toEqual(expected);
   });
 });
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

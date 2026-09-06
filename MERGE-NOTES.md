@@ -81,7 +81,15 @@ separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
 - Regenerate protocol clients (`pnpm protocol:gen`, `protocol:gen:swift`, `protocol:gen:kotlin`)
   for `context`, `reasoningLevel`, `cloudAuth`, and local-seat — done on Prime as a
   separate commit if the check fails.
-- The cloud-brain bridge (#82) must be smoke-tested on a Vault box before a release cut.
+- **Release gate:** the cloud-brain bridge (#82) must pass a live Vault chat.send smoke
+  before any `v2026.9.2-bench.1` tag (Vault seat owns the smoke; not a merge gate).
+- `zod-schema.root-shape.ts` gained only the root `instanceId` field (the PR A seat asked for
+  this file to stay at the 9.2 shape; the one-key addition is the whole fork delta).
+- Gate housekeeping in this branch: `docs/.generated/config-baseline.counts.json` raised
+  core 2419→2449 / plugin 4052→4109 (fork config keys: `gateway.benchCloud`,
+  `sseKeepaliveIntervalMs`, `instanceId`, `memory.search.query.{tier1,reranker}`, `aliases`,
+  memory-wiki `instanceId`); `scripts/check-protocol-registry.mts` owner-module count 64→65
+  for `schema/local-seat.ts`; grandfathered `max-lines` pragmas on eleven fork-touched files.
 - `src/commands/agent.runtime-config.test.ts` is upstream's; the fork's reranker-target
   test is replaced by `command-secret-targets.test.ts` + `runtime-provider-and-media-surfaces.test.ts`.
 - #110/#114/#115/#116–#120 retarget onto this head (backlog seat).

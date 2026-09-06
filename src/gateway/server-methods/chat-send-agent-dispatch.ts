@@ -328,7 +328,7 @@ export function startChatDispatch(params: StartChatDispatchParams): void {
             authToken: normalizeCloudAuthToken(p.cloudAuth),
           };
           if (canAttemptBenchCloudBridge(bridgeAttempt)) {
-            const turn = await createCliRemoteBrainTurn({
+            const remoteTurn = await createCliRemoteBrainTurn({
               config: bridgeAttempt.config,
               authToken: bridgeAttempt.authToken,
               signal: activeRunAbort.controller.signal,
@@ -342,13 +342,13 @@ export function startChatDispatch(params: StartChatDispatchParams): void {
                 attachmentCount: imageOrder.length,
               },
             });
-            if (turn.dispatch === "remote-brain") {
+            if (remoteTurn.dispatch === "remote-brain") {
               remoteBrainHandled = true;
               assertWorkspaceRunOwnership?.();
               const status = await pollBenchCloudCliTurnStatus({
                 config: bridgeAttempt.config,
                 authToken: bridgeAttempt.authToken,
-                statusUrl: turn.statusUrl,
+                statusUrl: remoteTurn.statusUrl,
                 signal: activeRunAbort.controller.signal,
               });
               if (activeRunAbort.controller.signal.aborted) {
@@ -810,3 +810,4 @@ function normalizeCliThinkingLevel(value: string | undefined) {
   }
   return undefined;
 }
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

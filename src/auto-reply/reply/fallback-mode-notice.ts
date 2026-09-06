@@ -63,13 +63,20 @@ export function mergeFallbackModeExecutionTrace(params: {
     ? (params.executionTrace?.attempts ?? []).filter((attempt) => attempt.result !== "success")
     : (params.executionTrace?.attempts ?? []);
   const attempts: FallbackModeAttempt[] = [
-    ...(params.fallbackAttempts ?? []).map((attempt) => ({
-      provider: attempt.provider,
-      model: attempt.model,
-      result: "error",
-      ...(attempt.reason ? { reason: attempt.reason } : {}),
-      ...(typeof attempt.status === "number" ? { status: attempt.status } : {}),
-    })),
+    ...(params.fallbackAttempts ?? []).map((attempt) => {
+      const entry: FallbackModeAttempt = {
+        provider: attempt.provider,
+        model: attempt.model,
+        result: "error",
+      };
+      if (attempt.reason) {
+        entry.reason = attempt.reason;
+      }
+      if (typeof attempt.status === "number") {
+        entry.status = attempt.status;
+      }
+      return entry;
+    }),
     ...executionAttempts,
   ];
   const winnerProvider = params.exhausted

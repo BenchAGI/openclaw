@@ -1091,3 +1091,4 @@ describe("normalizeClaudeBackendConfig", () => {
     expectDefaultDisallowedTools(backend.config.resumeArgs);
   });
 });
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

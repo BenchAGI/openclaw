@@ -461,19 +461,19 @@ describe("sendMessageSlack file upload with user IDs", () => {
   });
 
   it("opens an MPIM before posting to a comma-delimited user target", async () => {
-    const client = createUploadTestClient();
-    client.conversations.open.mockResolvedValueOnce({ channel: { id: "G99RESOLVED" } });
+    const mpimClient = createUploadTestClient();
+    mpimClient.conversations.open.mockResolvedValueOnce({ channel: { id: "G99RESOLVED" } });
 
     const result = await sendMessageSlack("user:U11111111,U22222222,U33333333", "hello team", {
       token: "xoxb-test",
       cfg: SLACK_TEST_CFG,
-      client,
+      mpimClient,
     });
 
-    expectOnlyCallFirstArg(client.conversations.open, {
+    expectOnlyCallFirstArg(mpimClient.conversations.open, {
       users: "U11111111,U22222222,U33333333",
     });
-    expectOnlyCallFirstArg(client.chat.postMessage, {
+    expectOnlyCallFirstArg(mpimClient.chat.postMessage, {
       channel: "G99RESOLVED",
       text: "hello team",
     });
@@ -1120,3 +1120,4 @@ describe("sendMessageSlack file upload with user IDs", () => {
     },
   );
 });
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

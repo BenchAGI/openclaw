@@ -1146,3 +1146,4 @@ describe("memory wiki source sync state", () => {
     ).toThrow("Memory Wiki source sync state exceeds SQLite entry limit");
   });
 });
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

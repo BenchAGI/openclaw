@@ -1075,3 +1075,4 @@ describe("command secret target ids", () => {
     expect(scoped.allowedPaths).toEqual(new Set());
   });
 });
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

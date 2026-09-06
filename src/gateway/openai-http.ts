@@ -1636,4 +1636,10 @@ export async function handleOpenAiHttpRequest(
 
   return true;
 }
+export const testOnlyOpenAiHttp = {
+  resolveImagesForRequest,
+  resolveOpenAiChatCompletionsLimits,
+  resolveChatCompletionUsage,
+};
+
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

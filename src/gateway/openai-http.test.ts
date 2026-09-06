@@ -3519,8 +3519,8 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
           async ({ port }) => {
             let serverAbortSignal: AbortSignal | undefined;
 
-            agentCommand.mockClear();
-            agentCommand.mockImplementationOnce(
+            agentCommandMock.mockClear();
+            agentCommandMock.mockImplementationOnce(
               (opts: unknown) =>
                 new Promise<undefined>((resolve) => {
                   const signal = (opts as { abortSignal?: AbortSignal } | undefined)?.abortSignal;

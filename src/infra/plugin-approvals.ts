@@ -122,9 +122,13 @@ export const TURN_IDLE_REPLY_RESERVE_MS = 15_000;
 
 function resolveTurnIdleBudgetMs(): number {
   const raw = process.env.OPENCLAW_TURN_IDLE_BUDGET_MS;
-  if (raw === undefined || raw.trim() === "") return DEFAULT_TURN_IDLE_BUDGET_MS;
+  if (raw === undefined || raw.trim() === "") {
+    return DEFAULT_TURN_IDLE_BUDGET_MS;
+  }
   const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_TURN_IDLE_BUDGET_MS;
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return DEFAULT_TURN_IDLE_BUDGET_MS;
+  }
   return Math.floor(parsed);
 }
 
@@ -138,7 +142,9 @@ function resolveTurnIdleBudgetMs(): number {
  */
 export function resolveApprovalWaitCeilingMs(): number {
   const budget = resolveTurnIdleBudgetMs();
-  if (budget <= 0) return MAX_PLUGIN_APPROVAL_TIMEOUT_MS;
+  if (budget <= 0) {
+    return MAX_PLUGIN_APPROVAL_TIMEOUT_MS;
+  }
   const ceiling = budget - TURN_IDLE_REPLY_RESERVE_MS;
   // A budget at or below the reserve leaves no safe window; fall back to half of it
   // rather than returning zero or negative and blocking approvals outright.
