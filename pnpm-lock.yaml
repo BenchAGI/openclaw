@@ -1447,6 +1447,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/memory-durability:
+    dependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/memory-lancedb:
     dependencies:
       apache-arrow:
@@ -1917,6 +1930,12 @@ importers:
         version: link:../../packages/plugin-sdk
 
   extensions/senseaudio:
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+
+  extensions/session-digest:
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
