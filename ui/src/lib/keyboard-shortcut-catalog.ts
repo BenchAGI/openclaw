@@ -44,6 +44,8 @@ const KEYBOARD_SHORTCUT_SECTIONS = [
     keyboardShortcutEntry("toggleSidebar", KEYBOARD_SHORTCUT_COMBOS.toggleSidebar),
     keyboardShortcutEntry("debugOverlay", KEYBOARD_SHORTCUT_COMBOS.debugOverlay),
     keyboardShortcutEntry("appearanceSettings", KEYBOARD_SHORTCUT_COMBOS.appearanceSettings),
+    keyboardShortcutEntry("vaultMode", KEYBOARD_SHORTCUT_COMBOS.vaultMode),
+    keyboardShortcutEntry("appMode", KEYBOARD_SHORTCUT_COMBOS.appMode),
     keyboardShortcutEntry("startNewSession", KEYBOARD_SHORTCUT_COMBOS.sendMessage),
     keyboardShortcutEntry("closeDialog", KEYBOARD_SHORTCUT_COMBOS.escape),
   ]),

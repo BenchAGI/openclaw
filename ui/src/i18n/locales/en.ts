@@ -156,6 +156,8 @@ export const en: TranslationMap & {
       toggleSidebar: "Toggle sidebar",
       debugOverlay: "Toggle debug overlay",
       appearanceSettings: "Open appearance settings",
+      vaultMode: "Switch to the Vault",
+      appMode: "Switch to the App",
       startNewSession: "Start new session (from the new-session page)",
       closeDialog: "Close dialog or exit settings",
       sendMessage: "Send message",
@@ -3190,6 +3192,19 @@ export const en: TranslationMap & {
       description:
         "Watch and control node-carried desktops from capable Crabbox AWS or Hetzner profiles with desktop: true.",
     },
+  },
+  modeSwitch: {
+    label: "Vault or App",
+    vault: "Vault",
+    app: "App",
+    openingApp: "Opening App…",
+    openingVault: "Opening Vault…",
+    openAppWith: "Open App with {agent}",
+    openVaultWith: "Open Vault with {agent}",
+    landsInApp: "The full Bench workspace, with {agent} pinned in the rail.",
+    landsInVault: "Talk to {agent} in the Vault.",
+    disabledReason: "Finish Bench sign-in to open the App",
+    yourAgent: "your agent",
   },
   aboutPage: {
     productName: "BenchAGI Aurelius Vault",

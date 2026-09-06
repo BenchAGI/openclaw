@@ -12,6 +12,7 @@ import {
 } from "../components/settings-sidebar-lazy.ts";
 import type { ThemeModeChangeDetail } from "../components/theme-mode-toggle.ts";
 import { t } from "../i18n/index.ts";
+import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { canCallGatewayMethod } from "../lib/gateway-methods.ts";
 import {
   formatKeyboardShortcutCombo,
@@ -469,6 +470,13 @@ export function renderApplicationShell(host: ShellViewHost) {
         ?inert=${navDrawerOpen}
         .resourceBasePath=${context.resourceBasePath}
         .environment=${config.environment}
+        .modeSwitchAgent=${{
+          id: selectedAgentId,
+          name:
+            context.agents.state.agentsList?.agents
+              .filter((agent) => normalizeAgentId(agent.id) === selectedAgentId)
+              .map((agent) => normalizeAgentLabel(agent))[0] ?? config.assistantIdentity.name,
+        }}
         .navDrawerOpen=${navDrawerOpen}
         .onOpenPalette=${() => host.openPalette()}
         .onToggleDrawer=${(trigger: HTMLElement) => host.toggleNavigationSurface(trigger)}

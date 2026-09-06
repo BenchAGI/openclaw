@@ -851,6 +851,18 @@ openclaw-settings-save-indicator:empty {
   min-width: 0;
 }
 
+/* Reserve the Vault ↔ App switch footprint until its deferred chunk defines it. */
+bench-mode-switch:not(:defined) {
+  display: inline-block;
+  width: 112px;
+  height: 28px;
+}
+
+bench-mode-switch[compact]:not(:defined) {
+  width: 78px;
+  height: 36px;
+}
+
 /* The animated eagle mark (favicon.svg) at 20px beside the short product name. */
 .topbar-brand__logo {
   display: block;

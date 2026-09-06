@@ -12,6 +12,8 @@ type KeyboardShortcutKey =
   | "+"
   | "-"
   | "0"
+  | "1"
+  | "2"
   | "Backquote"
   | "Comma"
   | "Enter"
@@ -48,6 +50,11 @@ export const KEYBOARD_SHORTCUT_COMBOS = {
   zoomIn: { modifiers: [], key: "+" },
   zoomOut: { modifiers: [], key: "-" },
   zoomReset: { modifiers: [], key: "0" },
+  // Bench Vault ↔ App mode switch (UI-BRAND-CONTRACT §5.8); owned by the
+  // <bench-mode-switch> element because focus inside the Vault child webview
+  // never reaches the host window.
+  vaultMode: { modifiers: ["mod"], key: "1" },
+  appMode: { modifiers: ["mod"], key: "2" },
   toggleSessionSelect: { modifiers: ["mod"], key: "Click" },
   extendSessionSelect: { modifiers: ["shift"], key: "Click" },
 } as const satisfies Record<string, KeyboardShortcutCombo>;
