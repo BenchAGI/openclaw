@@ -106,6 +106,15 @@ reds. One cause per commit, in order:
   for owner approval, recorded in the PR body for Cory.
 - The `agents-other` tsgo shard lists the two fork tests under `files` together with the base
   declaration files (a child `files` list replaces the inherited one).
+- **Linux hang, root cause (probe residual):** four hosted jobs timed out at 120 s in tests that run
+  a bootstrap turn (`cli-runner.terminal-failure-log`, `agent-exec.construction`,
+  `agent-runner-execution-cli-commentary`, `attempt.spawn-workspace.context-engine`). Reproduced on
+  bench-forge-1 (Linux) and traced with unbuffered markers to the fork's #63 Tier-1 bootstrap hook
+  calling `resolveMemorySearchConfig` to read its enabled flag; that resolver performs cold
+  embedding-plugin discovery (`getMemoryEmbeddingProvider`) and blocked. The gate now reads
+  `resolveMemorySearchIndexConfig`, which carries the same `query.tier1`/`query.reranker` settings
+  without loading a provider runtime. After the fix the three CLI tests finish on Linux in 31 s,
+  5.8 s, and 80 s (`13a580ba97`).
 
 ## Follow-ups (explicitly not done here)
 
