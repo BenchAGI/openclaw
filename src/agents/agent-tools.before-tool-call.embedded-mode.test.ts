@@ -85,6 +85,20 @@ function requireBeforeToolCall(
 }
 
 describe("runBeforeToolCallHook — embedded mode approvals", () => {
+  // Bench fork #108 clamps approval waits to the host turn idle budget; these upstream
+  // expectations describe the unclamped waits, so run them with the budget disabled.
+  let priorTurnIdleBudget: string | undefined;
+  beforeEach(() => {
+    priorTurnIdleBudget = process.env.OPENCLAW_TURN_IDLE_BUDGET_MS;
+    process.env.OPENCLAW_TURN_IDLE_BUDGET_MS = "0";
+  });
+  afterEach(() => {
+    if (priorTurnIdleBudget === undefined) {
+      delete process.env.OPENCLAW_TURN_IDLE_BUDGET_MS;
+    } else {
+      process.env.OPENCLAW_TURN_IDLE_BUDGET_MS = priorTurnIdleBudget;
+    }
+  });
   let hookRunner: Pick<HookRunner, "hasHooks" | "runBeforeToolCall">;
   let runBeforeToolCallMock: ReturnType<typeof vi.fn<HookRunner["runBeforeToolCall"]>>;
 
