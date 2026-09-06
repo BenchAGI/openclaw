@@ -154,7 +154,10 @@ vi.mock("../../plugins/providers.runtime.js", () => ({
   resolvePluginProvidersCore: mocks.resolvePluginProvidersCore,
 }));
 
-vi.mock("../../plugins/setup-registry.js", () => ({
+vi.mock("../../plugins/setup-registry.js", async (importOriginal) => ({
+  // Bench fork #75: providers.runtime (starter-model adoption) reads
+  // resolvePluginSetupCliBackend from this module; keep the original surface.
+  ...(await importOriginal<typeof import("../../plugins/setup-registry.js")>()),
   resolvePluginSetupProviderCore: mocks.resolvePluginSetupProviderCore,
   resolvePluginSetupRegistry: mocks.resolvePluginSetupRegistry,
 }));
