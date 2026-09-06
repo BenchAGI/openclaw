@@ -109,7 +109,9 @@ export function collectAgentMemorySearchAssignments(params: {
     ? defaultsMemorySearch.remote
     : undefined;
   const defaultHeaders = isRecord(defaultRemote?.headers) ? defaultRemote.headers : undefined;
-  const defaultQuery = isRecord(defaultsMemorySearch?.query) ? defaultsMemorySearch.query : undefined;
+  const defaultQuery = isRecord(defaultsMemorySearch?.query)
+    ? defaultsMemorySearch.query
+    : undefined;
   const defaultReranker = isRecord(defaultQuery?.reranker) ? defaultQuery.reranker : undefined;
   const defaultTier1 = isRecord(defaultQuery?.tier1) ? defaultQuery.tier1 : undefined;
   let defaultRerankerApiKeyAssignmentCollected = false;

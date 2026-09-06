@@ -35,12 +35,6 @@ import {
   resolveSourceReplyPolicy,
 } from "./agent-runner-core.js";
 import { buildEmptyInteractiveReplyPayload } from "./agent-runner-failure-reply.js";
-import {
-  buildFallbackModeNotice,
-  type FallbackModeExecutionTrace,
-  mergeFallbackModeExecutionTrace,
-  prependFallbackModeNotice,
-} from "./fallback-mode-notice.js";
 import { signalTypingIfNeeded } from "./agent-runner-helpers.js";
 import { buildReplyPayloads, loadReplyPayloadsDedupeRuntime } from "./agent-runner-payloads.js";
 import {
@@ -51,6 +45,12 @@ import {
 import type { accountAgentTurn } from "./agent-runner-result-accounting.js";
 import type { FinalizeReplyAgentRunInput } from "./agent-runner-result.types.js";
 import { resolveResponseUsageLine } from "./agent-runner-usage-line.js";
+import {
+  buildFallbackModeNotice,
+  type FallbackModeExecutionTrace,
+  mergeFallbackModeExecutionTrace,
+  prependFallbackModeNotice,
+} from "./fallback-mode-notice.js";
 import type { PendingContinuationSettlement } from "./get-reply.types.js";
 import { attachMcpAppChannelAction } from "./mcp-app-channel-action.js";
 import { attachMcpConnectChannelAction } from "./mcp-connect-channel-action.js";

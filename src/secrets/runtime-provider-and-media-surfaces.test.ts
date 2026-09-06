@@ -804,7 +804,11 @@ describe("secrets runtime provider and media surfaces", () => {
               tier1: { enabled: true },
               reranker: {
                 enabled: true,
-                apiKey: { source: "env", provider: "default", id: "DEFAULT_TIER1_RERANKER_API_KEY" },
+                apiKey: {
+                  source: "env",
+                  provider: "default",
+                  id: "DEFAULT_TIER1_RERANKER_API_KEY",
+                },
               },
             },
           },
@@ -855,7 +859,11 @@ describe("secrets runtime provider and media surfaces", () => {
             query: {
               reranker: {
                 enabled: false,
-                apiKey: { source: "env", provider: "default", id: "DISABLED_TIER1_RERANKER_API_KEY" },
+                apiKey: {
+                  source: "env",
+                  provider: "default",
+                  id: "DISABLED_TIER1_RERANKER_API_KEY",
+                },
               },
             },
           },

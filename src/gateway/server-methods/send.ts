@@ -817,17 +817,11 @@ function buildGatewayDeliveryPayload(params: {
   return payload;
 }
 
-function buildGatewaySendMirrorText(params: {
-  visibleText: string;
-  contextNote?: string;
-}): string {
+function buildGatewaySendMirrorText(params: { visibleText: string; contextNote?: string }): string {
   if (!params.contextNote) {
     return params.visibleText;
   }
-  const parts = [
-    "Context note for future turns (not sent to the channel):",
-    params.contextNote,
-  ];
+  const parts = ["Context note for future turns (not sent to the channel):", params.contextNote];
   if (params.visibleText) {
     parts.push("Sent to the channel:", params.visibleText);
   }

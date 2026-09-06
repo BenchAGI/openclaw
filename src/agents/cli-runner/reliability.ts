@@ -5,6 +5,7 @@ import path from "node:path";
 import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import type { CliBackendConfig } from "../../plugins/cli-backend.types.js";
+import { INTERNAL_MESSAGE_CHANNEL } from "../../utils/message-channel-constants.js";
 import {
   CLI_FRESH_WATCHDOG_DEFAULTS,
   CLI_INTERACTIVE_WATCHDOG_DEFAULTS,
@@ -12,7 +13,6 @@ import {
   CLI_WATCHDOG_MIN_TIMEOUT_MS,
 } from "../cli-watchdog-defaults.js";
 import type { EmbeddedRunTrigger } from "../embedded-agent-runner/run/params.js";
-import { INTERNAL_MESSAGE_CHANNEL } from "../../utils/message-channel-constants.js";
 import { AGENT_LANE_SUBAGENT } from "../lanes.js";
 
 function pickWatchdogProfile(

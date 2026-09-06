@@ -1,6 +1,7 @@
 // Memory Tap exposes a bounded, privacy-preserving view of native dreaming artifacts.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import { redactToolPayloadText } from "openclaw/plugin-sdk/logging-core";
 import {
   resolveMemorySearchConfig,
@@ -9,7 +10,6 @@ import {
 import { resolveMemoryBackendConfig } from "openclaw/plugin-sdk/memory-core-host-engine-storage";
 import { resolveMemoryDreamingPluginConfig } from "openclaw/plugin-sdk/memory-core-host-runtime-core";
 import { resolveMemoryDreamingConfig } from "openclaw/plugin-sdk/memory-core-host-status";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import { listMemoryHostPublicArtifacts } from "openclaw/plugin-sdk/memory-host-core";
 import { readRecentDreamDiaryRecords, resolveDreamsPath } from "./dreaming-dreams-file.js";
 import {

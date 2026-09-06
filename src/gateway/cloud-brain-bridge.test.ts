@@ -50,14 +50,15 @@ describe("Bench cloud bridge agent aliases", () => {
   });
 
   it("sends canonical cloud agent ids when creating remote-brain turns", async () => {
-    const fetchMock = vi.fn<typeof fetch>(async () =>
-      new Response(
-        JSON.stringify({
-          dispatch: "local",
-          runtime: "local",
-        }),
-        { status: 200 },
-      ),
+    const fetchMock = vi.fn<typeof fetch>(
+      async () =>
+        new Response(
+          JSON.stringify({
+            dispatch: "local",
+            runtime: "local",
+          }),
+          { status: 200 },
+        ),
     );
     vi.stubGlobal("fetch", fetchMock);
 

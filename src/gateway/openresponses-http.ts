@@ -93,9 +93,9 @@ import {
 import { wrapUntrustedFileContent } from "./openresponses-file-content.js";
 import { buildAgentPrompt } from "./openresponses-prompt.js";
 import { createAssistantOutputItem, createFunctionCallOutputItem } from "./openresponses-shape.js";
-import { resolveGatewayToolsModeAllowlist } from "./tools-mode.js";
 import { authorizeGatewaySessionCreation } from "./operator-role-policy.js";
 import type { GatewayContextResolver } from "./server-methods/types.js";
+import { resolveGatewayToolsModeAllowlist } from "./tools-mode.js";
 
 type OpenResponsesHttpOptions = {
   auth: ResolvedGatewayAuth;

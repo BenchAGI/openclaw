@@ -28,7 +28,12 @@ describe("claude-cli-* backend family dialect gate", () => {
           event: {
             type: "content_block_start",
             index: 1,
-            content_block: { type: "tool_use", id: "toolu_ask", name: "AskUserQuestion", input: {} },
+            content_block: {
+              type: "tool_use",
+              id: "toolu_ask",
+              name: "AskUserQuestion",
+              input: {},
+            },
           },
         }),
         JSON.stringify({

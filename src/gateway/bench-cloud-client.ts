@@ -90,9 +90,12 @@ function resolveUrl(config: BenchCloudBridgeConfig, pathOrUrl: string): string {
   const baseUrl = new URL(`${trimTrailingSlash(config.apiBaseUrl)}/`);
   const resolved = new URL(pathOrUrl, baseUrl);
   if (resolved.origin !== baseUrl.origin) {
-    throw new BenchCloudBridgeError("Bench cloud status URL must stay on the configured API origin", {
-      code: "status_url_origin",
-    });
+    throw new BenchCloudBridgeError(
+      "Bench cloud status URL must stay on the configured API origin",
+      {
+        code: "status_url_origin",
+      },
+    );
   }
   return resolved.toString();
 }

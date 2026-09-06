@@ -1346,4 +1346,3 @@ export async function waitForSystemEvent(timeoutMs = 2000) {
   throw new Error("timeout waiting for system event");
 }
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */
-

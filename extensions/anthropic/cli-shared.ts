@@ -272,7 +272,6 @@ function stripClaudeEffortArgs(args: readonly string[]): string[] {
   return normalized;
 }
 
-
 /** Merge a settings object into an existing inline `--settings` JSON, patch wins. */
 function mergeClaudeSettingsJson(existing: string, patch: Record<string, unknown>): string {
   let base: Record<string, unknown> = {};

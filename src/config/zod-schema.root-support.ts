@@ -64,7 +64,9 @@ const GatewayBenchCloudSchemaShape = {
   pollTimeoutMs: z.number().int().positive().optional(),
 } satisfies ConfigSchemaShape<GatewayBenchCloudConfig>;
 
-export const GatewayBenchCloudConfigSchema = z.strictObject(GatewayBenchCloudSchemaShape).optional();
+export const GatewayBenchCloudConfigSchema = z
+  .strictObject(GatewayBenchCloudSchemaShape)
+  .optional();
 
 export const SecuritySchema = z
   .strictObject({

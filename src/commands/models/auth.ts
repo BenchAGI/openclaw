@@ -34,6 +34,7 @@ import { logConfigUpdated } from "../../config/logging.js";
 import { normalizeAgentModelRefForConfig, toAgentModelListLike } from "../../config/model-input.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { isRemoteEnvironment } from "../../infra/remote-env.js";
+import { loadModelCatalog } from "../../plugin-sdk/agent-runtime.js";
 import {
   applyProviderAuthConfigPatch,
   applyDefaultModel,
@@ -62,7 +63,6 @@ import { validateAnthropicSetupToken } from "../auth-token.js";
 import { repairCodexRuntimePluginInstallForModelSelection } from "../codex-runtime-plugin-install.js";
 import { repairCopilotRuntimePluginInstallForModelSelection } from "../copilot-runtime-plugin-install.js";
 import { refreshRunningGatewayAuthState } from "./auth-refresh.js";
-import { loadModelCatalog } from "../../plugin-sdk/agent-runtime.js";
 import {
   applyDefaultModelPrimaryUpdate,
   loadValidConfigOrThrow,

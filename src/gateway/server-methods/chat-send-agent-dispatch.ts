@@ -17,9 +17,15 @@ import { measureDiagnosticsTimelineSpan } from "../../infra/diagnostics-timeline
 import type { SkillWorkshopProposalRevisionConstraint } from "../../skills/workshop/types.js";
 import { isOperatorUiClient } from "../../utils/message-channel.js";
 import { setGatewayDedupeEntry } from "../agent-turn/agent-job.js";
+import { pollBenchCloudCliTurnStatus } from "../bench-cloud-client.js";
 import { updateChatRunProvider } from "../chat-abort.js";
 import { discardPreparedInboundMedia } from "../chat-attachments.js";
 import { chatRunBelongsToSelectedAgent } from "../chat-run-owner.js";
+import {
+  canAttemptBenchCloudBridge,
+  createCliRemoteBrainTurn,
+  resolveBenchCloudBridgeConfig,
+} from "../cloud-brain-bridge.js";
 import type { ChatRunTiming } from "../server-chat-state.js";
 import { tryResolveSessionCompatibilityOwnerAgentId } from "../session-request-agent.js";
 import { buildAbortedChatSendPayload } from "./chat-abort-authorization.js";
@@ -55,14 +61,8 @@ import {
   roundedChatSendTimingMs,
   type ChatSendServerTimingPhase,
 } from "./chat-server-timing.js";
-import type { createGatewayChatUserTurnController } from "./chat-user-turn-recorder.js";
-import { pollBenchCloudCliTurnStatus } from "../bench-cloud-client.js";
-import {
-  canAttemptBenchCloudBridge,
-  createCliRemoteBrainTurn,
-  resolveBenchCloudBridgeConfig,
-} from "../cloud-brain-bridge.js";
 import { appendAssistantTranscriptMessage } from "./chat-transcript-persistence.js";
+import type { createGatewayChatUserTurnController } from "./chat-user-turn-recorder.js";
 import { emitSessionsChanged } from "./session-change-event.js";
 import { prepareSessionWorkspace } from "./session-create-project.js";
 import type { GatewayRequestHandlerOptions } from "./types.js";

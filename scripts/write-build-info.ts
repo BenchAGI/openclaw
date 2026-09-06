@@ -131,7 +131,8 @@ export function resolveBuildInfo(options: ResolveBuildInfoOptions = {}): BuildIn
     ? normalizeBuildTimestamp(explicitTimestamp)
     : (options.now ?? (() => new Date()))().toISOString();
   const explicitRelease = env.GIT_RELEASE?.trim();
-  const release = explicitRelease || resolveGitRelease(rootDir, options.execFileSync ?? execFileSync);
+  const release =
+    explicitRelease || resolveGitRelease(rootDir, options.execFileSync ?? execFileSync);
   const releaseFlag = env.OPENCLAW_CONTROL_UI_RELEASE_BUILD?.trim();
   if (releaseFlag && releaseFlag !== "1") {
     throw new Error("OPENCLAW_CONTROL_UI_RELEASE_BUILD must be 1 when set");

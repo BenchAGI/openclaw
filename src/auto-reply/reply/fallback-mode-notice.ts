@@ -105,8 +105,7 @@ export function mergeFallbackModeExecutionTrace(params: {
     ...(winnerProvider ? { winnerProvider } : {}),
     ...(winnerModel ? { winnerModel } : {}),
     attempts,
-    fallbackUsed:
-      params.executionTrace?.fallbackUsed ?? (params.fallbackAttempts?.length ?? 0) > 0,
+    fallbackUsed: params.executionTrace?.fallbackUsed ?? (params.fallbackAttempts?.length ?? 0) > 0,
   };
 }
 

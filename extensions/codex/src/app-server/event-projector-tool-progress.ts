@@ -7,7 +7,6 @@ import {
 import { readStringField as readString } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { truncateUtf16Safe } from "openclaw/plugin-sdk/text-utility-runtime";
 import type { EmbeddedRunAttemptResult } from "./attempt-terminal.js";
-import { nativeCommandRecoveryFingerprint } from "./native-command-recovery.js";
 import {
   auditNativeToolTerminalStatus,
   isMutatingNativeToolItem,
@@ -36,6 +35,7 @@ import {
   toolOutputRawEchoSignature,
   truncateToolTranscriptText,
 } from "./event-projector-tool-output.js";
+import { nativeCommandRecoveryFingerprint } from "./native-command-recovery.js";
 import { codexApprovalTimeoutText, type CodexApprovalKind } from "./plugin-approval-roundtrip.js";
 import type {
   CodexDynamicToolCallOutputContentItem,

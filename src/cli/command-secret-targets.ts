@@ -852,7 +852,18 @@ export function getActiveMemoryRerankerSecretTargets(
   const entries = Object.entries(config.agents?.entries ?? {}) as Array<
     [string, { enabled?: boolean; memory?: { search?: MemorySearchLike } }]
   >;
-  const listed = (config.agents as { list?: Array<{ id?: string; enabled?: boolean; memory?: { search?: MemorySearchLike } }> } | undefined)?.list ?? [];
+  const listed =
+    (
+      config.agents as
+        | {
+            list?: Array<{
+              id?: string;
+              enabled?: boolean;
+              memory?: { search?: MemorySearchLike };
+            }>;
+          }
+        | undefined
+    )?.list ?? [];
   const agents: Array<{ path: string; enabled?: boolean; search?: MemorySearchLike }> = [
     ...entries.map(([key, agent]) => ({
       path: `agents.entries.${key}`,
@@ -865,19 +876,22 @@ export function getActiveMemoryRerankerSecretTargets(
       search: agent?.memory?.search,
     })),
   ];
-  const defaultKeyActive = agents.length === 0
-    ? (() => {
-        const e = effective(undefined);
-        return e.searchEnabled && e.tier1 && e.reranker;
-      })()
-    : agents.some((agent) => {
-        if (agent.enabled === false) {
-          return false;
-        }
-        const e = effective(agent.search);
-        const ownsKey = Boolean(agent.search?.query?.reranker && Object.hasOwn(agent.search.query.reranker, "apiKey"));
-        return e.searchEnabled && e.tier1 && e.reranker && !ownsKey;
-      });
+  const defaultKeyActive =
+    agents.length === 0
+      ? (() => {
+          const e = effective(undefined);
+          return e.searchEnabled && e.tier1 && e.reranker;
+        })()
+      : agents.some((agent) => {
+          if (agent.enabled === false) {
+            return false;
+          }
+          const e = effective(agent.search);
+          const ownsKey = Boolean(
+            agent.search?.query?.reranker && Object.hasOwn(agent.search.query.reranker, "apiKey"),
+          );
+          return e.searchEnabled && e.tier1 && e.reranker && !ownsKey;
+        });
   if (isSecretRef(defaults?.query?.reranker?.apiKey) && defaultKeyActive) {
     targetIds.add("memory.search.query.reranker.apiKey");
     optionalActivePaths.add("memory.search.query.reranker.apiKey");

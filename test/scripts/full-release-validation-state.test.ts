@@ -58,7 +58,6 @@ afterEach(() => {
   }
 });
 
-
 const SCRIPT = resolve("scripts/full-release-validation-state.mjs");
 const SHA = "a".repeat(40);
 const TARGET_SHA = "b".repeat(40);

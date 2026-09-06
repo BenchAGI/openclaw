@@ -41,7 +41,9 @@ function renderHeroAvatar(props: ProfileHeroProps) {
   if (textAvatar) {
     return html`<span class="profile-hero__avatar-text">${textAvatar}</span>`;
   }
-  return html`<span class="profile-hero__avatar-mascot" aria-hidden="true">${icons.aurelius}</span>`;
+  return html`<span class="profile-hero__avatar-mascot" aria-hidden="true"
+    >${icons.aurelius}</span
+  >`;
 }
 
 function heroName(props: ProfileHeroProps): string {

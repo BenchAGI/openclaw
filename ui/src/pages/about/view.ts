@@ -153,9 +153,9 @@ function renderHero(props: AboutProps) {
     <section class="about-hero">
       <button
         type="button"
-        class="about-hero__aurelius ${props.aureliusGreeting
-          ? "about-hero__aurelius--greeting"
-          : ""}"
+        class="about-hero__aurelius ${
+          props.aureliusGreeting ? "about-hero__aurelius--greeting" : ""
+        }"
         aria-label=${t("aboutPage.waveHello")}
         @click=${props.onGreetAurelius}
       >

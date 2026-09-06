@@ -318,11 +318,7 @@ function resolveRerankerApiKey(
   if (overrides && Object.hasOwn(overrides, "apiKey")) {
     return overrides.apiKey;
   }
-  if (
-    overrides &&
-    Object.hasOwn(overrides, "baseUrl") &&
-    overrides.baseUrl !== defaults?.baseUrl
-  ) {
+  if (overrides && Object.hasOwn(overrides, "baseUrl") && overrides.baseUrl !== defaults?.baseUrl) {
     return undefined;
   }
   return defaults?.apiKey;
