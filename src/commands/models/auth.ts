@@ -761,19 +761,18 @@ function resolveProviderAuthDefaultModel(params: {
   workspaceDir: string;
 }): string | undefined {
   const provider = normalizeManualAuthProvider(params.provider);
-  const setupProvider = resolvePluginSetupProvider({
+  const setupProvider = resolvePluginSetupProviderCore({
     provider,
     config: params.config,
     workspaceDir: params.workspaceDir,
   });
   const providers = setupProvider
     ? [setupProvider]
-    : resolvePluginProviders({
+    : resolvePluginProvidersCore({
         config: params.config,
         workspaceDir: params.workspaceDir,
         mode: "setup",
         includeUntrustedWorkspacePlugins: false,
-        bundledProviderVitestCompat: true,
         providerRefs: [provider],
         activate: true,
       });

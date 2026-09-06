@@ -3,6 +3,7 @@
  */
 import { normalizeProviderId } from "@openclaw/model-catalog-core/provider-id";
 import type { OpenClawConfig } from "../config/config.js";
+import type { MemorySearchConfig } from "../config/types.memory.js";
 import type { SecretInput } from "../config/types.secrets.js";
 import {
   normalizeConfiguredMemoryExtraPaths,
@@ -19,6 +20,10 @@ import { assertSecretOwnerAvailable } from "../secrets/runtime-degraded-state.js
 import { runtimeMemorySecretOwnerId } from "../secrets/runtime-memory-secret-owner.js";
 import { resolveOpenClawAgentSqlitePath } from "../state/openclaw-agent-db.paths.js";
 import { clampNumber } from "../utils.js";
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.floor(value)));
+}
 import { resolveAgentConfig } from "./agent-scope.js";
 
 export type ResolvedMemorySearchConfig = {
@@ -216,6 +221,57 @@ export function resolveMemorySearchIndexConfig(cfg: OpenClawConfig, agentId: str
     rememberAcrossConversations ? [...searchSources, "sessions"] : configuredSources,
     sessionMemory,
   );
+  // Bench fork #63: Tier-1 retrieval-at-start and its optional reranker.
+  const tier1 = {
+    enabled:
+      overrides?.query?.tier1?.enabled ?? defaults?.query?.tier1?.enabled ?? DEFAULT_TIER1_ENABLED,
+    maxResults: clampInt(
+      overrides?.query?.tier1?.maxResults ??
+        defaults?.query?.tier1?.maxResults ??
+        DEFAULT_TIER1_MAX_RESULTS,
+      1,
+      20,
+    ),
+    minScore: clampNumber(
+      overrides?.query?.tier1?.minScore ??
+        defaults?.query?.tier1?.minScore ??
+        DEFAULT_TIER1_MIN_SCORE,
+      0,
+      1,
+    ),
+    maxBytes: clampInt(
+      overrides?.query?.tier1?.maxBytes ??
+        defaults?.query?.tier1?.maxBytes ??
+        DEFAULT_TIER1_MAX_BYTES,
+      256,
+      32_000,
+    ),
+    timeoutMs: clampInt(
+      overrides?.query?.tier1?.timeoutMs ??
+        defaults?.query?.tier1?.timeoutMs ??
+        DEFAULT_TIER1_TIMEOUT_MS,
+      100,
+      10_000,
+    ),
+  };
+
+  const reranker = {
+    enabled: overrides?.query?.reranker?.enabled ?? defaults?.query?.reranker?.enabled ?? false,
+    baseUrl: overrides?.query?.reranker?.baseUrl ?? defaults?.query?.reranker?.baseUrl,
+    apiKey: resolveRerankerApiKey(defaults?.query?.reranker, overrides?.query?.reranker),
+    model: overrides?.query?.reranker?.model ?? defaults?.query?.reranker?.model,
+    timeoutMs: clampInt(
+      overrides?.query?.reranker?.timeoutMs ?? defaults?.query?.reranker?.timeoutMs ?? 6000,
+      100,
+      30_000,
+    ),
+    minScore: clampNumber(
+      overrides?.query?.reranker?.minScore ?? defaults?.query?.reranker?.minScore ?? 0.5,
+      0,
+      1,
+    ),
+    topK: clampInt(overrides?.query?.reranker?.topK ?? defaults?.query?.reranker?.topK ?? 8, 1, 50),
+  };
   return {
     enabled,
     rememberAcrossConversations,
@@ -247,14 +303,8 @@ export function resolveMemorySearchIndexConfig(cfg: OpenClawConfig, agentId: str
           halfLifeDays: DEFAULT_TEMPORAL_DECAY_HALF_LIFE_DAYS,
         },
       },
-      tier1: {
-        enabled: DEFAULT_TIER1_ENABLED,
-        maxResults: DEFAULT_TIER1_MAX_RESULTS,
-        minScore: DEFAULT_TIER1_MIN_SCORE,
-        maxBytes: DEFAULT_TIER1_MAX_BYTES,
-        timeoutMs: DEFAULT_TIER1_TIMEOUT_MS,
-      },
-      reranker: { enabled: false, timeoutMs: 6000, minScore: 0.5, topK: 8 },
+      tier1,
+      reranker,
     },
     experimental: { sessionMemory },
     sync: resolveSyncConfig(),
@@ -365,56 +415,6 @@ export function resolveMemorySearchConfig(
   const cache = {
     enabled: overrides?.cache?.enabled ?? defaults?.cache?.enabled ?? DEFAULT_CACHE_ENABLED,
     maxEntries: DEFAULT_CACHE_MAX_ENTRIES,
-  };
-  const tier1 = {
-    enabled:
-      overrides?.query?.tier1?.enabled ?? defaults?.query?.tier1?.enabled ?? DEFAULT_TIER1_ENABLED,
-    maxResults: clampInt(
-      overrides?.query?.tier1?.maxResults ??
-        defaults?.query?.tier1?.maxResults ??
-        DEFAULT_TIER1_MAX_RESULTS,
-      1,
-      20,
-    ),
-    minScore: clampNumber(
-      overrides?.query?.tier1?.minScore ??
-        defaults?.query?.tier1?.minScore ??
-        DEFAULT_TIER1_MIN_SCORE,
-      0,
-      1,
-    ),
-    maxBytes: clampInt(
-      overrides?.query?.tier1?.maxBytes ??
-        defaults?.query?.tier1?.maxBytes ??
-        DEFAULT_TIER1_MAX_BYTES,
-      256,
-      32_000,
-    ),
-    timeoutMs: clampInt(
-      overrides?.query?.tier1?.timeoutMs ??
-        defaults?.query?.tier1?.timeoutMs ??
-        DEFAULT_TIER1_TIMEOUT_MS,
-      100,
-      10_000,
-    ),
-  };
-
-  const reranker = {
-    enabled: overrides?.query?.reranker?.enabled ?? defaults?.query?.reranker?.enabled ?? false,
-    baseUrl: overrides?.query?.reranker?.baseUrl ?? defaults?.query?.reranker?.baseUrl,
-    apiKey: resolveRerankerApiKey(defaults?.query?.reranker, overrides?.query?.reranker),
-    model: overrides?.query?.reranker?.model ?? defaults?.query?.reranker?.model,
-    timeoutMs: clampInt(
-      overrides?.query?.reranker?.timeoutMs ?? defaults?.query?.reranker?.timeoutMs ?? 6000,
-      100,
-      30_000,
-    ),
-    minScore: clampNumber(
-      overrides?.query?.reranker?.minScore ?? defaults?.query?.reranker?.minScore ?? 0.5,
-      0,
-      1,
-    ),
-    topK: clampInt(overrides?.query?.reranker?.topK ?? defaults?.query?.reranker?.topK ?? 8, 1, 50),
   };
 
   const resolved: ResolvedMemorySearchConfig = {

@@ -23,7 +23,7 @@ import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { SecretInput } from "../config/types.secrets.js";
 import type { MemorySearchResult } from "../memory-host-sdk/host/types.js";
 import { getActiveMemorySearchManager } from "../plugin-sdk/memory-host-search.js";
-import { resolveSecretInputString } from "../secrets/resolve-secret-input-string.js";
+import { materializeSecretInput } from "../secrets/resolve-secret-input-string.js";
 import { normalizeSecretInput } from "../utils/normalize-secret-input.js";
 import type { EmbeddedContextFile } from "./embedded-agent-helpers.js";
 import { resolveMemorySearchConfig } from "./memory-search.js";
@@ -512,11 +512,11 @@ async function resolveTier1RerankerApiKey(
     return normalized || null;
   }
   try {
-    const resolved = await resolveSecretInputString({
+    const resolved = await materializeSecretInput({
       config: cfg.config,
       value: cfg.apiKey,
       env: process.env,
-      normalize: (value) => normalizeSecretInput(value) || undefined,
+      normalize: (value: unknown) => normalizeSecretInput(value) || undefined,
     });
     if (!resolved) {
       warn?.("tier1 reranker apiKey is configured but unresolved; skipping reranker");

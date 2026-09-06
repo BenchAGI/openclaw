@@ -27,6 +27,7 @@ import {
   replaceTranscriptEvents,
 } from "../config/sessions/session-accessor.js";
 import { clearSessionStoreCacheForTest } from "../config/sessions/store-writer-state.js";
+import { readSessionStoreForTest } from "../config/sessions/test-helpers.js";
 import type { SessionOrigin } from "../config/sessions/types.js";
 import type { OpenClawConfig } from "../config/types.js";
 import { resetAgentEventsForTest } from "../infra/agent-events.js";
@@ -1346,3 +1347,12 @@ export async function waitForSystemEvent(timeoutMs = 2000) {
   throw new Error("timeout waiting for system event");
 }
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */
+
+/** Bench fork: raw session-store read for gateway tests that assert persisted fields. */
+export function readSessionStore(storePath?: string): Record<string, SessionEntry> {
+  const resolvedStorePath = storePath ?? testState.sessionStorePath;
+  if (!resolvedStorePath) {
+    throw new Error("readSessionStore requires testState.sessionStorePath");
+  }
+  return readSessionStoreForTest(resolvedStorePath);
+}

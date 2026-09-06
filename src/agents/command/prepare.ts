@@ -16,7 +16,6 @@ import { resolvePluginMetadataSnapshot } from "../../plugins/plugin-metadata-sna
 import {
   classifySessionKeyShape,
   isUnscopedSessionKeySentinel,
-  normalizeAgentId,
   resolveAgentIdFromSessionKey,
 } from "../../routing/session-key.js";
 import type { RuntimeEnv } from "../../runtime.js";

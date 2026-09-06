@@ -14,7 +14,11 @@ import type {
   AgentDefaultsConfig,
 } from "../config/types.agent-defaults.js";
 import type { OpenClawConfig } from "../config/types.js";
-import { LEGACY_IMPLICIT_AGENT_ID, normalizeAgentId } from "../routing/session-key.js";
+import {
+  DEFAULT_AGENT_ID,
+  LEGACY_IMPLICIT_AGENT_ID,
+  normalizeAgentId,
+} from "../routing/session-key.js";
 import { resolveUserPath } from "../utils.js";
 import { registerResolvedAgentDir } from "./agent-dir-registry.js";
 import { resolveDefaultAgentWorkspaceDir } from "./workspace-default.js";

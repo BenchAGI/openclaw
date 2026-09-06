@@ -153,6 +153,9 @@ export function prependFallbackModeNotice(
     return payloads;
   }
   const existing = payloads[index];
+  if (!existing) {
+    return payloads;
+  }
   const next = {
     ...existing,
     text: `${notice}\n\n${existing.text ?? ""}`,

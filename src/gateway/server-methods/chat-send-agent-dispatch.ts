@@ -362,7 +362,6 @@ export function startChatDispatch(params: StartChatDispatchParams): void {
                   sessionKey,
                   sessionId: entry?.sessionId ?? admittedSessionId ?? clientRunId,
                   storePath,
-                  sessionFile: entry?.sessionFile,
                   agentId,
                   createIfMissing: true,
                   idempotencyKey: `${clientRunId}:assistant`,

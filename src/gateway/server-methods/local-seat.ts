@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   ErrorCodes,
   errorShape,
+  formatValidationErrors,
   type LocalSeatCaptureParams,
   validateLocalSeatCaptureParams,
 } from "../../../packages/gateway-protocol/src/index.js";
@@ -13,10 +14,25 @@ import { resolveAgentMainSessionKey } from "../../config/sessions.js";
 import { enqueueSystemEvent } from "../../infra/system-events.js";
 import { normalizeAgentId } from "../../routing/session-key.js";
 import { formatForLog } from "../ws-log.js";
-import { respondInvalidParams } from "./nodes.helpers.js";
-import type { GatewayRequestHandlers } from "./types.js";
+import type { GatewayRequestHandlers, RespondFn } from "./types.js";
 
 const SAFE_SEGMENT_RE = /[^a-z0-9._-]+/gi;
+
+// Upstream 2026.9.2 dropped nodes.helpers.respondInvalidParams; keep the same shape here.
+function respondInvalidParams(params: {
+  respond: RespondFn;
+  method: string;
+  validator: { errors?: unknown };
+}) {
+  params.respond(
+    false,
+    undefined,
+    errorShape(
+      ErrorCodes.INVALID_REQUEST,
+      `invalid ${params.method} params: ${formatValidationErrors(params.validator.errors as never)}`,
+    ),
+  );
+}
 
 function safeSegment(value: string): string {
   const normalized = value
