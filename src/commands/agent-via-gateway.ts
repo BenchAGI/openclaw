@@ -1169,7 +1169,8 @@ async function agentViaGatewayCommand(
           config: cfg,
         });
       }
-      if (isGatewayPairingScopeError(err)) {
+      // Aborts are never transport failures; upstream keeps them out of the classifier.
+      if (!isAbortError(err) && isGatewayPairingScopeError(err)) {
         throw new Error(
           `The local gateway rejected this device: running agent turns needs broader operator scopes (operator.write) and the upgrade is pending approval. Approve this device with \`${formatCliCommand(
             "openclaw devices approve --latest",
