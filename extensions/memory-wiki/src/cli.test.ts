@@ -5,7 +5,7 @@ import path from "node:path";
 import { expectDefined } from "@openclaw/normalization-core";
 import { Command } from "commander";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { registerWikiCli } from "./cli.js";
+import { registerWikiCli, runWikiStatus } from "./cli.js";
 import type { MemoryWikiPluginConfig, ResolvedMemoryWikiConfig } from "./config.js";
 import { parseWikiMarkdown, renderWikiMarkdown } from "./markdown.js";
 import {

@@ -4,7 +4,7 @@ import path from "node:path";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import { withEnvAsync } from "openclaw/plugin-sdk/test-env";
 import { describe, expect, it } from "vitest";
-import { appendNarrativeEntry } from "./dreaming-narrative.js";
+import { appendNarrativeEntry } from "./dreaming-dreams-file.js";
 import {
   MemoryTapInvalidRequestError,
   normalizeMemoryTapSnapshotParams,
@@ -14,9 +14,11 @@ import {
   readShortTermRecallEntries,
   recordDreamingPhaseSignals,
   recordShortTermRecalls,
-  testing as shortTermTesting,
 } from "./short-term-promotion.js";
-import { createMemoryCoreTestHarness } from "./test-helpers.js";
+import {
+  createMemoryCoreTestHarness,
+  shortTermTestState as shortTermTesting,
+} from "./test-helpers.js";
 
 const { createTempWorkspace } = createMemoryCoreTestHarness();
 

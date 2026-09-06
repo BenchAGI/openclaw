@@ -485,7 +485,7 @@ function addWikiApplyMutationOptions<T extends Command>(command: T): T {
     .option("--status <status>", "Page status");
 }
 
-async function runWikiStatus(params: {
+export async function runWikiStatus(params: {
   config: ResolvedMemoryWikiConfig;
   appConfig?: OpenClawConfig;
   agentId?: string;

@@ -121,7 +121,7 @@ function snapshot(text: string): MemoryWikiCompiledCacheSnapshot {
       overview: {
         totalItems: 0,
         totalPages: 0,
-        pageCounts: { synthesis: 0, entity: 0, concept: 0, source: 0, report: 0 },
+        pageCounts: { synthesis: 0, entity: 0, concept: 0, source: 0, report: 0, canon: 0 },
         totalClaims: 0,
         totalQuestions: 0,
         totalContradictions: 0,
