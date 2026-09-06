@@ -98,7 +98,7 @@ export const MAX_PLUGIN_APPROVAL_TIMEOUT_MS = 600_000;
  *
  * WHY 60_000, AND WHY MIRRORED RATHER THAN IMPORTED: the real timer is
  * `turnCompletionIdleTimeoutMs`, a per-run app-server option that defaults to 60_000
- * (extensions/codex/src/app-server/config.ts:677, enforced in
+ * (the Codex app-server config module, line 677, enforced in
  * attempt-turn-watches.ts:129). That app-server lives in the `@openclaw/codex`
  * extension package, and core `src/` must not depend on an extension, so the value
  * cannot be imported without inverting the dependency. It is mirrored here as an
