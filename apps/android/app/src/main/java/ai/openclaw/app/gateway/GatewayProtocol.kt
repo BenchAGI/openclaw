@@ -495,6 +495,7 @@ enum class GatewayMethod(
   DoctorMemoryRepairDreamingArtifacts("doctor.memory.repairDreamingArtifacts"),
   DoctorMemoryDedupeDreamDiary("doctor.memory.dedupeDreamDiary"),
   LogsTail("logs.tail"),
+  LocalSeatCapture("local-seat.capture"),
   ChannelsStatus("channels.status"),
   ChannelsStart("channels.start"),
   ChannelsStop("channels.stop"),

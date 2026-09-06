@@ -3389,6 +3389,7 @@ public struct SendParams: Codable, Sendable {
     public let channel: String?
     public let accountid: String?
     public let agentid: String?
+    public let context: String?
     public let replytoid: String?
     public let threadid: String?
     public let forcedocument: Bool?
@@ -3410,6 +3411,7 @@ public struct SendParams: Codable, Sendable {
         channel: String? = nil,
         accountid: String? = nil,
         agentid: String? = nil,
+        context: String? = nil,
         replytoid: String? = nil,
         threadid: String? = nil,
         forcedocument: Bool? = nil,
@@ -3430,6 +3432,7 @@ public struct SendParams: Codable, Sendable {
         self.channel = channel
         self.accountid = accountid
         self.agentid = agentid
+        self.context = context
         self.replytoid = replytoid
         self.threadid = threadid
         self.forcedocument = forcedocument
@@ -3452,6 +3455,7 @@ public struct SendParams: Codable, Sendable {
         case channel
         case accountid = "accountId"
         case agentid = "agentId"
+        case context
         case replytoid = "replyToId"
         case threadid = "threadId"
         case forcedocument = "forceDocument"
@@ -9844,6 +9848,7 @@ public struct SessionsCreateParams: Codable, Sendable {
     public let model: String?
     public let contextwindow: String?
     public let thinkinglevel: String?
+    public let reasoninglevel: String?
     public let fastmode: AnyCodable?
     public let permissionmode: SessionPermissionMode?
     public let tooloverrides: [String: AnyCodable]?
@@ -9878,6 +9883,7 @@ public struct SessionsCreateParams: Codable, Sendable {
         model: String? = nil,
         contextwindow: String? = nil,
         thinkinglevel: String? = nil,
+        reasoninglevel: String? = nil,
         fastmode: AnyCodable? = nil,
         permissionmode: SessionPermissionMode? = nil,
         tooloverrides: [String: AnyCodable]? = nil,
@@ -9911,6 +9917,7 @@ public struct SessionsCreateParams: Codable, Sendable {
         self.model = model
         self.contextwindow = contextwindow
         self.thinkinglevel = thinkinglevel
+        self.reasoninglevel = reasoninglevel
         self.fastmode = fastmode
         self.permissionmode = permissionmode
         self.tooloverrides = tooloverrides
@@ -9946,6 +9953,7 @@ public struct SessionsCreateParams: Codable, Sendable {
         case model
         case contextwindow = "contextWindow"
         case thinkinglevel = "thinkingLevel"
+        case reasoninglevel = "reasoningLevel"
         case fastmode = "fastMode"
         case permissionmode = "permissionMode"
         case tooloverrides = "toolOverrides"
@@ -22928,6 +22936,7 @@ public struct ChatSendParams: Codable, Sendable {
     public var fastmode: Bool? { fastmodevalue?.value as? Bool }
     public let fastautoonseconds: Int?
     public let queuemode: String?
+    public let cloudauth: [String: AnyCodable]?
     public let deliver: Bool?
     public let originatingchannel: String?
     public let originatingto: String?
@@ -22957,6 +22966,7 @@ public struct ChatSendParams: Codable, Sendable {
         fastmodevalue: AnyCodable? = nil,
         fastautoonseconds: Int? = nil,
         queuemode: String? = nil,
+        cloudauth: [String: AnyCodable]? = nil,
         deliver: Bool? = nil,
         originatingchannel: String? = nil,
         originatingto: String? = nil,
@@ -22985,6 +22995,7 @@ public struct ChatSendParams: Codable, Sendable {
         self.fastmodevalue = fastmodevalue
         self.fastautoonseconds = fastautoonseconds
         self.queuemode = queuemode
+        self.cloudauth = cloudauth
         self.deliver = deliver
         self.originatingchannel = originatingchannel
         self.originatingto = originatingto
@@ -23014,6 +23025,7 @@ public struct ChatSendParams: Codable, Sendable {
         thinking: String? = nil,
         fastmode: Bool?,
         queuemode: String? = nil,
+        cloudauth: [String: AnyCodable]? = nil,
         deliver: Bool? = nil,
         originatingchannel: String? = nil,
         originatingto: String? = nil,
@@ -23043,6 +23055,7 @@ public struct ChatSendParams: Codable, Sendable {
             fastmodevalue: fastmode.map { AnyCodable($0) },
             fastautoonseconds: nil,
             queuemode: queuemode,
+            cloudauth: cloudauth,
             deliver: deliver,
             originatingchannel: originatingchannel,
             originatingto: originatingto,
@@ -23073,6 +23086,7 @@ public struct ChatSendParams: Codable, Sendable {
         case fastmodevalue = "fastMode"
         case fastautoonseconds = "fastAutoOnSeconds"
         case queuemode = "queueMode"
+        case cloudauth = "cloudAuth"
         case deliver
         case originatingchannel = "originatingChannel"
         case originatingto = "originatingTo"
