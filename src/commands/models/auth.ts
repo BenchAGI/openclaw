@@ -26,6 +26,7 @@ import {
 import type { AuthProfileCredential } from "../../agents/auth-profiles/types.js";
 import { normalizeProviderId } from "../../agents/model-ref-shared.js";
 import { isCliProvider } from "../../agents/model-selection-cli.js";
+import { loadPreparedModelCatalog } from "../../agents/prepared-model-catalog.js";
 import { resolveProviderIdForAuth } from "../../agents/provider-auth-aliases.js";
 import { resolveDefaultAgentWorkspaceDir } from "../../agents/workspace.js";
 import { formatCliCommand } from "../../cli/command-format.js";
@@ -34,7 +35,6 @@ import { logConfigUpdated } from "../../config/logging.js";
 import { normalizeAgentModelRefForConfig, toAgentModelListLike } from "../../config/model-input.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { isRemoteEnvironment } from "../../infra/remote-env.js";
-import { loadPreparedModelCatalog } from "../../agents/prepared-model-catalog.js";
 import {
   applyProviderAuthConfigPatch,
   applyDefaultModel,
