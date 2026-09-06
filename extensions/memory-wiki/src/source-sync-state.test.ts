@@ -1,5 +1,6 @@
 // Memory Wiki tests cover source sync state plugin behavior.
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type {
   OpenKeyedStoreOptions,
@@ -26,6 +27,19 @@ import type { MemoryWikiImportedSourceState } from "./source-sync-state.js";
 import { createMemoryWikiTestHarness } from "./test-helpers.js";
 
 const tempDirs = createMemoryWikiTestHarness();
+const scratchDirs: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    scratchDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
+  );
+});
+
+async function makeTempDir(): Promise<string> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "memory-wiki-source-sync-"));
+  scratchDirs.push(dir);
+  return dir;
+}
 
 function openStore(env: NodeJS.ProcessEnv) {
   return createMemoryWikiSourceSyncStateStore(<T>(options: OpenKeyedStoreOptions) =>

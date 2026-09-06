@@ -216,7 +216,12 @@ async function listWikiMarkdownFiles(rootDir: string): Promise<string[]> {
             (entry) =>
               entry.kind === "file" &&
               entry.relativePath.endsWith(".md") &&
-              path.basename(entry.relativePath) !== "index.md",
+              // Bench fork: nested canon index pages are searchable; only the
+              // directory-root listing index.md is skipped.
+              !(
+                path.basename(entry.relativePath) === "index.md" &&
+                path.dirname(entry.relativePath) === relativeDir
+              ),
           )
           .map((entry) => entry.relativePath.split(path.sep).join("/"));
       }),
@@ -809,7 +814,7 @@ function resolveExactWikiPagePath(lookup: string): string | null {
     pageSegments.length === 0 ||
     pageSegments.some((segment) => !segment || segment === "." || segment === "..") ||
     !normalized.endsWith(".md") ||
-    path.posix.basename(normalized) === "index.md"
+    (pageSegments.length === 1 && path.posix.basename(normalized) === "index.md")
   ) {
     return null;
   }

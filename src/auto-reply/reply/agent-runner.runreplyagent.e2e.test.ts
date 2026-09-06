@@ -5403,9 +5403,12 @@ describe("runReplyAgent typing (heartbeat)", () => {
       modelOverrideSource: "auto",
       modelOverrideFallbackOriginProvider: "fireworks",
       modelOverrideFallbackOriginModel: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
-      fallbackNoticeSelectedModel: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
-      fallbackNoticeActiveModel: "deepinfra/moonshotai/Kimi-K2.5",
-      fallbackNoticeReason: "rate limit",
+      fallbackNotice: {
+        kind: "active",
+        selectedModel: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+        activeModel: "deepinfra/moonshotai/Kimi-K2.5",
+        reason: "rate limit",
+      },
     };
     const sessionStore = { main: sessionEntry };
 

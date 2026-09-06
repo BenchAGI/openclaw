@@ -142,6 +142,15 @@ function normalizeInstanceId(value: string | undefined | null): string | undefin
   return INSTANCE_ID_PATTERN.test(value) ? value : undefined;
 }
 
+/** Bench fork: default global-scope vault, scoped by instanceId (invalid ids fall back to main). */
+export function resolveDefaultMemoryWikiVaultPath(
+  homedir = os.homedir(),
+  instanceId?: string,
+): string {
+  const vaultName = normalizeInstanceId(instanceId) ?? "main";
+  return path.join(homedir, ".openclaw", "wiki", vaultName);
+}
+
 export function resolveMemoryWikiConfig(
   config: MemoryWikiPluginConfig | undefined,
   options?: { homedir?: string; env?: NodeJS.ProcessEnv; instanceId?: string },

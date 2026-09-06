@@ -430,6 +430,33 @@ export async function prepareReplyAgentPayloads(state: {
   const payloadResult = await buildFinalPayloads(payloadCandidates);
   let { replyPayloads } = payloadResult;
   didLogHeartbeatStrip = payloadResult.didLogHeartbeatStrip;
+  // Bench fork #66: persistent fallback-mode banner. Unlike the transition-only
+  // fallback notice payloads above, this prefixes every answer won by a
+  // non-primary provider. It joins the model's own payloads here so yield
+  // acknowledgments and empty-reply diagnostics stay verbatim, and it follows
+  // upstream's chat-type gate (no fallback chatter in group chats or channels).
+  const fallbackModeChatType = normalizeChatType(sessionCtx.ChatType);
+  const fallbackModeNotice =
+    fallbackModeChatType === "group" || fallbackModeChatType === "channel"
+      ? undefined
+      : buildFallbackModeNotice({
+          executionTrace: mergeFallbackModeExecutionTrace({
+            executionTrace: runResult.meta?.executionTrace as
+              | FallbackModeExecutionTrace
+              | undefined,
+            fallbackAttempts,
+            provider: providerUsed,
+            model: modelUsed,
+            exhausted: fallbackExhausted,
+          }),
+          requestedProvider: selectedProvider,
+          fallbackActive: fallbackTransition.fallbackActive,
+          fallbackReason:
+            fallbackTransition.previousState.reason ?? fallbackTransition.reasonSummary,
+        });
+  if (fallbackModeNotice) {
+    replyPayloads = prependFallbackModeNotice(replyPayloads, fallbackModeNotice);
+  }
   const replyPayloadsWithoutToolWarnings = yieldAcknowledgmentPayload
     ? replyPayloads.filter((payload) => !isGeneratedToolWarning(payload))
     : replyPayloads;
@@ -484,25 +511,6 @@ export async function prepareReplyAgentPayloads(state: {
     payloads: replyPayloads,
     action: runResult.latestMcpConnectAction,
   });
-
-  // Bench fork #66: persistent fallback-mode banner. Unlike the transition-only
-  // fallback notice payloads above, this prefixes every reply won by a
-  // non-primary provider. Re-homed from the monolithic runner's finalize step.
-  const fallbackModeNotice = buildFallbackModeNotice({
-    executionTrace: mergeFallbackModeExecutionTrace({
-      executionTrace: runResult.meta?.executionTrace as FallbackModeExecutionTrace | undefined,
-      fallbackAttempts,
-      provider: providerUsed,
-      model: modelUsed,
-      exhausted: fallbackExhausted,
-    }),
-    requestedProvider: selectedProvider,
-    fallbackActive: fallbackTransition.fallbackActive,
-    fallbackReason: fallbackTransition.previousState.reason ?? fallbackTransition.reasonSummary,
-  });
-  if (fallbackModeNotice) {
-    replyPayloads = prependFallbackModeNotice(replyPayloads, fallbackModeNotice);
-  }
 
   const hasVisibleReplyPayload = replyPayloads.some(
     (payload) =>

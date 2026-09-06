@@ -7101,7 +7101,7 @@ test("sessions.create applies thinkingLevel + reasoningLevel at create (operator
       reasoningLevel?: string;
     };
   }>("sessions.create", {
-    agentId: "ops",
+    agentId: "main",
     parentSessionKey: "main",
     thinkingLevel: "high",
     reasoningLevel: "on",

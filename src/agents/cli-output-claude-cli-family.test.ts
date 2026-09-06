@@ -68,6 +68,7 @@ describe("claude-cli-* backend family dialect gate", () => {
         toolCallId: "toolu_ask",
         name: "AskUserQuestion",
         args: { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] },
+        kind: "tool_use",
       },
     ]);
   });

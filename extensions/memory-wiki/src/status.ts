@@ -98,7 +98,10 @@ async function collectVaultCounts(vaultPath: string): Promise<{
       if (
         entry.kind !== "file" ||
         !entry.relativePath.endsWith(".md") ||
-        path.basename(entry.relativePath) === "index.md"
+        // Bench fork: only the directory-root listing is skipped; nested canon index
+        // pages (canon/<topic>/index.md) are real pages.
+        (path.basename(entry.relativePath) === "index.md" &&
+          path.dirname(entry.relativePath) === dir)
       ) {
         continue;
       }

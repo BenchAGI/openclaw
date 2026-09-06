@@ -9,7 +9,11 @@ import { withEnv } from "openclaw/plugin-sdk/test-env";
 import { describe, expect, it } from "vitest";
 import type { OpenClawConfig } from "../api.js";
 import { memoryWikiConfigSchema } from "./config-schema.js";
-import { resolveMemoryWikiAgentConfig, resolveMemoryWikiConfig } from "./config.js";
+import {
+  resolveDefaultMemoryWikiVaultPath,
+  resolveMemoryWikiAgentConfig,
+  resolveMemoryWikiConfig,
+} from "./config.js";
 
 function compileManifestConfigSchema() {
   const manifest = JSON.parse(
