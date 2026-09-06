@@ -2,14 +2,15 @@
 // Captures Bench design-package proof shots: the chat surface and the
 // Appearance settings page for each Bench theme family, dark and light.
 // `bench` (the fork default) runs on a fresh profile with no stored settings;
-// the other families are seeded into localStorage the way the app persists
-// them, so the boot script in index.html paints them before the bundle loads.
+// the other families arrive as synced server prefs (ui.prefs.theme) through
+// the mock gateway's config.get, the same path theme-typography.e2e uses. The
+// mock gateway owns its own settings key (its gateway URL differs from the page
+// origin), so seeding localStorage for the page origin would not reach it.
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
 import {
   canRunPlaywrightChromium,
-  controlUiBundledGatewayUrl,
   installMockGateway,
   resolvePlaywrightChromiumExecutablePath,
   startControlUiE2eServer,
@@ -26,7 +27,20 @@ if (!(await canRunPlaywrightChromium(executablePath))) {
 await mkdir(outputDir, { recursive: true });
 const server = await startControlUiE2eServer(undefined, { source: true });
 const browser = await chromium.launch({ executablePath });
-const gatewayUrl = controlUiBundledGatewayUrl(server.baseUrl);
+
+function themeConfigResponse(theme: string, mode: "dark" | "light") {
+  const config = { ui: { prefs: { theme, themeMode: mode } } };
+  const hash = `bench-theme-proof-${theme}-${mode}`;
+  return {
+    appliedConfigHash: hash,
+    config,
+    configRevisionHash: hash,
+    hash,
+    issues: [],
+    raw: JSON.stringify(config),
+    valid: true,
+  };
+}
 
 async function capture(
   family: (typeof BENCH_THEME_FAMILIES)[number],
@@ -37,23 +51,22 @@ async function capture(
     colorScheme,
     viewport: { width: 1440, height: 900 },
   });
-  if (family !== "bench") {
-    await context.addInitScript(
-      ({ gatewayUrl: url, theme }) => {
-        localStorage.setItem(
-          `openclaw.control.settings.v1:${url}`,
-          JSON.stringify({ gatewayUrl: url, theme, themeMode: "system" }),
-        );
-      },
-      { gatewayUrl, theme: family },
-    );
-  }
   const page = await context.newPage();
   page.setDefaultTimeout(30_000);
   try {
-    await installMockGateway(page);
+    await installMockGateway(
+      page,
+      family === "bench"
+        ? {}
+        : { methodResponses: { "config.get": themeConfigResponse(family, colorScheme) } },
+    );
     await page.goto(`${server.baseUrl}chat`);
     await page.locator(".agent-chat__input").waitFor({ state: "visible" });
+    const expectedTheme = colorScheme === "light" ? `${family}-light` : family;
+    await page.waitForFunction(
+      (expected) => document.documentElement.getAttribute("data-theme") === expected,
+      expectedTheme,
+    );
     await page.waitForTimeout(600);
     const resolvedTheme = await page.evaluate(() =>
       document.documentElement.getAttribute("data-theme"),
