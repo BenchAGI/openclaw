@@ -24,6 +24,10 @@ type AboutProps = {
   onCopyCommit: () => void;
   aureliusGreeting: boolean;
   onGreetAurelius: () => void;
+  /** Bench runtime line this build ships on (e.g. bench-runtime-2026.9.2). */
+  runtime?: string | null;
+  /** Cell name and signed-in user from the gateway; null hides the row. */
+  cell?: { name: string | null; user: string | null } | null;
 };
 
 const SHORT_COMMIT_LENGTH = 12;
@@ -146,7 +150,10 @@ function renderHero(props: AboutProps) {
           .size=${168}
         ></openclaw-mascot>
       </button>
-      <h2 class="about-hero__name">${t("aboutPage.productName")}</h2>
+      <div class="about-hero__name-row">
+        <span class="about-hero__glyph" aria-hidden="true">${icons.benchGlyph}</span>
+        <h2 class="about-hero__name">${t("aboutPage.productName")}</h2>
+      </div>
       <p class="about-hero__tagline">${t("aboutPage.tagline")}</p>
       ${
         props.buildInfo.version
@@ -217,6 +224,31 @@ export function renderAbout(props: AboutProps) {
             : renderUnavailable()
         }
       </dd>
+      ${
+        props.runtime
+          ? html`
+              <dt>${t("aboutPage.runtime")}</dt>
+              <dd><code dir="ltr" title=${props.runtime}>${props.runtime}</code></dd>
+            `
+          : nothing
+      }
+      ${
+        props.cell
+          ? html`
+              <dt>${t("aboutPage.cell")}</dt>
+              <dd>
+                ${
+                  props.cell.user
+                    ? t("aboutPage.cellSignedIn", {
+                        cell: props.cell.name ?? t("aboutPage.cellLocal"),
+                        user: props.cell.user,
+                      })
+                    : (props.cell.name ?? t("aboutPage.cellLocal"))
+                }
+              </dd>
+            `
+          : nothing
+      }
     </dl>
   `;
   return renderSettingsPage([

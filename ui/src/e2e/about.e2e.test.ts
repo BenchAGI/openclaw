@@ -44,8 +44,13 @@ suite.define(() => {
 
       const strip = page.getByRole("group", { name: "Control UI build details" });
       const items = strip.locator(":scope > dd");
-      await expect.poll(() => items.count()).toBe(3);
+      // Version, commit, built, plus the Bench runtime line and cell rows.
+      await expect.poll(() => items.count()).toBe(5);
       await expect.poll(() => items.nth(0).textContent()).toContain("2026.7.10");
+      await expect
+        .poll(() => items.nth(3).locator("code").textContent())
+        .toBe("bench-runtime-2026.7.10");
+      await expect.poll(() => items.nth(4).textContent()).toContain("Local gateway");
 
       const commit = items.nth(1).locator("code");
       await expect.poll(() => commit.textContent()).toBe(COMMIT.slice(0, 12));

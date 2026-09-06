@@ -10,6 +10,7 @@ import { isSessionRouteId, pathForRoute } from "../app-route-paths.ts";
 import { beginNativeWindowDragFromTopInset } from "../app/native-window-drag.ts";
 import { t } from "../i18n/index.ts";
 import { benchAgentStyle } from "../lib/agents/bench-agent-identity.ts";
+import { BENCH_CUSTOMER_BUILD } from "../lib/bench-build.ts";
 import { createIdleImport } from "../lib/idle-import.ts";
 import "./session-menu.ts";
 import "./sidebar-agent-card.ts";
@@ -365,7 +366,12 @@ class AppSidebar extends AppSidebarSessionNavigationElement implements SessionLi
   };
 
   private syncCommunityInviteState() {
-    if (this.context?.config.current.communityInvite !== true || !isCommunityInviteEligible()) {
+    // Bench builds never show upstream's community invite (lib/bench-build.ts).
+    if (
+      BENCH_CUSTOMER_BUILD ||
+      this.context?.config.current.communityInvite !== true ||
+      !isCommunityInviteEligible()
+    ) {
       this.communityInvitePresentation = "unavailable";
     } else if (this.communityInvitePresentation !== "shown") {
       this.communityInvitePresentation = "pending";

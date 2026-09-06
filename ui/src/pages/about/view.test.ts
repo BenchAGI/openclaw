@@ -78,6 +78,33 @@ describe("renderAbout", () => {
     );
   });
 
+  it("adds the runtime line and the cell row when the host provides them", () => {
+    const container = document.createElement("div");
+    render(
+      renderAbout(
+        createProps({
+          runtime: "bench-runtime-2026.9.2",
+          cell: { name: "Prime cell", user: "cory@benchagi.com" },
+        }),
+      ),
+      container,
+    );
+    const facts = container.querySelector(".settings-kv");
+    const rows = [...(facts?.querySelectorAll("dt") ?? [])].map((row) => row.textContent?.trim());
+    expect(rows).toEqual(["Version", "Commit", "Branch", "Built", "Runtime", "Cell"]);
+    const values = facts?.querySelectorAll("dd");
+    expect(values?.[4]?.querySelector("code")?.textContent).toBe("bench-runtime-2026.9.2");
+    expect(values?.[5]?.textContent?.trim()).toBe("Prime cell · cory@benchagi.com");
+    expect(container.querySelector(".about-hero__glyph svg")).not.toBeNull();
+  });
+
+  it("names the local gateway when the cell has no environment label", () => {
+    const container = document.createElement("div");
+    render(renderAbout(createProps({ cell: { name: null, user: null } })), container);
+    const values = container.querySelectorAll(".settings-kv dd");
+    expect(values[values.length - 1]?.textContent?.trim()).toBe("Local gateway");
+  });
+
   it("marks the hero as waving only while a poke is active", () => {
     const container = document.createElement("div");
     render(renderAbout(createProps({ aureliusGreeting: true })), container);

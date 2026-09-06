@@ -55,6 +55,14 @@ const WELCOME_SUGGESTION_KEYS = [
   "chat.welcome.suggestions.checkSystemHealth",
 ];
 
+// Bench agents get the operating-brief suggestions (UI-BRAND-CONTRACT §5.3).
+const BENCH_WELCOME_SUGGESTION_KEYS = [
+  "chat.welcome.suggestions.operatingBrief",
+  "chat.welcome.suggestions.pipelineWeek",
+  "chat.welcome.suggestions.fieldBriefing",
+  "chat.welcome.suggestions.checkSystemHealth",
+];
+
 const WELCOME_RECENT_SESSION_LIMIT = 5;
 
 function resolveAssistantAvatarUrl(
@@ -162,10 +170,16 @@ function renderWelcomeRecentSessions(
   `;
 }
 
-function renderWelcomeSuggestions(props: Pick<ChatWelcomeProps, "onDraftChange" | "onSend">) {
+function renderWelcomeSuggestions(
+  props: Pick<ChatWelcomeProps, "onDraftChange" | "onSend">,
+  agentId: string | null,
+) {
+  const keys = benchAgentIdentity(agentId)
+    ? BENCH_WELCOME_SUGGESTION_KEYS
+    : WELCOME_SUGGESTION_KEYS;
   return html`
     <div class="agent-chat__suggestions">
-      ${WELCOME_SUGGESTION_KEYS.map((key) => {
+      ${keys.map((key) => {
         const text = t(key);
         return html`
           <button
@@ -192,11 +206,16 @@ function renderWelcomeHero(
 ) {
   const name = props.assistantName || "Assistant";
   const avatar = resolveAssistantAvatarUrl(props);
+  const bench = benchAgentIdentity(props.agentId);
   // A Bench agent's own treatment wins over the gateway's text avatar.
-  const avatarText =
-    avatar || benchAgentIdentity(props.agentId)
-      ? null
-      : resolveAssistantTextAvatar(props.assistantAvatar);
+  const avatarText = avatar || bench ? null : resolveAssistantTextAvatar(props.assistantAvatar);
+  // Bench workspace welcome: the title asks the question, the sub names the agent.
+  const title = bench ? t("chat.welcome.title") : name;
+  const sub = bench
+    ? bench.id === "aurelius"
+      ? t("chat.welcome.subAurelius")
+      : t("chat.welcome.subAgent", { name, role: bench.role.toLowerCase() })
+    : props.hint;
   return html`
     <div class="agent-chat__welcome-identity">
       ${
@@ -213,8 +232,8 @@ function renderWelcomeHero(
             : renderWelcomeMascot(props.agentId)
       }
       <div class="agent-chat__welcome-identity-copy">
-        <h2>${name}</h2>
-        <p class="agent-chat__hint">${props.hint}</p>
+        <h2>${title}</h2>
+        <p class="agent-chat__hint ${bench ? "agent-chat__hint--bench" : ""}">${sub}</p>
       </div>
     </div>
   `;
@@ -302,7 +321,7 @@ export function renderWelcomeState(props: ChatWelcomeProps) {
                 ${
                   recentSessions.length > 0
                     ? renderWelcomeRecentSessions(recentSessions, props.onOpenSession)
-                    : renderWelcomeSuggestions(props)
+                    : renderWelcomeSuggestions(props, resolveWelcomeAgentId(props))
                 }
               </div>
             </div>`

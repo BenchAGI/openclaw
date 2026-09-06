@@ -3238,6 +3238,10 @@ export const en: TranslationMap & {
     gatewayVersion: "Connected Gateway version",
     gatewayVersionHint:
       "Reported by the active Gateway connection; separate from this Control UI build.",
+    runtime: "Runtime",
+    cell: "Cell",
+    cellLocal: "Local gateway",
+    cellSignedIn: "{cell} · {user}",
   },
   appsPage: {
     heroTitle: "Take OpenClaw everywhere",
@@ -5151,7 +5155,15 @@ export const en: TranslationMap & {
       hintBeforeShortcut: "Type a message below ·",
       hintAfterShortcut: "for commands",
       recentSessions: "Recent chats",
+      // Bench workspace welcome (UI-BRAND-CONTRACT §5.3).
+      title: "What are we working on?",
+      subAurelius:
+        "Aurelius runs your operations. Ask for a brief, a plan, or a hand with whatever's on your desk.",
+      subAgent: "{name} handles {role}. Ask for what you need.",
       suggestions: {
+        operatingBrief: "Give me today's operating brief",
+        pipelineWeek: "What did Zig move in the pipeline this week?",
+        fieldBriefing: "Draft Monday's field briefing for Ember to send",
         whatCanYouDo: "What can you do?",
         summarizeRecentSessions: "Summarize my recent sessions",
         configureChannel: "Help me configure a channel",
@@ -5327,6 +5339,8 @@ export const en: TranslationMap & {
       searchModels: "Search models",
       noMatchingModels: "No models match your search",
       configureModels: "Configure models",
+      benchModels: "Bench models",
+      yourOwnKeys: "Your own keys",
       selectionScopeSessionLabel: "This session",
       selectionScopeAgentLabel: "Agent default",
       selectionScopeGlobalLabel: "Global default",
