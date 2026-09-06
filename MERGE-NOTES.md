@@ -115,6 +115,13 @@ reds. One cause per commit, in order:
   `resolveMemorySearchIndexConfig`, which carries the same `query.tier1`/`query.reranker` settings
   without loading a provider runtime. After the fix the three CLI tests finish on Linux in 31 s,
   5.8 s, and 80 s (`13a580ba97`).
+- **Linux cold-start gate (regression guard):** these four tests are the canary for any eager
+  runtime load on the bootstrap path and must stay green on Linux CI:
+  `src/agents/cli-runner.terminal-failure-log.test.ts`,
+  `src/commands/agent-exec.construction.test.ts`,
+  `src/auto-reply/reply/agent-runner-execution-cli-commentary.test.ts`,
+  `src/agents/embedded-agent-runner/run/attempt.spawn-workspace.context-engine.test.ts`
+  ("preserves bootstrap system context in the assembled system prompt").
 
 ## Follow-ups (explicitly not done here)
 
