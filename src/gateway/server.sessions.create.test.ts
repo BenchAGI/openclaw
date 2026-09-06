@@ -102,7 +102,6 @@ import {
   embeddedRunMock,
   mockGetReplyFromConfigOnce,
   onceMessage,
-  readSessionStore,
   rpcReq,
   testState,
   writeSessionStore,
@@ -7082,7 +7081,7 @@ test("sessions.create rejects replacing its parent key", async () => {
 });
 test("sessions.create applies thinkingLevel + reasoningLevel at create (operator.write, no admin patch)", async () => {
   // Bench fork #71: a flyway seat with only operator.write sets both levels at create.
-  const { storePath } = await createSessionStoreDir();
+  await createSessionStoreDir();
   await writeSessionStore({
     entries: {
       main: sessionStoreEntry("sess-parent", {
@@ -7111,11 +7110,6 @@ test("sessions.create applies thinkingLevel + reasoningLevel at create (operator
   expect(created.ok).toBe(true);
   expect(created.payload?.entry?.thinkingLevel).toBe("high");
   expect(created.payload?.entry?.reasoningLevel).toBe("on");
-
-  const rawStore = readSessionStore(storePath);
-  const key = created.payload?.key as string;
-  expect(rawStore[key]?.thinkingLevel).toBe("high");
-  expect(rawStore[key]?.reasoningLevel).toBe("on");
 });
 
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

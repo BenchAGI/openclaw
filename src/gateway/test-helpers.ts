@@ -24,7 +24,6 @@ export {
   onceMessage,
   prepareGatewayReplyRuntimeForTest,
   readConnectChallengeNonce,
-  readSessionStore,
   rpcReq,
   startConnectedServerWithClient,
   startTestGatewayServer,
