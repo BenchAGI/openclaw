@@ -56,6 +56,7 @@ const mocks = vi.hoisted(() => ({
   upsertAuthProfileWithLock: vi.fn(),
   removeProviderAuthProfilesWithLock: vi.fn(),
   resolvePluginProvidersCore: vi.fn(),
+  loadModelCatalog: vi.fn(),
   createClackPrompter: vi.fn(),
   loadValidConfigOrThrow: vi.fn(),
   updateConfig: vi.fn(),
@@ -1485,7 +1486,7 @@ describe("modelsAuthLoginCommand", () => {
     mocks.loadModelCatalog.mockResolvedValue([
       { provider: "anthropic", id: "claude-opus-4-8", name: "Claude Opus 4.8" },
     ]);
-    mocks.resolvePluginProviders.mockReturnValue([
+    mocks.resolvePluginProvidersCore.mockReturnValue([
       createProvider({
         id: "anthropic",
         auth: [
@@ -1493,7 +1494,7 @@ describe("modelsAuthLoginCommand", () => {
             id: "setup-token",
             label: "Anthropic setup-token",
             kind: "token",
-            defaultModel: "anthropic/claude-opus-4-8",
+            starterModel: "anthropic/claude-opus-4-8",
             run: vi.fn(),
           },
         ],
@@ -1516,7 +1517,7 @@ describe("modelsAuthLoginCommand", () => {
     const runtime = createRuntime();
     currentConfig = { agents: { defaults: { model: { primary: "openai/gpt-5.5" } } } };
     mocks.clackPassword.mockResolvedValue("anthropic-api-key");
-    mocks.resolvePluginProviders.mockReturnValue([
+    mocks.resolvePluginProvidersCore.mockReturnValue([
       createProvider({
         id: "anthropic",
         auth: [
@@ -1524,7 +1525,7 @@ describe("modelsAuthLoginCommand", () => {
             id: "api-key",
             label: "Anthropic API key",
             kind: "api_key",
-            defaultModel: "anthropic/claude-opus-4-8",
+            starterModel: "anthropic/claude-opus-4-8",
             run: vi.fn(),
           },
         ],
@@ -1546,7 +1547,7 @@ describe("modelsAuthLoginCommand", () => {
     mocks.loadModelCatalog.mockResolvedValue([
       { provider: "anthropic", id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
     ]);
-    mocks.resolvePluginProviders.mockReturnValue([
+    mocks.resolvePluginProvidersCore.mockReturnValue([
       createProvider({
         id: "anthropic",
         auth: [
@@ -1554,7 +1555,7 @@ describe("modelsAuthLoginCommand", () => {
             id: "api-key",
             label: "Anthropic API key",
             kind: "api_key",
-            defaultModel: "anthropic/claude-opus-4-8",
+            starterModel: "anthropic/claude-opus-4-8",
             run: vi.fn(),
           },
         ],
@@ -1599,7 +1600,7 @@ describe("modelsAuthLoginCommand", () => {
     const runtime = createRuntime();
     useCoderAgentConfig();
     mocks.clackPassword.mockResolvedValue("anthropic-api-key");
-    mocks.resolvePluginProviders.mockReturnValue([
+    mocks.resolvePluginProvidersCore.mockReturnValue([
       createProvider({
         id: "anthropic",
         auth: [
@@ -1607,7 +1608,7 @@ describe("modelsAuthLoginCommand", () => {
             id: "api-key",
             label: "Anthropic API key",
             kind: "api_key",
-            defaultModel: "anthropic/claude-opus-4-8",
+            starterModel: "anthropic/claude-opus-4-8",
             run: vi.fn(),
           },
         ],
