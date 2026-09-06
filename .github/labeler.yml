@@ -412,6 +412,14 @@
       - any-glob-to-any-file:
           - "extensions/session-digest/**"
           - "docs/plugins/session-digest.md"
+"extensions: claude-code-bridge":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/claude-code-bridge/**"
+"extensions: memory-durability":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/memory-durability/**"
 "extensions: memory-wiki":
   - changed-files:
       - any-glob-to-any-file:
