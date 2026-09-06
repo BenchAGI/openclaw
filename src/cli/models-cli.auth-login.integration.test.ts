@@ -37,7 +37,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../gateway/call.js", () => ({ callGateway: mocks.callGateway }));
-vi.mock("../plugins/setup-registry.js", () => ({
+vi.mock("../plugins/setup-registry.js", async (importOriginal) => ({
+  // Bench fork #75: the models auth command reaches the prepared catalog, whose graph
+  // reads resolvePluginSetupCliBackend from this module.
+  ...(await importOriginal<typeof import("../plugins/setup-registry.js")>()),
   resolvePluginSetupProviderCore: () => undefined,
   resolvePluginSetupRegistry: () => ({ providers: [] }),
 }));
