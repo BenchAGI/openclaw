@@ -1,11 +1,11 @@
 {
-  "name": "BenchAGI Aurelius Vault",
+  "name": "Aurelius Vault",
   "short_name": "Aurelius Vault",
   "description": "Talk to Aurelius and your BenchAGI agents",
   "start_url": "./",
   "display": "standalone",
-  "theme_color": "#0a0a0a",
-  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0c",
+  "background_color": "#0a0a0c",
   "icons": [
     {
       "src": "./favicon.svg",

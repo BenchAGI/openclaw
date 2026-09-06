@@ -31,25 +31,25 @@ import {
   trackDropdownKeyboardDismissal,
 } from "./web-awesome.ts";
 
-// External rows of the footer identity menu. Docs-first: public docs pages over
-// raw GitHub, matching the ClawSweeper docs-link policy for user-facing copy.
+// External rows of the footer identity menu: Bench links for customers
+// (UI-BRAND-CONTRACT §3), verified live on benchagi.com 2026-09-06. No Docs
+// row until a docs path exists; never ship a URL that 404s.
+export const BENCH_LINKS = {
+  website: "https://benchagi.com",
+  help: "https://benchagi.com/support",
+  whatsNew: "https://benchagi.com/blog",
+  agents: "https://benchagi.com/agents",
+} as const;
+
 const IDENTITY_MENU_LINKS: ReadonlyArray<{
   href: string;
   icon: IconName;
   label: () => string;
 }> = [
-  { href: "https://docs.openclaw.ai", icon: "book", label: () => t("common.docs") },
-  {
-    href: "https://docs.openclaw.ai/help",
-    icon: "messageSquare",
-    label: () => t("agentChip.getHelp"),
-  },
-  { href: "https://discord.gg/clawd", icon: "users", label: () => t("agentChip.discord") },
-  {
-    href: "https://docs.openclaw.ai/releases",
-    icon: "scrollText",
-    label: () => t("agentChip.viewChangelog"),
-  },
+  { href: BENCH_LINKS.website, icon: "globe", label: () => t("agentChip.website") },
+  { href: BENCH_LINKS.help, icon: "messageSquare", label: () => t("agentChip.getHelp") },
+  { href: BENCH_LINKS.whatsNew, icon: "scrollText", label: () => t("agentChip.whatsNew") },
+  { href: BENCH_LINKS.agents, icon: "users", label: () => t("agentChip.yourAgents") },
 ];
 
 const AGENT_VALUE_PREFIX = "agent:";

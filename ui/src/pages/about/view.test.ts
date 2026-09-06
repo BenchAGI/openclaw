@@ -49,18 +49,22 @@ describe("renderAbout", () => {
     expect(hero?.querySelector(".about-hero__aurelius openclaw-mascot")).not.toBeNull();
 
     const aurelius = hero?.querySelector<HTMLButtonElement>(".about-hero__aurelius");
-    expect(aurelius?.getAttribute("aria-label")).toBe("Wave hello to Aurelius");
+    expect(aurelius?.getAttribute("aria-label")).toBe("Say hi to Aurelius");
     aurelius?.click();
     expect(onGreetAurelius).toHaveBeenCalledOnce();
 
     const links = Array.from(hero?.querySelectorAll<HTMLAnchorElement>(".about-hero__link") ?? []);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "https://openclaw.ai",
-      "https://docs.openclaw.ai",
-      "https://github.com/openclaw/openclaw",
-      "https://discord.gg/clawd",
-      "https://x.com/openclaw",
-      "https://docs.openclaw.ai/releases",
+      "https://benchagi.com",
+      "https://benchagi.com/support",
+      "https://benchagi.com/blog",
+      "https://benchagi.com/agents",
+    ]);
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      "Website",
+      "Get help",
+      "What's new",
+      "Your agents",
     ]);
     for (const link of links) {
       expect(link.getAttribute("target")).toBe("_blank");
@@ -68,7 +72,10 @@ describe("renderAbout", () => {
       expect(link.getAttribute("rel")).toContain("noreferrer");
     }
 
-    expect(container.querySelector(".about-footer")?.textContent).toContain("MIT License");
+    expect(container.querySelector(".about-footer")?.textContent).toContain("MIT licensed");
+    expect(container.querySelector(".about-footer")?.textContent).toContain(
+      "trademarks of BenchAGI",
+    );
   });
 
   it("marks the hero as waving only while a poke is active", () => {

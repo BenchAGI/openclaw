@@ -83,18 +83,17 @@ suite.define(() => {
         .poll(() => hero.locator(".about-hero__version").textContent())
         .toBe("v2026.7.10");
 
-      const githubLink = hero.getByRole("link", { name: "GitHub", exact: true });
-      await expect
-        .poll(() => githubLink.getAttribute("href"))
-        .toBe("https://github.com/openclaw/openclaw");
-      await expect.poll(() => githubLink.getAttribute("target")).toBe("_blank");
-      await expect.poll(() => githubLink.getAttribute("rel")).toContain("noopener");
-      const discordLink = hero.getByRole("link", { name: "Discord", exact: true });
-      await expect.poll(() => discordLink.getAttribute("href")).toBe("https://discord.gg/clawd");
-      const xLink = hero.getByRole("link", { name: "X (Twitter)", exact: true });
-      await expect.poll(() => xLink.getAttribute("href")).toBe("https://x.com/openclaw");
+      const websiteLink = hero.getByRole("link", { name: "Website", exact: true });
+      await expect.poll(() => websiteLink.getAttribute("href")).toBe("https://benchagi.com");
+      await expect.poll(() => websiteLink.getAttribute("target")).toBe("_blank");
+      await expect.poll(() => websiteLink.getAttribute("rel")).toContain("noopener");
+      const helpLink = hero.getByRole("link", { name: "Get help", exact: true });
+      await expect.poll(() => helpLink.getAttribute("href")).toBe("https://benchagi.com/support");
+      const agentsLink = hero.getByRole("link", { name: "Your agents", exact: true });
+      await expect.poll(() => agentsLink.getAttribute("href")).toBe("https://benchagi.com/agents");
+      await expect.poll(() => hero.getByRole("link").count()).toBe(4);
 
-      const aurelius = page.getByRole("button", { name: "Wave hello to Aurelius" });
+      const aurelius = page.getByRole("button", { name: "Say hi to Aurelius" });
       // AURELIUS_GREETING_MS clears the class after 1400ms, so click and read it in one step.
       const aureliusGreeting = await aurelius.evaluate(async (element) => {
         const button = element as HTMLButtonElement;
@@ -112,7 +111,9 @@ suite.define(() => {
       });
       expect(aureliusGreeting).toBe(true);
 
-      await expect.poll(() => page.locator(".about-footer").textContent()).toContain("MIT License");
+      await expect
+        .poll(() => page.locator(".about-footer").textContent())
+        .toContain("MIT licensed");
 
       const copyButton = strip.locator(".about-commit button");
       await expect.poll(() => copyButton.getAttribute("aria-label")).toBe("Copy full commit hash");

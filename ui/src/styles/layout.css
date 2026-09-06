@@ -851,10 +851,11 @@ openclaw-settings-save-indicator:empty {
   min-width: 0;
 }
 
+/* The animated eagle mark (favicon.svg) at 20px beside the short product name. */
 .topbar-brand__logo {
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-md);
 }
 

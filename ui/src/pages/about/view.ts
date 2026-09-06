@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from "lit";
 import type { ControlUiBuildInfo } from "../../build-info.ts";
+import { BENCH_LINKS } from "../../components/app-sidebar-agent-menu.ts";
 import { icons } from "../../components/icons.ts";
 import "../../components/openclaw-mascot.ts";
 import {
@@ -12,9 +13,7 @@ import "../../components/tooltip.ts";
 import { i18n, t } from "../../i18n/index.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "../../lib/external-link.ts";
 import { formatRelativeTimestamp } from "../../lib/format.ts";
-import { COMMUNITY_DISCORD_URL } from "../../lib/product-links.ts";
 import "../../styles/about.css";
-import { brandIcons } from "./brand-icons.ts";
 
 export type AboutCommitCopyState = "idle" | "copying" | "copied" | "error";
 
@@ -29,31 +28,14 @@ type AboutProps = {
 
 const SHORT_COMMIT_LENGTH = 12;
 
-// Docs-first where a docs page exists; GitHub/Discord match the native
-// macOS/iOS About screens (AboutSettings.swift, SettingsProTabSections.swift).
+// Bench links for customers (UI-BRAND-CONTRACT §3), the same set as the
+// sidebar identity menu; the GitHub / Discord / X rows of the upstream About
+// screen do not ship in the Vault.
 const ABOUT_LINKS: ReadonlyArray<{ href: string; icon: TemplateResult; label: () => string }> = [
-  { href: "https://openclaw.ai", icon: icons.globe, label: () => t("aboutPage.linkWebsite") },
-  { href: "https://docs.openclaw.ai", icon: icons.book, label: () => t("aboutPage.linkDocs") },
-  {
-    href: "https://github.com/openclaw/openclaw",
-    icon: brandIcons.github,
-    label: () => t("aboutPage.linkGitHub"),
-  },
-  {
-    href: COMMUNITY_DISCORD_URL,
-    icon: brandIcons.discord,
-    label: () => t("aboutPage.linkDiscord"),
-  },
-  {
-    href: "https://x.com/openclaw",
-    icon: brandIcons.x,
-    label: () => t("aboutPage.linkX"),
-  },
-  {
-    href: "https://docs.openclaw.ai/releases",
-    icon: icons.scrollText,
-    label: () => t("aboutPage.linkChangelog"),
-  },
+  { href: BENCH_LINKS.website, icon: icons.globe, label: () => t("aboutPage.linkWebsite") },
+  { href: BENCH_LINKS.help, icon: icons.messageSquare, label: () => t("aboutPage.linkHelp") },
+  { href: BENCH_LINKS.whatsNew, icon: icons.scrollText, label: () => t("aboutPage.linkWhatsNew") },
+  { href: BENCH_LINKS.agents, icon: icons.users, label: () => t("aboutPage.linkAgents") },
 ];
 
 function formatControlUiBuildDate(
