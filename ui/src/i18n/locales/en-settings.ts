@@ -591,6 +591,11 @@ const enSettings = {
       theme: "Theme",
       chooseTheme: "Choose a theme family.",
       moreThemes: "More themes",
+      backgroundMotion: "Background",
+      backgroundMotionToggle: "Background motion",
+      backgroundMotionOn: "The gravity fabric drifts behind your workspace.",
+      backgroundMotionOff: "The background stays still.",
+      backgroundMotionHint: "Bench themes only; your system's reduced-motion setting always wins.",
       typography: "Typography",
       fonts: {
         ui: "Interface",

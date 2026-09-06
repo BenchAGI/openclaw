@@ -29,6 +29,7 @@ import { APPEARANCE_SETTINGS_TARGET_IDS } from "./route-data.ts";
 import {
   renderChatPreferencesSection,
   renderLanguageSection,
+  renderBackgroundMotionSection,
   renderLobsterPetSection,
   serverUiPrefProvenanceHint,
   renderSidebarPreferencesSection,
@@ -621,7 +622,8 @@ export function renderAppearanceSection(
         </div>
       </section>
 
-      ${renderSidebarPreferencesSection(props)} ${renderLobsterPetSection(props)}
+      ${renderBackgroundMotionSection(props)} ${renderSidebarPreferencesSection(props)}
+      ${renderLobsterPetSection(props)}
       ${renderChatPreferencesSection(props, inputs.chatMessageWidth)}
 
       <section id=${APPEARANCE_SETTINGS_TARGET_IDS.connection} class="settings-section">
