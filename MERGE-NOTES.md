@@ -106,6 +106,16 @@ separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
     fork delta touches). `test/scripts/run-vitest-state-cleanup.test.ts` cases that spawn
     `pnpm` inside a temp HOME fail on Prime's pnpm self-switch (`ENOEXEC`), an environment
     red; CI runs them on hosted runners.
+- **Hosted-CI reds by construction on the merge-forward PR (#125):**
+  - `Customer harness impact` (fork #106 gate, `.github/scripts/customer-harness-impact.mjs`):
+    "PR changed more than 3000 files; refusing an incomplete harness-impact scan". The merge
+    touches ~37k files against `main`; the gate has no reviewed-override path. Its scan is
+    meaningful again for every PR that targets this head.
+  - `actionlint` / Workflow Sanity (zizmor audit): the trusted pre-commit config is built from
+    the PR's base branch, and `main` pins zizmor v1.22.0, which crashes on upstream 9.2's
+    anchor-heavy `ci.yml` ("no audit was performed", `template-injection`). This branch pins
+    v1.29.0 (`.pre-commit-config.yaml`), so PRs targeting it audit cleanly; a one-line rev bump
+    on `main` clears it for #125 itself.
 - **Hosted-CI proofs relied on (never green on Prime, macOS):** these tests exercise Linux
   tooling that Prime lacks or that Prime's pnpm self-switch breaks (`ENOEXEC` in a temp HOME).
   Their pass/fail state comes only from the PR's hosted CI, not from this seat:
