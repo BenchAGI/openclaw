@@ -34,7 +34,7 @@ import { logConfigUpdated } from "../../config/logging.js";
 import { normalizeAgentModelRefForConfig, toAgentModelListLike } from "../../config/model-input.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { isRemoteEnvironment } from "../../infra/remote-env.js";
-import { loadModelCatalog } from "../../plugin-sdk/agent-runtime.js";
+import { loadPreparedModelCatalog } from "../../agents/prepared-model-catalog.js";
 import {
   applyProviderAuthConfigPatch,
   applyDefaultModel,
@@ -735,7 +735,7 @@ async function adoptProviderDefaultModelIfUnset(params: {
   // model id that no longer exists. An empty catalog (fresh box, discovery not
   // run yet) is treated as "can't disprove": the provider-auth default is
   // authored by the provider plugin, not guessed from catalog ordering.
-  const catalog = await loadModelCatalog({ config: cfg, readOnly: true });
+  const catalog = await loadPreparedModelCatalog({ config: cfg, readOnly: true });
   const known = catalog.some(
     (entry) =>
       normalizeProviderId(entry.provider) === normalizeProviderId(resolved.provider) &&
