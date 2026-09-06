@@ -76,6 +76,30 @@ Per the PR A seat: fork main's #94–#109 touched exactly one `ui/` file (`ui/pa
 so `ui/` is upstream 9.2 wholesale. #112 branding is cherry-picked on top (`9d60c7e0`) as a
 separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
 
+## Post-gate fixes (hosted CI burn-down after the Prime run)
+
+Hosted CI measured through a two-file PR onto this branch (run 34025468864) showed the base's own
+reds. One cause per commit, in order:
+
+- `dup:check` covers `.github/scripts` (#106 gate scripts were tracked but unscanned).
+- `config/max-lines-baseline.txt` carries the eleven fork-touched files (fork main had no baseline,
+  so the ratchet has no base to shrink against); real splits are owed and named in the file.
+- `extensions/{memory-durability,session-digest}/tsconfig.json` use the upstream extends-only shape.
+- `src/infra/plugin-approvals.ts` comment no longer spells a plugin-private src path (#117's fix).
+- plugin-sdk surface budget +3 public exports for the fork's memory-core host runtime.
+- `.github/labeler.yml` covers `claude-code-bridge` and `memory-durability`.
+- knip: unused fork exports dropped, dead `extensions/memory-wiki/src/wiki-files.ts` removed,
+  test-only seams tagged `@public`.
+- tsgo core shard `agents-root` stays at 720 roots: the two fork root-level agents tests are listed
+  under `agents-other` via `files`.
+- Test reconciliations on upstream shapes: `agent.runtime-config` mocks the #63 reranker target
+  lookup; embedded-mode approval tests run with `OPENCLAW_TURN_IDLE_BUDGET_MS=0` (#108 clamp off);
+  fallback reasoning-tag tests accept the #66 banner prefix; `models-cli.auth-login` keeps the
+  setup-registry surface (#75).
+- Behaviour reconciliations: #107 exempts terminally failed harness turns (upstream keeps their
+  own error); #100 lets identityless uncertainty outrank a policy block, clears the failed error
+  when a retry delivers, and keeps the transcript when required delivery is vetoed.
+
 ## Follow-ups (explicitly not done here)
 
 - Regenerate protocol clients (`pnpm protocol:gen`, `protocol:gen:swift`, `protocol:gen:kotlin`)
