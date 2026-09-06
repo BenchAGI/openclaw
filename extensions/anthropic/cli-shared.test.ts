@@ -1,10 +1,7 @@
 // Anthropic tests cover cli shared plugin behavior.
 import { createDeferred } from "openclaw/plugin-sdk/extension-shared";
 import { describe, expect, it, vi } from "vitest";
-import {
-  buildAnthropicCliBackend,
-  buildAnthropicCliBackendUltracode,
-} from "./cli-backend.js";
+import { buildAnthropicCliBackend, buildAnthropicCliBackendUltracode } from "./cli-backend.js";
 import {
   CLAUDE_CLI_CLEAR_ENV,
   normalizeClaudeBackendConfig,

@@ -144,7 +144,7 @@ reds. One cause per commit, in order:
   tooling that Prime lacks or that Prime's pnpm self-switch breaks (`ENOEXEC` in a temp HOME).
   Their pass/fail state comes only from the PR's hosted CI, not from this seat:
   `test/scripts/ci-workflow-guards.test.ts › preserves pnpm hard links and validates cached
-  importers and supply-chain policy offline` (shells `pnpm run pnpm-path`),
+importers and supply-chain policy offline` (shells `pnpm run pnpm-path`),
   `test/openclaw-prepack.test.ts`, `test/scripts/run-vitest-state-cleanup.test.ts` (pnpm switch),
   `test/scripts/prepublish-plugin-registry-shell.test.ts` (needs Bash 5+),
   `test/scripts/release-no-push-workflow.test.ts` (needs GNU `timeout`),
