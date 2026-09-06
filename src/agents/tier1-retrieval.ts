@@ -26,7 +26,7 @@ import { getActiveMemorySearchManager } from "../plugin-sdk/memory-host-search.j
 import { materializeSecretInput } from "../secrets/resolve-secret-input-string.js";
 import { normalizeSecretInput } from "../utils/normalize-secret-input.js";
 import type { EmbeddedContextFile } from "./embedded-agent-helpers.js";
-import { resolveMemorySearchConfig } from "./memory-search.js";
+import { resolveMemorySearchIndexConfig } from "./memory-search.js";
 
 /** Synthetic file name; prepended ahead of MEMORY.md in the bootstrap context. */
 export const TIER1_FILE_NAME = "RETRIEVED-CONTEXT-TIER1.md";
@@ -267,8 +267,11 @@ export async function buildTier1RetrievalContextFile(
     ...extra,
   });
 
-  // 1) Flag gate. resolveMemorySearchConfig returns null when memory search is
-  // disabled for this agent — in that case there is nothing to retrieve anyway.
+  // 1) Flag gate. resolveMemorySearchIndexConfig returns null when memory search is
+  // disabled for this agent — in that case there is nothing to retrieve anyway. It is
+  // the light resolver on purpose: resolveMemorySearchConfig performs cold embedding
+  // plugin discovery, which must never run on the bootstrap path of every turn just to
+  // read this flag (it blocked runner turns on Linux hosts).
   let tier1:
     | {
         enabled: boolean;
@@ -290,7 +293,7 @@ export async function buildTier1RetrievalContextFile(
       }
     | undefined;
   try {
-    const rq = resolveMemorySearchConfig(params.config, params.agentId)?.query;
+    const rq = resolveMemorySearchIndexConfig(params.config, params.agentId)?.query;
     tier1 = rq?.tier1;
     reranker = rq?.reranker;
   } catch (err) {
