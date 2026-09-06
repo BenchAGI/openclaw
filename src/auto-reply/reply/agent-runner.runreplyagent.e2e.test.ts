@@ -35,12 +35,14 @@ import {
   replaceSessionEntry,
 } from "../../config/sessions/session-accessor.js";
 import type { TypingMode } from "../../config/types.js";
+import { onInternalDiagnosticEvent } from "../../infra/diagnostic-events.js";
 import {
   buildHandledBeforeAgentReplyPayloads,
   runBeforeAgentReplyForTurn,
 } from "../../plugins/before-agent-reply.js";
 import { createUserTurnTranscriptRecorder } from "../../sessions/user-turn-transcript.js";
 import { normalizeSessionDeliveryState } from "../../utils/delivery-context.shared.js";
+import { INTERNAL_MESSAGE_CHANNEL } from "../../utils/message-channel.js";
 import type { TemplateContext } from "../templating.js";
 import { resolveActiveExplicitSteerSessionKey } from "./explicit-steer-routing.js";
 import type { InternalGetReplyOptions } from "./get-reply.types.js";
@@ -4080,6 +4082,11 @@ describe("runReplyAgent typing (heartbeat)", () => {
         sessionEntry,
         sessionStore,
         sessionKey: "main",
+        sessionCtx: {
+          Provider: INTERNAL_MESSAGE_CHANNEL,
+          Surface: INTERNAL_MESSAGE_CHANNEL,
+          OriginatingChannel: INTERNAL_MESSAGE_CHANNEL,
+        },
         storePath,
         runOverrides: { provider: "openai", model: "gpt-5.6-sol" },
       });
@@ -4817,7 +4824,7 @@ describe("runReplyAgent typing (heartbeat)", () => {
 
     state.runEmbeddedAgentMock.mockImplementationOnce(async (params: AgentRunParams) => {
       await params.onBlockReply?.({ text: "streamed answer" });
-      return { payloads: [], meta: {} };
+      return { payloads: [], meta: { agentMeta: { usage: { input: 13, output: 7 } } } };
     });
     const fallbackSpy = vi
       .spyOn(modelFallbackModule, "runWithModelFallback")
@@ -4835,6 +4842,12 @@ describe("runReplyAgent typing (heartbeat)", () => {
           ],
         }),
       );
+    const onUsage = vi.fn();
+    const offDiagnostics = onInternalDiagnosticEvent((event, metadata) => {
+      if (event.type === "model.usage") {
+        onUsage(event, metadata);
+      }
+    });
     try {
       const { run } = createMinimalRun({
         blockStreamingEnabled: true,
@@ -4846,11 +4859,27 @@ describe("runReplyAgent typing (heartbeat)", () => {
       const res = await run();
       const payloads = Array.isArray(res) ? res : res ? [res] : [];
 
-      expect(onBlockReply).toHaveBeenCalled();
-      expect(payloads).toHaveLength(1);
-      expect(payloads[0]?.text).toContain("Model Fallback:");
-      expect(payloads[0]?.text).not.toContain("streamed answer");
+      // The streamed answer already reached the user; suppressing the notice must
+      // leave that delivery intact instead of turning the turn into a failure.
+      expect(onBlockReply).toHaveBeenCalledTimes(1);
+      expect(onBlockReply.mock.calls[0]?.[0]).toMatchObject({ text: "streamed answer" });
+      expect(payloads).toEqual([]);
+      // An empty return alone also passes if the pre-filter empty-payload guard
+      // exits early. The actual internal usage event must still reach listeners.
+      expect(onUsage).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          type: "model.usage",
+          sessionKey: "main",
+          sessionId: "session",
+          channel: "whatsapp",
+          provider: "deepinfra",
+          model: "moonshotai/Kimi-K2.5",
+          usage: { input: 13, output: 7, cacheRead: 0, cacheWrite: 0, promptTokens: 13, total: 20 },
+        }),
+        { trusted: true },
+      );
     } finally {
+      offDiagnostics();
       fallbackSpy.mockRestore();
     }
   });
@@ -4897,15 +4926,74 @@ describe("runReplyAgent typing (heartbeat)", () => {
       const res = await run();
       const payloads = Array.isArray(res) ? res : res ? [res] : [];
 
+      // Both banners are gated: the transition notice payload is never pushed,
+      // and the persistent in-text `⚠ running in fallback mode` prefix is not
+      // applied — the customer reads the answer and nothing else.
+      expect(payloads).toHaveLength(1);
+      expect(payloads[0]?.text).toBe("final");
+      expect(payloads[0]?.replyToId).toBe("msg");
+    } finally {
+      fallbackSpy.mockRestore();
+    }
+  });
+
+  it("threads both fallback banners without consuming the first assistant reply slot when opted in", async () => {
+    const sessionEntry = makeSessionEntry();
+    const sessionStore = { main: sessionEntry };
+
+    state.runEmbeddedAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "final" }],
+      meta: {},
+    });
+    const fallbackSpy = vi
+      .spyOn(modelFallbackModule, "runWithModelFallback")
+      .mockImplementationOnce(
+        makeCompletedFallbackRunner({
+          provider: "deepinfra",
+          model: "moonshotai/Kimi-K2.5",
+          attempts: [
+            {
+              provider: "fireworks",
+              model: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+              error: "Provider fireworks is in cooldown (all profiles unavailable)",
+              reason: "rate_limit",
+            },
+          ],
+        }),
+      );
+    // Queued replies resolve their config through the runtime snapshot, so both
+    // the opt-in and the channel replyToMode have to be pinned there.
+    const { getRuntimeConfigSnapshot } = await import("../../config/config.js");
+    const previousRuntimeConfig = getRuntimeConfigSnapshot();
+    setRuntimeConfigSnapshot({
+      agents: { defaults: { model: { showFallbackNoticeInChat: true } } },
+      channels: { whatsapp: { replyToMode: "first" } },
+    });
+    try {
+      const { run } = createMinimalRun({
+        sessionEntry,
+        sessionStore,
+        sessionKey: "main",
+      });
+      const res = await run();
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+
+      // docs/concepts/model-failover.md: the notice must not consume the first
+      // assistant reply slot on a threaded channel — the answer keeps its
+      // replyToId even though the notice was emitted ahead of it.
       expect(payloads).toHaveLength(2);
       expect(payloads[0]?.text).toContain("Model Fallback:");
       expect(payloads[0]?.replyToId).toBe("msg");
-      // Fallback wins also carry the persistent in-text fallback-mode banner.
       expect(payloads[1]?.text).toBe(
         "⚠ running in fallback mode (deepinfra/moonshotai/Kimi-K2.5 — rate limit)\n\nfinal",
       );
       expect(payloads[1]?.replyToId).toBe("msg");
     } finally {
+      if (previousRuntimeConfig) {
+        setRuntimeConfigSnapshot(previousRuntimeConfig);
+      } else {
+        clearRuntimeConfigSnapshot();
+      }
       fallbackSpy.mockRestore();
     }
   });
@@ -5092,17 +5180,23 @@ describe("runReplyAgent typing (heartbeat)", () => {
     expect(payload?.text).toContain("no visible reply");
   });
 
-  it("announces fallback without silence failure when fallback already replied through a messaging tool", async () => {
+  it("records usage without a fallback notice when messaging-tool delivery dedupes the reply", async () => {
     state.runEmbeddedAgentMock.mockResolvedValueOnce({
       payloads: [{ text: "already sent" }],
       messagingToolSentTexts: ["already sent"],
       messagingToolSentTargets: [{ tool: "message", provider: "discord", to: "channel:C1" }],
-      meta: {},
+      meta: { agentMeta: { usage: { input: 17, output: 5 } } },
     });
     const fallbackSpy = vi
       .spyOn(modelFallbackModule, "runWithModelFallback")
       .mockImplementationOnce(makeCompletedFallbackRunner());
 
+    const onUsage = vi.fn();
+    const offDiagnostics = onInternalDiagnosticEvent((event, metadata) => {
+      if (event.type === "model.usage") {
+        onUsage(event, metadata);
+      }
+    });
     try {
       const { run } = createMinimalRun({
         runOverrides: {
@@ -5120,12 +5214,25 @@ describe("runReplyAgent typing (heartbeat)", () => {
       });
 
       const res = await run();
-      const payload = Array.isArray(res) ? res[0] : res;
-
-      expect(payload?.isError).not.toBe(true);
-      expect(payload?.text).toContain("Model Fallback:");
-      expect(payload?.text).not.toContain("no visible reply");
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      // A real final payload enters the runner, then its already-sent text is
+      // deduped. Neither a second outward reply nor a post-filter early return
+      // that loses internal usage accounting is acceptable.
+      expect(payloads).toEqual([]);
+      expect(onUsage).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          type: "model.usage",
+          sessionKey: "main",
+          sessionId: "session",
+          channel: "discord",
+          provider: "openai",
+          model: "gpt-5.5",
+          usage: { input: 17, output: 5, cacheRead: 0, cacheWrite: 0, promptTokens: 17, total: 22 },
+        }),
+        { trusted: true },
+      );
     } finally {
+      offDiagnostics();
       fallbackSpy.mockRestore();
     }
   });
@@ -5154,11 +5261,17 @@ describe("runReplyAgent typing (heartbeat)", () => {
       });
 
       const res = await run();
-      const payload = Array.isArray(res) ? res[0] : res;
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      const text = payloads.map((payload) => payload.text ?? "").join("\n");
 
-      expect(payload?.isError).not.toBe(true);
-      expect(payload?.text).toContain("Model Fallback:");
-      expect(payload?.text).not.toContain("no visible reply");
+      // The answer left inside the agent run itself (the side effect mocked
+      // above), so the correct return is exactly nothing. Pinning the empty
+      // array — not just "no isError payload" — is what makes the assertion
+      // non-vacuous: a spurious synthesized payload fails here.
+      expect(payloads).toEqual([]);
+      expect(payloads.some((payload) => payload.isError)).toBe(false);
+      expect(text).not.toContain("Model Fallback:");
+      expect(text).not.toContain("no visible reply");
     } finally {
       fallbackSpy.mockRestore();
     }
@@ -5205,7 +5318,7 @@ describe("runReplyAgent typing (heartbeat)", () => {
     }
   });
 
-  it("announces fallback without silence failure when fallback already completed a cron side effect", async () => {
+  it("stays silent-failure free when fallback already completed a cron side effect", async () => {
     state.runEmbeddedAgentMock.mockResolvedValueOnce({
       payloads: [{ text: "NO_REPLY" }],
       successfulCronAdds: 1,
@@ -5232,17 +5345,23 @@ describe("runReplyAgent typing (heartbeat)", () => {
       });
 
       const res = await run();
-      const payload = Array.isArray(res) ? res[0] : res;
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      const text = payloads.map((payload) => payload.text ?? "").join("\n");
 
-      expect(payload?.isError).not.toBe(true);
-      expect(payload?.text).toContain("Model Fallback:");
-      expect(payload?.text).not.toContain("no visible reply");
+      // The answer left inside the agent run itself (the side effect mocked
+      // above), so the correct return is exactly nothing. Pinning the empty
+      // array — not just "no isError payload" — is what makes the assertion
+      // non-vacuous: a spurious synthesized payload fails here.
+      expect(payloads).toEqual([]);
+      expect(payloads.some((payload) => payload.isError)).toBe(false);
+      expect(text).not.toContain("Model Fallback:");
+      expect(text).not.toContain("no visible reply");
     } finally {
       fallbackSpy.mockRestore();
     }
   });
 
-  it("announces fallback without silence failure when fallback committed target-only messaging delivery", async () => {
+  it("stays silent-failure free when fallback committed target-only messaging delivery", async () => {
     state.runEmbeddedAgentMock.mockResolvedValueOnce({
       payloads: [{ text: "NO_REPLY" }],
       messagingToolSentTargets: [{ tool: "message", provider: "discord", to: "channel:C1" }],
@@ -5269,17 +5388,23 @@ describe("runReplyAgent typing (heartbeat)", () => {
       });
 
       const res = await run();
-      const payload = Array.isArray(res) ? res[0] : res;
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      const text = payloads.map((payload) => payload.text ?? "").join("\n");
 
-      expect(payload?.isError).not.toBe(true);
-      expect(payload?.text).toContain("Model Fallback:");
-      expect(payload?.text).not.toContain("no visible reply");
+      // The answer left inside the agent run itself (the side effect mocked
+      // above), so the correct return is exactly nothing. Pinning the empty
+      // array — not just "no isError payload" — is what makes the assertion
+      // non-vacuous: a spurious synthesized payload fails here.
+      expect(payloads).toEqual([]);
+      expect(payloads.some((payload) => payload.isError)).toBe(false);
+      expect(text).not.toContain("Model Fallback:");
+      expect(text).not.toContain("no visible reply");
     } finally {
       fallbackSpy.mockRestore();
     }
   });
 
-  it("announces fallback without silence failure when fallback already delivered an approval prompt", async () => {
+  it("stays silent-failure free when fallback already delivered an approval prompt", async () => {
     state.runEmbeddedAgentMock.mockResolvedValueOnce({
       payloads: [],
       didSendDeterministicApprovalPrompt: true,
@@ -5303,11 +5428,17 @@ describe("runReplyAgent typing (heartbeat)", () => {
       });
 
       const res = await run();
-      const payload = Array.isArray(res) ? res[0] : res;
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      const text = payloads.map((payload) => payload.text ?? "").join("\n");
 
-      expect(payload?.isError).not.toBe(true);
-      expect(payload?.text).toContain("Model Fallback:");
-      expect(payload?.text).not.toContain("no visible reply");
+      // The answer left inside the agent run itself (the side effect mocked
+      // above), so the correct return is exactly nothing. Pinning the empty
+      // array — not just "no isError payload" — is what makes the assertion
+      // non-vacuous: a spurious synthesized payload fails here.
+      expect(payloads).toEqual([]);
+      expect(payloads.some((payload) => payload.isError)).toBe(false);
+      expect(text).not.toContain("Model Fallback:");
+      expect(text).not.toContain("no visible reply");
     } finally {
       fallbackSpy.mockRestore();
     }
@@ -5386,7 +5517,7 @@ describe("runReplyAgent typing (heartbeat)", () => {
 
       const firstText = Array.isArray(first) ? first[0]?.text : first?.text;
       const secondText = Array.isArray(second) ? second[0]?.text : second?.text;
-      expect(firstText).toContain("Model Fallback:");
+      expect(firstText).not.toContain("Model Fallback:");
       expect(secondText).not.toContain("Model Fallback:");
       expect(fallbackEvents).toHaveLength(1);
     } finally {
@@ -5394,7 +5525,7 @@ describe("runReplyAgent typing (heartbeat)", () => {
     }
   });
 
-  it("prepends fallback-mode banners on sticky auto-fallback turns", async () => {
+  it("suppresses the sticky fallback-mode banner on a customer channel", async () => {
     const sessionEntry: SessionEntry = {
       sessionId: "session",
       updatedAt: Date.now(),
@@ -5432,11 +5563,63 @@ describe("runReplyAgent typing (heartbeat)", () => {
     const res = await run();
     const payloads = Array.isArray(res) ? res : res ? [res] : [];
 
+    // Sticky turns are the worst shape of the leak: no transition fires, so the
+    // only thing the customer would have seen every single turn is this banner.
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]?.text).toBe("final");
+    expect(payloads[0]?.text).not.toContain("running in fallback mode");
+    expect(payloads[0]?.text).not.toContain("Model Fallback:");
+  });
+
+  it("prepends the sticky fallback-mode banner on an operator surface", async () => {
+    const sessionEntry: SessionEntry = {
+      sessionId: "session",
+      updatedAt: Date.now(),
+      providerOverride: "deepinfra",
+      modelOverride: "moonshotai/Kimi-K2.5",
+      modelOverrideSource: "auto",
+      modelOverrideFallbackOriginProvider: "fireworks",
+      modelOverrideFallbackOriginModel: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+      fallbackNotice: {
+        kind: "active",
+        selectedModel: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+        activeModel: "deepinfra/moonshotai/Kimi-K2.5",
+        reason: "rate limit",
+      },
+    };
+    const sessionStore = { main: sessionEntry };
+
+    state.runEmbeddedAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "final" }],
+      meta: {},
+    });
+
+    const { run } = createMinimalRun({
+      sessionEntry,
+      sessionStore,
+      sessionKey: "main",
+      sessionCtx: {
+        Provider: INTERNAL_MESSAGE_CHANNEL,
+        Surface: INTERNAL_MESSAGE_CHANNEL,
+        OriginatingChannel: INTERNAL_MESSAGE_CHANNEL,
+      },
+      runOverrides: {
+        provider: "deepinfra",
+        model: "moonshotai/Kimi-K2.5",
+        hasSessionModelOverride: true,
+        modelOverrideSource: "auto",
+        hasAutoFallbackProvenance: true,
+      },
+    });
+    const res = await run();
+    const payloads = Array.isArray(res) ? res : res ? [res] : [];
+
+    // Default-on guard: no config override, operator surface. If a later change
+    // hardcodes suppression, this fails.
     expect(payloads).toHaveLength(1);
     expect(payloads[0]?.text).toBe(
       "⚠ running in fallback mode (deepinfra/moonshotai/Kimi-K2.5 — rate limit)\n\nfinal",
     );
-    expect(payloads[0]?.text).not.toContain("Model Fallback:");
   });
 
   it("re-announces model fallback after returning to selected model", async () => {
@@ -5489,16 +5672,25 @@ describe("runReplyAgent typing (heartbeat)", () => {
         sessionStore,
         sessionKey: "main",
       });
+      const phases: string[] = [];
+      const off = onAgentEvent((evt) => {
+        const phase = typeof evt.data?.phase === "string" ? evt.data.phase : null;
+        if (evt.stream === "lifecycle" && phase) {
+          phases.push(phase);
+        }
+      });
       const first = await run();
       const second = await run();
       const third = await run();
+      off();
 
       const firstText = Array.isArray(first) ? first[0]?.text : first?.text;
       const secondText = Array.isArray(second) ? second[0]?.text : second?.text;
       const thirdText = Array.isArray(third) ? third[0]?.text : third?.text;
-      expect(firstText).toContain("Model Fallback:");
+      expect(firstText).not.toContain("Model Fallback:");
       expect(secondText).not.toContain("Model Fallback:");
-      expect(thirdText).toContain("Model Fallback:");
+      expect(thirdText).not.toContain("Model Fallback:");
+      expect(countMatching(phases, (phase) => phase === "fallback")).toBe(2);
     } finally {
       fallbackSpy.mockRestore();
     }
@@ -5559,7 +5751,14 @@ describe("runReplyAgent typing (heartbeat)", () => {
           sessionStore,
           sessionKey: "main",
           storePath,
-          sessionCtx: { ChatType: chatType },
+          sessionCtx: {
+            // Operator surface: the delivery-channel gate is open, so the chat-type
+            // gate alone decides visibility here.
+            Provider: INTERNAL_MESSAGE_CHANNEL,
+            Surface: INTERNAL_MESSAGE_CHANNEL,
+            OriginatingChannel: INTERNAL_MESSAGE_CHANNEL,
+            ChatType: chatType,
+          },
         });
         const phases: string[] = [];
         const off = onAgentEvent((evt) => {
@@ -5636,7 +5835,12 @@ describe("runReplyAgent typing (heartbeat)", () => {
       sessionStore,
       storePath,
       runOverrides: runtimeModelSelection,
-      sessionCtx: { ChatType: "direct" },
+      sessionCtx: {
+        Provider: INTERNAL_MESSAGE_CHANNEL,
+        Surface: INTERNAL_MESSAGE_CHANNEL,
+        OriginatingChannel: INTERNAL_MESSAGE_CHANNEL,
+        ChatType: "direct",
+      },
     });
     const fallbackEvents: Array<Record<string, unknown>> = [];
     const off = onAgentEvent((event) => {
@@ -5736,13 +5940,274 @@ describe("runReplyAgent typing (heartbeat)", () => {
 
       const firstText = Array.isArray(first) ? first[0]?.text : first?.text;
       const secondText = Array.isArray(second) ? second[0]?.text : second?.text;
-      expect(firstText).toContain("Model Fallback:");
-      expect(secondText).toContain("Model Fallback cleared:");
+      expect(firstText).not.toContain("Model Fallback:");
+      expect(secondText).not.toContain("Model Fallback cleared:");
       expect(countMatching(phases, (phase) => phase === "fallback")).toBe(1);
       expect(countMatching(phases, (phase) => phase === "fallback_cleared")).toBe(1);
     } finally {
       fallbackSpy.mockRestore();
     }
+  });
+
+  it("delivers the assistant answer without the fallback banner on an external surface", async () => {
+    const sessionEntry = makeSessionEntry();
+    const sessionStore = { main: sessionEntry };
+
+    state.runEmbeddedAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "final" }],
+      meta: {},
+    });
+    const fallbackSpy = vi
+      .spyOn(modelFallbackModule, "runWithModelFallback")
+      .mockImplementationOnce(
+        makeCompletedFallbackRunner({
+          provider: "deepinfra",
+          model: "moonshotai/Kimi-K2.5",
+          attempts: [
+            {
+              provider: "fireworks",
+              model: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+              error: "Provider fireworks is in cooldown (all profiles unavailable)",
+              reason: "rate_limit",
+            },
+          ],
+        }),
+      );
+    try {
+      const { run } = createMinimalRun({
+        sessionEntry,
+        sessionStore,
+        sessionKey: "main",
+        sessionCtx: {
+          Provider: "slack",
+          Surface: "slack",
+          OriginatingChannel: "slack",
+          ChatType: "channel",
+        },
+      });
+      const res = await run();
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      const text = payloads.map((payload) => payload.text ?? "").join("\n");
+
+      expect(text).not.toContain("Model Fallback:");
+      expect(text).not.toContain("running in fallback mode");
+      // Regression guard: suppressing the notice must not swallow the answer.
+      expect(payloads.length).toBeGreaterThan(0);
+      expect(text).toContain("final");
+      expect(sessionEntry.fallbackNotice?.reason).toBe("rate limit");
+    } finally {
+      fallbackSpy.mockRestore();
+    }
+  });
+
+  it("suppresses both fallback banners when an internal surface delivers into a customer channel", async () => {
+    // Gateway `chat.send` with `deliver: true` and the restart sentinel both set
+    // `Surface: "webchat"` while `OriginatingChannel` carries the real customer
+    // channel — src/gateway/server-methods/chat.ts and
+    // src/gateway/server-restart-sentinel.ts. Gating on the surface alone reads
+    // "webchat" here and leaks into Slack.
+    const sessionEntry = makeSessionEntry();
+    const sessionStore = { main: sessionEntry };
+
+    state.runEmbeddedAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "final" }],
+      meta: {},
+    });
+    const fallbackSpy = vi
+      .spyOn(modelFallbackModule, "runWithModelFallback")
+      .mockImplementationOnce(
+        makeCompletedFallbackRunner({
+          provider: "deepinfra",
+          model: "moonshotai/Kimi-K2.5",
+          attempts: [
+            {
+              provider: "fireworks",
+              model: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+              error: "Provider fireworks is in cooldown (all profiles unavailable)",
+              reason: "rate_limit",
+            },
+          ],
+        }),
+      );
+    try {
+      const { run } = createMinimalRun({
+        sessionEntry,
+        sessionStore,
+        sessionKey: "main",
+        sessionCtx: {
+          Provider: INTERNAL_MESSAGE_CHANNEL,
+          Surface: INTERNAL_MESSAGE_CHANNEL,
+          OriginatingChannel: "slack",
+          OriginatingTo: "channel:C1",
+          ChatType: "channel",
+        },
+      });
+      const res = await run();
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      const text = payloads.map((payload) => payload.text ?? "").join("\n");
+
+      expect(text).not.toContain("Model Fallback:");
+      expect(text).not.toContain("running in fallback mode");
+      expect(payloads.length).toBeGreaterThan(0);
+      expect(text).toContain("final");
+    } finally {
+      fallbackSpy.mockRestore();
+    }
+  });
+
+  it("renders both fallback banners on an operator surface with no config override", async () => {
+    // Default-on guard for the transition notice through runReplyAgent itself:
+    // no opt-in config, operator surface, banners present.
+    const sessionEntry = makeSessionEntry();
+    const sessionStore = { main: sessionEntry };
+
+    state.runEmbeddedAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "final" }],
+      meta: {},
+    });
+    const fallbackSpy = vi
+      .spyOn(modelFallbackModule, "runWithModelFallback")
+      .mockImplementationOnce(
+        makeCompletedFallbackRunner({
+          provider: "deepinfra",
+          model: "moonshotai/Kimi-K2.5",
+          attempts: [
+            {
+              provider: "fireworks",
+              model: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+              error: "Provider fireworks is in cooldown (all profiles unavailable)",
+              reason: "rate_limit",
+            },
+          ],
+        }),
+      );
+    try {
+      const { run } = createMinimalRun({
+        sessionEntry,
+        sessionStore,
+        sessionKey: "main",
+        sessionCtx: {
+          Provider: INTERNAL_MESSAGE_CHANNEL,
+          Surface: INTERNAL_MESSAGE_CHANNEL,
+          OriginatingChannel: INTERNAL_MESSAGE_CHANNEL,
+        },
+      });
+      const res = await run();
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      const text = payloads.map((payload) => payload.text ?? "").join("\n");
+
+      expect(text).toContain("Model Fallback:");
+      expect(text).toContain("⚠ running in fallback mode (deepinfra/moonshotai/Kimi-K2.5");
+      expect(text).toContain("final");
+    } finally {
+      fallbackSpy.mockRestore();
+    }
+  });
+
+  it("restores the fallback banner when showFallbackNoticeInChat is enabled", async () => {
+    const sessionEntry = makeSessionEntry();
+    const sessionStore = { main: sessionEntry };
+
+    state.runEmbeddedAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "final" }],
+      meta: {},
+    });
+    const fallbackSpy = vi
+      .spyOn(modelFallbackModule, "runWithModelFallback")
+      .mockImplementationOnce(
+        makeCompletedFallbackRunner({
+          provider: "deepinfra",
+          model: "moonshotai/Kimi-K2.5",
+          attempts: [
+            {
+              provider: "fireworks",
+              model: "fireworks/accounts/fireworks/routers/kimi-k2p5-turbo",
+              error: "Provider fireworks is in cooldown (all profiles unavailable)",
+              reason: "rate_limit",
+            },
+          ],
+        }),
+      );
+    // Queued replies resolve their config through the runtime snapshot, so the
+    // opt-in has to be pinned there rather than on the followup run.
+    const { getRuntimeConfigSnapshot } = await import("../../config/config.js");
+    const previousRuntimeConfig = getRuntimeConfigSnapshot();
+    setRuntimeConfigSnapshot({
+      agents: { defaults: { model: { showFallbackNoticeInChat: true } } },
+    });
+    try {
+      const { run } = createMinimalRun({
+        sessionEntry,
+        sessionStore,
+        sessionKey: "main",
+        sessionCtx: {
+          Provider: "slack",
+          Surface: "slack",
+          OriginatingChannel: "slack",
+          ChatType: "direct",
+        },
+      });
+      const res = await run();
+      const payloads = Array.isArray(res) ? res : res ? [res] : [];
+      const text = payloads.map((payload) => payload.text ?? "").join("\n");
+
+      expect(text).toContain("Model Fallback:");
+      // The opt-in restores both banners, not just the transition notice.
+      expect(text).toContain("⚠ running in fallback mode (deepinfra/moonshotai/Kimi-K2.5");
+      expect(text).toContain("final");
+    } finally {
+      if (previousRuntimeConfig) {
+        setRuntimeConfigSnapshot(previousRuntimeConfig);
+      } else {
+        clearRuntimeConfigSnapshot();
+      }
+      fallbackSpy.mockRestore();
+    }
+  });
+
+  it("delivers the assistant answer without the fallback-cleared banner on an external surface", async () => {
+    const sessionEntry = makeSessionEntry({
+      fallbackNotice: {
+        kind: "active",
+        selectedModel: "anthropic/claude",
+        activeModel: "deepinfra/moonshotai/Kimi-K2.5",
+        reason: "rate limit",
+      },
+    });
+    const sessionStore = { main: sessionEntry };
+
+    state.runEmbeddedAgentMock.mockResolvedValueOnce({
+      payloads: [{ text: "final" }],
+      meta: {},
+    });
+    const { run } = createMinimalRun({
+      sessionEntry,
+      sessionStore,
+      sessionKey: "main",
+      sessionCtx: {
+        Provider: "slack",
+        Surface: "slack",
+        OriginatingChannel: "slack",
+        ChatType: "channel",
+      },
+    });
+    const phases: string[] = [];
+    const off = onAgentEvent((evt) => {
+      const phase = typeof evt.data?.phase === "string" ? evt.data.phase : null;
+      if (evt.stream === "lifecycle" && phase) {
+        phases.push(phase);
+      }
+    });
+    const res = await run();
+    off();
+    const payloads = Array.isArray(res) ? res : res ? [res] : [];
+    const text = payloads.map((payload) => payload.text ?? "").join("\n");
+
+    expect(text).not.toContain("Model Fallback cleared:");
+    // Regression guard: suppressing the notice must not swallow the answer.
+    expect(payloads.length).toBeGreaterThan(0);
+    expect(text).toContain("final");
+    expect(countMatching(phases, (phase) => phase === "fallback_cleared")).toBe(1);
   });
 
   it("updates fallback reason summary while fallback stays active", async () => {

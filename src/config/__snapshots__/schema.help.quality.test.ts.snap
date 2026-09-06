@@ -29,6 +29,7 @@ exports[`config tier coverage > keeps the curated common leaf set reviewable 1`]
   "agents.defaults.model",
   "agents.defaults.model.fallbacks.*",
   "agents.defaults.model.primary",
+  "agents.defaults.model.showFallbackNoticeInChat",
   "agents.defaults.modelPolicy.allow.*",
   "agents.defaults.pdfModel.primary",
   "agents.defaults.sandbox.browser.enabled",
