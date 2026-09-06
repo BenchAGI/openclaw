@@ -8,6 +8,8 @@ const jscpdBin = resolveRepoToolBinPath("jscpd", { cwd: repoRoot });
 
 const targets = [
   ".github/actions",
+  // Bench fork #106: customer-harness gate scripts live here.
+  ".github/scripts",
   ".github/codeql/openclaw-boundary/tests",
   "src",
   "extensions",
