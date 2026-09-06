@@ -14,7 +14,11 @@ import { parseDurationMs } from "../cli/parse-duration.js";
 import { isBlockedObjectKey } from "../infra/prototype-keys.js";
 import { MANAGED_GITHUB_PROFILE_ID_PATTERN } from "./github-identity-profile-id.js";
 import { LEGACY_WEB_SEARCH_PROVIDER_CONFIG_KEYS } from "./web-search-legacy-provider-keys.js";
-import { AgentModelSchema, AgentToolModelSchema } from "./zod-schema.agent-model.js";
+import {
+  AgentDefaultsModelSchema,
+  AgentModelSchema,
+  AgentToolModelSchema,
+} from "./zod-schema.agent-model.js";
 import {
   GroupChatSchema,
   HumanDelaySchema,
@@ -873,7 +877,7 @@ export const MemorySearchSchema = z
   })
   .strict()
   .optional();
-export { AgentModelSchema, AgentToolModelSchema };
+export { AgentDefaultsModelSchema, AgentModelSchema, AgentToolModelSchema };
 
 const AgentRuntimeAcpSchema = z
   .object({

@@ -16,6 +16,18 @@ export type AgentModelConfig =
       fallbacks?: string[];
     };
 
+/** Default agent model selector, which also carries chat visibility for the model-fallback notice. */
+export type AgentDefaultsModelConfig =
+  | string
+  | {
+      /** Primary model (provider/model). */
+      primary?: string;
+      /** Per-agent model fallbacks (provider/model). */
+      fallbacks?: string[];
+      /** Render the model-fallback notice in chat, including external messaging surfaces (default: false). */
+      showFallbackNoticeInChat?: boolean;
+    };
+
 /** Tool-specific model selector with an optional capability timeout override. */
 export type AgentToolModelConfig =
   | string

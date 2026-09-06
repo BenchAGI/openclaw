@@ -5,6 +5,7 @@ import { formatRawAssistantErrorForUi } from "../agents/embedded-agent-helpers.j
 import { areRuntimeModelRefsEquivalent } from "../agents/model-runtime-aliases.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { FallbackNoticeState } from "../status/fallback-notice-state.js";
+import { INTERNAL_MESSAGE_CHANNEL, normalizeMessageChannel } from "../utils/message-channel.js";
 import { formatProviderModelRef } from "./model-runtime.js";
 import type { RuntimeFallbackAttempt } from "./reply/agent-runner-execution.types.js";
 
@@ -86,6 +87,34 @@ function buildFallbackAttemptSummaries(attempts: RuntimeFallbackAttempt[]): stri
   return attempts.map((attempt) =>
     truncateFallbackReasonPart(formatFallbackAttemptSummary(attempt)),
   );
+}
+
+/**
+ * Returns whether model-fallback notices may be rendered in chat.
+ *
+ * Model routing is operator observability, not customer copy: only the
+ * operator's own surfaces (internal web UI / TUI) show it. This is an
+ * allowlist, so anything else — every external messaging channel, unknown
+ * plugin channels, internal non-delivery sources, and runs with no resolvable
+ * channel at all — suppresses unless
+ * `agents.defaults.model.showFallbackNoticeInChat` opts back in.
+ *
+ * `deliveryChannel` must be the resolved *delivery* channel
+ * (`resolveOriginMessageProvider({ originatingChannel, provider })`), not the
+ * raw surface: gateway `chat.send` with `deliver: true` and restart-recovery
+ * turns both carry `Surface: "webchat"` while the reply is delivered into the
+ * customer's real channel, so gating on the surface alone leaks the notice.
+ */
+export function shouldShowFallbackNoticeInChat(params: {
+  cfg?: OpenClawConfig;
+  deliveryChannel?: string | null;
+}): boolean {
+  const model = params.cfg?.agents?.defaults?.model;
+  if (typeof model === "object" && model?.showFallbackNoticeInChat === true) {
+    return true;
+  }
+  const channel = normalizeMessageChannel(params.deliveryChannel);
+  return channel === INTERNAL_MESSAGE_CHANNEL || channel === "tui";
 }
 
 /** Builds the visible notice shown when runtime falls back from the selected model. */

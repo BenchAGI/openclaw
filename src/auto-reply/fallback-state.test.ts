@@ -5,7 +5,11 @@ import {
   resolveActiveFallbackState,
   type FallbackNoticeState,
 } from "../status/fallback-notice-state.js";
-import { buildFallbackNotice, resolveFallbackTransition } from "./fallback-state.js";
+import {
+  buildFallbackNotice,
+  resolveFallbackTransition,
+  shouldShowFallbackNoticeInChat,
+} from "./fallback-state.js";
 
 const baseAttempt = {
   provider: "demo-primary",
@@ -334,6 +338,51 @@ describe("fallback-state", () => {
       ).toBeNull();
     },
   );
+
+  it.each([
+    { deliveryChannel: "tui", expected: true },
+    { deliveryChannel: "webchat", expected: true },
+    { deliveryChannel: "slack", expected: false },
+    { deliveryChannel: "whatsapp", expected: false },
+    { deliveryChannel: "discord", expected: false },
+    // Default-to-suppress: the allowlist is the only way to render. A run with
+    // no resolvable delivery channel has no operator chat audience either, and
+    // an unknown plugin channel could be anything.
+    { deliveryChannel: undefined, expected: false },
+    { deliveryChannel: null, expected: false },
+    { deliveryChannel: "", expected: false },
+    { deliveryChannel: "   ", expected: false },
+    { deliveryChannel: "heartbeat", expected: false },
+    { deliveryChannel: "cron", expected: false },
+    { deliveryChannel: "some-unbundled-plugin-channel", expected: false },
+  ])(
+    "resolves chat visibility for delivery channel $deliveryChannel",
+    ({ deliveryChannel, expected }) => {
+      expect(shouldShowFallbackNoticeInChat({ deliveryChannel })).toBe(expected);
+    },
+  );
+
+  it("shows the notice on an external channel when the operator opts in", () => {
+    expect(
+      shouldShowFallbackNoticeInChat({
+        cfg: {
+          agents: { defaults: { model: { showFallbackNoticeInChat: true } } },
+        },
+        deliveryChannel: "slack",
+      }),
+    ).toBe(true);
+  });
+
+  it("opts in even when there is no resolvable delivery channel", () => {
+    expect(
+      shouldShowFallbackNoticeInChat({
+        cfg: {
+          agents: { defaults: { model: { showFallbackNoticeInChat: true } } },
+        },
+        deliveryChannel: undefined,
+      }),
+    ).toBe(true);
+  });
 
   it("still reports fallback when the OpenAI Codex runtime switches model ids", () => {
     expect(
