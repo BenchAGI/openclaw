@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { createNodeTestShards } from "../../scripts/lib/ci-node-test-plan.mts";
 import { listExtensionTestFilesForRoots } from "../../scripts/lib/extension-test-plan.mts";
 import { readTestSelectorSourceFacts } from "../../scripts/lib/test-selector-source-facts.mts";
 import {
@@ -38,6 +39,7 @@ import {
 } from "../../scripts/test-projects.test-support.mts";
 import { withEnv } from "../../src/test-utils/env.js";
 import { toRepoPath } from "../../src/test-utils/repo-files.js";
+import { withTempDir } from "../../src/test-utils/temp-dir.js";
 import { agentVitestProjectOwners } from "../vitest/vitest.agents-paths.mjs";
 import {
   channelConfigContractPatterns,
@@ -265,6 +267,106 @@ function expectSingleVitestRunPlan(
     },
   ]);
 }
+
+const REPLY_RUNNER_E2E_TEST = "src/auto-reply/reply/agent-runner.runreplyagent.e2e.test.ts";
+const REPLY_RUNNER_E2E_CONFIG = "test/vitest/vitest.auto-reply-runner-e2e.config.ts";
+
+type MatchableVitestConfig = {
+  test?: { dir?: string; include?: string[]; exclude?: string[]; passWithNoTests?: boolean };
+};
+
+/** Lists the repo-relative test files a vitest config would select on disk. */
+async function listMatchedTestFilesForConfig(config: string): Promise<string[]> {
+  const repoRoot = path.resolve(import.meta.dirname, "../..");
+  const loaded = (await import(path.join(repoRoot, config))) as { default: MatchableVitestConfig };
+  const test = loaded.default.test ?? {};
+  const cwd = test.dir ? path.resolve(repoRoot, test.dir) : repoRoot;
+  const exclude = test.exclude ?? [];
+  return fs
+    .globSync(test.include ?? [], {
+      cwd,
+      exclude: (entry: string) => exclude.some((pattern) => path.matchesGlob(entry, pattern)),
+    })
+    .map((file) => toRepoPath(path.relative(repoRoot, path.resolve(cwd, file))))
+    .toSorted((left, right) => left.localeCompare(right));
+}
+
+describe("reply-runner E2E CI routing", () => {
+  it("actually selects the reply-runner E2E coverage in its sole CI shard", async () => {
+    const target = REPLY_RUNNER_E2E_TEST;
+    const owners = createNodeTestShards({ includeReleaseOnlyPluginShards: false }).filter((shard) =>
+      shard.includePatterns?.includes(target),
+    );
+    expect(owners).toHaveLength(1);
+    const selected: string[] = [];
+    for (const config of owners[0]?.configs ?? []) {
+      selected.push(...(await listMatchedTestFilesForConfig(config)));
+    }
+    expect(selected).toEqual([target]);
+  });
+
+  it("routes the sealed reply-runner E2E config through the actual CI command planner", () => {
+    expect(findUnmatchedExplicitTestTargets([REPLY_RUNNER_E2E_CONFIG])).toEqual([]);
+    expect(buildVitestRunPlans([REPLY_RUNNER_E2E_CONFIG])).toEqual([
+      {
+        config: REPLY_RUNNER_E2E_CONFIG,
+        forwardedArgs: [],
+        includePatterns: null,
+        watchMode: false,
+      },
+    ]);
+  });
+
+  it.each(["include-file", "CLI", "both"])(
+    "keeps the reply-runner E2E config sealed under broad %s input",
+    async (pollution) => {
+      const { createAutoReplyRunnerE2EVitestConfig } =
+        await import("../vitest/vitest.auto-reply-runner-e2e.config.ts");
+      const { default: e2eConfig } = await import("../vitest/vitest.e2e.config.ts");
+      await withTempDir("openclaw-runner-ci-selection-", async (dir) => {
+        const includeFile = path.join(dir, "include.json");
+        fs.writeFileSync(includeFile, JSON.stringify(["src/**/*.test.ts", "test/**/*.test.ts"]));
+        const previousArgv = process.argv;
+        const previousIncludeFile = process.env.OPENCLAW_VITEST_INCLUDE_FILE;
+        try {
+          if (pollution !== "CLI") {
+            process.env.OPENCLAW_VITEST_INCLUDE_FILE = includeFile;
+          }
+          if (pollution !== "include-file") {
+            process.argv = ["node", "vitest", "run", "src/**/*.e2e.test.ts"];
+          }
+          const config = createAutoReplyRunnerE2EVitestConfig() as MatchableVitestConfig;
+          const configDir = config.test?.dir ?? process.cwd();
+          const exclude = config.test?.exclude ?? [];
+          const selected = fs.globSync(config.test?.include ?? [], {
+            cwd: configDir,
+            exclude: (entry: string) => exclude.some((pattern) => path.matchesGlob(entry, pattern)),
+          });
+          expect(selected).toEqual([REPLY_RUNNER_E2E_TEST]);
+          expect(config.test?.exclude).toEqual(e2eConfig.test?.exclude);
+          expect(config.test?.passWithNoTests).toBe(false);
+        } finally {
+          process.argv = previousArgv;
+          if (previousIncludeFile === undefined) {
+            delete process.env.OPENCLAW_VITEST_INCLUDE_FILE;
+          } else {
+            process.env.OPENCLAW_VITEST_INCLUDE_FILE = previousIncludeFile;
+          }
+        }
+      });
+    },
+  );
+
+  it("keeps unrelated E2E exclusions intact in shared and ordinary reply configs", async () => {
+    const { sharedVitestConfig } = await import("../vitest/vitest.shared.config.ts");
+    expect(sharedVitestConfig.test?.exclude).toContain("**/*.e2e.test.ts");
+    const ordinary = await listMatchedTestFilesForConfig(
+      "test/vitest/vitest.auto-reply-reply.config.ts",
+    );
+    expect(ordinary).not.toContain(REPLY_RUNNER_E2E_TEST);
+    expect(ordinary.every((file) => !file.endsWith(".e2e.test.ts"))).toBe(true);
+  });
+});
 
 describe("scripts/test-projects changed-target routing", () => {
   beforeAll(() => {

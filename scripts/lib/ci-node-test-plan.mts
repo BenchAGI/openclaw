@@ -887,6 +887,8 @@ function listTestFiles(rootDir: string): string[] {
   return listTrackedTestFiles(rootDir);
 }
 
+const AUTO_REPLY_RUNNER_E2E_TEST = "src/auto-reply/reply/agent-runner.runreplyagent.e2e.test.ts";
+
 function createAutoReplyReplySplitShards(): NodeTestSplitShard[] {
   const files = listTestFiles("src/auto-reply/reply");
   const groups = {
@@ -906,6 +908,9 @@ function createAutoReplyReplySplitShards(): NodeTestSplitShard[] {
   ]);
 
   for (const file of files) {
+    if (file === AUTO_REPLY_RUNNER_E2E_TEST) {
+      continue;
+    }
     const name = relative("src/auto-reply/reply", file).replaceAll("\\", "/");
     const dispatchEntrypointGroup = dispatchEntrypoints.get(name);
     if (dispatchEntrypointGroup) {
@@ -936,7 +941,7 @@ function createAutoReplyReplySplitShards(): NodeTestSplitShard[] {
     }
   }
 
-  return Object.entries(groups)
+  const shards = Object.entries(groups)
     .flatMap(([groupName, includePatterns]) => {
       // The commands bucket alone serializes ~3 minutes; stripe it so packing
       // can spread that runtime across jobs.
@@ -962,6 +967,18 @@ function createAutoReplyReplySplitShards(): NodeTestSplitShard[] {
       ];
     })
     .filter((shard) => shard.includePatterns.length > 0);
+  // The ordinary reply config keeps the shared E2E exclusion, so the deterministic
+  // runner suite needs an exact-file owner or it stays plan-only in CI.
+  return [
+    ...shards,
+    {
+      shardName: "auto-reply-reply-agent-runner-e2e",
+      configs: ["test/vitest/vitest.auto-reply-runner-e2e.config.ts"],
+      includeExternalConfigs: true,
+      includePatterns: [AUTO_REPLY_RUNNER_E2E_TEST],
+      requiresDist: false,
+    },
+  ];
 }
 
 function resolveCommandShardName(file: string): string {
