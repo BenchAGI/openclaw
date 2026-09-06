@@ -2,6 +2,12 @@ import { html, nothing } from "lit";
 import { property } from "lit/decorators.js";
 import type { ControlUiEnvironment } from "../../../src/gateway/control-ui-bootstrap-contract.js";
 import { t } from "../i18n/index.ts";
+import {
+  benchAgentIdentity,
+  benchAgentPortraitUrl,
+  benchAgentStyle,
+  benchAgentTextAccent,
+} from "../lib/agents/bench-agent-identity.ts";
 import { IdentityAvatarController } from "../lib/identity-avatar-loader.ts";
 import { OpenClawLightDomContentsElement } from "../lit/openclaw-element.ts";
 import { icons } from "./icons.ts";
@@ -10,7 +16,10 @@ import { icons } from "./icons.ts";
     agent menu (switcher + utilities) — the conversation itself lives on the
     Home page row, so this row carries profile semantics only. */
 class SidebarAgentCard extends OpenClawLightDomContentsElement {
+  @property({ attribute: false }) agentId: string | null = null;
   @property({ attribute: false }) agentName = "";
+  /** Gateway reachable; paints the presence dot on the avatar. */
+  @property({ attribute: false }) online = false;
   @property({ attribute: false }) avatarUrl: string | null = null;
   @property({ attribute: false }) avatarAuthReady = false;
   @property({ attribute: false }) avatarText = "";
@@ -32,16 +41,24 @@ class SidebarAgentCard extends OpenClawLightDomContentsElement {
   }
 
   private renderContent() {
-    const avatarUrl = this.avatarUrl?.startsWith("/")
-      ? this.avatarAuthReady
-        ? this.avatarLoader.resolve(this.avatarUrl)
-        : null
-      : this.avatarUrl;
+    const avatarUrl =
+      (this.avatarUrl?.startsWith("/")
+        ? this.avatarAuthReady
+          ? this.avatarLoader.resolve(this.avatarUrl)
+          : null
+        : this.avatarUrl) ?? benchAgentPortraitUrl(this.agentId);
+    const identity = benchAgentIdentity(this.agentId);
+    const identityStyle = `${benchAgentStyle(this.agentId)} --agent-text-accent: ${
+      benchAgentTextAccent(identity, true) ?? "var(--agent-accent)"
+    };`;
     const menuLabel = this.switcherAvailable
       ? t("agentChip.switchAgent")
       : t("agentChip.menuLabel");
     return html`
-      <div class="sidebar-agent-card ${this.menuOpen ? "sidebar-agent-card--open" : ""}">
+      <div
+        class="sidebar-agent-card ${this.menuOpen ? "sidebar-agent-card--open" : ""}"
+        style=${identityStyle}
+      >
         <button
           type="button"
           class="sidebar-agent-card__main"
@@ -68,7 +85,7 @@ class SidebarAgentCard extends OpenClawLightDomContentsElement {
         >
           <span
             class="sidebar-agent-card__avatar ${
-              this.environment ? "sidebar-agent-card__avatar--environment" : ""
+              this.environment ? "sidebar-agent-card__avatar--environment" : "bench-agent-halo"
             }"
           >
             ${
@@ -83,6 +100,11 @@ class SidebarAgentCard extends OpenClawLightDomContentsElement {
                 : html`<span class="sidebar-agent-card__avatar-text" aria-hidden="true"
                     >${this.avatarText}</span
                   >`
+            }
+            ${
+              this.online
+                ? html`<span class="sidebar-agent-card__presence" aria-hidden="true"></span>`
+                : nothing
             }
             ${
               this.menuUnread && !this.menuOpen
@@ -101,6 +123,11 @@ class SidebarAgentCard extends OpenClawLightDomContentsElement {
                 >${icons.chevronsUpDown}</span
               >
             </span>
+            ${
+              identity
+                ? html`<span class="sidebar-agent-card__role bench-eyebrow">${identity.role}</span>`
+                : nothing
+            }
             ${
               this.environment
                 ? html`<span class="sidebar-agent-card__subtitle-row">

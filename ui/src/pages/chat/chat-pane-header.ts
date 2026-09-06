@@ -7,6 +7,7 @@ import { isNativeLocalGateway } from "../../app/native-editor-locality.runtime.t
 import { hasOperatorAdminAccess } from "../../app/operator-access.ts";
 import { isDesktopPanelAvailable } from "../../app/panel-availability.ts";
 import type { ApplicationPlacementStartupStatus } from "../../app/session-placement-startup.ts";
+import { renderBenchAgentChip } from "../../components/bench-agent-chip.ts";
 import { renderBenchModeSwitch } from "../../components/bench-mode-switch-render.ts";
 import { COMMAND_PALETTE_OPEN_EVENT } from "../../components/command-palette-contract.ts";
 import { icons } from "../../components/icons.ts";
@@ -577,7 +578,12 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
             variant="session"
           ></openclaw-viewer-facepile>`
         : nothing,
-      faceControl: nothing,
+      // The identity chip is the 9.2 agent header (UI-BRAND-CONTRACT §4.2).
+      faceControl: renderBenchAgentChip({
+        agentId: modeSwitchAgentId,
+        name: modeSwitchAgentName,
+        switcherAvailable: (this.context.agents?.state?.agentsList?.agents.length ?? 0) > 1,
+      }),
       modeSwitch: renderBenchModeSwitch({ id: modeSwitchAgentId, name: modeSwitchAgentName }),
       sharingControl:
         sharing &&

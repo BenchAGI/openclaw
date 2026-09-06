@@ -4,6 +4,11 @@ import type { GatewaySessionRow, SessionsListResult } from "../../../api/types.t
 import { identityAvatarImage } from "../../../components/identity-avatar-view.ts";
 import "../../../components/openclaw-mascot.ts";
 import { t } from "../../../i18n/index.ts";
+import {
+  benchAgentIdentity,
+  benchAgentPortraitUrl,
+  benchAgentStyle,
+} from "../../../lib/agents/bench-agent-identity.ts";
 import { resolveAssistantTextAvatar, resolveChatAvatarRenderUrl } from "../../../lib/avatar.ts";
 import { formatRelativeTimestamp } from "../../../lib/format.ts";
 import {
@@ -100,9 +105,35 @@ function selectWelcomeRecentSessions(
   );
 }
 
-function renderWelcomeClawd() {
+/** The agent this welcome speaks for: the session key's agent, else the host default. */
+export function resolveWelcomeAgentId(
+  props: Pick<ChatWelcomeProps, "sessionKey" | "sessionHost">,
+): string | null {
+  return (
+    parseAgentSessionKey(props.sessionKey)?.agentId ??
+    resolveUiSelectedGlobalAgentId(props.sessionHost ?? {}) ??
+    null
+  );
+}
+
+// Aurelius is the mascot (the eagle bitmap the mascot element already draws);
+// every other Bench agent shows its portrait in a rarity halo; other agents
+// keep the mascot fallback.
+function renderWelcomeMascot(agentId: string | null) {
+  const identity = benchAgentIdentity(agentId);
+  const portrait = identity && identity.id !== "aurelius" ? benchAgentPortraitUrl(agentId) : null;
+  if (portrait) {
+    return html`
+      <div class="agent-chat__welcome-clawd" aria-hidden="true" style=${benchAgentStyle(agentId)}>
+        <img class="agent-chat__welcome-portrait bench-agent-halo" src=${portrait} alt="" />
+      </div>
+    `;
+  }
   return html`
-    <div class="agent-chat__welcome-clawd" aria-hidden="true">
+    <div
+      class="agent-chat__welcome-clawd ${identity ? "agent-chat__welcome-clawd--mascot" : ""}"
+      aria-hidden="true"
+    >
       <openclaw-mascot mood="idle" .size=${112}></openclaw-mascot>
     </div>
   `;
@@ -156,11 +187,16 @@ function renderWelcomeSuggestions(props: Pick<ChatWelcomeProps, "onDraftChange" 
 function renderWelcomeHero(
   props: Pick<ChatWelcomeProps, "assistantName" | "assistantAvatar" | "assistantAvatarUrl"> & {
     hint: unknown;
+    agentId: string | null;
   },
 ) {
   const name = props.assistantName || "Assistant";
   const avatar = resolveAssistantAvatarUrl(props);
-  const avatarText = avatar ? null : resolveAssistantTextAvatar(props.assistantAvatar);
+  // A Bench agent's own treatment wins over the gateway's text avatar.
+  const avatarText =
+    avatar || benchAgentIdentity(props.agentId)
+      ? null
+      : resolveAssistantTextAvatar(props.assistantAvatar);
   return html`
     <div class="agent-chat__welcome-identity">
       ${
@@ -174,7 +210,7 @@ function renderWelcomeHero(
             ? html`<div class="agent-chat__avatar agent-chat__avatar--text" aria-label=${name}>
                 ${avatarText}
               </div>`
-            : renderWelcomeClawd()
+            : renderWelcomeMascot(props.agentId)
       }
       <div class="agent-chat__welcome-identity-copy">
         <h2>${name}</h2>
@@ -189,7 +225,7 @@ export function renderWelcomeState(props: ChatWelcomeProps) {
   if (props.modelSetupRequired) {
     return html`
       <div class="agent-chat__welcome agent-chat__welcome--setup" role="alert">
-        ${renderWelcomeClawd()}
+        ${renderWelcomeMascot(null)}
         <h2>${t("modelSetup.required.title")}</h2>
         <p class="agent-chat__hint">${t("modelSetup.required.body")}</p>
         <button class="btn primary" type="button" @click=${props.onModelSetup}>
@@ -244,6 +280,7 @@ export function renderWelcomeState(props: ChatWelcomeProps) {
         assistantName: props.assistantName,
         assistantAvatar: props.assistantAvatar,
         assistantAvatarUrl: props.assistantAvatarUrl,
+        agentId: resolveWelcomeAgentId(props),
         hint:
           props.hint ??
           html`${t("chat.welcome.hintBeforeShortcut")} <kbd>/</kbd> ${t(

@@ -7,7 +7,7 @@ import {
   type TextScaleStop,
 } from "../../app/settings.ts";
 import type { ThemeTransitionContext } from "../../app/theme-transition.ts";
-import type { ThemeName } from "../../app/theme.ts";
+import { type BenchThemeFamily, isBenchThemeFamily, type ThemeName } from "../../app/theme.ts";
 import {
   loadTypefaceSpecimens,
   normalizeTypefaceOverride,
@@ -149,19 +149,34 @@ const ACCENT_PRESETS = [
    mirrored from the base.css theme blocks). The custom card only has real
    colors while active — its chips read the live CSS variables — so it falls
    back to the spark icon otherwise. */
+// Bench families fill upstream's icon slot with their glyph and keep the chips.
+const BENCH_THEME_GLYPHS: Record<BenchThemeFamily, TemplateResult> = {
+  bench: icons.benchGlyph,
+  "bench-garden": icons.leaf,
+  "bench-forge": icons.anvil,
+  "bench-aurelius": icons.feather,
+};
+
 function renderThemeCardVisual(id: ThemeName, activeTheme: ThemeName) {
   if (id === "custom" && activeTheme !== "custom") {
     return html`<span class="settings-theme-card__icon" aria-hidden="true"
       >${icons.download}</span
     >`;
   }
-  return html`
+  const palette = html`
     <span class="settings-theme-card__palette" aria-hidden="true">
       <span class="settings-theme-card__chip settings-theme-card__chip--accent"></span>
       <span class="settings-theme-card__chip settings-theme-card__chip--accent-2"></span>
       <span class="settings-theme-card__chip settings-theme-card__chip--bg"></span>
     </span>
   `;
+  if (isBenchThemeFamily(id)) {
+    return html`<span class="settings-theme-card__visual">
+      <span class="settings-theme-card__icon" aria-hidden="true">${BENCH_THEME_GLYPHS[id]}</span>
+      ${palette}
+    </span>`;
+  }
+  return palette;
 }
 
 function importedThemeName(props: Pick<ConfigProps, "hasCustomTheme" | "customThemeLabel">) {

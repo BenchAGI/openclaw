@@ -119,7 +119,9 @@ export function renderAppSidebarBrand(host: AppSidebarRenderHost) {
   return html`
     <div class="sidebar-brand">
       <openclaw-sidebar-agent-card
+        .agentId=${cardAgentId}
         .agentName=${cardName}
+        .online=${!host.offline}
         .avatarUrl=${
           cardAgent ? resolveAgentAvatarUrl(cardAgent, cardIdentity) : cardIdentity?.avatar
         }

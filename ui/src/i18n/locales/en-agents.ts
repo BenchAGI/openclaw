@@ -12,6 +12,7 @@ export const agentChip = {
   website: "Website",
   whatsNew: "What's new",
   yourAgents: "Your agents",
+  voice: "Voice · {voice}",
   discord: "Discord community",
   viewChangelog: "View changelog",
   agentSettings: "Agent settings",

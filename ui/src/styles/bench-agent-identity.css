@@ -1,0 +1,200 @@
+/* Bench agent identity treatment (UI-BRAND-CONTRACT §4.2): rarity halos, role
+   eyebrows, the header identity chip, switcher tiles, and the active session
+   dot. Every rule reads --agent-accent / --agent-rarity from the nearest
+   benchAgentStyle() host; unknown agents inherit --accent and the common ring. */
+
+/* The one signature label: JetBrains Mono eyebrow on role lines and pills. */
+.bench-eyebrow {
+  font: 600 10.5px / 1.2 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Rarity halo around any avatar disc. */
+.bench-agent-halo {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--agent-rarity, var(--border-strong)) 65%, transparent),
+    0 0 18px -4px color-mix(in srgb, var(--agent-rarity, var(--border-strong)) 55%, transparent);
+}
+
+/* Sidebar identity row */
+.sidebar-agent-card__avatar.bench-agent-halo {
+  overflow: visible;
+}
+
+.sidebar-agent-card__presence {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  background: var(--ok);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.sidebar-agent-card__role {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--agent-accent, var(--accent));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme-mode="light"] .sidebar-agent-card__role {
+  color: var(--agent-text-accent, var(--agent-accent, var(--accent)));
+}
+
+/* Header identity chip (chat-pane__header-center) */
+.bench-agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  max-width: min(320px, 100%);
+  padding: 0 10px 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--bg-accent);
+  color: var(--text-strong);
+  font: inherit;
+  text-align: left;
+  cursor: var(--cursor-action);
+  transition:
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+
+.bench-agent-chip:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+}
+
+.bench-agent-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.bench-agent-chip__avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  box-shadow: 0 0 0 1.5px var(--agent-rarity, var(--border-strong));
+}
+
+.bench-agent-chip__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.bench-agent-chip__initial {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.bench-agent-chip__text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.1;
+}
+
+.bench-agent-chip__name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bench-agent-chip__role {
+  overflow: hidden;
+  color: var(--agent-accent, var(--accent));
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme-mode="light"] .bench-agent-chip__role {
+  color: var(--agent-text-accent, var(--agent-accent, var(--accent)));
+}
+
+@media (max-width: 768px) {
+  .bench-agent-chip__role {
+    display: none;
+  }
+}
+
+/* Agent switcher tiles (sidebar-agent-menu__agent-grid) */
+.sidebar-agent-menu__agent-avatar.bench-agent-halo {
+  --agent-avatar-opacity: 1;
+  --agent-avatar-filter: none;
+}
+
+.sidebar-agent-menu__agent-tile .bench-agent-role {
+  color: var(--agent-accent, var(--accent));
+  font-size: 9.5px;
+}
+
+.sidebar-agent-menu__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Agent pickers (agent-select) */
+img.agent-select__avatar[data-bench-agent] {
+  box-shadow: 0 0 0 1.5px var(--agent-rarity, var(--border-strong));
+}
+
+/* Session rows: the active session's leading mark takes the agent accent. */
+.sidebar-recent-session.sidebar-recent-session--active::before {
+  content: "";
+  position: absolute;
+  inset-block: 5px;
+  inset-inline-start: 2px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--agent-accent, var(--accent));
+  pointer-events: none;
+}
+
+/* Chat welcome: a Bench agent's portrait in its halo when the gateway has no avatar. */
+.agent-chat__welcome-portrait {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.agent-chat__welcome-clawd--mascot {
+  filter: drop-shadow(0 12px 28px rgba(231, 193, 130, 0.22));
+}
+
+/* Appearance cards: the Bench family glyph sits in upstream's icon slot beside the chips. */
+.settings-theme-card__visual {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-theme-card__visual .settings-theme-card__icon svg.icon--filled {
+  fill: currentColor;
+  stroke: none;
+}

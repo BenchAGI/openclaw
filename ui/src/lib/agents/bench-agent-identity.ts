@@ -6,6 +6,8 @@
 // Gateway identity (name, avatar) still wins when the customer has customised
 // it — this manifest only fills what the gateway does not carry.
 
+import { inferControlUiPublicAssetPath } from "../../app/public-assets.ts";
+
 export type BenchAgentRarity = "legendary" | "epic" | "rare" | "uncommon" | "common";
 
 /** WoW-scale rarity ring colors shared with the web app (`--rar-*`). */
@@ -174,4 +176,10 @@ export function benchAgentStyle(agentId: string | null | undefined): string {
   const identity = benchAgentIdentity(agentId);
   const accent = identity?.accent ?? "var(--accent)";
   return `--agent-accent: ${accent}; --agent-rarity: ${benchAgentRarityColor(identity)};`;
+}
+
+/** Versioned URL of the agent's public portrait, or null when it has none. */
+export function benchAgentPortraitUrl(agentId: string | null | undefined): string | null {
+  const portrait = benchAgentIdentity(agentId)?.portrait;
+  return portrait ? inferControlUiPublicAssetPath(portrait) : null;
 }

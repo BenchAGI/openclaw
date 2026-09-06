@@ -8,6 +8,7 @@ import { pathForAgentPanel } from "../app-route-paths.ts";
 import type { ApplicationNavigationOptions } from "../app/context.ts";
 import type { ThemeMode } from "../app/theme.ts";
 import { t } from "../i18n/index.ts";
+import { benchAgentIdentity, benchAgentStyle } from "../lib/agents/bench-agent-identity.ts";
 import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "../lib/external-link.ts";
 import {
@@ -234,7 +235,8 @@ function renderAgentRow(agent: AgentMenuAgent, params: SidebarAgentMenuParams) {
   const label = normalizeAgentLabel(agent, identity);
   const active = agentId === params.activeId;
   const unread = active ? 0 : params.agentUnreadCount(agentId);
-  const option = { value: agentId, label, agent };
+  const bench = benchAgentIdentity(agentId);
+  const option = { value: agentId, label, agent, description: bench?.role };
   return html`
     <wa-dropdown-item
       class="sidebar-customize-menu__item sidebar-agent-menu__agent-switch agent-select__option ${
@@ -246,11 +248,11 @@ function renderAgentRow(agent: AgentMenuAgent, params: SidebarAgentMenuParams) {
       aria-checked=${String(active)}
       ${ref((element) => syncDropdownItemRadio(element, active))}
     >
-      <span class="sidebar-agent-menu__agent-tile">
-        <span class="sidebar-agent-menu__agent-avatar">
+      <span class="sidebar-agent-menu__agent-tile" style=${benchAgentStyle(agentId)}>
+        <span class="sidebar-agent-menu__agent-avatar ${bench ? "bench-agent-halo" : ""}">
           ${renderAgentSelectAvatar(option, identity)}
         </span>
-        ${renderAgentSelectCopy(option)}
+        ${renderAgentSelectCopy(option, { descriptionClass: "bench-agent-role bench-eyebrow" })}
         <span class="sidebar-agent-menu__agent-status">
           ${
             unread > 0
@@ -265,6 +267,17 @@ function renderAgentRow(agent: AgentMenuAgent, params: SidebarAgentMenuParams) {
       </span>
     </wa-dropdown-item>
   `;
+}
+
+// Voice casting of the selected agent (UI-BRAND-CONTRACT §4.2 switcher footer).
+function renderAgentMenuFooter(activeId: string) {
+  const voice = benchAgentIdentity(activeId)?.voice;
+  if (!voice) {
+    return nothing;
+  }
+  return html`<div class="sidebar-agent-menu__footer">
+    <span>${t("agentChip.voice", { voice })}</span>
+  </div>`;
 }
 
 function renderIdentityMenuHelpSubmenu() {
@@ -390,6 +403,7 @@ export function renderSidebarAgentMenu(params: SidebarAgentMenuParams) {
               <div class="sidebar-agent-menu__agent-grid">
                 ${rows.map((entry) => renderAgentRow(entry, params))}
               </div>
+              ${renderAgentMenuFooter(params.activeId)}
             `
           : nothing
       }
