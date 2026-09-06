@@ -91,8 +91,13 @@ export function resolveIncompleteTurnPayloadText(params: {
   // intentionally suppress ordinary exec errors, leaving payloadCount at zero.
   // Without a final assistant reply, that must still close as an incomplete
   // turn rather than a successful silent response.
+  // A harness turn that failed terminally keeps its own error and partial output
+  // (upstream contract); the fork rule above targets completed turns only.
+  const failedHarnessTurnWithToolError =
+    Boolean(params.attempt.lastToolError) && params.attempt.terminal?.kind === "failed";
   if (
     (params.payloadCount !== 0 && !incompleteTerminalAssistant && !thinkingOnlyTerminal) ||
+    failedHarnessTurnWithToolError ||
     (params.aborted && params.externalAbort) ||
     params.timedOut ||
     params.attempt.clientToolCalls ||
