@@ -580,29 +580,20 @@ function applyConfigForOpenClawTarget(
   if (entry.id === "memory.search.remote.apiKey") {
     setPathCreateStrict(config, ["agents", "list", 0, "id"], "sample-agent");
   }
-  if (entry.id === "agents.defaults.memorySearch.query.reranker.apiKey") {
+  if (entry.id === "memory.search.query.reranker.apiKey") {
     setPathCreateStrict(config, ["agents", "list", "0", "id"], "sample-agent");
-    setPathCreateStrict(
-      config,
-      ["agents", "defaults", "memorySearch", "query", "reranker", "enabled"],
-      true,
-    );
-    setPathCreateStrict(
-      config,
-      ["agents", "defaults", "memorySearch", "query", "tier1", "enabled"],
-      true,
-    );
+    setPathCreateStrict(config, ["memory", "search", "query", "reranker", "enabled"], true);
+    setPathCreateStrict(config, ["memory", "search", "query", "tier1", "enabled"], true);
   }
-  if (entry.id === "agents.list[].memorySearch.query.reranker.apiKey") {
-    setPathCreateStrict(config, ["agents", "list", "0", "id"], "sample-agent");
+  if (entry.id === "agents.entries.*.memory.search.query.reranker.apiKey") {
     setPathCreateStrict(
       config,
-      ["agents", "list", "0", "memorySearch", "query", "reranker", "enabled"],
+      ["agents", "entries", wildcardToken, "memory", "search", "query", "reranker", "enabled"],
       true,
     );
     setPathCreateStrict(
       config,
-      ["agents", "list", "0", "memorySearch", "query", "tier1", "enabled"],
+      ["agents", "entries", wildcardToken, "memory", "search", "query", "tier1", "enabled"],
       true,
     );
   }

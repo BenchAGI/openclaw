@@ -443,7 +443,8 @@ searches only curated memory files for the opening topic, stays byte bounded,
 and fails open: disabled config, misses, timeouts, auth errors, and parse errors
 continue the run without injected context.
 
-All under `memorySearch.query.tier1`:
+All under `memory.search.query.tier1` (per-agent overrides live at
+`agents.entries.<id>.memory.search.query.tier1`):
 
 | Key          | Type      | Default | Description                                      |
 | ------------ | --------- | ------- | ------------------------------------------------ |
@@ -455,17 +456,15 @@ All under `memorySearch.query.tier1`:
 
 ```json5
 {
-  agents: {
-    defaults: {
-      memorySearch: {
-        query: {
-          tier1: {
-            enabled: true,
-            maxResults: 4,
-            minScore: 0.45,
-            maxBytes: 1600,
-            timeoutMs: 1200,
-          },
+  memory: {
+    search: {
+      query: {
+        tier1: {
+          enabled: true,
+          maxResults: 4,
+          minScore: 0.45,
+          maxBytes: 1600,
+          timeoutMs: 1200,
         },
       },
     },
@@ -485,7 +484,8 @@ The optional reranker asks an OpenAI-compatible chat completions endpoint to
 judge the small Tier-1 candidate set. It can reorder and filter candidates, but
 any judge failure falls back to the original memory-search order.
 
-All under `memorySearch.query.reranker`:
+All under `memory.search.query.reranker` (per-agent overrides live at
+`agents.entries.<id>.memory.search.query.reranker`):
 
 | Key         | Type          | Default | Description                                  |
 | ----------- | ------------- | ------- | -------------------------------------------- |
@@ -499,19 +499,17 @@ All under `memorySearch.query.reranker`:
 
 ```json5
 {
-  agents: {
-    defaults: {
-      memorySearch: {
-        query: {
-          tier1: { enabled: true },
-          reranker: {
-            enabled: true,
-            baseUrl: "http://127.0.0.1:11434",
-            model: "qwen2.5:7b-instruct",
-            timeoutMs: 6000,
-            minScore: 0.5,
-            topK: 8,
-          },
+  memory: {
+    search: {
+      query: {
+        tier1: { enabled: true },
+        reranker: {
+          enabled: true,
+          baseUrl: "http://127.0.0.1:11434",
+          model: "qwen2.5:7b-instruct",
+          timeoutMs: 6000,
+          minScore: 0.5,
+          topK: 8,
         },
       },
     },

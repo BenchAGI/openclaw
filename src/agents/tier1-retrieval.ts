@@ -14,7 +14,7 @@
  *  - BOUNDED: top-K hits, byte-capped body — it cannot push Tier-0 out of context.
  *  - TENANT-SAFE: the search is keyed to the caller's own `agentId` (the host
  *    manager derives the per-agent store from it); never pass another agent's id.
- *  - FLAG-GATED: `agents.*.memorySearch.query.tier1.enabled` (default OFF).
+ *  - FLAG-GATED: `memory.search.query.tier1.enabled` (or `agents.entries.*.memory.search.query.tier1.enabled`) (default OFF).
  */
 import { appendFileSync, mkdirSync } from "node:fs";
 import os from "node:os";

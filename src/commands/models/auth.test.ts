@@ -154,7 +154,10 @@ vi.mock("../../plugins/providers.runtime.js", () => ({
   resolvePluginProvidersCore: mocks.resolvePluginProvidersCore,
 }));
 
-vi.mock("../../plugins/setup-registry.js", () => ({
+vi.mock("../../plugins/setup-registry.js", async (importOriginal) => ({
+  // Bench fork #75: auth.ts loads the model catalog through plugin-sdk/agent-runtime,
+  // which also reads resolvePluginSetupCliBackend from this module.
+  ...(await importOriginal<typeof import("../../plugins/setup-registry.js")>()),
   resolvePluginSetupProviderCore: mocks.resolvePluginSetupProviderCore,
   resolvePluginSetupRegistry: mocks.resolvePluginSetupRegistry,
 }));

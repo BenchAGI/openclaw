@@ -83,25 +83,25 @@ describe("secret target registry", () => {
 
   it("resolves Tier-1 reranker SecretInput paths", () => {
     const defaultTarget = resolveConfigSecretTargetByPath([
-      "agents",
-      "defaults",
-      "memorySearch",
+      "memory",
+      "search",
       "query",
       "reranker",
       "apiKey",
     ]);
     const agentTarget = resolveConfigSecretTargetByPath([
       "agents",
-      "list",
-      "0",
-      "memorySearch",
+      "entries",
+      "main",
+      "memory",
+      "search",
       "query",
       "reranker",
       "apiKey",
     ]);
 
-    expect(defaultTarget?.entry?.id).toBe("agents.defaults.memorySearch.query.reranker.apiKey");
-    expect(agentTarget?.entry?.id).toBe("agents.list[].memorySearch.query.reranker.apiKey");
+    expect(defaultTarget?.entry?.id).toBe("memory.search.query.reranker.apiKey");
+    expect(agentTarget?.entry?.id).toBe("agents.entries.*.memory.search.query.reranker.apiKey");
   });
 
   it("returns null when no config target path matches", () => {
