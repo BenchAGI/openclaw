@@ -179,6 +179,9 @@ describe("prependFallbackModeNotice", () => {
     const [updated] = prependFallbackModeNotice([payload], notice);
 
     expect(updated).toEqual({ text: `${notice}\n\nanswer` });
+    if (!updated) {
+      throw new Error("expected the prepended payload");
+    }
     expect(getReplyPayloadMetadata(updated)).toMatchObject({
       deliverDespiteSourceReplySuppression: true,
       sourceReplyTranscriptMirror: {
