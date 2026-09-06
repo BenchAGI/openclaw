@@ -1347,6 +1347,14 @@ export async function createGatewaySession(params: {
           // replace it after the canonical patch has validated and stored it.
           delete inheritedSelection.fastMode;
         }
+        // Bench fork #71: an explicit thinkingLevel/reasoningLevel at create wins over the
+        // parent's inherited levels for the same reason (operator.write, no admin patch).
+        if (requestedThinkingLevel) {
+          delete inheritedSelection.thinkingLevel;
+        }
+        if (requestedReasoningLevel) {
+          delete inheritedSelection.reasoningLevel;
+        }
         const entry: SessionEntry = {
           ...initializedEntry,
           ...inheritedSelection,

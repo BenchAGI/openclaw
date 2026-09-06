@@ -25,8 +25,8 @@ const BUNDLED_TYPED_HOOK_REGISTRATION_FILES = [
   "extensions/memory-core/src/dreaming.ts",
   "extensions/memory-durability/src/scheduler.ts",
   "extensions/memory-lancedb/index.ts",
-  "extensions/session-digest/index.ts",
   "extensions/onepassword/index.ts",
+  "extensions/session-digest/index.ts",
   "extensions/visitor-access/index.ts",
   "extensions/workboard/index.ts",
 ] as const;
