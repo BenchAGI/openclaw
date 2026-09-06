@@ -399,10 +399,9 @@ export async function dispatchCronDelivery(
       const attemptedPayloadsForMirror: NormalizedOutboundPayload[] = [];
       const onError = params.deliveryBestEffort
         ? (err: unknown, _payload: unknown) => {
-            // A best-effort payload failure is an unconfirmed send: keep the run ok
-            // but never let the delivery read as clean (Bench fork #100).
-            hadPartialFailure = true;
-            deliveryState.error ??= formatErrorMessage(err);
+            // A best-effort payload failure is an unconfirmed send (Bench fork #100):
+            // remember it, but let the batch outcome own failure state, since a
+            // proven-not-sent attempt can still succeed on retry.
             deliveryState.deliveryFailedError ??= formatErrorMessage(err);
             logCronDeliveryErrorDeferred(
               `[cron:${params.job.id}] delivery payload failed (bestEffort): ${formatErrorMessage(err)}`,
@@ -476,7 +475,10 @@ export async function dispatchCronDelivery(
             // The approval/policy gate cancelled the send. This is a terminal
             // outcome distinct from a transport failure: the run may stay ok,
             // but the job state must never read "delivered" for it (Bench fork #100).
-            recordDelivery("blocked-by-policy", blockedReason);
+            recordDelivery(
+              "blocked-by-policy",
+              `cron delivery was suppressed by policy: ${blockedReason}`,
+            );
             await logCronDeliveryWarn(
               `[cron:${params.job.id}] delivery blocked by policy: ${blockedReason}`,
             );
@@ -548,7 +550,10 @@ export async function dispatchCronDelivery(
       // A partial batch is not a durable completion, so we never mint a full
       // receipt for it — but it may still have reached the recipient.
       if (deliveryResults.length > 0) {
-        recordDelivery(hadPartialFailure ? "not-delivered" : "delivered", deliveryState.error);
+        recordDelivery(
+          hadPartialFailure ? "not-delivered" : "delivered",
+          hadPartialFailure ? deliveryState.error : undefined,
+        );
       }
       // Persist the outbound route once any payload is confirmed to have
       // reached the recipient, matching the post-success invariant in
