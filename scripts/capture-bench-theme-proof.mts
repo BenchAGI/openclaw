@@ -88,11 +88,76 @@ async function capture(
   }
 }
 
+// Fidelity shots for the agent identity treatment (UI-BRAND-CONTRACT §4.2): the
+// default mock agent is outside the Bench manifest, so these seed Aurelius as
+// the assistant on the default family, dark and light, once with a typed
+// composer so the enabled send button paints --primary.
+const AURELIUS_AGENTS_LIST = {
+  agents: [
+    { id: "aurelius", workspace: "/home/operator/aurelius", workspaceGit: true },
+    { id: "cole", workspace: "/home/operator/zig", workspaceGit: true },
+  ],
+  defaultId: "aurelius",
+  mainKey: "main",
+  scope: "agent",
+};
+
+async function captureAurelius(colorScheme: "dark" | "light", typed: boolean) {
+  const label = `aurelius-${colorScheme}${typed ? "-composer-ready" : ""}`;
+  const context = await browser.newContext({
+    colorScheme,
+    viewport: { width: 1440, height: 900 },
+  });
+  const page = await context.newPage();
+  page.setDefaultTimeout(30_000);
+  try {
+    await installMockGateway(page, {
+      assistantAgentId: "aurelius",
+      assistantName: "Aurelius",
+      defaultAgentId: "aurelius",
+      sessionKey: "agent:aurelius:main",
+      methodResponses: { "agents.list": AURELIUS_AGENTS_LIST },
+    });
+    await page.goto(`${server.baseUrl}chat`);
+    await page.locator(".agent-chat__input").waitFor({ state: "visible" });
+    await page.locator(".bench-agent-chip").waitFor({ state: "visible" });
+    if (typed) {
+      await page
+        .locator(".agent-chat__input textarea, .agent-chat__input [contenteditable]")
+        .first()
+        .click();
+      await page.keyboard.type("Give me today's operating brief");
+    }
+    await page.waitForTimeout(600);
+    const chip = await page.evaluate(() => ({
+      name: document.querySelector(".bench-agent-chip__name")?.textContent ?? null,
+      role: document.querySelector(".bench-agent-chip__role")?.textContent ?? null,
+      halo:
+        document
+          .querySelector(".sidebar-agent-card__avatar")
+          ?.classList.contains("bench-agent-halo") ?? false,
+      title: document.querySelector(".agent-chat__welcome h2")?.textContent ?? null,
+      sendDisabled: document.querySelector<HTMLButtonElement>(".chat-send-btn")?.disabled ?? null,
+      sendBackground: (() => {
+        const button = document.querySelector<HTMLElement>(".chat-send-btn");
+        return button ? getComputedStyle(button).backgroundColor : null;
+      })(),
+    }));
+    await page.screenshot({ path: path.join(outputDir, `${label}-chat.png`) });
+    console.log(JSON.stringify({ label, ...chip }));
+  } finally {
+    await context.close();
+  }
+}
+
 try {
   for (const family of BENCH_THEME_FAMILIES) {
     await capture(family, "dark");
     await capture(family, "light");
   }
+  await captureAurelius("dark", false);
+  await captureAurelius("light", false);
+  await captureAurelius("dark", true);
   console.log(JSON.stringify({ outputDir }));
 } finally {
   await browser.close();

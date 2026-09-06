@@ -18,6 +18,7 @@ import {
 import { sessionMenuReasons } from "../../components/session-menu-access.ts";
 import { isCloudWorkerPlacementState } from "../../components/session-row-badges.ts";
 import { t } from "../../i18n/index.ts";
+import { benchAgentDisplayName } from "../../lib/agents/bench-agent-identity.ts";
 import { normalizeAgentLabel } from "../../lib/agents/display.ts";
 import { isGatewayMethodAdvertised } from "../../lib/gateway-methods.ts";
 import {
@@ -533,9 +534,12 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
           (agent) => normalizeAgentId(agent.id) === normalizeAgentId(modeSwitchAgentId),
         )
       : undefined;
-    const modeSwitchAgentName = modeSwitchAgentRow
-      ? normalizeAgentLabel(modeSwitchAgentRow)
-      : (this.context.config?.current?.assistantIdentity?.name ?? modeSwitchAgentId ?? "");
+    const modeSwitchAgentName = benchAgentDisplayName(
+      modeSwitchAgentId,
+      modeSwitchAgentRow
+        ? normalizeAgentLabel(modeSwitchAgentRow)
+        : (this.context.config?.current?.assistantIdentity?.name ?? modeSwitchAgentId ?? ""),
+    );
     const header = renderChatPaneHeader({
       paneId: this.paneId,
       narrow: this.narrow,

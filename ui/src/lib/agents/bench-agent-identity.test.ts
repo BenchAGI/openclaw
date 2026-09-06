@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BENCH_RARITY_COLORS,
+  benchAgentDisplayName,
   benchAgentIdentity,
   benchAgentRarityColor,
   benchAgentStyle,
@@ -27,6 +28,13 @@ describe("bench agent identity manifest", () => {
       `--agent-accent: #e7c182; --agent-rarity: ${BENCH_RARITY_COLORS.legendary};`,
     );
     expect(benchAgentRarityColor(null)).toBe("#c8ced6");
+  });
+
+  it("fills the display name only when the gateway label is the bare id", () => {
+    expect(benchAgentDisplayName("aurelius", "aurelius")).toBe("Aurelius");
+    expect(benchAgentDisplayName("cole", "")).toBe("Zig");
+    expect(benchAgentDisplayName("cole", "Zig Ziglar")).toBe("Zig Ziglar");
+    expect(benchAgentDisplayName("main", "main")).toBe("main");
   });
 
   it("drops Aurelius's gold to bronze only for text on light surfaces", () => {

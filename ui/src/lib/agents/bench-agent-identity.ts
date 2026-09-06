@@ -178,6 +178,22 @@ export function benchAgentStyle(agentId: string | null | undefined): string {
   return `--agent-accent: ${accent}; --agent-rarity: ${benchAgentRarityColor(identity)};`;
 }
 
+/**
+ * Display name for a label the gateway left at the bare agent id: the manifest
+ * name fills in, a customer-configured name always wins. Unknown agents keep
+ * whatever label they had.
+ */
+export function benchAgentDisplayName(agentId: string | null | undefined, label: string): string {
+  const identity = benchAgentIdentity(agentId);
+  if (!identity) {
+    return label;
+  }
+  const trimmed = label.trim();
+  return !trimmed || trimmed.toLowerCase() === agentId?.trim().toLowerCase()
+    ? identity.name
+    : label;
+}
+
 /** Versioned URL of the agent's public portrait, or null when it has none. */
 export function benchAgentPortraitUrl(agentId: string | null | undefined): string | null {
   const portrait = benchAgentIdentity(agentId)?.portrait;

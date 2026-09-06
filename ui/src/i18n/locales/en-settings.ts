@@ -505,13 +505,15 @@ const enSettings = {
         label: "Miami",
         description: "Magenta & cyan",
       },
+      // Card labels stay one line (upstream's rule); the family's full name
+      // leads the description (UI-BRAND-CONTRACT §2, design seat 2026-09-06).
       bench: {
-        label: "Bench Infrared",
-        description: "Obsidian ink, Infrared spark. The Bench default.",
+        label: "Infrared",
+        description: "Bench Infrared: obsidian ink, Infrared spark. The Bench default.",
       },
       "bench-garden": {
-        label: "Secret Garden",
-        description: "Slate and gold with a reading serif.",
+        label: "Garden",
+        description: "Secret Garden: slate and gold with a reading serif.",
       },
       "bench-forge": {
         label: "Forge",
