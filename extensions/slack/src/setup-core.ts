@@ -366,22 +366,24 @@ export function createSlackSetupWizardBase(handlers: {
         // keeps the universally supported bot manifest (guests, free plans).
         const manifestMode: SlackManifestMode = options?.quickstartDefaults
           ? "bot"
-          : await prompter.select<SlackManifestMode>({
-              message: "Choose the Slack app experience",
-              options: [
-                {
-                  value: "agent",
-                  label: "Agent experience (recommended)",
-                  hint: "Current Slack Agent schema; plan eligibility required",
-                },
-                {
-                  value: "bot",
-                  label: "Ordinary bot",
-                  hint: "Works for guests and workspaces without Agent access",
-                },
-              ],
-              initialValue: "agent",
-            });
+          : currentAccount.configured
+            ? "agent"
+            : await prompter.select<SlackManifestMode>({
+                message: "Choose the Slack app experience",
+                options: [
+                  {
+                    value: "agent",
+                    label: "Agent experience (recommended)",
+                    hint: "Current Slack Agent schema; plan eligibility required",
+                  },
+                  {
+                    value: "bot",
+                    label: "Ordinary bot",
+                    hint: "Works for guests and workspaces without Agent access",
+                  },
+                ],
+                initialValue: "agent",
+              });
         await prompter.note(
           buildSlackSetupLines(manifestMode).join("\n"),
           t("wizard.channels.setupTitle"),

@@ -45,6 +45,10 @@ export function buildSlackManifest(botName = "OpenClaw", mode: SlackManifestMode
                   message: "What can you help me with?",
                 },
                 {
+                  title: "Summarize this channel",
+                  message: "Summarize the recent activity in this channel.",
+                },
+                {
                   title: "Draft a reply",
                   message: "Help me draft a reply.",
                 },
@@ -125,20 +129,22 @@ export function buildSlackSetupChoiceLines(): string[] {
 }
 
 export function buildSlackSetupLines(mode: SlackManifestMode = "agent"): string[] {
-  const modeStep =
+  // Bench fork #96: upstream's numbered steps stay verbatim; the Agent-vs-bot
+  // guidance rides as an extra line so both experiences share one checklist.
+  const modeLine =
     mode === "agent"
-      ? "2) Agents & AI Apps -> enable the Agent experience"
-      : "2) Keep Agents & AI Apps disabled for an ordinary bot install";
+      ? "Agents & AI Apps -> enable the Agent experience before pasting the manifest"
+      : "Keep Agents & AI Apps disabled for an ordinary bot install";
   return [
-    "1) Slack API -> Create App -> From scratch, then name the app",
-    modeStep,
-    "3) App Manifest -> paste the JSON below and save it (or use a transport-specific manifest)",
-    "4) Install App to workspace to get the xoxb- bot token",
-    "5) Socket Mode: enable it and create an app-level token (xapp-...)",
-    "6) HTTP: configure a public HTTPS Request URL and copy the app Signing Secret",
+    "1) Slack API -> Create App -> From scratch or a transport-specific manifest",
+    "2) Install App to workspace to get the xoxb- bot token",
+    "3) Socket Mode: enable it and create an app-level token (xapp-...)",
+    "4) HTTP: configure a public HTTPS Request URL and copy the app Signing Secret",
+    "5) Enable Event Subscriptions for message, App Home, and Agent View events",
     mode === "agent"
-      ? "7) App Home -> enable the Home tab, Messages tab for DMs, and Agent View"
-      : "7) App Home -> enable the Home tab and Messages tab for DMs",
+      ? "6) App Home -> enable the Home tab, Messages tab for DMs, and Agent View"
+      : "6) App Home -> enable the Home tab and Messages tab for DMs",
+    modeLine,
     "Manifest JSON follows as plain text for copy/paste.",
     "Tip: Socket Mode can use SLACK_BOT_TOKEN + SLACK_APP_TOKEN in your env.",
     `Docs: ${formatDocsLink("/slack", "slack")}`,

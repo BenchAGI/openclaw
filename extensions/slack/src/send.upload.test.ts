@@ -467,7 +467,7 @@ describe("sendMessageSlack file upload with user IDs", () => {
     const result = await sendMessageSlack("user:U11111111,U22222222,U33333333", "hello team", {
       token: "xoxb-test",
       cfg: SLACK_TEST_CFG,
-      mpimClient,
+      client: mpimClient,
     });
 
     expectOnlyCallFirstArg(mpimClient.conversations.open, {

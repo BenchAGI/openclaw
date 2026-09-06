@@ -405,7 +405,11 @@ describe("downloadSlackFile", () => {
 
   it("fails closed for requester-scoped downloads without channel evidence", async () => {
     const client = createClient();
-    mockSuccessfulMediaDownload(client);
+    // Upstream's fixture places the file in C123 by default; strip every share.
+    client.files.info.mockResolvedValueOnce({
+      file: makeSlackFileInfo({ channels: [], groups: [], ims: [], shares: {} }),
+    });
+    resolveSlackMedia.mockResolvedValueOnce([makeResolvedSlackMedia()]);
 
     const result = await downloadSlackFile("F123", {
       client,
@@ -434,7 +438,7 @@ describe("downloadSlackFile", () => {
     });
 
     expect(result).toEqual(makeResolvedSlackMedia());
-    expectResolveSlackMediaCalledWithDefaults();
+    expectResolveSlackMediaCalledWithDefaults(client);
   });
 
   it("resolves the bot token from cfg when no explicit token or client is provided", async () => {
