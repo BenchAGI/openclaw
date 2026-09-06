@@ -3,4 +3,7 @@
 # Worker bundle installation no longer injects OPENCLAW_STATE_DIR into a remote npm process.
 # The internal Node-version check no longer contributes a false OPENCLAW_* name.
 # The next-turn runtime-context preface constant no longer exists as an OPENCLAW_* name.
-498
+# Bench fork merge-forward (PR #125): +7 fork-owned names carried from fork main —
+# OPENCLAW_TURN_IDLE_BUDGET_MS (#108), OPENCLAW_BRIDGE_AUTOSTART / _DEDUPE_WINDOW_S /
+# _INBOX_PATH / _WARMUP_SECONDS (#98/#103 Claude Code bridge), OPENCLAW_CONFIG.
+505
