@@ -180,7 +180,11 @@ openclaw-chat-pane {
 
 .chat-pane__header--centered {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* The trailing cluster keeps its content width so it never overflows left
+     under the centred identity chip; the chip column shrinks (and its name
+     truncates) before the leading crumbs do. Upstream's 1fr / auto / 1fr let
+     the actions slide under the chip at 1280px with collapsed navigation. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) max-content;
 }
 
 .chat-pane__header-leading,

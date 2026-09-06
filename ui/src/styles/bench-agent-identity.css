@@ -52,6 +52,7 @@
   align-items: center;
   gap: 8px;
   height: 30px;
+  min-width: 0;
   max-width: min(320px, 100%);
   padding: 0 10px 0 5px;
   border: 1px solid var(--border-strong);
@@ -133,6 +134,13 @@
 
 @media (max-width: 768px) {
   .bench-agent-chip__role {
+    display: none;
+  }
+}
+
+/* Phone-width panes: the topbar carries the brand and switch; drop the chip. */
+@container (max-width: 480px) {
+  .chat-pane__header-center .bench-agent-chip {
     display: none;
   }
 }
