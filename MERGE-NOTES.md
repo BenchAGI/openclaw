@@ -100,6 +100,12 @@ separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
     against the upstream tag as base (`PROTOCOL_SINCE_BASE_SHA=3928bad9…`) only the fork's
     `local-seat.capture` row (`<=2026.7`, its true fork provenance) is flagged. Registry check,
     schema gen, and Swift/Kotlin regen pass.
+  - Full `pnpm test` (644 Vitest shards, parallelism 4) is a multi-hour job on Prime and its
+    first attempt aborted on a vitest worker crash under load; the gate run uses the fork
+    feature suites plus `scripts/test-projects.mts --changed <v2026.9.2>` (every project the
+    fork delta touches). `test/scripts/run-vitest-state-cleanup.test.ts` cases that spawn
+    `pnpm` inside a temp HOME fail on Prime's pnpm self-switch (`ENOEXEC`), an environment
+    red; CI runs them on hosted runners.
 - Upstream's `write-build-info` tests assert one git call and no describe; they now pass
   `GIT_RELEASE` (the fork's hermetic path) so #85's default `git describe` lineage stays on for
   local builds and the fork's own #85 tests cover it.
