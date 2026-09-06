@@ -153,7 +153,8 @@ describe("slackSetupWizard.prepare", () => {
       },
       features: {
         bot_user: {
-          display_name: "OpenClaw",
+          // Bench fork #96: Slack's display_name contract is lowercase, no spaces.
+          display_name: "openclaw",
           always_online: true,
         },
         app_home: {
