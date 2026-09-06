@@ -29,6 +29,7 @@ describe("write-build-info", () => {
       rootDir,
       env: {
         GIT_COMMIT: "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
+        GIT_RELEASE: "2026.7.10-bench.1",
         OPENCLAW_BUILD_TIMESTAMP: "2026-07-10T12:34:56Z",
       },
       execFileSync,
@@ -38,7 +39,7 @@ describe("write-build-info", () => {
     expect(path.relative(rootDir, outputPath)).toBe("dist/build-info.json");
     expect(JSON.parse(fs.readFileSync(outputPath, "utf8"))).toEqual({
       version: "2026.7.10",
-      release: null,
+      release: "2026.7.10-bench.1",
       commit: "abcdef0123456789abcdef0123456789abcdef01",
       builtAt: "2026-07-10T12:34:56.000Z",
       buildId: "2026.7.10-abcdef012345-2026-07-10T12-34-56.000Z",
@@ -52,12 +53,13 @@ describe("write-build-info", () => {
     expect(
       resolveBuildInfo({
         rootDir,
-        env: {},
+        env: { GIT_RELEASE: "2026.7.10-beta.1-bench.1" },
         execFileSync,
         now: () => new Date("2026-07-10T01:02:03.456Z"),
       }),
     ).toEqual({
       version: "2026.7.10-beta.1",
+      release: "2026.7.10-beta.1-bench.1",
       commit: "1234567890abcdef1234567890abcdef12345678",
       builtAt: "2026-07-10T01:02:03.456Z",
       buildId: "2026.7.10-beta.1-1234567890ab-2026-07-10T01-02-03.456Z",
@@ -125,7 +127,7 @@ describe("write-build-info", () => {
     expect(
       resolveBuildInfo({
         rootDir,
-        env: { GITHUB_SHA: "a".repeat(40) },
+        env: { GITHUB_SHA: "a".repeat(40), GIT_RELEASE: "2026.7.10-bench.1" },
         execFileSync,
         now: () => new Date("2026-07-10T01:02:03.000Z"),
       }).commit,

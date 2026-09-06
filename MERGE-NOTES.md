@@ -90,6 +90,19 @@ separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
   `sseKeepaliveIntervalMs`, `instanceId`, `memory.search.query.{tier1,reranker}`, `aliases`,
   memory-wiki `instanceId`); `scripts/check-protocol-registry.mts` owner-module count 64→65
   for `schema/local-seat.ts`; grandfathered `max-lines` pragmas on eleven fork-touched files.
+- **Known gate reds on this head (by name, with cause):**
+  - `ui:i18n:check` — #112 changed `aboutPage.waveHello` in `locales/en.ts`; the 20 generated
+    locales need a real translation pass. Per upstream's flow only `en.ts` is committed and the
+    `control-ui-locale-refresh` workflow translates after merge (CI runs this check with
+    `continue-on-error` unless `strict_control_ui_i18n`). No translation provider is wired on Prime.
+  - `protocol:check` (`check-protocol-since.mts`) — base-relative. Against the PR base (fork main,
+    June) upstream's own 2026.8 methods are flagged for a `since: "2026.9"` they must not get;
+    against the upstream tag as base (`PROTOCOL_SINCE_BASE_SHA=3928bad9…`) only the fork's
+    `local-seat.capture` row (`<=2026.7`, its true fork provenance) is flagged. Registry check,
+    schema gen, and Swift/Kotlin regen pass.
+- Upstream's `write-build-info` tests assert one git call and no describe; they now pass
+  `GIT_RELEASE` (the fork's hermetic path) so #85's default `git describe` lineage stays on for
+  local builds and the fork's own #85 tests cover it.
 - `src/commands/agent.runtime-config.test.ts` is upstream's; the fork's reranker-target
   test is replaced by `command-secret-targets.test.ts` + `runtime-provider-and-media-surfaces.test.ts`.
 - #110/#114/#115/#116–#120 retarget onto this head (backlog seat).
