@@ -5,6 +5,7 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expectDefined } from "@openclaw/normalization-core";
 import { describe, expect, it } from "vitest";
+import { collectCorePrivateExtensionImports } from "../../../../scripts/lib/core-private-extension-imports.mts";
 import { classifyBundledExtensionSourcePath } from "../../../../scripts/lib/extension-source-classifier.mts";
 import { GUARDED_EXTENSION_PUBLIC_SURFACE_BASENAMES } from "../../../plugin-sdk/test-helpers/public-artifacts.js";
 import { loadPluginManifestRegistryCore } from "../../../plugins/manifest-registry.js";
@@ -581,6 +582,101 @@ function expectCoreSourceStaysOffPluginSpecificSdkFacades(file: string, imports:
 }
 
 describe("channel import guardrails", () => {
+  describe("core private extension import syntax", () => {
+    it.each([
+      ["line comment", '// import value from "../../extensions/example/src/private.js";'],
+      ["block comment", '/* import value from "../../extensions/example/src/private.js"; */'],
+      ["multiline block comment", '/** "diagnostic"\n * (extensions/example/src/private.ts:1) */'],
+      ["string prose", 'const note = "See extensions/example/src/private.ts";'],
+      [
+        "string import example",
+        "const note = 'import value from \"../../extensions/example/src/private.js\";';",
+      ],
+      ["template prose", 'const note = `import("../../extensions/example/src/private.js")`;'],
+      [
+        "regular expression prose",
+        String.raw`const pattern = /import\("extensions\/example\/src\/private.js"\)/;`,
+      ],
+      ["public surface", 'import value from "../../extensions/example/api.js";'],
+      ["neutral SDK", 'import value from "openclaw/plugin-sdk/channel-contract";'],
+    ])("ignores %s", (_name, source) => {
+      expect(collectCorePrivateExtensionImports(source, "example.ts")).toEqual([]);
+    });
+
+    it.each([
+      ["static import", 'import value from "../../extensions/example/src/private.js";'],
+      ["side-effect import", 'import "../../extensions/example/src/private.js";'],
+      [
+        "multiline import",
+        'import {\n value,\n} from\n "../../extensions/example/src/private.js";',
+      ],
+      ["type import", 'import type { Value } from "../../extensions/example/src/private.js";'],
+      ["named re-export", 'export { value } from "../../extensions/example/src/private.js";'],
+      ["star re-export", 'export * from "../../extensions/example/src/private.js";'],
+      ["type re-export", 'export type { Value } from "../../extensions/example/src/private.js";'],
+      ["dynamic import", 'const value = import("../../extensions/example/src/private.js");'],
+      [
+        "dynamic import with options",
+        'const value = import("../../extensions/example/src/private.json", { with: { type: "json" } });',
+      ],
+      ["require", 'const value = require("../../extensions/example/src/private.js");'],
+      [
+        "multiline require",
+        'const value = require(\n "../../extensions/example/src/private.js"\n);',
+      ],
+      [
+        "import equals require",
+        'import value = require("../../extensions/example/src/private.js");',
+      ],
+      [
+        "import type expression",
+        'type Value = import("../../extensions/example/src/private.js").Value;',
+      ],
+      ["dynamic template", "const value = import(`../../extensions/example/src/private.js`);"],
+      ["require template", "const value = require(`../../extensions/example/src/private.js`);"],
+      [
+        "dynamic template prefix",
+        "const value = import(`../../extensions/example/src/${name}.js`);",
+      ],
+      [
+        "require concatenated prefix",
+        'const value = require("../../extensions/example/src/" + name);',
+      ],
+      [
+        "module require",
+        'const value = module.require("../../extensions/example/src/private.js");',
+      ],
+      [
+        "require resolve",
+        'const file = require.resolve("../../extensions/example/src/private.js");',
+      ],
+      [
+        "escaped specifier",
+        String.raw`import value from "../../extens\u0069ons/example/src/private.js";`,
+      ],
+      ["extensionless import", 'import value from "../../extensions/example/src/private";'],
+      [
+        "import nested in template expression",
+        'const message = `${import("../../extensions/example/src/private.js")}`;',
+      ],
+      [
+        "comment-adjacent import",
+        '/* explanation */ import value from "../../extensions/example/src/private.js";',
+      ],
+    ])("rejects %s", (_name, source) => {
+      expect(collectCorePrivateExtensionImports(source, "example.ts").length).toBeGreaterThan(0);
+    });
+
+    it("ignores the observed approval documentation without losing its actual import", () => {
+      expect(
+        collectCorePrivateExtensionImports(
+          readSource("src/infra/plugin-approvals.ts"),
+          "src/infra/plugin-approvals.ts",
+        ),
+      ).toEqual([]);
+    });
+  });
+
   it("lists channel import guardrail sources from git without walking roots", () => {
     expectNoReaddirSyncDuring(() => {
       const coreSources = collectCoreSourceFiles();
@@ -638,9 +734,10 @@ describe("channel import guardrails", () => {
   it("keeps core production files off plugin-private src imports", () => {
     for (const file of collectCoreSourceFiles()) {
       const text = readSource(file);
-      expect(text, `${file} should not import plugin-private src paths`).not.toMatch(
-        /["'][^"']*extensions\/[^/"']+\/src\//,
-      );
+      expect(
+        collectCorePrivateExtensionImports(text, file),
+        `${file} should not import plugin-private src paths`,
+      ).toEqual([]);
     }
   });
 
