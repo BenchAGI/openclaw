@@ -461,10 +461,6 @@ const enSettings = {
       wizard: "Setup",
     },
     themes: {
-      bench: {
-        label: "Bench",
-        description: "Obsidian & Infrared",
-      },
       claw: {
         label: "Claw",
         description: "Chroma family",
@@ -508,6 +504,22 @@ const enSettings = {
       miami: {
         label: "Miami",
         description: "Magenta & cyan",
+      },
+      bench: {
+        label: "Bench Infrared",
+        description: "Obsidian ink, Infrared spark. The Bench default.",
+      },
+      "bench-garden": {
+        label: "Secret Garden",
+        description: "Slate and gold with a reading serif.",
+      },
+      "bench-forge": {
+        label: "Forge",
+        description: "Ink with the Forge cyan spark.",
+      },
+      "bench-aurelius": {
+        label: "Aurelius",
+        description: "The planetarium stage: gold rim-light on near-black.",
       },
     },
     textSizes: {
@@ -578,6 +590,7 @@ const enSettings = {
       intro: "Theme, chat, and sidebar preferences for this Control UI client.",
       theme: "Theme",
       chooseTheme: "Choose a theme family.",
+      moreThemes: "More themes",
       typography: "Typography",
       fonts: {
         ui: "Interface",

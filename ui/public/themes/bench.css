@@ -1,103 +1,114 @@
-/* Bench palette; selected by index.html and app/theme.ts. */
+/* Bench Infrared palette; selected by index.html and app/theme.ts. */
 
 :root[data-theme="bench"] {
   /*
-   * Accent — Bench Infrared on Obsidian
+   * Accent — Bench Infrared on obsidian ink.
    *
-   * The Bench brand theme: Obsidian #111111 canvas, Graphite #2a2a2a
-   * structure, Infrared #ff2d55 as the only accent (brand guardrail:
-   * design-handoffs vault-openclaw2-bench-shell §5).
+   * The Bench default: the #0a0a0c ink ramp shared with the Vault shell and
+   * the web app (so the embedded Control UI shows no seam against the Vault
+   * chrome), Infrared #ff2d55 as the text-carrying accent, a deeper Infrared
+   * for filled buttons, and info blue as the second series — never a second
+   * red. Brand source: UI-BRAND-CONTRACT §1.2.
    *
-   * WCAG 2.1 AA audit (bg = #111111, relative luminance ≈ 0.0056):
-   *   --accent #ff2d55  contrast ≈ 5.2:1  AA text ✓ (4.9:1 on --card)
-   *   --primary-foreground #170a0d on #ff2d55 button: 5.3:1 AA ✓
-   *   --primary-foreground #170a0d on #ff6b8a hover: 7.1:1 AAA ✓
-   *   --destructive-foreground #fafafa on #d32f2f button: 4.77:1 AA ✓
-   *   worst text pairing --muted on --bg-muted: 5.3:1 ✓
-   *   --text #c6c6c6 on bg: 11.0:1 ✓
+   * WCAG 2.1 AA audit (bg = #0a0a0c, relative luminance ≈ 0.0031):
+   *   --accent #ff2d55  contrast ≈ 5.4:1 AA text ✓ (5.0:1 on --card)
+   *   --primary-foreground #ffffff on #e1234a button: 4.6:1 AA ✓
+   *   --primary-foreground #ffffff on #d61f44 hover: 5.1:1 AA ✓
+   *   --destructive-foreground #fafafa on #d32f2f button: 4.8:1 AA ✓
+   *   body text --text #b9b9c1: 10.2:1 ✓
+   *   worst text pairing --muted on --bg-muted: 4.9:1 ✓
+   *   --accent-2 #5fb8ff on bg: 9.2:1 ✓
    */
   --ring: #ff2d55;
   --accent: #ff2d55;
   --accent-hover: #ff6b8a;
   --accent-muted: #ff2d55;
-  --accent-subtle: rgba(255, 45, 85, 0.12);
+  --accent-subtle: rgba(255, 45, 85, 0.1);
   --accent-glow: rgba(255, 45, 85, 0.2);
-  --primary: #ff2d55;
-  --primary-hover: #ff6b8a;
-  --primary-foreground: #170a0d;
+  /* Upstream pattern: accent brighter, primary deeper so white button text
+     clears AA; the hover deepens rather than brightens for the same reason. */
+  --primary: #e1234a;
+  --primary-hover: #d61f44;
+  --primary-foreground: #ffffff;
 
   /* Danger stays the deeper house crimson so destructive controls read as a
      separate temperature from the Infrared accent. */
   --destructive: #d32f2f;
   --destructive-hover: #bc2a2a;
+  --destructive-foreground: #fafafa;
 
   --focus: rgba(255, 45, 85, 0.2);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 70%, transparent);
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 16px var(--accent-glow);
 
-  /* Surfaces — obsidian, true neutral; no cast so Infrared owns the hue */
-  --bg: #111111;
-  --bg-accent: #161616;
-  --bg-elevated: #1c1c1c;
-  --bg-hover: #232323;
-  --bg-muted: #232323;
+  /* Surfaces — the ink ramp, true neutral; no cast so Infrared owns the hue. */
+  --bg: #0a0a0c;
+  --bg-accent: #101013;
+  --bg-elevated: #1c1c22;
+  --bg-hover: #23232b;
+  --bg-muted: #23232b;
 
-  --card: #181818;
-  --card-foreground: #ededed;
+  --card: #14141a;
+  --card-foreground: #e9e9ec;
   --card-highlight: rgba(255, 255, 255, 0.04);
-  --popover: #1c1c1c;
-  --popover-foreground: #ededed;
+  --popover: #1c1c22;
+  --popover-foreground: #e9e9ec;
 
-  --panel: #111111;
-  --panel-strong: #1c1c1c;
-  --panel-hover: #232323;
-  --chrome: rgba(17, 17, 17, 0.96);
-  --chrome-strong: rgba(17, 17, 17, 0.98);
+  --panel: #0a0a0c;
+  --panel-strong: #1c1c22;
+  --panel-hover: #23232b;
+  --chrome: rgba(10, 10, 12, 0.96);
+  --chrome-strong: rgba(10, 10, 12, 0.98);
 
-  /* 11:1 on obsidian; --text-strong keeps the bright step for emphasis. */
-  --text: #c6c6c6;
-  --text-strong: #f5f5f5;
-  --chat-text: #c6c6c6;
-  --muted: #969696;
-  --muted-strong: #a6a6a6;
-  --muted-foreground: #969696;
+  /* Chalk ramp: chrome text one step under chat prose, emphasis on --text-strong. */
+  --text: #b9b9c1;
+  --text-strong: #fafafa;
+  --chat-text: #c4c4cb;
+  --muted: #8f8f99;
+  --muted-strong: #a3a3ad;
+  --muted-foreground: #8f8f99;
 
-  /* Graphite #2a2a2a is the brand structure tone: the strong border. */
-  --border: #212121;
-  --border-strong: #2a2a2a;
-  --border-hover: #404040;
-  --input: #212121;
+  --border: #1c1c22;
+  --border-strong: #2c2c36;
+  --border-hover: #3a3a47;
+  --input: #1c1c22;
 
-  --secondary: #181818;
-  --secondary-foreground: #ededed;
-  /* Second series stays a desaturated rose-graphite so Infrared remains the
-     only saturated accent on the canvas. */
-  --accent-2: #b8929c;
-  --accent-2-muted: rgba(184, 146, 156, 0.7);
-  --accent-2-subtle: rgba(184, 146, 156, 0.12);
+  --secondary: #14141a;
+  --secondary-foreground: #e9e9ec;
+  /* Info blue is the second series; Infrared stays the only red on the canvas. */
+  --accent-2: #5fb8ff;
+  --accent-2-muted: rgba(95, 184, 255, 0.7);
+  --accent-2-subtle: rgba(95, 184, 255, 0.12);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
   --overlay-shadow: var(--shadow-md);
 
-  --grid-line: rgba(255, 255, 255, 0.03);
-  /* Typography — Instrument Sans (fonts/instrument-sans.css): the closest
-     bundled neo-grotesque to the brand's Inter until Inter ships subsetted.
-     Fallbacks keep text painting on failure. */
+  --grid-line: rgba(255, 255, 255, 0.035);
+
+  /* Typography — Instrument Sans (fonts/instrument-sans.css) is the closest
+     bundled neo-grotesque to the kit's Inter; Space Grotesk is the kit's
+     display face for headlines. Fallbacks keep text painting on failure. */
   --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display:
+    "Space Grotesk", "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-chat: var(--font-body);
 }
 
 :root[data-theme="bench-light"] {
   /*
-   * Accent — deep Infrared on warm-neutral paper, Graphite ink
+   * Accent — deep Infrared on warm-neutral paper, ink-ramp text.
    *
-   * WCAG 2.1 AA audit (bg = #faf9f9, relative luminance ≈ 0.951):
-   *   --accent #d40f3f  contrast ≈ 5.1:1  AA text ✓
-   *   --accent-hover #b30c35  contrast ≈ 6.6:1  AA ✓
-   *   --primary-foreground #ffffff on #d40f3f button: 5.1:1 AA ✓
-   *   worst text pairing --muted on --bg-muted: 4.79:1 ✓
-   *   --text #2a2a2a on bg: 13.7:1 ✓
+   * WCAG 2.1 AA audit (bg = #fafaf7, relative luminance ≈ 0.954):
+   *   --accent #d40f3f  contrast ≈ 5.1:1 AA text ✓
+   *   --primary-foreground #ffffff on #e1234a button: 4.6:1 AA ✓
+   *   --primary-foreground #ffffff on #c91b40 hover: 5.7:1 AA ✓
+   *   --destructive-foreground #ffffff on #b3261e button: 6.5:1 AA ✓
+   *   body text --text #2c2c33: 13.3:1 ✓
+   *   worst text pairing --muted on --bg-muted: 5.5:1 ✓
+   *   --accent-2 #2a6fb8 on bg: 4.9:1 ✓
    */
   --ring: #d40f3f;
   --accent: #d40f3f;
@@ -105,21 +116,26 @@
   --accent-muted: #d40f3f;
   --accent-subtle: rgba(212, 15, 63, 0.1);
   --accent-glow: rgba(212, 15, 63, 0.14);
-  --primary: #d40f3f;
+  --primary: #e1234a;
+  --primary-hover: #c91b40;
   --primary-foreground: #ffffff;
 
-  --bg: #faf9f9;
-  --bg-accent: #f2f0f1;
+  --destructive: #b3261e;
+  --destructive-hover: #9c2119;
+  --destructive-foreground: #ffffff;
+
+  --bg: #fafaf7;
+  --bg-accent: #f1f1ee;
   --bg-elevated: #ffffff;
-  --bg-hover: #ece9ea;
-  --bg-muted: #ece9ea;
-  --bg-content: #f2f0f1;
+  --bg-hover: #ececea;
+  --bg-muted: #ececea;
+  --bg-content: #f5f5f2;
 
   --card: #ffffff;
-  --card-foreground: #1c1c1c;
-  --card-highlight: rgba(17, 17, 17, 0.02);
+  --card-foreground: #14141a;
+  --card-highlight: rgba(20, 20, 26, 0.02);
   --popover: #ffffff;
-  --popover-foreground: #1c1c1c;
+  --popover-foreground: #14141a;
   --session-hovercard-surface: var(--card);
   --session-hovercard-progress-surface: color-mix(
     in srgb,
@@ -127,37 +143,42 @@
     var(--panel-strong) 48%
   );
 
-  --panel: #faf9f9;
-  --panel-strong: #f2f0f1;
-  --panel-hover: #e3dfe1;
-  --chrome: rgba(250, 249, 249, 0.96);
-  --chrome-strong: rgba(250, 249, 249, 0.98);
+  --panel: #fafaf7;
+  --panel-strong: #f1f1ee;
+  --panel-hover: #e4e4e0;
+  --chrome: rgba(250, 250, 247, 0.96);
+  --chrome-strong: rgba(250, 250, 247, 0.98);
 
-  /* Graphite #2a2a2a becomes the ink in light mode; Obsidian is emphasis. */
-  --text: #2a2a2a;
-  --text-strong: #111111;
-  --chat-text: #2a2a2a;
-  --muted: #676767;
-  --muted-strong: #565656;
-  --muted-foreground: #676767;
+  --text: #2c2c33;
+  --text-strong: #0a0a0c;
+  --chat-text: #2c2c33;
+  --muted: #5d5d66;
+  --muted-strong: #4a4a52;
+  --muted-foreground: #5d5d66;
 
-  --border: #e4e0e1;
-  --border-strong: #cfc9cb;
-  --border-hover: #a9a1a4;
-  --input: #e4e0e1;
+  --border: #e6e6e2;
+  --border-strong: #d2d2cd;
+  --border-hover: #b4b4ae;
+  --input: #e6e6e2;
 
-  --secondary: #f2f0f1;
-  --secondary-foreground: #2a2a2a;
-  --accent-2: #8c5f69;
-  --accent-2-muted: rgba(140, 95, 105, 0.75);
-  --accent-2-subtle: rgba(140, 95, 105, 0.1);
+  --secondary: #f1f1ee;
+  --secondary-foreground: #2c2c33;
+  --accent-2: #2a6fb8;
+  --accent-2-muted: rgba(42, 111, 184, 0.75);
+  --accent-2-subtle: rgba(42, 111, 184, 0.1);
 
-  --shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.05);
-  --shadow-md: 0 4px 12px rgba(17, 17, 17, 0.07);
-  --shadow-lg: 0 12px 28px rgba(17, 17, 17, 0.09);
+  /* Light shadows follow the design kit's --bench-shadow-light. */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.1);
   --overlay-shadow: var(--shadow-md);
 
-  --grid-line: rgba(17, 17, 17, 0.04);
-  /* Typography — Instrument Sans (fonts/instrument-sans.css); see the dark block. */
+  --grid-line: rgba(20, 20, 26, 0.05);
+
+  /* Typography — see the dark block. */
   --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display:
+    "Space Grotesk", "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-chat: var(--font-body);
 }

@@ -16,6 +16,10 @@ describe("resolveTheme", () => {
     ["manuscript", "manuscript", "manuscript-light"],
     ["rose", "rose", "rose-light"],
     ["miami", "miami", "miami-light"],
+    ["bench", "bench", "bench-light"],
+    ["bench-garden", "bench-garden", "bench-garden-light"],
+    ["bench-forge", "bench-forge", "bench-forge-light"],
+    ["bench-aurelius", "bench-aurelius", "bench-aurelius-light"],
     ["custom", "custom", "custom-light"],
   ] satisfies [ThemeName, string, string][])(
     "resolves %s in both explicit modes",

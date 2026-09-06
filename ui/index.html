@@ -8,9 +8,9 @@
     />
     <title>BenchAGI Aurelius Vault</title>
     <meta name="color-scheme" content="dark light" />
-    <!-- These mirror the claw theme's --bg tokens for first paint; runtime theme application keeps them synchronized. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f7" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e1015" />
+    <!-- These mirror the bench theme's --bg tokens (the fork default) for first paint; runtime theme application keeps them synchronized. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafaf7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0c" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -23,7 +23,6 @@
       (function () {
         var THEMES = {
           claw: 1,
-          bench: 1,
           knot: 1,
           dash: 1,
           absolutely: 1,
@@ -34,6 +33,10 @@
           manuscript: 1,
           rose: 1,
           miami: 1,
+          bench: 1,
+          "bench-garden": 1,
+          "bench-forge": 1,
+          "bench-aurelius": 1,
         };
         var MODES = { system: 1, light: 1, dark: 1 };
         var LEGACY = {
@@ -69,7 +72,6 @@
           // family -> [dark, light] resolved names. Kept in lockstep with
           // resolveTheme() in app/theme.ts and the files in public/themes.
           var FAMILIES = {
-            bench: ["bench", "bench-light"],
             knot: ["openknot", "openknot-light"],
             dash: ["dash", "dash-light"],
             absolutely: ["absolutely", "absolutely-light"],
@@ -80,6 +82,10 @@
             manuscript: ["manuscript", "manuscript-light"],
             rose: ["rose", "rose-light"],
             miami: ["miami", "miami-light"],
+            bench: ["bench", "bench-light"],
+            "bench-garden": ["bench-garden", "bench-garden-light"],
+            "bench-forge": ["bench-forge", "bench-forge-light"],
+            "bench-aurelius": ["bench-aurelius", "bench-aurelius-light"],
           };
           var pair = FAMILIES[theme];
           var resolved = pair
@@ -130,14 +136,6 @@
       html[data-theme-mode="light"] {
         background: #faf9f7;
         color-scheme: light;
-      }
-
-      html[data-theme="bench"] {
-        background: #111111;
-      }
-
-      html[data-theme="bench-light"] {
-        background: #faf9f9;
       }
 
       html[data-theme="openknot"] {
@@ -218,6 +216,38 @@
 
       html[data-theme="miami-light"] {
         background: #f7f3f6;
+      }
+
+      html[data-theme="bench"] {
+        background: #0a0a0c;
+      }
+
+      html[data-theme="bench-light"] {
+        background: #fafaf7;
+      }
+
+      html[data-theme="bench-garden"] {
+        background: #0b1426;
+      }
+
+      html[data-theme="bench-garden-light"] {
+        background: #f0f5e8;
+      }
+
+      html[data-theme="bench-forge"] {
+        background: #0a0a0c;
+      }
+
+      html[data-theme="bench-forge-light"] {
+        background: #f3f8fa;
+      }
+
+      html[data-theme="bench-aurelius"] {
+        background: #07070a;
+      }
+
+      html[data-theme="bench-aurelius-light"] {
+        background: #fbf7f2;
       }
 
       body {

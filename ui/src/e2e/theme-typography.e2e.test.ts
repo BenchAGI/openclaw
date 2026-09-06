@@ -239,6 +239,29 @@ suite.define(() => {
     ["manuscript", "Lora", "Lora", ["lora"], "auto"],
     ["rose", "DM Sans", "DM Sans", ["dm-sans"], "antialiased"],
     ["miami", "Space Grotesk", "Space Grotesk", ["space-grotesk"], "antialiased"],
+    // Bench families also declare their --font-display face (see typography.ts).
+    [
+      "bench",
+      "Instrument Sans",
+      "Instrument Sans",
+      ["instrument-sans", "space-grotesk"],
+      "antialiased",
+    ],
+    ["bench-garden", "Instrument Sans", "Lora", ["instrument-sans", "lora"], "auto"],
+    [
+      "bench-forge",
+      "Instrument Sans",
+      "Instrument Sans",
+      ["instrument-sans", "space-grotesk"],
+      "antialiased",
+    ],
+    [
+      "bench-aurelius",
+      "Instrument Sans",
+      "Instrument Sans",
+      ["instrument-sans", "lora"],
+      "antialiased",
+    ],
   ] as const)(
     "paints %s chrome and chat prose in its own faces",
     async (theme, body, chat, faces, chatSmoothing) => {
@@ -567,6 +590,10 @@ suite.define(() => {
     ["manuscript", "manuscript", "#211e18", "#f6f1e4"],
     ["rose", "rose", "#191724", "#faf4ed"],
     ["miami", "miami", "#140f1e", "#f7f3f6"],
+    ["bench", "bench", "#0a0a0c", "#fafaf7"],
+    ["bench-garden", "bench-garden", "#0b1426", "#f0f5e8"],
+    ["bench-forge", "bench-forge", "#0a0a0c", "#f3f8fa"],
+    ["bench-aurelius", "bench-aurelius", "#07070a", "#fbf7f2"],
   ])(
     "loads %s before paint in both modes without the app bundle",
     async (theme, resolved, dark, light) => {

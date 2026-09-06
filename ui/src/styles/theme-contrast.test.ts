@@ -152,7 +152,6 @@ describe("Control UI theme contrast", () => {
     const light = readCssVarBlock(baseCss, ':root:where([data-theme-mode="light"])');
     for (const selector of [
       null,
-      ':root[data-theme="bench-light"]',
       ':root[data-theme="openknot-light"]',
       ':root[data-theme="dash-light"]',
       ':root[data-theme="absolutely-light"]',
@@ -163,6 +162,10 @@ describe("Control UI theme contrast", () => {
       ':root[data-theme="manuscript-light"]',
       ':root[data-theme="rose-light"]',
       ':root[data-theme="miami-light"]',
+      ':root[data-theme="bench-light"]',
+      ':root[data-theme="bench-garden-light"]',
+      ':root[data-theme="bench-forge-light"]',
+      ':root[data-theme="bench-aurelius-light"]',
     ]) {
       const theme = selector ? { ...light, ...readCssVarBlock(baseCss, selector) } : light;
       const muted = requireCssColor(theme, "muted");

@@ -31,6 +31,14 @@ const themeCases = [
   { family: "rose", mode: "light", resolved: "rose-light" },
   { family: "miami", mode: "dark", resolved: "miami" },
   { family: "miami", mode: "light", resolved: "miami-light" },
+  { family: "bench", mode: "dark", resolved: "bench" },
+  { family: "bench", mode: "light", resolved: "bench-light" },
+  { family: "bench-garden", mode: "dark", resolved: "bench-garden" },
+  { family: "bench-garden", mode: "light", resolved: "bench-garden-light" },
+  { family: "bench-forge", mode: "dark", resolved: "bench-forge" },
+  { family: "bench-forge", mode: "light", resolved: "bench-forge-light" },
+  { family: "bench-aurelius", mode: "dark", resolved: "bench-aurelius" },
+  { family: "bench-aurelius", mode: "light", resolved: "bench-aurelius-light" },
 ] as const;
 
 const textTokens = [
@@ -56,7 +64,11 @@ function themeConfigResponse(
     | "crt"
     | "manuscript"
     | "rose"
-    | "miami",
+    | "miami"
+    | "bench"
+    | "bench-garden"
+    | "bench-forge"
+    | "bench-aurelius",
   mode: "dark" | "light",
   accent?: string,
 ) {

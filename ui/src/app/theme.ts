@@ -2,7 +2,6 @@
 import { inferControlUiPublicAssetPath } from "./public-assets.ts";
 export type ThemeName =
   | "claw"
-  | "bench"
   | "knot"
   | "dash"
   | "absolutely"
@@ -13,13 +12,15 @@ export type ThemeName =
   | "manuscript"
   | "rose"
   | "miami"
+  | "bench"
+  | "bench-garden"
+  | "bench-forge"
+  | "bench-aurelius"
   | "custom";
 export type ThemeMode = "system" | "light" | "dark";
 export type ResolvedTheme =
   | "dark"
   | "light"
-  | "bench"
-  | "bench-light"
   | "openknot"
   | "openknot-light"
   | "dash"
@@ -40,12 +41,34 @@ export type ResolvedTheme =
   | "rose-light"
   | "miami"
   | "miami-light"
+  | "bench"
+  | "bench-light"
+  | "bench-garden"
+  | "bench-garden-light"
+  | "bench-forge"
+  | "bench-forge-light"
+  | "bench-aurelius"
+  | "bench-aurelius-light"
   | "custom"
   | "custom-light";
 
+// Bench fork families. Appended after upstream's eleven everywhere (theme.ts,
+// index.html boot map, wire enum, appearance cards, locales, typography) so
+// upstream merges stay insert-only; `bench` is the fork default.
+export const BENCH_THEME_FAMILIES = [
+  "bench",
+  "bench-garden",
+  "bench-forge",
+  "bench-aurelius",
+] as const satisfies readonly ThemeName[];
+export type BenchThemeFamily = (typeof BENCH_THEME_FAMILIES)[number];
+
+export function isBenchThemeFamily(theme: ThemeName): theme is BenchThemeFamily {
+  return (BENCH_THEME_FAMILIES as readonly ThemeName[]).includes(theme);
+}
+
 const VALID_THEME_NAMES = new Set<ThemeName>([
   "claw",
-  "bench",
   "knot",
   "dash",
   "absolutely",
@@ -56,6 +79,7 @@ const VALID_THEME_NAMES = new Set<ThemeName>([
   "manuscript",
   "rose",
   "miami",
+  ...BENCH_THEME_FAMILIES,
   "custom",
 ]);
 

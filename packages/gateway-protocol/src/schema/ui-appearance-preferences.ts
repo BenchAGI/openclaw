@@ -17,7 +17,6 @@ export type UiAppearancePreferenceKey =
 // render it — it stays device-local instead.
 export const UI_APPEARANCE_THEME_VALUES = [
   "claw",
-  "bench",
   "knot",
   "dash",
   "absolutely",
@@ -28,6 +27,11 @@ export const UI_APPEARANCE_THEME_VALUES = [
   "manuscript",
   "rose",
   "miami",
+  // Bench fork families, appended after upstream's list (insert-only).
+  "bench",
+  "bench-garden",
+  "bench-forge",
+  "bench-aurelius",
 ] as const;
 // Wire-contract list of profile-storable typefaces. The Control UI derives
 // its override normalization from this tuple so browser and profile values agree.

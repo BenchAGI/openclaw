@@ -1265,7 +1265,11 @@ img.chat-avatar.chat-avatar--logo {
     [data-theme="manuscript"],
     [data-theme="rose"],
     [data-theme="miami"],
-    [data-theme="beacon"]
+    [data-theme="beacon"],
+    [data-theme="bench"],
+    [data-theme="bench-garden"],
+    [data-theme="bench-forge"],
+    [data-theme="bench-aurelius"]
   )
   .chat-confirm-popover__yes {
   background: var(--destructive);
@@ -1287,7 +1291,11 @@ img.chat-avatar.chat-avatar--logo {
     [data-theme="manuscript"],
     [data-theme="rose"],
     [data-theme="miami"],
-    [data-theme="beacon"]
+    [data-theme="beacon"],
+    [data-theme="bench"],
+    [data-theme="bench-garden"],
+    [data-theme="bench-forge"],
+    [data-theme="bench-aurelius"]
   )
   .chat-confirm-popover__yes:hover {
   background: var(--destructive-hover);

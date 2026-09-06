@@ -1,0 +1,174 @@
+/* Forge palette; selected by index.html and app/theme.ts. */
+
+:root[data-theme="bench-forge"] {
+  /*
+   * Accent — Forge cyan on the Bench ink ramp.
+   *
+   * The Bench "Forge" family (UI-BRAND-CONTRACT §1.4): the same ink surfaces
+   * as Bench Infrared, cyan as the text-carrying accent, a deep cyan fill for
+   * buttons, and Ember rose as the second series. Kit rule: cyan and Infrared
+   * never share a surface, so this family carries no Infrared anywhere.
+   *
+   * WCAG 2.1 AA audit (bg = #0a0a0c, relative luminance ≈ 0.0031):
+   *   --accent #67e8f9  contrast ≈ 13.6:1 AAA ✓ (12.7:1 on --card)
+   *   --primary-foreground #ffffff on #0e7490 button: 5.4:1 AA ✓
+   *   --primary-foreground #ffffff on #0b7f9c hover: 4.6:1 AA ✓
+   *   --destructive-foreground #fafafa on #d32f2f button: 4.8:1 AA ✓
+   *   body text --text #b9b9c1: 10.2:1 ✓
+   *   worst text pairing --muted on --bg-muted: 4.9:1 ✓
+   *   --accent-2 #f5879e on bg: 8.3:1 ✓
+   */
+  --ring: #67e8f9;
+  --accent: #67e8f9;
+  --accent-hover: #a5f3fc;
+  --accent-muted: #67e8f9;
+  --accent-subtle: rgba(6, 182, 212, 0.1);
+  --accent-glow: rgba(34, 211, 238, 0.25);
+  /* cyan-700 fill: white text clears AA where the brighter #0891b2 does not. */
+  --primary: #0e7490;
+  --primary-hover: #0b7f9c;
+  --primary-foreground: #ffffff;
+
+  --destructive: #d32f2f;
+  --destructive-hover: #bc2a2a;
+  --destructive-foreground: #fafafa;
+
+  --focus: rgba(34, 211, 238, 0.2);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 70%, transparent);
+  --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 16px var(--accent-glow);
+
+  --bg: #0a0a0c;
+  --bg-accent: #101013;
+  --bg-elevated: #1c1c22;
+  --bg-hover: #23232b;
+  --bg-muted: #23232b;
+
+  --card: #14141a;
+  --card-foreground: #e9e9ec;
+  --card-highlight: rgba(255, 255, 255, 0.04);
+  --popover: #1c1c22;
+  --popover-foreground: #e9e9ec;
+
+  --panel: #0a0a0c;
+  --panel-strong: #1c1c22;
+  --panel-hover: #23232b;
+  --chrome: rgba(10, 10, 12, 0.96);
+  --chrome-strong: rgba(10, 10, 12, 0.98);
+
+  --text: #b9b9c1;
+  --text-strong: #fafafa;
+  --chat-text: #c4c4cb;
+  --muted: #8f8f99;
+  --muted-strong: #a3a3ad;
+  --muted-foreground: #8f8f99;
+
+  --border: #1c1c22;
+  --border-strong: #2c2c36;
+  --border-hover: #3a3a47;
+  --input: #1c1c22;
+
+  --secondary: #14141a;
+  --secondary-foreground: #e9e9ec;
+  /* Ember rose, not Infrared: the second series must not read as the brand red. */
+  --accent-2: #f5879e;
+  --accent-2-muted: rgba(245, 135, 158, 0.7);
+  --accent-2-subtle: rgba(245, 135, 158, 0.12);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
+  --overlay-shadow: var(--shadow-md);
+
+  --grid-line: rgba(255, 255, 255, 0.035);
+
+  /* Typography — as Bench Infrared: Instrument Sans chrome, Space Grotesk display. */
+  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display:
+    "Space Grotesk", "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-chat: var(--font-body);
+}
+
+:root[data-theme="bench-forge-light"] {
+  /*
+   * Accent — deep cyan on cool paper.
+   *
+   * WCAG 2.1 AA audit (bg = #f3f8fa, relative luminance ≈ 0.931):
+   *   --accent #0e7490  contrast ≈ 5.0:1 AA text ✓ (5.4:1 on --card)
+   *   --primary-foreground #ffffff on #0e7490 button: 5.4:1 AA ✓
+   *   --destructive-foreground #ffffff on #b3261e button: 6.5:1 AA ✓
+   *   body text --text #1f2a30: 13.7:1 ✓
+   *   worst text pairing --muted on --bg-muted: 5.3:1 ✓
+   *   --accent-2 #b8405f on bg: 5.0:1 ✓
+   */
+  --ring: #0e7490;
+  --accent: #0e7490;
+  --accent-hover: #155e75;
+  --accent-muted: #0e7490;
+  --accent-subtle: rgba(14, 116, 144, 0.1);
+  --accent-glow: rgba(14, 116, 144, 0.14);
+  --primary: #0e7490;
+  --primary-hover: #0a6f88;
+  --primary-foreground: #ffffff;
+
+  --destructive: #b3261e;
+  --destructive-hover: #9c2119;
+  --destructive-foreground: #ffffff;
+
+  --bg: #f3f8fa;
+  --bg-accent: #e9f1f5;
+  --bg-elevated: #ffffff;
+  --bg-hover: #dde8ee;
+  --bg-muted: #dde8ee;
+  --bg-content: #edf4f7;
+
+  --card: #ffffff;
+  --card-foreground: #1f2a30;
+  --card-highlight: rgba(11, 20, 24, 0.02);
+  --popover: #ffffff;
+  --popover-foreground: #1f2a30;
+  --session-hovercard-surface: var(--card);
+  --session-hovercard-progress-surface: color-mix(
+    in srgb,
+    var(--card) 52%,
+    var(--panel-strong) 48%
+  );
+
+  --panel: #f3f8fa;
+  --panel-strong: #e9f1f5;
+  --panel-hover: #d4e2ea;
+  --chrome: rgba(243, 248, 250, 0.96);
+  --chrome-strong: rgba(243, 248, 250, 0.98);
+
+  --text: #1f2a30;
+  --text-strong: #0b1418;
+  --chat-text: #1f2a30;
+  --muted: #4e6068;
+  --muted-strong: #3e4d54;
+  --muted-foreground: #4e6068;
+
+  --border: #c9dbe2;
+  --border-strong: #a9c2cc;
+  --border-hover: #86a5b2;
+  --input: #c9dbe2;
+
+  --secondary: #e9f1f5;
+  --secondary-foreground: #1f2a30;
+  --accent-2: #b8405f;
+  --accent-2-muted: rgba(184, 64, 95, 0.75);
+  --accent-2-subtle: rgba(184, 64, 95, 0.1);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.1);
+  --overlay-shadow: var(--shadow-md);
+
+  --grid-line: rgba(11, 20, 24, 0.05);
+
+  /* Typography — see the dark block. */
+  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display:
+    "Space Grotesk", "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-chat: var(--font-body);
+}

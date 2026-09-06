@@ -1,6 +1,6 @@
 import { UI_APPEARANCE_TYPEFACE_VALUES } from "../../../packages/gateway-protocol/src/schema/ui-appearance-preferences.ts";
 import { inferControlUiPublicAssetPath } from "./public-assets.ts";
-import type { ThemeName } from "./theme.ts";
+import { type BenchThemeFamily, isBenchThemeFamily, type ThemeName } from "./theme.ts";
 
 export type TypefaceId = (typeof UI_APPEARANCE_TYPEFACE_VALUES)[number];
 type TypefacePair = { ui: TypefaceId; chat: TypefaceId };
@@ -44,8 +44,6 @@ export const TYPEFACES = Object.fromEntries(
 
 export const THEME_TYPEFACES = {
   claw: { ui: "instrument-sans", chat: "instrument-sans" },
-  // Nearest bundled neo-grotesque to the Bench brand's Inter.
-  bench: { ui: "instrument-sans", chat: "instrument-sans" },
   knot: { ui: "geist", chat: "geist" },
   dash: { ui: "dm-sans", chat: "fraunces" },
   absolutely: { ui: "space-grotesk", chat: "lora" },
@@ -56,8 +54,29 @@ export const THEME_TYPEFACES = {
   manuscript: { ui: "lora", chat: "lora" },
   rose: { ui: "dm-sans", chat: "dm-sans" },
   miami: { ui: "space-grotesk", chat: "space-grotesk" },
+  // Bench families: Instrument Sans is the nearest bundled neo-grotesque to the
+  // brand's Inter; Garden reads chat in Lora. Display faces live in
+  // BENCH_DISPLAY_TYPEFACES below.
+  bench: { ui: "instrument-sans", chat: "instrument-sans" },
+  "bench-garden": { ui: "instrument-sans", chat: "lora" },
+  "bench-forge": { ui: "instrument-sans", chat: "instrument-sans" },
+  "bench-aurelius": { ui: "instrument-sans", chat: "instrument-sans" },
   custom: { ui: "system", chat: "system" },
 } satisfies Record<ThemeName, TypefacePair>;
+
+// Only the Bench families point --font-display at a face other than --font-body
+// (theme CSS owns the declaration); upstream families alias the body face and
+// need no extra stylesheet.
+const BENCH_DISPLAY_TYPEFACES = {
+  bench: "space-grotesk",
+  "bench-garden": "lora",
+  "bench-forge": "space-grotesk",
+  "bench-aurelius": "lora",
+} as const satisfies Record<BenchThemeFamily, TypefaceId>;
+
+export function resolveDisplayTypeface(theme: ThemeName): TypefaceId | undefined {
+  return isBenchThemeFamily(theme) ? BENCH_DISPLAY_TYPEFACES[theme] : undefined;
+}
 
 // The wire contract owns storable overrides; browser and profile inputs must
 // reject the same unknown values rather than turning them into CSS families.
@@ -89,12 +108,18 @@ function loadTypefaceStylesheet(face: TypefaceId): void {
   document.head.append(link);
 }
 
-export function syncTypefaceStylesheets(faces: TypefacePair): void {
+export function syncTypefaceStylesheets(faces: TypefacePair, theme?: ThemeName): void {
   if (typeof document === "undefined") {
     return;
   }
   loadTypefaceStylesheet(faces.ui);
   loadTypefaceStylesheet(faces.chat);
+  // Bench families set --font-display to a third face; declare it so headline
+  // text paints in it instead of falling through to the system stack.
+  const display = theme ? resolveDisplayTypeface(theme) : undefined;
+  if (display) {
+    loadTypefaceStylesheet(display);
+  }
   // base.css --mono names JetBrains Mono for every theme's code spans, but only
   // the @font-face declaration here makes that true; the woff2 itself downloads
   // lazily on the first rendered code glyph, so this costs one small stylesheet.
