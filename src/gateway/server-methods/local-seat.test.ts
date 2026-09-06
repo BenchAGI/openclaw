@@ -28,7 +28,11 @@ async function invokeLocalSeat(params: Record<string, unknown>) {
     },
     context: { getRuntimeConfig } as GatewayRequestHandlerOptions["context"],
   };
-  await localSeatHandlers["local-seat.capture"](options);
+  const handler = localSeatHandlers["local-seat.capture"];
+  if (!handler) {
+    throw new Error("local-seat.capture handler is not registered");
+  }
+  await handler(options);
   return responses.at(-1);
 }
 
