@@ -59,7 +59,7 @@ export function coreFreshnessCheck(params: {
   if (!m) {
     return { name, status: "error", detail: "CORE.md has no parseable 'Generated at:' line" };
   }
-  const coreMs = Date.parse(m[1]);
+  const coreMs = Date.parse(m[1] ?? "");
   if (!Number.isFinite(coreMs)) {
     return { name, status: "error", detail: `CORE.md Generated-at unparseable: ${m[1]}` };
   }
@@ -102,7 +102,7 @@ export function busLivenessCheck(params: {
     return { name, status: "skipped", detail: "no bus-sync log yet" };
   }
   const tsMatch = line.match(/^(\S+)/);
-  const tsMs = tsMatch ? Date.parse(tsMatch[1]) : Number.NaN;
+  const tsMs = tsMatch?.[1] ? Date.parse(tsMatch[1]) : Number.NaN;
   if (line.includes("CONFLICT")) {
     return {
       name,
@@ -217,7 +217,7 @@ function lastNonEmptyLine(p: string): string {
       .readFileSync(p, "utf8")
       .split(/\r?\n/)
       .filter((l) => l.trim());
-    return lines.length ? lines[lines.length - 1] : "";
+    return lines[lines.length - 1] ?? "";
   } catch {
     return "";
   }

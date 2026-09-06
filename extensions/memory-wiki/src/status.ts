@@ -9,7 +9,6 @@ import { filterMemoryWikiBridgeArtifacts, resolveMemoryWikiVaultAgentId } from "
 import type { ResolvedMemoryWikiConfig } from "./config.js";
 import { toWikiPageSummary, type WikiPageKind } from "./markdown.js";
 import { probeObsidianCli } from "./obsidian.js";
-import { collectWikiMarkdownFiles } from "./wiki-files.js";
 
 type MemoryWikiStatusWarning = {
   code:

@@ -659,27 +659,29 @@ describe("memory search config", () => {
 
   it("inherits reranker apiKey when the agent inherits the default endpoint", () => {
     const cfg = asConfig({
-      agents: {
-        defaults: {
-          memorySearch: {
-            query: {
-              reranker: {
-                enabled: true,
-                baseUrl: "https://judge.example",
-                apiKey: "default-judge-key", // pragma: allowlist secret
-                model: "judge-default",
-              },
+      memory: {
+        search: {
+          query: {
+            reranker: {
+              enabled: true,
+              baseUrl: "https://judge.example",
+              apiKey: "default-judge-key", // pragma: allowlist secret
+              model: "judge-default",
             },
           },
         },
+      },
+      agents: {
         list: [
           {
             id: "main",
             default: true,
-            memorySearch: {
-              query: {
-                reranker: {
-                  model: "judge-agent",
+            memory: {
+              search: {
+                query: {
+                  reranker: {
+                    model: "judge-agent",
+                  },
                 },
               },
             },
@@ -697,28 +699,30 @@ describe("memory search config", () => {
 
   it("does not inherit reranker apiKey when an agent overrides the endpoint", () => {
     const cfg = asConfig({
-      agents: {
-        defaults: {
-          memorySearch: {
-            query: {
-              reranker: {
-                enabled: true,
-                baseUrl: "https://judge.example",
-                apiKey: "default-judge-key", // pragma: allowlist secret
-                model: "judge-default",
-              },
+      memory: {
+        search: {
+          query: {
+            reranker: {
+              enabled: true,
+              baseUrl: "https://judge.example",
+              apiKey: "default-judge-key", // pragma: allowlist secret
+              model: "judge-default",
             },
           },
         },
+      },
+      agents: {
         list: [
           {
             id: "main",
             default: true,
-            memorySearch: {
-              query: {
-                reranker: {
-                  baseUrl: "http://127.0.0.1:11434",
-                  model: "judge-local",
+            memory: {
+              search: {
+                query: {
+                  reranker: {
+                    baseUrl: "http://127.0.0.1:11434",
+                    model: "judge-local",
+                  },
                 },
               },
             },
@@ -736,29 +740,31 @@ describe("memory search config", () => {
 
   it("uses explicit agent reranker apiKey when the agent overrides the endpoint", () => {
     const cfg = asConfig({
-      agents: {
-        defaults: {
-          memorySearch: {
-            query: {
-              reranker: {
-                enabled: true,
-                baseUrl: "https://judge.example",
-                apiKey: "default-judge-key", // pragma: allowlist secret
-                model: "judge-default",
-              },
+      memory: {
+        search: {
+          query: {
+            reranker: {
+              enabled: true,
+              baseUrl: "https://judge.example",
+              apiKey: "default-judge-key", // pragma: allowlist secret
+              model: "judge-default",
             },
           },
         },
+      },
+      agents: {
         list: [
           {
             id: "main",
             default: true,
-            memorySearch: {
-              query: {
-                reranker: {
-                  baseUrl: "https://agent-judge.example",
-                  apiKey: "agent-judge-key", // pragma: allowlist secret
-                  model: "judge-agent",
+            memory: {
+              search: {
+                query: {
+                  reranker: {
+                    baseUrl: "https://agent-judge.example",
+                    apiKey: "agent-judge-key", // pragma: allowlist secret
+                    model: "judge-agent",
+                  },
                 },
               },
             },

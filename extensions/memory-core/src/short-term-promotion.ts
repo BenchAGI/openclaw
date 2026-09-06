@@ -283,7 +283,7 @@ export async function loadShortTermPromotionPhaseHitCounts(params: {
   const counts = new Map<string, number>();
   for (const [key, entry] of Object.entries(phaseStore.entries)) {
     const phaseHitCount =
-      toFiniteNonNegativeInt(entry.lightHits) + toFiniteNonNegativeInt(entry.remHits);
+      toFiniteNonNegativeInt(entry.lightHits, 0) + toFiniteNonNegativeInt(entry.remHits, 0);
     if (phaseHitCount > 0) {
       counts.set(key, phaseHitCount);
     }

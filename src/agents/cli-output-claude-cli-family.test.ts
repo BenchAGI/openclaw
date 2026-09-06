@@ -1,6 +1,7 @@
 // Bench fork #80: the claude-cli-* backend family shares the Claude stream-json dialect.
 import { describe, expect, it } from "vitest";
-import { createCliJsonlStreamingParser, type CliToolUseStartDelta } from "./cli-output.js";
+import type { CliToolUseStartDelta } from "./cli-output-contracts.js";
+import { createCliJsonlStreamingParser } from "./cli-output-stream.js";
 
 describe("claude-cli-* backend family dialect gate", () => {
   it("dispatches tool events for the claude-cli-ultracode backend without an explicit dialect", () => {
@@ -17,7 +18,7 @@ describe("claude-cli-* backend family dialect gate", () => {
       },
       providerId: "claude-cli-ultracode",
       onAssistantDelta: () => undefined,
-      onToolUseStart: (delta) => starts.push(delta),
+      onToolUseStart: (delta: CliToolUseStartDelta) => starts.push(delta),
     });
 
     parser.push(
@@ -75,7 +76,7 @@ describe("claude-cli-* backend family dialect gate", () => {
         sessionIdFields: ["session_id"],
       },
       providerId: "claude-cli-ultracode",
-      onAssistantDelta: (delta) => deltas.push(delta.delta),
+      onAssistantDelta: (delta: { delta: string }) => deltas.push(delta.delta),
     });
 
     parser.push(

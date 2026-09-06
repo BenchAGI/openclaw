@@ -793,7 +793,7 @@ export function buildAnthropicProvider(): ProviderPlugin {
         label: "Anthropic setup-token",
         hint: "Paste a long-lived token created with 'claude setup-token'",
         kind: "token",
-        defaultModel: defaultAnthropicModel,
+        starterModel: defaultAnthropicModel,
         wizard: {
           choiceId: "setup-token",
           choiceLabel: "Anthropic setup-token",

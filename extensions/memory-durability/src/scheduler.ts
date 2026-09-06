@@ -120,6 +120,9 @@ async function reconcile(
   const [primary, ...dupes] = existing.toSorted(
     (a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0),
   );
+  if (!primary) {
+    return;
+  }
   try {
     await cron.update(primary.id, desired);
   } catch (err) {
