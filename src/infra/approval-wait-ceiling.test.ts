@@ -11,13 +11,19 @@ const ENV_KEY = "OPENCLAW_TURN_IDLE_BUDGET_MS";
 
 function withBudget(value: string | undefined, run: () => void): void {
   const prior = process.env[ENV_KEY];
-  if (value === undefined) delete process.env[ENV_KEY];
-  else process.env[ENV_KEY] = value;
+  if (value === undefined) {
+    delete process.env[ENV_KEY];
+  } else {
+    process.env[ENV_KEY] = value;
+  }
   try {
     run();
   } finally {
-    if (prior === undefined) delete process.env[ENV_KEY];
-    else process.env[ENV_KEY] = prior;
+    if (prior === undefined) {
+      delete process.env[ENV_KEY];
+    } else {
+      process.env[ENV_KEY] = prior;
+    }
   }
 }
 

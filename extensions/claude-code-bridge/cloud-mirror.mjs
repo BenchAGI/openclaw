@@ -30,9 +30,7 @@
 //   ai.openclaw.log-rotator service (03:00 daily rotation).
 
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
-import { readFileSync } from "node:fs";
-import { watch } from "node:fs";
+import { promises as fs, readFileSync, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 

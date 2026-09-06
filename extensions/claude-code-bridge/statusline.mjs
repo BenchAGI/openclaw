@@ -77,8 +77,7 @@ const config = await readOpenClawConfig();
 const vaultName = resolveVaultName(config);
 const wikiSourcesDir = path.join(OPENCLAW_HOME, "wiki", vaultName, "sources");
 const inboxPath =
-  process.env.OPENCLAW_BRIDGE_INBOX_PATH ??
-  path.join(OPENCLAW_HOME, "wiki", vaultName, "inbox.md");
+  process.env.OPENCLAW_BRIDGE_INBOX_PATH ?? path.join(OPENCLAW_HOME, "wiki", vaultName, "inbox.md");
 
 const [up, agent, wiki, inbox] = await Promise.all([
   fetchHealth(),

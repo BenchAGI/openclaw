@@ -1,22 +1,17 @@
 // Memory Tap exposes a bounded, privacy-preserving view of native dreaming artifacts.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import { redactToolPayloadText } from "openclaw/plugin-sdk/logging-core";
 import {
   resolveMemorySearchConfig,
   truncateUtf16Safe,
 } from "openclaw/plugin-sdk/memory-core-host-engine-foundation";
 import { resolveMemoryBackendConfig } from "openclaw/plugin-sdk/memory-core-host-engine-storage";
-import {
-  resolveMemoryDreamingConfig,
-  resolveMemoryDreamingPluginConfig,
-} from "openclaw/plugin-sdk/memory-core-host-status";
-import {
-  listMemoryWorkspacePublicArtifacts,
-  type OpenClawConfig,
-} from "openclaw/plugin-sdk/memory-host-core";
-import { resolveDreamsPath } from "./dreaming-dreams-file.js";
-import { readRecentDreamDiaryRecords } from "./dreaming-narrative.js";
+import { resolveMemoryDreamingPluginConfig } from "openclaw/plugin-sdk/memory-core-host-runtime-core";
+import { resolveMemoryDreamingConfig } from "openclaw/plugin-sdk/memory-core-host-status";
+import { listMemoryHostPublicArtifacts } from "openclaw/plugin-sdk/memory-host-core";
+import { readRecentDreamDiaryRecords, resolveDreamsPath } from "./dreaming-dreams-file.js";
 import {
   MEMORY_TAP_MIN_QUOTE_CHARS,
   type MemoryTapCandidateKind,
@@ -327,10 +322,10 @@ async function inspectDreamReports(params: {
       required: false,
     };
   }
-  const artifacts = await listMemoryWorkspacePublicArtifacts({
-    workspaceDir: params.workspaceDir,
-    agentIds: [params.agentId],
-  });
+  const artifacts = (await listMemoryHostPublicArtifacts({ cfg: params.cfg })).filter(
+    (artifact) =>
+      artifact.workspaceDir === params.workspaceDir && artifact.agentIds.includes(params.agentId),
+  );
   const reportMtimes = await Promise.all(
     artifacts
       .filter((artifact) => artifact.kind === "dream-report")
@@ -422,7 +417,7 @@ function collectEvidence(params: {
       if (!safeSessionEvidence) {
         continue;
       }
-      const day = sessionMatch[1];
+      const day = sessionMatch[1] ?? "";
       const group = sessionByDay.get(day) ?? {
         latestMs: observedAtMs,
         entryDigests: [],
@@ -453,7 +448,7 @@ function collectEvidence(params: {
       continue;
     }
     memoryCount += 1;
-    const day = dailyMatch[1];
+    const day = dailyMatch[1] ?? "";
     const startLine = clampLineNumber(entry.startLine);
     const endLine = Math.max(startLine, clampLineNumber(entry.endLine));
     const evidenceDigest = digest(`${entry.key}\n${entry.snippet}`);
@@ -525,15 +520,8 @@ export function inspectMemoryTapSearchHealth(params: {
   cfg: OpenClawConfig;
   agentId: string;
 }): MemoryTapSearchHealth {
-  const backend = resolveMemoryBackendConfig(params);
-  if (backend.backend === "qmd") {
-    if (backend.qmd?.searchMode === "search") {
-      return { status: "warn", detail: "full-text-only search configured" };
-    }
-    return backend.qmd?.searchMode === "vsearch"
-      ? { status: "ok", detail: "vector search configured" }
-      : { status: "ok", detail: "hybrid search configured" };
-  }
+  // Upstream 2026.9.2 retired the qmd backend; only the builtin backend remains.
+  resolveMemoryBackendConfig(params);
 
   const memory = resolveMemorySearchConfig(params.cfg, params.agentId);
   if (!memory) {

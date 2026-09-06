@@ -489,7 +489,7 @@ describe("Claude Code memory mirror", () => {
       ),
       "utf8",
     );
-    const frontmatter = pages.split("---\n")[1];
+    const frontmatter = pages.split("---\n")[1] ?? "";
     const parsed = parseDocument(frontmatter).toJSON();
     expect(parsed).toMatchObject({
       pageType: "source",

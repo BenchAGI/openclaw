@@ -1,4 +1,4 @@
-export type CliThinkingLevel = "off" | "low" | "medium" | "high" | "xhigh";
+type CliThinkingLevel = "off" | "low" | "medium" | "high" | "xhigh";
 
 export type BenchCloudBridgeConfig = {
   enabled: boolean;
@@ -39,7 +39,7 @@ export type BenchCloudCliTurnCreateResponse =
       instanceId: string;
     };
 
-export type BenchCloudCliTurnNonCompletedStatus =
+type BenchCloudCliTurnNonCompletedStatus =
   | "pending-approval"
   | "pending"
   | "leased"
@@ -70,7 +70,7 @@ export type BenchCloudCliTurnStatusResponse =
       error?: { code?: string; message?: string };
     };
 
-export class BenchCloudBridgeError extends Error {
+class BenchCloudBridgeError extends Error {
   readonly status?: number;
   readonly code?: string;
 
@@ -90,9 +90,12 @@ function resolveUrl(config: BenchCloudBridgeConfig, pathOrUrl: string): string {
   const baseUrl = new URL(`${trimTrailingSlash(config.apiBaseUrl)}/`);
   const resolved = new URL(pathOrUrl, baseUrl);
   if (resolved.origin !== baseUrl.origin) {
-    throw new BenchCloudBridgeError("Bench cloud status URL must stay on the configured API origin", {
-      code: "status_url_origin",
-    });
+    throw new BenchCloudBridgeError(
+      "Bench cloud status URL must stay on the configured API origin",
+      {
+        code: "status_url_origin",
+      },
+    );
   }
   return resolved.toString();
 }
@@ -191,6 +194,9 @@ export async function createBenchCloudCliTurn(params: {
   return assertTurnCreateResponse(body);
 }
 
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export async function readBenchCloudCliTurnStatus(params: {
   config: BenchCloudBridgeConfig;
   authToken: string;

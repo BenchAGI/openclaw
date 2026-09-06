@@ -1,18 +1,19 @@
 // Slack plugin module implements setup shared behavior.
 import { describeAccountSnapshot } from "openclaw/plugin-sdk/account-helpers";
-import { hasConfiguredSecretInput } from "openclaw/plugin-sdk/secret-input";
 import { patchChannelConfigForAccount } from "openclaw/plugin-sdk/setup-runtime";
 import { formatDocsLink } from "openclaw/plugin-sdk/setup-tools";
-import { isSlackPluginAccountConfigured } from "./account-configured.js";
+import { isSlackSetupAccountConfigured } from "./account-configured.js";
 import type { ResolvedSlackAccount } from "./accounts.js";
 import type { OpenClawConfig } from "./channel-api.js";
 
 export const SLACK_CHANNEL = "slack" as const;
 
+/** Bench fork #96: Slack Agent experience vs. ordinary bot install. */
 export type SlackManifestMode = "agent" | "bot";
 
 export function buildSlackManifest(botName = "OpenClaw", mode: SlackManifestMode = "agent") {
   const safeName = botName.trim() || "OpenClaw";
+  // Slack's display_name contract is lowercase with no spaces.
   const botDisplayName =
     safeName
       .toLowerCase()
@@ -37,11 +38,15 @@ export function buildSlackManifest(botName = "OpenClaw", mode: SlackManifestMode
       ...(mode === "agent"
         ? {
             agent_view: {
-              agent_description: `${safeName} connects Slack conversations to OpenClaw agents.`,
+              agent_description: `${safeName} connects Slack Agent View conversations to OpenClaw agents.`,
               suggested_prompts: [
                 {
                   title: "What can you do?",
                   message: "What can you help me with?",
+                },
+                {
+                  title: "Summarize this channel",
+                  message: "Summarize the recent activity in this channel.",
                 },
                 {
                   title: "Draft a reply",
@@ -93,8 +98,10 @@ export function buildSlackManifest(botName = "OpenClaw", mode: SlackManifestMode
       event_subscriptions: {
         bot_events: [
           "app_home_opened",
-          ...(mode === "agent" ? ["app_context_changed"] : []),
           "app_mention",
+          ...(mode === "agent"
+            ? ["app_context_changed", "agent_session_stopped", "agent_session_title_changed"]
+            : []),
           "channel_rename",
           "member_joined_channel",
           "member_left_channel",
@@ -113,6 +120,9 @@ export function buildSlackManifest(botName = "OpenClaw", mode: SlackManifestMode
   return JSON.stringify(manifest, null, 2);
 }
 
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function buildSlackSetupChoiceLines(): string[] {
   return [
     "Slack can be installed as an Agent experience or an ordinary bot.",
@@ -122,18 +132,24 @@ export function buildSlackSetupChoiceLines(): string[] {
 }
 
 export function buildSlackSetupLines(mode: SlackManifestMode = "agent"): string[] {
-  const modeStep =
+  // Bench fork #96: upstream's numbered steps stay verbatim; the Agent-vs-bot
+  // guidance rides as an extra line so both experiences share one checklist.
+  const modeLine =
     mode === "agent"
-      ? "2) Agents & AI Apps -> enable the Agent experience"
-      : "2) Keep Agents & AI Apps disabled for an ordinary bot install";
+      ? "Agents & AI Apps -> enable the Agent experience before pasting the manifest"
+      : "Keep Agents & AI Apps disabled for an ordinary bot install";
   return [
-    "1) Slack API -> Create App -> From scratch, then name the app",
-    modeStep,
-    "3) App Manifest -> paste the JSON below and save it",
-    "4) Add Socket Mode + enable it to get the app-level token (xapp-...)",
-    "5) Install App to workspace to get the xoxb- bot token",
+    "1) Slack API -> Create App -> From scratch or a transport-specific manifest",
+    "2) Install App to workspace to get the xoxb- bot token",
+    "3) Socket Mode: enable it and create an app-level token (xapp-...)",
+    "4) HTTP: configure a public HTTPS Request URL and copy the app Signing Secret",
+    "5) Enable Event Subscriptions for message, App Home, and Agent View events",
+    mode === "agent"
+      ? "6) App Home -> enable the Home tab, Messages tab for DMs, and Agent View"
+      : "6) App Home -> enable the Home tab and Messages tab for DMs",
+    modeLine,
     "Manifest JSON follows as plain text for copy/paste.",
-    "Tip: set SLACK_BOT_TOKEN + SLACK_APP_TOKEN in your env.",
+    "Tip: Socket Mode can use SLACK_BOT_TOKEN + SLACK_APP_TOKEN in your env.",
     `Docs: ${formatDocsLink("/slack", "slack")}`,
   ];
 }
@@ -152,17 +168,6 @@ export function setSlackChannelAllowlist(
   });
 }
 
-export function isSlackSetupAccountConfigured(account: ResolvedSlackAccount): boolean {
-  if (account.config.mode === "relay") {
-    return isSlackPluginAccountConfigured(account);
-  }
-  const hasConfiguredBotToken =
-    Boolean(account.botToken?.trim()) || hasConfiguredSecretInput(account.config.botToken);
-  const hasConfiguredAppToken =
-    Boolean(account.appToken?.trim()) || hasConfiguredSecretInput(account.config.appToken);
-  return hasConfiguredBotToken && hasConfiguredAppToken;
-}
-
 export function describeSlackSetupAccount(account: ResolvedSlackAccount) {
   return describeAccountSnapshot({
     account,
@@ -170,6 +175,9 @@ export function describeSlackSetupAccount(account: ResolvedSlackAccount) {
     extra: {
       botTokenSource: account.botTokenSource,
       appTokenSource: account.appTokenSource,
+      ...(account.identity === "user"
+        ? { identity: account.identity, userTokenSource: account.userTokenSource }
+        : {}),
     },
   });
 }

@@ -102,6 +102,9 @@ export function canAttemptBenchCloudBridge(params: {
   return Boolean(params.config.enabled && params.config.instanceId && params.authToken);
 }
 
+/**
+ * @public Bench fork: exercised directly by its test.
+ */
 export function resolveBenchCloudAgentId(params: {
   config: BenchCloudBridgeConfig;
   agentId: string;
