@@ -106,6 +106,21 @@ separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
     fork delta touches). `test/scripts/run-vitest-state-cleanup.test.ts` cases that spawn
     `pnpm` inside a temp HOME fail on Prime's pnpm self-switch (`ENOEXEC`), an environment
     red; CI runs them on hosted runners.
+- **Hosted-CI proofs relied on (never green on Prime, macOS):** these tests exercise Linux
+  tooling that Prime lacks or that Prime's pnpm self-switch breaks (`ENOEXEC` in a temp HOME).
+  Their pass/fail state comes only from the PR's hosted CI, not from this seat:
+  `test/scripts/ci-workflow-guards.test.ts › preserves pnpm hard links and validates cached
+  importers and supply-chain policy offline` (shells `pnpm run pnpm-path`),
+  `test/openclaw-prepack.test.ts`, `test/scripts/run-vitest-state-cleanup.test.ts` (pnpm switch),
+  `test/scripts/prepublish-plugin-registry-shell.test.ts` (needs Bash 5+),
+  `test/scripts/release-no-push-workflow.test.ts` (needs GNU `timeout`),
+  `test/scripts/release-workflow-matrix-plan.test.ts` (`${VAR,,}` needs Bash 4+),
+  `test/scripts/release-telegram-candidate-archive.test.ts` (python tar checks),
+  `test/scripts/openclaw-cross-os-release-checks.test.ts` (`pnpm pack --dry-run`),
+  `test/scripts/parallels-smoke-model.test.ts`, `test/scripts/parallels-npm-update-smoke.test.ts`,
+  `test/scripts/kitchen-sink-rpc-walk.test.ts` (macOS spawn-ENOENT error shape),
+  `test/scripts/upgrade-survivor-systemd.test.ts` (systemd). Everything else in the gate table
+  ran on Prime at the head named in the PR body.
 - Upstream-only Testbox workflows carry the fork's `github.repository == 'openclaw/openclaw'`
   guard; the new `ci-check-arm-testbox.yml` gets the same guard so the fork's CI never leases
   upstream runners. Upstream's workflow simulators (`ancillary-workflow-concurrency`,
