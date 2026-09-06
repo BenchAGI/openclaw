@@ -114,6 +114,9 @@ describe("CodexAppServerEventProjector native tool failure recovery", () => {
     expect(projector.buildResult(buildEmptyToolTelemetry()).lastToolError).toEqual({
       toolName: "bash",
       meta: "run tests (workspace)",
+      // Bench fork #105: declined native tools carry their action fingerprint.
+      actionFingerprint:
+        '{"type":"commandExecution","command":"pnpm test extensions/codex","cwd":"/workspace"}',
       error: "codex native tool blocked",
       executionStarted: false,
       mutatingAction: false,
@@ -403,6 +406,9 @@ describe("CodexAppServerEventProjector native tool failure recovery", () => {
     expect(projector.buildResult(buildEmptyToolTelemetry()).lastToolError).toEqual({
       toolName: "bash",
       meta: "run tests (workspace)",
+      // Bench fork #105: declined native tools carry their action fingerprint.
+      actionFingerprint:
+        '{"type":"commandExecution","command":"pnpm test extensions/codex","cwd":"/workspace"}',
       error: "codex native tool blocked",
       mutatingAction: false,
     });
