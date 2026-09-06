@@ -106,6 +106,10 @@ separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
     fork delta touches). `test/scripts/run-vitest-state-cleanup.test.ts` cases that spawn
     `pnpm` inside a temp HOME fail on Prime's pnpm self-switch (`ENOEXEC`), an environment
     red; CI runs them on hosted runners.
+- Upstream-only Testbox workflows carry the fork's `github.repository == 'openclaw/openclaw'`
+  guard; the new `ci-check-arm-testbox.yml` gets the same guard so the fork's CI never leases
+  upstream runners. Upstream's workflow simulators (`ancillary-workflow-concurrency`,
+  `ci-workflow-guards`, `check-workflows`) model that guard.
 - Upstream's `write-build-info` tests assert one git call and no describe; they now pass
   `GIT_RELEASE` (the fork's hermetic path) so #85's default `git describe` lineage stays on for
   local builds and the fork's own #85 tests cover it.
