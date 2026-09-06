@@ -1,5 +1,5 @@
 // Control UI E2E tests cover chat run lifecycle behavior through the Gateway WebSocket.
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Page } from "playwright";
 import { afterEach, expect, it } from "vitest";
