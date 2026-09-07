@@ -199,7 +199,27 @@ export {
 export * from "../infra/approval-native-delivery.ts";
 export * from "../infra/approval-native-runtime.ts";
 export * from "../infra/approval-display-paths.ts";
-export * from "../infra/plugin-approvals.ts";
+// Preserve the stable v2026.9.2 approval contract without publishing internal
+// turn-budget policy through this deprecated compatibility barrel.
+export {
+  approvalDecisionLabel,
+  buildPluginApprovalExpiredMessage,
+  buildPluginApprovalRequestMessage,
+  buildPluginApprovalResolvedMessage,
+  DEFAULT_PLUGIN_APPROVAL_DECISIONS,
+  DEFAULT_PLUGIN_APPROVAL_TIMEOUT_MS,
+  MAX_PLUGIN_APPROVAL_TIMEOUT_MS,
+  PLUGIN_APPROVAL_DESCRIPTION_MAX_LENGTH,
+  PLUGIN_APPROVAL_DETAIL_MAX_LENGTH,
+  PLUGIN_APPROVAL_TITLE_MAX_LENGTH,
+  resolvePluginApprovalRequestAllowedDecisions,
+  resolvePluginApprovalTimeoutMs,
+  truncatePluginApprovalDetail,
+  type PluginApprovalActionView,
+  type PluginApprovalRequest,
+  type PluginApprovalRequestPayload,
+  type PluginApprovalResolved,
+} from "../infra/plugin-approvals.ts";
 export * from "../infra/fetch.js";
 export * from "../infra/file-lock.js";
 export * from "../infra/format-time/format-duration.ts";
