@@ -272,6 +272,8 @@ describe("SQLite lifecycle cleanup reclamation", () => {
       });
     } finally {
       if (heartbeat) {
+        // Capture a synchronous completion tail before its pending timer is cleared.
+        samples.push(performance.now() - previous);
         clearInterval(heartbeat);
       }
     }
