@@ -7,7 +7,11 @@ describe("deprecated infra-runtime plugin approval boundary", () => {
       repoRoot: process.cwd(),
       entrypoints: ["infra-runtime"],
     });
-    const exports = modules[0].exports;
+    const module = modules[0];
+    if (!module) {
+      throw new Error("Expected the infra-runtime compiler export surface");
+    }
+    const exports = module.exports;
     // Public contract from stable v2026.9.2: retain both type and value exports.
     // The internal idle-budget additions must not grow this compatibility API.
     expect(
