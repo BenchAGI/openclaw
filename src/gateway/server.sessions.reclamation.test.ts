@@ -163,6 +163,8 @@ test("sessions.delete keeps the Gateway responsive while reclaiming a large sess
   });
   seedTranscriptState(storePath);
 
+  // Connection setup prepares model runtime; it is not session deletion work.
+  const { ws } = await openClient();
   const samples: number[] = [];
   let previous = performance.now();
   const heartbeat = setInterval(() => {
@@ -170,7 +172,6 @@ test("sessions.delete keeps the Gateway responsive while reclaiming a large sess
     samples.push(current - previous);
     previous = current;
   }, 10);
-  const { ws } = await openClient();
   let deleted: Awaited<
     ReturnType<
       typeof rpcReq<{
@@ -193,6 +194,8 @@ test("sessions.delete keeps the Gateway responsive while reclaiming a large sess
     deleted = await rpcReq(ws, "sessions.delete", { key: SESSION_KEY }, 60_000);
     deleteMs = performance.now() - deleteStartedAt;
   } finally {
+    // Capture a synchronous completion tail before its pending timer is cleared.
+    samples.push(performance.now() - previous);
     clearInterval(heartbeat);
     ws.close();
   }
