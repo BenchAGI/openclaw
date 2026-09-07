@@ -501,8 +501,7 @@ export function readPluginSdkSurfaceBudgets(env: NodeJS.ProcessEnv = process.env
       //     (voice-call/matrix runtime-doctor repair names, WhatsApp ack policy,
       //     Slack progress-draft render) so installed plugins survive upgrade (#124041 class).
       // -18: retire the expired August compatibility exports and messaging-targets subpath.
-      // -3: internal approval timing is no longer a deprecated public API.
-      1131,
+      1134,
       env,
     ),
     publicWildcardReexports: readPluginSdkSurfaceBudgetEnv(
