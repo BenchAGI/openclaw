@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  DEFAULT_TURN_IDLE_BUDGET_MS,
   MAX_PLUGIN_APPROVAL_TIMEOUT_MS,
-  TURN_IDLE_REPLY_RESERVE_MS,
   resolveApprovalWaitCeilingMs,
   resolvePluginApprovalTimeoutMs,
 } from "./plugin-approvals.js";
@@ -34,23 +32,19 @@ afterEach(() => {
 describe("resolveApprovalWaitCeilingMs", () => {
   it("leaves reply headroom inside the default budget", () => {
     withBudget(undefined, () => {
-      expect(resolveApprovalWaitCeilingMs()).toBe(
-        DEFAULT_TURN_IDLE_BUDGET_MS - TURN_IDLE_REPLY_RESERVE_MS,
-      );
+      expect(resolveApprovalWaitCeilingMs()).toBe(45_000);
     });
   });
 
-  it("mirrors the Codex app-server turnCompletionIdleTimeoutMs default", () => {
-    // Pins the cross-package assumption documented on DEFAULT_TURN_IDLE_BUDGET_MS.
-    // The real default lives at extensions/codex/src/app-server/config.ts:677 and
-    // cannot be imported here without core depending on an extension package. If that
-    // default moves, this fails and the constant must move with it.
-    expect(DEFAULT_TURN_IDLE_BUDGET_MS).toBe(60_000);
+  it("preserves the historical policy for an explicit one-minute budget", () => {
+    withBudget("60000", () => {
+      expect(resolveApprovalWaitCeilingMs()).toBe(45_000);
+    });
   });
 
   it("tracks a runtime-configured budget", () => {
     withBudget("300000", () => {
-      expect(resolveApprovalWaitCeilingMs()).toBe(300_000 - TURN_IDLE_REPLY_RESERVE_MS);
+      expect(resolveApprovalWaitCeilingMs()).toBe(285_000);
     });
   });
 
@@ -71,9 +65,7 @@ describe("resolveApprovalWaitCeilingMs", () => {
   it("ignores malformed overrides rather than blocking approvals", () => {
     for (const raw of ["", "   ", "not-a-number", "-5"]) {
       withBudget(raw, () => {
-        expect(resolveApprovalWaitCeilingMs()).toBe(
-          DEFAULT_TURN_IDLE_BUDGET_MS - TURN_IDLE_REPLY_RESERVE_MS,
-        );
+        expect(resolveApprovalWaitCeilingMs()).toBe(45_000);
       });
     }
   });

@@ -134,7 +134,8 @@ const defaultPublicDeprecatedExportsByEntrypointBudget = Object.freeze({
   "channel-reply-pipeline": 12,
   "interactive-runtime": 11,
   // +3: canonical incognito classifier projected through deprecated compatibility barrels.
-  "infra-runtime": 596,
+  // -3: internal approval timing is no longer projected through this barrel.
+  "infra-runtime": 593,
   "ssrf-policy": 1,
   "ssrf-runtime": 1,
   // +1: deprecated agent media projection re-export during the media migration window.
@@ -354,7 +355,8 @@ export function readPluginSdkSurfaceBudgets(env: NodeJS.ProcessEnv = process.env
       // +1: retained runtime config reader preserves channel owner and scoped config identity.
       // +1: shared session-catalog host publication with completion ownership.
       // +3: Bench fork memory-core host runtime exports (Tier-1 CLI, memory tap, dreaming config).
-      4438,
+      // -3: keep internal approval timing out of the deprecated infra barrel.
+      4435,
       env,
     ),
     publicFunctionExports: readPluginSdkSurfaceBudgetEnv(
@@ -479,7 +481,8 @@ export function readPluginSdkSurfaceBudgets(env: NodeJS.ProcessEnv = process.env
       // +1: retained runtime config reader preserves channel owner and scoped config identity.
       // +1: shared session-catalog host publication with completion ownership.
       // +1: Bench fork memory-core host runtime callable (Tier-1 CLI).
-      2621,
+      // -1: the host approval-wait ceiling is not a public plugin contract.
+      2620,
       env,
     ),
     publicDeprecatedExports: readPluginSdkSurfaceBudgetEnv(
@@ -506,7 +509,8 @@ export function readPluginSdkSurfaceBudgets(env: NodeJS.ProcessEnv = process.env
       // -1: infra-runtime now names its error exports explicitly.
       // -1: infra-runtime excludes the internal system-event receipt API.
       // -1: infra-runtime re-exports number coercion directly from its canonical owner.
-      50,
+      // -1: infra-runtime pins its supported plugin-approval exports.
+      49,
       env,
     ),
   };
