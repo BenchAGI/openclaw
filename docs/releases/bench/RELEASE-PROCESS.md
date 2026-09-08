@@ -1,17 +1,18 @@
 ---
-title: "Bench customer line — release process"
+title: "Bench customer line: release process"
 summary: "How a BenchAGI OpenClaw customer release is cut from fork main (merged forward with the upstream tag), tagged, published, and delivered through the Homebrew tap."
 ---
 
-# Bench customer line — release process
+# Bench customer line: release process
 
 The BenchAGI fork ships customers from **`main`**: the fork's own history merged
 forward with each upstream version tag. For 2026.9.2 that is PR #125
 (`feat/main-merge-upstream-2026.9.2`: fork `main` `71138e06` truly merged with
-upstream `v2026.9.2`, plus the #112 cherry-pick). A customer release is a tag
-on `main`, a GitHub release carrying the built package, and a Homebrew tap
-formula pinned to that tag. Nothing here deploys a customer; the relay's update
-path installs the formula on each box under its own human gates.
+upstream `v2026.9.2`, plus the #112 cherry-pick; merge commit `36db53c016`). A
+customer release is a tag on `main`, a GitHub release carrying the built
+package, and a Homebrew tap formula pinned to that tag. Nothing here deploys a
+customer; the relay's update path installs the formula on each box under its
+own human gates.
 
 **No release is cut from `bench-runtime-2026.9.2`** (Cory, 2026-09-06). That
 branch (upstream tag + the Bench commits on top) was the transitional review
@@ -26,7 +27,7 @@ OpenClaw 2026.9.2 admits a same-host Control UI only when the page's
 `client.buildId` equals the Gateway's runtime build id (`PROTOCOL_MISMATCH`
 otherwise). The branded Control UI therefore **must ship inside the Gateway's
 bundled `ui`**, built from the same commit as the Gateway. A separately served
-UI (`controlUi.root`) is exempt from that check but loses build identity and is
+UI (`gateway.controlUi.root`) is exempt from that check but loses build identity and is
 not the customer path. Never publish a UI artifact for a different commit than
 the Gateway it pairs with; the `bench-control-ui-artifact` workflow hashes the
 UI against the package version and source head for exactly this reason.
@@ -55,7 +56,9 @@ UI against the package version and source head for exactly this reason.
    merge-forward PR two checks are red by construction until they clear on
    `main` (`ui:i18n:check` until the locale-refresh workflow has run on `main`;
    `check-protocol-since`, which is base-relative): "green" there means green
-   with exactly those two named in the PR, nothing else.
+   with exactly those two named in the PR, nothing else. If branch filters do
+   not run `bench-control-ui-artifact` for the exact `main` commit, dispatch it
+   on the exact release ref and record the run in the receipt.
 3. The ADR-0005 trusted-ingress proof
    (`apps/relay/openclaw-canonical-session-proof.mjs` in the BenchAGI monorepo)
    passed against a Gateway built from this commit.
@@ -76,6 +79,7 @@ UI against the package version and source head for exactly this reason.
 
 ```bash
 # from a clean checkout of main at the reviewed commit
+set -euo pipefail
 export TAG=v2026.9.2-bench.1
 export SOURCE_COMMIT="$(git rev-parse HEAD)"
 export GIT_RELEASE="$TAG"        # build-info.json `release` must be the tag, not `git describe` on this checkout
@@ -90,7 +94,7 @@ npm pack --ignore-scripts                      # openclaw-2026.9.2.tgz
 shasum -a 256 openclaw-2026.9.2.tgz > openclaw-2026.9.2.tgz.sha256
 
 # source tarball digest for the formula (GitHub builds it from the tag)
-curl -sL "https://github.com/BenchAGI/openclaw/archive/refs/tags/$TAG.tar.gz" | shasum -a 256
+curl -fsSL "https://github.com/BenchAGI/openclaw/archive/refs/tags/$TAG.tar.gz" | shasum -a 256
 
 gh release create "$TAG" --target "$SOURCE_COMMIT" --draft \
   --title "OpenClaw 2026.9.2 — Bench release 1" \
