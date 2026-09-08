@@ -278,6 +278,7 @@ describeControlUiE2e("Control UI Models mocked Gateway E2E", () => {
         { id: "claude-opus-4-8", name: "Claude Opus 4.8", provider: "anthropic", available: true },
         { id: "gpt-5.5", name: "GPT-5.5", provider: "openai", available: true },
         { id: "gemini-3-pro", name: "Gemini 3 Pro", provider: "google", available: false },
+        { id: "bench-test-model", name: "Bench test model", provider: "bench", available: true },
       ],
       methodResponses: {
         "models.authStatus": {
