@@ -2531,7 +2531,7 @@ describe("runReplyAgent fallback reasoning tags", () => {
 
     const result = await createRun();
     const payloads = Array.isArray(result) ? result : [result];
-    expect(payloads.filter((payload) => payload?.text === "ok")).toHaveLength(1);
+    expect(payloads.filter((payload) => payload?.text?.endsWith("ok"))).toHaveLength(1);
 
     const call = firstMockCallArg(
       runEmbeddedAgentMock,
@@ -2601,7 +2601,7 @@ describe("runReplyAgent fallback reasoning tags", () => {
       expect(flushCall?.enforceFinalTag).toBe(true);
       expect(runCliAgentMock).toHaveBeenCalledOnce();
       const payloads = Array.isArray(result) ? result : [result];
-      expect(payloads.filter((payload) => payload?.text === "ok")).toHaveLength(1);
+      expect(payloads.filter((payload) => payload?.text?.endsWith("ok"))).toHaveLength(1);
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }

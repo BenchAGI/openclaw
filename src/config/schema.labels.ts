@@ -640,6 +640,7 @@ export const FIELD_LABELS: Record<string, string> = {
   "agents.defaults.model.fallbacks": "Model Fallbacks",
   "agents.defaults.utilityModel": "Utility Model",
   "agents.entries.*.utilityModel": "Agent Utility Model",
+  "agents.defaults.model.showFallbackNoticeInChat": "Show Model Fallback Notice In Chat",
   "agents.defaults.imageModel.primary": "Image Model",
   "agents.defaults.imageModel.fallbacks": "Image Model Fallbacks",
   "agents.defaults.mediaModels.image.primary": "Image Generation Model",

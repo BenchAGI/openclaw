@@ -16,4 +16,4 @@ Aurelius memory-plane durability watchdog: a queryable health tool plus a manage
 
 ## Surface
 
-contracts: tools
+contracts: `tools`

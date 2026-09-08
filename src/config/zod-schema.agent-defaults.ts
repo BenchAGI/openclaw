@@ -5,6 +5,7 @@ import {
   HeartbeatSchema,
   AgentSandboxSchema,
   AgentContextLimitsSchema,
+  AgentDefaultsModelSchema,
   AgentModelMapSchema,
   AgentModelPolicySchema,
   AgentModelSchema,
@@ -63,7 +64,7 @@ export const AgentDefaultsSchema = z
   .object({
     /** Global default provider params applied to all models before per-model and per-agent overrides. */
     params: z.record(z.string(), z.unknown()).optional(),
-    model: AgentModelSchema.optional(),
+    model: AgentDefaultsModelSchema.optional(),
     modelSelectionScope: z.enum(["session", "agent", "global"]).optional(),
     utilityModel: z.string().optional(),
     imageModel: AgentToolModelSchema.optional(),

@@ -2953,6 +2953,12 @@ describe("scripts/lib/ci-node-test-plan.mts", () => {
         requiresDist: false,
         shardName: "auto-reply-reply-state-routing",
       },
+      {
+        checkName: "checks-node-auto-reply-reply-agent-runner-e2e",
+        configs: ["test/vitest/vitest.auto-reply-runner-e2e.config.ts"],
+        requiresDist: false,
+        shardName: "auto-reply-reply-agent-runner-e2e",
+      },
     ]);
   });
 
@@ -2964,6 +2970,25 @@ describe("scripts/lib/ci-node-test-plan.mts", () => {
 
     expect(actual).toEqual(listTestFiles("src/auto-reply/reply"));
     expect(new Set(actual).size).toBe(actual.length);
+  });
+
+  it.each([false, true])("preserves the sealed runner owner in compact=%s CI plans", (compact) => {
+    const target = "src/auto-reply/reply/agent-runner.runreplyagent.e2e.test.ts";
+    const jobs = createNodeTestShardBundles({
+      includeReleaseOnlyPluginShards: false,
+      compact,
+    });
+    type OwnerCandidate = { configs: string[]; includePatterns?: string[]; requiresDist: boolean };
+    const groups: OwnerCandidate[] = (
+      jobs as Array<OwnerCandidate & { groups?: OwnerCandidate[] }>
+    ).flatMap((job) => job.groups ?? [job]);
+    const owners = groups.filter((group) => group.includePatterns?.includes(target));
+    expect(owners).toHaveLength(1);
+    expect(owners[0]).toMatchObject({
+      configs: ["test/vitest/vitest.auto-reply-runner-e2e.config.ts"],
+      includePatterns: [target],
+      requiresDist: false,
+    });
   });
 
   it("keeps each dispatch entrypoint in its own dedicated shard", () => {

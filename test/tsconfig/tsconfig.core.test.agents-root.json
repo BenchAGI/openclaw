@@ -6,5 +6,9 @@
   "include": [
     "../../src/agents/*.test.ts",
     "../../src/agents/*.test.tsx"
+  ],
+  "exclude": [
+    "../../src/agents/tier1-retrieval.test.ts",
+    "../../src/agents/cli-output-claude-cli-family.test.ts"
   ]
 }

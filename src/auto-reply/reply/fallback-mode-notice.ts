@@ -8,7 +8,7 @@ import {
 import { SILENT_REPLY_TOKEN } from "../tokens.js";
 import type { ReplyPayload } from "../types.js";
 
-export type FallbackModeAttempt = {
+type FallbackModeAttempt = {
   provider: string;
   model: string;
   result: string;

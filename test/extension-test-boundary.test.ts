@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { BUNDLED_PLUGIN_PATH_PREFIX } from "openclaw/plugin-sdk/test-fixtures";
 import { describe, expect, it } from "vitest";
+import { collectRelativeExtensionImports } from "../scripts/lib/core-private-extension-imports.mts";
 import { GUARDED_EXTENSION_PUBLIC_SURFACE_BASENAMES } from "../src/plugin-sdk/test-helpers/public-artifacts.js";
 import { expectNoReaddirSyncDuring } from "../src/test-utils/fs-scan-assertions.js";
 import { listGitTrackedFiles, toRepoRelativePath } from "../src/test-utils/repo-files.js";
@@ -90,11 +91,8 @@ function walkCode(dir: string, entries: string[] = []): string[] {
   return entries;
 }
 
-function findExtensionImports(source: string): string[] {
-  return [
-    ...source.matchAll(/from\s+["']((?:\.\.\/)+extensions\/[^"']+)["']/g),
-    ...source.matchAll(/import\(\s*["']((?:\.\.\/)+extensions\/[^"']+)["']\s*\)/g),
-  ].flatMap((match) => (match[1] === undefined ? [] : [match[1]]));
+function findExtensionImports(source: string, fileName = "example.ts"): string[] {
+  return collectRelativeExtensionImports(source, fileName);
 }
 
 function isAllowedExtensionPublicImport(specifier: string): boolean {
@@ -195,6 +193,60 @@ function isAllowedCoreContractSuite(file: string, imports: readonly string[]): b
 }
 
 describe("non-extension test boundaries", () => {
+  describe("extension import syntax", () => {
+    it.each([
+      'import value from "../../extensions/example/src/private.js";',
+      'export { value } from "../../extensions/example/src/private.js";',
+      'import "../../extensions/example/src/private.js";',
+      'import("../../extensions/example/src/private.js");',
+      'import("../../extensions/example/src/private.js", { with: { type: "json" } });',
+      'require("../../extensions/example/src/private.js");',
+      'module.require("../../extensions/example/src/private.js");',
+      'require.resolve("../../extensions/example/src/private.js");',
+      'import value = require("../../extensions/example/src/private.js");',
+      'type Value = import("../../extensions/example/src/private.js").Value;',
+      "import(`../../extensions/example/src/private.js`);",
+      'import "../../\\u0065xtensions/example/src/private.js";',
+    ])("retains real private imports: %s", (source) => {
+      expect(findExtensionImports(source)).toEqual(["../../extensions/example/src/private.js"]);
+    });
+
+    it.each([
+      '// import value from "../../extensions/example/src/private.js";',
+      '/* import("../../extensions/example/src/private.js"); */',
+      "const fixture = 'import value from \"../../extensions/example/src/private.js\";';",
+      'const fixture = `import("../../extensions/example/src/private.js");`;',
+      'const prose = "../../extensions/example/src/private.js";',
+      'import value from "../../not-extensions/example/src/private.js";',
+    ])("ignores non-import prose and other directories: %s", (source) => {
+      expect(findExtensionImports(source)).toEqual([]);
+    });
+
+    it.each([
+      ["api.js", true],
+      ["index.js", true],
+      ["runtime-api.js", true],
+      ["internal.js", false],
+      ["test-support.js", false],
+      ["src/api.js", false],
+    ])("keeps extension-root %s visible to the existing allowlist", (file, allowed) => {
+      const specifier = `../../extensions/example/${file}`;
+      const imports = findExtensionImports(`import value from ${JSON.stringify(specifier)};`);
+      expect(imports).toEqual([specifier]);
+      expect(imports.filter((entry) => !isAllowedExtensionPublicImport(entry))).toEqual(
+        allowed ? [] : [specifier],
+      );
+    });
+
+    it("does not discard extension-directory imports without a filename", () => {
+      const specifier = "../../extensions/example";
+      expect(findExtensionImports(`import value from ${JSON.stringify(specifier)};`)).toEqual([
+        specifier,
+      ]);
+      expect(isAllowedExtensionPublicImport(specifier)).toBe(false);
+    });
+  });
+
   it("lists boundary scan files from git without walking repo roots", () => {
     expectNoReaddirSyncDuring(() => {
       const srcTests = walk(path.join(repoRoot, "src"));
@@ -222,7 +274,7 @@ describe("non-extension test boundaries", () => {
     const offenders = testFiles
       .map((file) => {
         const source = fs.readFileSync(path.join(repoRoot, file), "utf8");
-        const imports = findExtensionImports(source).filter(
+        const imports = findExtensionImports(source, file).filter(
           (specifier) => !isAllowedExtensionPublicImport(specifier),
         );
         if (imports.length === 0) {

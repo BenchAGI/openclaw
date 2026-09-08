@@ -1,11 +1,7 @@
 // Anthropic tests cover cli shared plugin behavior.
 import { createDeferred } from "openclaw/plugin-sdk/extension-shared";
 import { describe, expect, it, vi } from "vitest";
-import {
-  buildAnthropicCliBackend,
-  buildAnthropicCliBackendUltracode,
-  CLAUDE_CLI_ULTRACODE_BACKEND_ID,
-} from "./cli-backend.js";
+import { buildAnthropicCliBackend, buildAnthropicCliBackendUltracode } from "./cli-backend.js";
 import {
   CLAUDE_CLI_CLEAR_ENV,
   normalizeClaudeBackendConfig,
@@ -117,7 +113,7 @@ describe("Claude CLI adapter equivalence", () => {
     const backend = buildAnthropicCliBackendUltracode();
     const normalized = backend.normalizeConfig?.(backend.config);
 
-    expect(backend.id).toBe(CLAUDE_CLI_ULTRACODE_BACKEND_ID);
+    expect(backend.id).toBe("claude-cli-ultracode");
     expect(backend.config.modelAliases?.["claude-fable-5-ultracode"]).toBe("claude-fable-5");
     expect(normalized?.args).toEqual(expect.arrayContaining(["--settings", '{"ultracode":true}']));
   });

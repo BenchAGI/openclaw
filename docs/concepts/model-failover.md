@@ -57,7 +57,7 @@ The selection source controls whether the fallback chain is allowed:
 - **Legacy session override**: older session entries may have `modelOverride` without `modelOverrideSource`. OpenClaw treats those as user overrides so an explicit old selection is not silently converted into fallback behavior.
 - **Cron payload model**: a cron job `payload.model` / `--model` is a job primary, not a user session override. It uses configured fallbacks unless the job provides `payload.fallbacks`; `payload.fallbacks: []` makes the cron run strict.
 
-Outside group and channel conversations, OpenClaw sends a visible notice when a turn moves onto fallback and another notice when a later turn succeeds on the selected primary. Group and channel conversations keep the same fallback state and lifecycle events without posting these notices. Persisted notice state prevents repeated notices when consecutive turns use the same selected/active pair, while model selection itself remains unchanged.
+On operator surfaces (the internal web UI and the terminal UI), OpenClaw sends a visible notice when a turn moves onto fallback and another notice when a later turn succeeds on the selected primary. Group and channel conversations keep the same fallback state and lifecycle events without posting these notices. Persisted notice state prevents repeated notices when consecutive turns use the same selected/active pair, while model selection itself remains unchanged.
 
 Replies produced by a non-primary provider also carry an in-text fallback-mode banner so readers can see that the answer came from fallback mode even when the session was already sticky. The banner is prepended to the first answer payload:
 
@@ -83,7 +83,7 @@ The value is a TTL in milliseconds. `0` or unset disables the cache. Positive va
 
 ## User-visible fallback notices
 
-Outside group and channel conversations, OpenClaw sends a status notice in the same reply surface when a session moves onto an auto-selected fallback:
+On operator surfaces, OpenClaw sends a status notice in the same reply surface when a session moves onto an auto-selected fallback:
 
 ```text
 ↪️ Model Fallback: <fallback> (selected <primary>; <reason>)
@@ -96,6 +96,21 @@ When a later probe succeeds and the session returns to the selected primary, Ope
 ```
 
 These notices are operational messages, not assistant content. They deliver once per state change outside group and channel conversations, including side-effect-only turns when feasible, but repeated turn-local fallback transitions do not repeat them. Group and channel conversations suppress the visible notices while retaining the same fallback state and lifecycle events. Delivery bypasses normal source-reply suppression, does not consume the first assistant reply slot for threaded channels, and is excluded from text-to-speech.
+
+Because they describe internal model routing, these notices are only rendered in chat on operator surfaces — the internal web UI (`webchat`) and the terminal UI (`tui`). Everything else suppresses them: external messaging channels (Slack, WhatsApp, Discord, and every other delivery channel), unknown plugin channels, internal non-delivery sources (`heartbeat`, `cron`, `webhook`), and runs with no resolvable delivery channel at all. The gate reads the resolved _delivery_ channel (`OriginatingChannel` before `Surface`/`Provider`), so a gateway `chat.send` with `deliver: true` — or a restart-recovery turn — that carries `Surface: "webchat"` while delivering into Slack is correctly treated as Slack. The transition is still recorded in the run's lifecycle events and session state either way. To render them in chat everywhere, set:
+
+```ts
+agents: {
+  defaults: {
+    model: {
+      primary: "openai/gpt-5.5",
+      showFallbackNoticeInChat: true, // default: false
+    },
+  },
+},
+```
+
+This banner is gated by exactly the same audience predicate as the state-change notices above, and for the same reason: it is model plumbing, not assistant content. It is rendered only on operator surfaces, and `agents.defaults.model.showFallbackNoticeInChat: true` restores it everywhere alongside the state-change notices. Because it repeats on every sticky fallback turn rather than once per state change, leaving it ungated on a customer channel is the more visible of the two leaks.
 
 ## Auth storage (keys + OAuth)
 
@@ -353,7 +368,7 @@ Live model switching follows these rules:
 - User-driven model overrides are treated as exact selections for fallback policy, so an unreachable selected provider surfaces as a failure instead of being masked by `agents.defaults.model.fallbacks`.
 - Runtime fallback candidates remain turn-local. The next turn starts from the current selected model, including a manual selection that arrived during the previous run.
 - Previously stored auto fallback overrides remain supported: OpenClaw periodically probes their configured origin and clears the override when it recovers; `/new`, `/reset`, and `sessions.reset` clear auto-sourced overrides immediately.
-- Outside group and channel conversations, user replies announce fallback transitions and fallback-cleared recovery once per state change. Repeated turns with the same selected/active pair do not repeat the notice; group and channel conversations retain the same fallback state and lifecycle events without posting it.
+- Operator-surface replies announce fallback transitions and fallback-cleared recovery once per state change, and carry the in-text fallback-mode banner; every other delivery channel suppresses both unless `agents.defaults.model.showFallbackNoticeInChat` is `true`. Sticky fallback turns do not repeat the state-change notice.
 - `/status` shows the selected model and, when fallback state differs, the active fallback model and reason.
 - Live-session reconciliation prefers persisted session overrides over stale runtime model fields.
 - If a live-switch error points at a later candidate in the active fallback chain, OpenClaw jumps directly to that selected model instead of walking unrelated candidates first.

@@ -76,6 +76,53 @@ Per the PR A seat: fork main's #94–#109 touched exactly one `ui/` file (`ui/pa
 so `ui/` is upstream 9.2 wholesale. #112 branding is cherry-picked on top (`9d60c7e0`) as a
 separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
 
+## Post-gate fixes (hosted CI burn-down after the Prime run)
+
+Hosted CI measured through a two-file PR onto this branch (run 34025468864) showed the base's own
+reds. One cause per commit, in order:
+
+- `dup:check` covers `.github/scripts` (#106 gate scripts were tracked but unscanned).
+- `config/max-lines-baseline.txt` carries the eleven fork-touched files (fork main had no baseline,
+  so the ratchet has no base to shrink against); real splits are owed and named in the file.
+- `extensions/{memory-durability,session-digest}/tsconfig.json` use the upstream extends-only shape.
+- `src/infra/plugin-approvals.ts` comment no longer spells a plugin-private src path (#117's fix).
+- plugin-sdk surface budget +3 public exports for the fork's memory-core host runtime.
+- `.github/labeler.yml` covers `claude-code-bridge` and `memory-durability`.
+- knip: unused fork exports dropped, dead `extensions/memory-wiki/src/wiki-files.ts` removed,
+  test-only seams tagged `@public`.
+- tsgo core shard `agents-root` stays at 720 roots: the two fork root-level agents tests are listed
+  under `agents-other` via `files`.
+- Test reconciliations on upstream shapes: `agent.runtime-config` mocks the #63 reranker target
+  lookup; embedded-mode approval tests run with `OPENCLAW_TURN_IDLE_BUDGET_MS=0` (#108 clamp off);
+  fallback reasoning-tag tests accept the #66 banner prefix; `models-cli.auth-login` keeps the
+  setup-registry surface (#75).
+- Behaviour reconciliations: #107 exempts terminally failed harness turns (upstream keeps their
+  own error); #100 lets identityless uncertainty outrank a policy block, lets the batch outcome
+  (not the per-payload best-effort hook) own failure state so a proven-not-sent attempt that
+  succeeds on retry reads delivered, keeps upstream's "suppressed" wording on a policy veto, and
+  keeps the transcript when required delivery is vetoed.
+- `config/env-var-count-budget.txt` 498→505 for the seven fork-owned `OPENCLAW_*` names
+  (`OPENCLAW_TURN_IDLE_BUDGET_MS`, four `OPENCLAW_BRIDGE_*`, `OPENCLAW_CONFIG`); the file asks
+  for owner approval, recorded in the PR body for Cory.
+- The `agents-other` tsgo shard lists the two fork tests under `files` together with the base
+  declaration files (a child `files` list replaces the inherited one).
+- **Linux hang, root cause (probe residual):** four hosted jobs timed out at 120 s in tests that run
+  a bootstrap turn (`cli-runner.terminal-failure-log`, `agent-exec.construction`,
+  `agent-runner-execution-cli-commentary`, `attempt.spawn-workspace.context-engine`). Reproduced on
+  bench-forge-1 (Linux) and traced with unbuffered markers to the fork's #63 Tier-1 bootstrap hook
+  calling `resolveMemorySearchConfig` to read its enabled flag; that resolver performs cold
+  embedding-plugin discovery (`getMemoryEmbeddingProvider`) and blocked. The gate now reads
+  `resolveMemorySearchIndexConfig`, which carries the same `query.tier1`/`query.reranker` settings
+  without loading a provider runtime. After the fix the three CLI tests finish on Linux in 31 s,
+  5.8 s, and 80 s (`13a580ba97`).
+- **Linux cold-start gate (regression guard):** these four tests are the canary for any eager
+  runtime load on the bootstrap path and must stay green on Linux CI:
+  `src/agents/cli-runner.terminal-failure-log.test.ts`,
+  `src/commands/agent-exec.construction.test.ts`,
+  `src/auto-reply/reply/agent-runner-execution-cli-commentary.test.ts`,
+  `src/agents/embedded-agent-runner/run/attempt.spawn-workspace.context-engine.test.ts`
+  ("preserves bootstrap system context in the assembled system prompt").
+
 ## Follow-ups (explicitly not done here)
 
 - Regenerate protocol clients (`pnpm protocol:gen`, `protocol:gen:swift`, `protocol:gen:kotlin`)
@@ -106,11 +153,21 @@ separate commit so #123 can `git rebase --onto <head> 0f05fcb0`.
     fork delta touches). `test/scripts/run-vitest-state-cleanup.test.ts` cases that spawn
     `pnpm` inside a temp HOME fail on Prime's pnpm self-switch (`ENOEXEC`), an environment
     red; CI runs them on hosted runners.
+- **Hosted-CI reds by construction on the merge-forward PR (#125):**
+  - `Customer harness impact` (fork #106 gate, `.github/scripts/customer-harness-impact.mjs`):
+    "PR changed more than 3000 files; refusing an incomplete harness-impact scan". The merge
+    touches ~37k files against `main`; the gate has no reviewed-override path. Its scan is
+    meaningful again for every PR that targets this head.
+  - `actionlint` / Workflow Sanity (zizmor audit): the trusted pre-commit config is built from
+    the PR's base branch, and `main` pins zizmor v1.22.0, which crashes on upstream 9.2's
+    anchor-heavy `ci.yml` ("no audit was performed", `template-injection`). This branch pins
+    v1.29.0 (`.pre-commit-config.yaml`), so PRs targeting it audit cleanly; a one-line rev bump
+    on `main` clears it for #125 itself.
 - **Hosted-CI proofs relied on (never green on Prime, macOS):** these tests exercise Linux
   tooling that Prime lacks or that Prime's pnpm self-switch breaks (`ENOEXEC` in a temp HOME).
   Their pass/fail state comes only from the PR's hosted CI, not from this seat:
   `test/scripts/ci-workflow-guards.test.ts › preserves pnpm hard links and validates cached
-  importers and supply-chain policy offline` (shells `pnpm run pnpm-path`),
+importers and supply-chain policy offline` (shells `pnpm run pnpm-path`),
   `test/openclaw-prepack.test.ts`, `test/scripts/run-vitest-state-cleanup.test.ts` (pnpm switch),
   `test/scripts/prepublish-plugin-registry-shell.test.ts` (needs Bash 5+),
   `test/scripts/release-no-push-workflow.test.ts` (needs GNU `timeout`),

@@ -863,3 +863,16 @@ ui/src/pages/usage/view-details.ts
 ui/src/pages/usage/view-overview.ts
 ui/src/pages/usage/view.ts
 ui/src/test-helpers/control-ui-e2e.ts
+# Bench fork merge-forward (PR #125): fork-touched files that crossed the budget while their
+# upstream neighbours were re-shaped; each carries the grandfather pragma and a split is owed.
+extensions/anthropic/cli-shared.test.ts
+extensions/memory-core/src/memory-tap-snapshot.test.ts
+extensions/memory-wiki/src/compile.test.ts
+extensions/memory-wiki/src/markdown.ts
+extensions/memory-wiki/src/source-sync-state.test.ts
+extensions/slack/src/actions.ts
+extensions/slack/src/send.upload.test.ts
+src/cli/command-secret-targets.test.ts
+src/cron/isolated-agent/delivery-dispatch.ts
+src/cron/service.persists-delivered-status.test.ts
+src/gateway/server-methods/chat-send-agent-dispatch.ts

@@ -373,6 +373,7 @@ date context. Falls back to the host timezone.
       model: {
         primary: "anthropic/claude-opus-4-6",
         fallbacks: ["minimax/MiniMax-M2.7"],
+        showFallbackNoticeInChat: false, // render fallback notices + banner in chat everywhere (default: false)
       },
       utilityModel: "openai/gpt-5.4-mini",
       imageModel: {
@@ -445,6 +446,7 @@ date context. Falls back to the host timezone.
 - `reasoningDefault`: default reasoning visibility for agents. Values: `"off"`, `"on"`, `"stream"`. Per-agent `agents.entries.*.reasoningDefault` overrides this default. Configured reasoning defaults are only applied for owners, authorized senders, or operator-admin gateway contexts when no per-message or session reasoning override is set.
 - `elevatedDefault`: default elevated-output level for agents. Values: `"off"`, `"on"`, `"ask"`, `"full"`. Default: `"on"`.
 - `model.primary`: format `provider/model` (e.g. `openai/gpt-5.6-sol` for Codex OAuth access). If you omit the provider, OpenClaw tries an alias first, then a unique configured-provider match for that exact model id, and only then falls back to the configured default provider (deprecated compatibility behavior, so prefer explicit `provider/model`). If that provider no longer exposes the configured default model, OpenClaw falls back to the first configured provider/model instead of surfacing a stale removed-provider default.
+- `model.showFallbackNoticeInChat`: when `true`, both the `↪️ Model Fallback:` / `↪️ Model Fallback cleared:` state-change notices and the in-text `⚠ running in fallback mode (...)` banner are rendered in chat on every surface. Default: `false`, which keeps them on operator surfaces (the internal web UI and the terminal UI) and suppresses them everywhere else, including external messaging channels and runs with no resolvable delivery channel. Lifecycle events and session state record the transition either way. See [Model failover](/concepts/model-failover#user-visible-fallback-notices).
 - To cap active input for one model, set `models.providers.<provider>.models[].contextTokens`; use `contextWindow` on the same entry for its native window. See [OpenAI context window defaults](/providers/openai#context-window-defaults-and-long-context-opt-in).
 - `models`: configured aliases and per-model settings. Each entry can include `alias` (shortcut) and `params` (provider-specific, for example `temperature`, `maxTokens`, `cacheRetention`, `context1m`, `anthropicServerCompaction`, `anthropicCompactThreshold`, `responsesServerCompaction`, `responsesCompactThreshold`, OpenRouter `provider` routing, `chat_template_kwargs`, `extra_body`/`extraBody`). Adding entries does not restrict model overrides.
   - Use `provider/*` entries such as `"openai/*": {}` or `"vllm/*": {}` to show all discovered models for selected providers without manually listing every model id.

@@ -562,7 +562,7 @@ export async function dedupeDreamDiaryEntries(params: {
   });
 }
 
-export function buildDiaryEntry(narrative: string, dateStr: string, observedAt?: string): string {
+function buildDiaryEntry(narrative: string, dateStr: string, observedAt?: string): string {
   // Bench fork #95: a machine-readable observed-at marker lets Memory Tap enforce
   // a real time window; normalizeDiaryBlockBody drops HTML comments from bodies.
   const marker = observedAt ? `\n<!-- openclaw:dreaming:observed-at:${observedAt} -->` : "";

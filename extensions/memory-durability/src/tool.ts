@@ -10,7 +10,7 @@ const MemoryDurabilitySchema = {
   additionalProperties: false,
 } as const;
 
-export function renderVerdict(v: Verdict): string {
+function renderVerdict(v: Verdict): string {
   const flag = (s: string) =>
     s === "ok" ? "OK " : s === "fail" ? "FAIL" : s === "error" ? "ERR " : "skip";
   const head = `memory-durability: ${v.ok ? "OK" : "BROKEN"}${v.degraded ? " (degraded)" : ""} @ ${v.host} [${v.tenant}]`;

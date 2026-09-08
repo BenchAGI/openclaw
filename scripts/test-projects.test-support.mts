@@ -202,6 +202,7 @@ const ACP_VITEST_CONFIG = "test/vitest/vitest.acp.config.ts";
 const AUTO_REPLY_CORE_VITEST_CONFIG = "test/vitest/vitest.auto-reply-core.config.ts";
 const AUTO_REPLY_VITEST_CONFIG = "test/vitest/vitest.auto-reply.config.ts";
 const AUTO_REPLY_REPLY_VITEST_CONFIG = "test/vitest/vitest.auto-reply-reply.config.ts";
+const AUTO_REPLY_RUNNER_E2E_VITEST_CONFIG = "test/vitest/vitest.auto-reply-runner-e2e.config.ts";
 const AUTO_REPLY_TOP_LEVEL_VITEST_CONFIG = "test/vitest/vitest.auto-reply-top-level.config.ts";
 const BOUNDARY_VITEST_CONFIG = "test/vitest/vitest.boundary.config.ts";
 const BUNDLED_VITEST_CONFIG = "test/vitest/vitest.bundled.config.ts";
@@ -947,6 +948,7 @@ const RUNNABLE_VITEST_CONFIG_TARGETS = new Set([
   "ui/vitest.config.ts",
   "vitest.config.ts",
   DEFAULT_VITEST_CONFIG,
+  AUTO_REPLY_RUNNER_E2E_VITEST_CONFIG,
   ...Object.values(VITEST_CONFIG_BY_KIND),
   ...fullSuiteVitestShards.flatMap((shard) => [shard.config, ...shard.projects]),
 ]);

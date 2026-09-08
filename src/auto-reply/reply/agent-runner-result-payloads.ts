@@ -18,7 +18,11 @@ import {
 } from "../../infra/diagnostic-trace-context.js";
 import { isSubagentSessionKey } from "../../routing/session-key.js";
 import { estimateAggregateUsageCost } from "../../utils/usage-format.js";
-import { buildFallbackClearedNotice, buildFallbackNotice } from "../fallback-state.js";
+import {
+  buildFallbackClearedNotice,
+  buildFallbackNotice,
+  shouldShowFallbackNoticeInChat,
+} from "../fallback-state.js";
 import {
   getReplyPayloadMetadata,
   isReplyPayloadStatusNotice,
@@ -335,8 +339,24 @@ export async function prepareReplyAgentPayloads(state: {
   const fallbackNoticeChatType = fallbackNoticeChanged
     ? normalizeChatType(sessionCtx.ChatType)
     : undefined;
+  // Model routing is operator observability, not customer copy: render the
+  // fallback notices only on the operator's own surfaces (internal web UI /
+  // TUI) or when `agents.defaults.model.showFallbackNoticeInChat` opts in.
+  // Gate on `replyToChannel` (the resolved delivery channel), not the raw
+  // surface: gateway `chat.send` with `deliver: true` and restart-recovery
+  // turns both carry `Surface: "webchat"` while the reply lands in the
+  // customer's real channel.
+  const showFallbackNoticeInChat = shouldShowFallbackNoticeInChat({
+    cfg,
+    deliveryChannel: replyToChannel,
+  });
   const shouldDeliverFallbackNotice =
-    fallbackNoticeChatType !== "group" && fallbackNoticeChatType !== "channel";
+    showFallbackNoticeInChat &&
+    fallbackNoticeChatType !== "group" &&
+    fallbackNoticeChatType !== "channel";
+  // A suppressed notice must keep counting for the delivery guards below so
+  // hiding it can never turn a turn that produced a reply into silence.
+  let suppressedFallbackNoticeCount = 0;
   let fallbackNoticeText: string | null = null;
   if (fallbackNoticeChanged && fallbackTransition.fallbackTransitioned) {
     emitAgentEvent({
@@ -354,7 +374,9 @@ export async function prepareReplyAgentPayloads(state: {
         attempts: fallbackAttempts,
       },
     });
-    if (shouldDeliverFallbackNotice) {
+    if (!shouldDeliverFallbackNotice) {
+      suppressedFallbackNoticeCount += 1;
+    } else {
       fallbackNoticeText = buildFallbackNotice({
         selectedProvider,
         selectedModel,
@@ -379,7 +401,9 @@ export async function prepareReplyAgentPayloads(state: {
         previousActiveModel: fallbackTransition.previousState.activeModel,
       },
     });
-    if (shouldDeliverFallbackNotice) {
+    if (!shouldDeliverFallbackNotice) {
+      suppressedFallbackNoticeCount += 1;
+    } else {
       fallbackNoticeText = buildFallbackClearedNotice({
         selectedProvider,
         selectedModel,
@@ -402,6 +426,7 @@ export async function prepareReplyAgentPayloads(state: {
   if (
     payloadArray.length === 0 &&
     fallbackNoticePayloads.length === 0 &&
+    suppressedFallbackNoticeCount === 0 &&
     !shouldDeliverTerminalFailure &&
     !yieldAcknowledgmentPayload &&
     (!emptyInteractiveReplyPayload || hasSpecificFallbackFailure)
@@ -435,9 +460,13 @@ export async function prepareReplyAgentPayloads(state: {
   // non-primary provider. It joins the model's own payloads here so yield
   // acknowledgments and empty-reply diagnostics stay verbatim, and it follows
   // upstream's chat-type gate (no fallback chatter in group chats or channels).
+  // It is inlined into the assistant's own answer text, so it also needs the
+  // delivery-channel gate; suppression only skips a text prefix.
   const fallbackModeChatType = normalizeChatType(sessionCtx.ChatType);
   const fallbackModeNotice =
-    fallbackModeChatType === "group" || fallbackModeChatType === "channel"
+    !showFallbackNoticeInChat ||
+    fallbackModeChatType === "group" ||
+    fallbackModeChatType === "channel"
       ? undefined
       : buildFallbackModeNotice({
           executionTrace: mergeFallbackModeExecutionTrace({
@@ -525,7 +554,10 @@ export async function prepareReplyAgentPayloads(state: {
   const canDeliverStandaloneFallbackNotice =
     hasDeliveredBlockStream || successfulSideEffectDelivery;
   if (
-    replyPayloads.length === 0 ||
+    // A suppressed notice leaves the same empty payload list a delivered-only-
+    // notice turn would have carried; that is "nothing left to render", not
+    // "the run produced no reply", so it must not fall into the silent branch.
+    (replyPayloads.length === 0 && suppressedFallbackNoticeCount === 0) ||
     (!hasVisibleReplyPayload && !canDeliverStandaloneFallbackNotice)
   ) {
     const silentFallbackFailurePayload = await returnSilentFallbackFailureIfNeeded();
