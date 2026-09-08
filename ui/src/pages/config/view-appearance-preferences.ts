@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from "lit";
+import { benchFabricEnabled } from "../../app/bench-shell.ts";
 import type { ServerUiPrefProvenance } from "../../app/server-prefs.ts";
 import {
   normalizeCatalogOpenTarget,
@@ -6,7 +7,6 @@ import {
   normalizeChatSendShortcut,
   UI_APPEARANCE_DEFAULTS,
 } from "../../app/settings.ts";
-import { isBenchThemeFamily } from "../../app/theme.ts";
 import { getLobsterdexEntries } from "../../components/lobster-dex.ts";
 import { previewLobsterChirp } from "../../components/lobster-pet-audio.ts";
 import {
@@ -175,7 +175,7 @@ function renderSettingsCameraField(props: ConfigProps) {
 // "Background motion": the Bench gravity fabric behind the shell
 // (UI-BRAND-CONTRACT §8.5). Only the Bench families draw it.
 export function renderBackgroundMotionSection(props: ConfigProps) {
-  if (!isBenchThemeFamily(props.theme)) {
+  if (!benchFabricEnabled(props.theme, props.backgroundMotion)) {
     return nothing;
   }
   const enabled = props.backgroundMotion ?? UI_APPEARANCE_DEFAULTS.backgroundMotion;

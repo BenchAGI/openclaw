@@ -190,7 +190,8 @@ export const UI_APPEARANCE_DEFAULTS = {
   lobsterPetVisits: true,
   lobsterPetSounds: false,
   sessionDeleteConfirm: true,
-  // Bench gravity fabric behind the shell (UI-BRAND-CONTRACT §8.5).
+  // Retained for the pending gravity-fabric implementation; its control stays
+  // hidden while the current module is a no-op scaffold.
   backgroundMotion: true,
 } as const;
 
@@ -235,7 +236,8 @@ export type UiSettings = {
   customTheme?: ImportedCustomTheme;
   locale?: string;
   lobsterPetVisits?: boolean; // Whether the sidebar lobster pet drops by (default true)
-  backgroundMotion?: boolean; // Bench gravity fabric behind the shell (default true)
+  // Preserved for the pending gravity-fabric implementation (default true).
+  backgroundMotion?: boolean;
   lobsterPetSounds?: boolean; // Opt-in poke/pet chirps from the lobster (default false)
   // Confirm before deleting sessions (default true). Device-local on purpose:
   // opting out on one browser must not lower the bar on the operator's others,

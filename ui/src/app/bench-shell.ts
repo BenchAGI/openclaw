@@ -5,11 +5,16 @@ import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { normalizeAgentId } from "../lib/sessions/session-key.ts";
 import { isBenchThemeFamily, type ThemeName } from "./theme.ts";
 
+// The current gravity-fabric module is an API-compatible no-op scaffold. Keep
+// its browser preference data intact, but do not expose or mount it until the
+// product-accepted implementation replaces the scaffold.
+const BENCH_GRAVITY_FABRIC_READY = false;
+
 export function benchFabricEnabled(
   theme: ThemeName,
   backgroundMotion: boolean | undefined,
 ): boolean {
-  return isBenchThemeFamily(theme) && backgroundMotion !== false;
+  return BENCH_GRAVITY_FABRIC_READY && isBenchThemeFamily(theme) && backgroundMotion !== false;
 }
 
 export function renderBenchGravityFabric(enabled: boolean, theme: string) {

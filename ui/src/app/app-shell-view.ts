@@ -401,7 +401,11 @@ export function renderApplicationShell(host: ShellViewHost) {
       style=${`--shell-nav-expanded-width: ${navigationSnapshot.navWidth}px`}
       @theme-change=${(event: CustomEvent<ThemeModeChangeDetail>) => host.handleThemeChange(event)}
     >
-      ${renderBenchGravityFabric(benchFabricEnabled, context.theme.resolvedMode)}
+      ${
+        benchFabricEnabled
+          ? renderBenchGravityFabric(benchFabricEnabled, context.theme.resolvedMode)
+          : nothing
+      }
       <a class="shell-skip-link" href="#control-ui-main" ?inert=${navDrawerOpen}>
         ${t("common.skipToMainContent")}
       </a>
