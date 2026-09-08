@@ -17,6 +17,7 @@ import {
   type ChatModelCatalogState,
   renderChatModelCatalogState,
 } from "./chat-model-catalog-state.ts";
+import { applyBenchProviderSections } from "./chat-model-picker-groups.ts";
 import {
   renderChatModelPickerOption,
   renderChatModelPickerTargetOption,
@@ -314,29 +315,7 @@ export function renderChatModelPicker(params: ChatModelPickerParams) {
       orderedProviderGroups.unshift(defaultGroup);
     }
   }
-  // Bench-routed providers lead under "Bench models"; everything else follows
-  // under "Your own keys" (UI-BRAND-CONTRACT §5.5). Without a Bench provider
-  // the picker keeps upstream's single ungrouped list.
-  const isBenchProvider = (provider: string) => provider === "bench" || provider === "benchagi";
-  const benchProviderGroups = orderedProviderGroups.filter(([provider]) =>
-    isBenchProvider(provider),
-  );
-  if (benchProviderGroups.length > 0) {
-    orderedProviderGroups.splice(
-      0,
-      orderedProviderGroups.length,
-      ...benchProviderGroups,
-      ...orderedProviderGroups.filter(([provider]) => !isBenchProvider(provider)),
-    );
-  }
-  const modelSectionLabels = new Map<string, string>();
-  if (benchProviderGroups.length > 0) {
-    modelSectionLabels.set(benchProviderGroups[0]![0], t("chat.modelControls.benchModels"));
-    const firstOwnKeys = orderedProviderGroups.find(([provider]) => !isBenchProvider(provider));
-    if (firstOwnKeys) {
-      modelSectionLabels.set(firstOwnKeys[0], t("chat.modelControls.yourOwnKeys"));
-    }
-  }
+  const modelSectionLabels = applyBenchProviderSections(orderedProviderGroups);
   const orderedOptions = orderedProviderGroups.flatMap(([, options]) => options);
   const optionIndex = new Map(orderedOptions.map((option, index) => [option.value, index]));
   const targetGroups = params.targetGroups ?? [];

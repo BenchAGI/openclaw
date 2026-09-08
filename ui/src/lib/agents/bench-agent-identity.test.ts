@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
-  BENCH_RARITY_COLORS,
   benchAgentDisplayName,
   benchAgentIdentity,
   benchAgentRarityColor,
@@ -21,12 +20,8 @@ describe("bench agent identity manifest", () => {
   });
 
   it("paints unknown agents with the theme accent and the common ring", () => {
-    expect(benchAgentStyle("main")).toBe(
-      `--agent-accent: var(--accent); --agent-rarity: ${BENCH_RARITY_COLORS.common};`,
-    );
-    expect(benchAgentStyle("aurelius")).toBe(
-      `--agent-accent: #e7c182; --agent-rarity: ${BENCH_RARITY_COLORS.legendary};`,
-    );
+    expect(benchAgentStyle("main")).toBe("--agent-accent: var(--accent); --agent-rarity: #c8ced6;");
+    expect(benchAgentStyle("aurelius")).toBe("--agent-accent: #e7c182; --agent-rarity: #ff8000;");
     expect(benchAgentRarityColor(null)).toBe("#c8ced6");
   });
 

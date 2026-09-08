@@ -19,7 +19,7 @@ if (!source) {
 }
 
 const executablePath = resolvePlaywrightChromiumExecutablePath(chromium.executablePath());
-if (!(await canRunPlaywrightChromium(executablePath))) {
+if (!canRunPlaywrightChromium(executablePath)) {
   throw new Error(`Playwright Chromium is unavailable at ${executablePath}`);
 }
 
@@ -33,9 +33,9 @@ try {
   await page.goto("about:blank");
   const dataUrl = `data:image/jpeg;base64,${sourceBytes.toString("base64")}`;
   const result = await page.evaluate(
-    async ({ dataUrl, targetSize }) => {
+    async ({ dataUrl: sourceDataUrl, targetSize: outputSize }) => {
       const image = new Image();
-      image.src = dataUrl;
+      image.src = sourceDataUrl;
       await image.decode();
       const w = image.naturalWidth;
       const h = image.naturalHeight;
@@ -43,7 +43,9 @@ try {
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) throw new Error("no 2d context");
+      if (!ctx) {
+        throw new Error("no 2d context");
+      }
       ctx.drawImage(image, 0, 0);
       const frame = ctx.getImageData(0, 0, w, h);
       const px = frame.data;
@@ -98,7 +100,9 @@ try {
       const queue: number[] = [];
       const push = (x: number, y: number) => {
         const index = y * w + x;
-        if (state[index]) return;
+        if (state[index]) {
+          return;
+        }
         if (backgroundLike[index] && walkable(x, y)) {
           state[index] = 2;
           queue.push(index);
@@ -117,10 +121,18 @@ try {
         state[index] = 1;
         const x = index % w;
         const y = (index - x) / w;
-        if (x > 0) push(x - 1, y);
-        if (x < w - 1) push(x + 1, y);
-        if (y > 0) push(x, y - 1);
-        if (y < h - 1) push(x, y + 1);
+        if (x > 0) {
+          push(x - 1, y);
+        }
+        if (x < w - 1) {
+          push(x + 1, y);
+        }
+        if (y > 0) {
+          push(x, y - 1);
+        }
+        if (y < h - 1) {
+          push(x, y + 1);
+        }
       }
       // Grow the filled region back over the guard margin: background-like
       // pixels adjacent to filled background join it, repeated to cover the
@@ -160,8 +172,7 @@ try {
         }
         const component: number[] = [start];
         componentSeen[start] = 1;
-        for (let cursor = 0; cursor < component.length; cursor += 1) {
-          const index = component[cursor];
+        for (const index of component) {
           const x = index % w;
           const y = (index - x) / w;
           for (const neighbor of [
@@ -295,10 +306,18 @@ try {
       for (let y = 0; y < h; y += 1) {
         for (let x = 0; x < w; x += 1) {
           if (px[(y * w + x) * 4 + 3] > 8) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
+            if (x < minX) {
+              minX = x;
+            }
+            if (x > maxX) {
+              maxX = x;
+            }
+            if (y < minY) {
+              minY = y;
+            }
+            if (y > maxY) {
+              maxY = y;
+            }
           }
         }
       }
@@ -312,15 +331,17 @@ try {
       const square = Math.max(cropWidth, cropHeight);
 
       const out = document.createElement("canvas");
-      out.width = targetSize;
-      out.height = targetSize;
+      out.width = outputSize;
+      out.height = outputSize;
       const outCtx = out.getContext("2d");
-      if (!outCtx) throw new Error("no output context");
+      if (!outCtx) {
+        throw new Error("no output context");
+      }
       outCtx.imageSmoothingEnabled = true;
       outCtx.imageSmoothingQuality = "high";
-      const scale = targetSize / square;
-      const dx = (targetSize - cropWidth * scale) / 2;
-      const dy = (targetSize - cropHeight * scale) / 2;
+      const scale = outputSize / square;
+      const dx = (outputSize - cropWidth * scale) / 2;
+      const dy = (outputSize - cropHeight * scale) / 2;
       outCtx.drawImage(
         canvas,
         minX,

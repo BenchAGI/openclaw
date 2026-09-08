@@ -25,12 +25,12 @@ export interface GravityFabricHandle {
   readonly stats: FabricStats;
 }
 
-export interface FabricTokens {
+interface FabricTokens {
   bg: string;
   ir: string;
 }
 
-export interface FabricStats {
+interface FabricStats {
   frames: number;
   averageFrameMs: number;
   p50FrameMs: number;
@@ -49,7 +49,7 @@ const FALLBACK_TOKENS: Record<FabricTheme, FabricTokens> = {
 };
 
 /** `--bg` and `--brand-bench` off the active theme, with the Bench defaults as fallback. */
-export function defaultTokens(
+function defaultTokens(
   theme: FabricTheme,
   root: Element | null = globalThis.document?.documentElement ?? null,
 ): FabricTokens {

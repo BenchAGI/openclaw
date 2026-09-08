@@ -10,6 +10,7 @@ on:
       - "feat/bench-**"
   pull_request:
     branches:
+      - main
       - "bench-runtime-**"
       - "feat/bench-**"
   workflow_dispatch:
@@ -18,16 +19,22 @@ concurrency:
   group: bench-control-ui-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
         with:
+          cache-mode: restore
           install-bun: "false"
 
       - name: Install Playwright Chromium (UI browser tests)
@@ -51,7 +58,10 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           HEAD_SHA=$(git rev-parse HEAD)
           tar -C dist -cf /tmp/control-ui-bench.tar control-ui
-          DIST_SHA=$(sha256sum /tmp/control-ui-bench.tar | cut -d' ' -f1)
+          # Ship the exact archive whose digest the manifest records. The
+          # manifest itself is metadata added after the payload archive exists.
+          cp /tmp/control-ui-bench.tar dist/control-ui-bench.tar
+          DIST_SHA=$(sha256sum dist/control-ui-bench.tar | cut -d' ' -f1)
           cat > dist/control-ui/BENCH-ARTIFACT-MANIFEST.json << EOF
           {
             "artifact": "control-ui-bench",
@@ -65,9 +75,11 @@ jobs:
           echo "control-ui-bench ${VERSION} @ ${HEAD_SHA} sha256=${DIST_SHA}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
           name: control-ui-bench-${{ github.sha }}
-          path: dist/control-ui
+          path: |
+            dist/control-ui
+            dist/control-ui-bench.tar
           if-no-files-found: error
           retention-days: 30

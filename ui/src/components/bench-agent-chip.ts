@@ -41,9 +41,13 @@ export function renderBenchAgentChip(props: BenchAgentChipProps) {
       aria-label="${props.name} · ${menuLabel}"
       @click=${(event: MouseEvent) => {
         event.stopPropagation();
+        const trigger = event.currentTarget;
+        if (!(trigger instanceof HTMLElement)) {
+          return;
+        }
         window.dispatchEvent(
           new CustomEvent<BenchAgentMenuToggleDetail>(BENCH_AGENT_MENU_TOGGLE_EVENT, {
-            detail: { trigger: event.currentTarget as HTMLElement },
+            detail: { trigger },
           }),
         );
       }}

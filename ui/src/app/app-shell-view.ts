@@ -12,8 +12,6 @@ import {
 } from "../components/settings-sidebar-lazy.ts";
 import type { ThemeModeChangeDetail } from "../components/theme-mode-toggle.ts";
 import { t } from "../i18n/index.ts";
-import { benchAgentDisplayName } from "../lib/agents/bench-agent-identity.ts";
-import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { canCallGatewayMethod } from "../lib/gateway-methods.ts";
 import {
   formatKeyboardShortcutCombo,
@@ -27,7 +25,13 @@ import { pluginTabKey, pluginTabRefFromSearch } from "../pages/plugin/route.ts";
 import { renderPluginSurface } from "../plugins/control-ui-view.ts";
 import type { ShellRouteState } from "./app-host-route-state.ts";
 import { renderCommandPaletteLoading } from "./app-shell-command-palette-loading.ts";
+import { renderLazyDevicePairSetup } from "./app-shell-device-pairing.ts";
 import type { OutboxStoreRuntime, StoredOutboxScopeHost } from "./app-shell-gateway.ts";
+import {
+  benchFabricEnabled as isBenchFabricEnabled,
+  renderBenchGravityFabric,
+  resolveBenchModeSwitchAgent,
+} from "./bench-shell.ts";
 import type { ApplicationRuntime } from "./bootstrap.ts";
 import type { ApplicationContext, ApplicationNavigationOptions } from "./context.ts";
 import { resolveControlUiAuthToken } from "./control-ui-auth.ts";
@@ -61,10 +65,11 @@ import {
   normalizeChatSendShortcut,
 } from "./settings.ts";
 import { renderCollapsedAssistantToggles } from "./shell-assistant-toggles.ts";
-import { isBenchThemeFamily } from "./theme.ts";
 import { createUpdateProgressWatcher } from "./update-confirmation.ts";
 
 const EMPTY_SESSION_HAS_DRAFT = () => false;
+
+type DevicePairSetupModule = typeof import("../pages/devices/view-pairing.runtime.ts");
 
 export interface ShellViewHost {
   readonly context: ApplicationContext<RouteId> | undefined;
@@ -112,59 +117,6 @@ export interface ShellViewHost {
   selectChatSession(sessionKey: string, agentId?: string | null): void;
   storedOutboxScopeHost(context: ApplicationContext<RouteId>): StoredOutboxScopeHost;
   toggleNavigationSurface(trigger?: HTMLElement): void;
-}
-
-type DevicePairSetupModule = typeof import("../pages/devices/view-pairing.runtime.ts");
-type DevicePairSetupProps = Parameters<DevicePairSetupModule["renderDevicePairSetup"]>[0];
-
-// Lazy: the pairing modal stays out of the startup chunk (perf budget); it is
-// fetched the first time an operator opens Pair mobile device. The eager shell
-// stays visible during that import so the action never appears to do nothing.
-function renderLazyDevicePairSetup(host: ShellViewHost, props: DevicePairSetupProps) {
-  if (!props.open) {
-    return nothing;
-  }
-  const renderer = host.devicePairSetupRenderer;
-  if (renderer) {
-    return renderer(props);
-  }
-  const failed = host.devicePairSetupLoadFailed;
-  if (!failed) {
-    host.loadDevicePairSetupRenderer();
-  }
-  // Loading and failure share the eager modal; a failed chunk remains dismissible and retryable.
-  const title = t("devices.pairing.title");
-  const message = t(failed ? "devices.pairing.loadFailed" : "common.loading");
-  return html`<openclaw-modal-dialog
-    label=${title}
-    description=${message}
-    @modal-cancel=${props.onClose}
-  >
-    <section class="device-pair-setup" aria-busy=${failed ? nothing : "true"}>
-      <header class="device-pair-setup__header">
-        <div>
-          <h2>${title}</h2>
-          <p role=${failed ? nothing : "status"}>${message}</p>
-        </div>
-      </header>
-      <footer class="device-pair-setup__footer">
-        ${
-          failed
-            ? html`<button
-                class="btn btn--primary"
-                type="button"
-                @click=${() => host.retryDevicePairSetupRenderer()}
-              >
-                ${t("common.retry")}
-              </button>`
-            : nothing
-        }
-        <button class="btn btn--ghost" type="button" @click=${props.onClose}>
-          ${t("common.close")}
-        </button>
-      </footer>
-    </section>
-  </openclaw-modal-dialog>`;
 }
 
 export function renderApplicationShell(host: ShellViewHost) {
@@ -292,10 +244,7 @@ export function renderApplicationShell(host: ShellViewHost) {
     }
   };
   const uiSettings = context.theme.settings;
-  // Bench gravity fabric (UI-BRAND-CONTRACT §8.5): Bench families only, and
-  // off when the operator turned "Background motion" off in Appearance.
-  const benchFabricEnabled =
-    isBenchThemeFamily(uiSettings.theme) && uiSettings.backgroundMotion !== false;
+  const benchFabricEnabled = isBenchFabricEnabled(uiSettings.theme, uiSettings.backgroundMotion);
   // The new-session draft shares the chat layout: full-height pane that owns
   // its scrolling and pins the composer dock to the bottom.
   const chatLikeRoute = sessionRoute || activeRoute === "new-session";
@@ -452,10 +401,7 @@ export function renderApplicationShell(host: ShellViewHost) {
       style=${`--shell-nav-expanded-width: ${navigationSnapshot.navWidth}px`}
       @theme-change=${(event: CustomEvent<ThemeModeChangeDetail>) => host.handleThemeChange(event)}
     >
-      <bench-gravity-fabric
-        ?enabled=${benchFabricEnabled}
-        theme=${context.theme.resolvedMode}
-      ></bench-gravity-fabric>
+      ${renderBenchGravityFabric(benchFabricEnabled, context.theme.resolvedMode)}
       <a class="shell-skip-link" href="#control-ui-main" ?inert=${navDrawerOpen}>
         ${t("common.skipToMainContent")}
       </a>
@@ -482,19 +428,11 @@ export function renderApplicationShell(host: ShellViewHost) {
         ?inert=${navDrawerOpen}
         .resourceBasePath=${context.resourceBasePath}
         .environment=${config.environment}
-        .modeSwitchAgent=${{
-          id: selectedAgentId,
-          // Test shells mount partial contexts; every read here is guarded.
-          name: benchAgentDisplayName(
-            selectedAgentId,
-            context.agents?.state?.agentsList?.agents
-              .filter((agent) => normalizeAgentId(agent.id) === selectedAgentId)
-              .map((agent) => normalizeAgentLabel(agent))[0] ??
-              config?.assistantIdentity?.name ??
-              selectedAgentId ??
-              "",
-          ),
-        }}
+        .modeSwitchAgent=${resolveBenchModeSwitchAgent(
+          selectedAgentId,
+          context.agents?.state?.agentsList?.agents,
+          config?.assistantIdentity?.name,
+        )}
         .navDrawerOpen=${navDrawerOpen}
         .onOpenPalette=${() => host.openPalette()}
         .onToggleDrawer=${(trigger: HTMLElement) => host.toggleNavigationSurface(trigger)}

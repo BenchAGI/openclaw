@@ -4,18 +4,7 @@
 
 export type BenchMode = "vault" | "app";
 
-export const BENCH_APP_URL = "https://benchagi.com/app";
-
-/**
- * The Vault stamps `data-bench-host="aurelius-vault"` on <html> from document
- * start (the only signal the child webview receives: no IPC, no query, no
- * bootstrap injection). Absent in a plain browser.
- */
-export function isBenchVaultHost(
-  root: HTMLElement | null = globalThis.document?.documentElement ?? null,
-): boolean {
-  return root?.dataset.benchHost === "aurelius-vault";
-}
+const BENCH_APP_URL = "https://benchagi.com/app";
 
 /** App side, carrying the current agent so the destination pins it. */
 export function benchAppHref(agentId: string | null | undefined): string {

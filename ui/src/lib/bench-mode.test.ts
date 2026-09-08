@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { benchAppHref, benchVaultHref, isBenchVaultHost } from "./bench-mode.ts";
+import { benchAppHref, benchVaultHref } from "./bench-mode.ts";
 
 describe("bench mode hrefs", () => {
   it("carries the agent to the App and marks the origin", () => {
@@ -13,12 +13,5 @@ describe("bench mode hrefs", () => {
     expect(benchVaultHref({ origin: "https://prime-cell.openclaw.benchagi.com" })).toBe(
       "https://prime-cell.openclaw.benchagi.com/",
     );
-  });
-
-  it("reads the Vault host stamp and nothing else", () => {
-    const root = { dataset: { benchHost: "aurelius-vault" } } as unknown as HTMLElement;
-    expect(isBenchVaultHost(root)).toBe(true);
-    expect(isBenchVaultHost({ dataset: {} } as unknown as HTMLElement)).toBe(false);
-    expect(isBenchVaultHost(null)).toBe(false);
   });
 });

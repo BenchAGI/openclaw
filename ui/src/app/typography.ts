@@ -74,7 +74,7 @@ const BENCH_DISPLAY_TYPEFACES = {
   "bench-aurelius": "lora",
 } as const satisfies Record<BenchThemeFamily, TypefaceId>;
 
-export function resolveDisplayTypeface(theme: ThemeName): TypefaceId | undefined {
+function resolveDisplayTypeface(theme: ThemeName): TypefaceId | undefined {
   return isBenchThemeFamily(theme) ? BENCH_DISPLAY_TYPEFACES[theme] : undefined;
 }
 

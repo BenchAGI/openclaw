@@ -55,7 +55,7 @@ export type ResolvedTheme =
 // Bench fork families. Appended after upstream's eleven everywhere (theme.ts,
 // index.html boot map, wire enum, appearance cards, locales, typography) so
 // upstream merges stay insert-only; `bench` is the fork default.
-export const BENCH_THEME_FAMILIES = [
+const BENCH_THEME_FAMILIES = [
   "bench",
   "bench-garden",
   "bench-forge",
@@ -64,10 +64,10 @@ export const BENCH_THEME_FAMILIES = [
 export type BenchThemeFamily = (typeof BENCH_THEME_FAMILIES)[number];
 
 export function isBenchThemeFamily(theme: ThemeName): theme is BenchThemeFamily {
-  return (BENCH_THEME_FAMILIES as readonly ThemeName[]).includes(theme);
+  return BENCH_THEME_FAMILIES.some((family) => family === theme);
 }
 
-const VALID_THEME_NAMES = new Set<ThemeName>([
+const VALID_THEME_NAMES = new Set<string>([
   "claw",
   "knot",
   "dash",
@@ -83,7 +83,15 @@ const VALID_THEME_NAMES = new Set<ThemeName>([
   "custom",
 ]);
 
-const VALID_THEME_MODES = new Set<ThemeMode>(["system", "light", "dark"]);
+const VALID_THEME_MODES = new Set<string>(["system", "light", "dark"]);
+
+function isThemeName(value: string): value is ThemeName {
+  return VALID_THEME_NAMES.has(value);
+}
+
+function isThemeMode(value: string): value is ThemeMode {
+  return VALID_THEME_MODES.has(value);
+}
 
 function prefersLightScheme(): boolean {
   if (typeof globalThis.matchMedia !== "function") {
@@ -100,10 +108,8 @@ export function parseThemeSelection(
   const mode = typeof modeRaw === "string" ? modeRaw : "";
 
   // Bench build: the brand theme is the default for fresh profiles.
-  const normalizedTheme = VALID_THEME_NAMES.has(theme as ThemeName)
-    ? (theme as ThemeName)
-    : "bench";
-  const normalizedMode = VALID_THEME_MODES.has(mode as ThemeMode) ? (mode as ThemeMode) : "system";
+  const normalizedTheme = isThemeName(theme) ? theme : "bench";
+  const normalizedMode = isThemeMode(mode) ? mode : "system";
 
   return { theme: normalizedTheme, mode: normalizedMode };
 }

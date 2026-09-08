@@ -60,10 +60,7 @@ import {
   storeSidebarCatalogGrouping,
   type SidebarRecentSession,
 } from "./app-sidebar-session-types.ts";
-import {
-  BENCH_AGENT_MENU_TOGGLE_EVENT,
-  type BenchAgentMenuToggleDetail,
-} from "./bench-agent-chip.ts";
+import { BENCH_AGENT_MENU_TOGGLE_EVENT } from "./bench-agent-chip.ts";
 import { renderCommunityInviteCard } from "./community-invite-card.ts";
 import {
   COMMUNITY_INVITE_KEY,
@@ -169,10 +166,16 @@ class AppSidebar extends AppSidebarSessionNavigationElement implements SessionLi
   private readonly nativeGatewaysChanged = () => this.sidebarMenus.closeSessionMenu();
   // The chat header identity chip opens the same agent menu as the identity row.
   private readonly benchAgentMenuToggle = (event: Event) => {
-    const trigger = (event as CustomEvent<BenchAgentMenuToggleDetail>).detail?.trigger;
-    if (trigger instanceof HTMLElement) {
-      this.sidebarMenus.toggleAgentMenu(trigger);
+    const detail = event instanceof CustomEvent ? event.detail : null;
+    if (
+      !detail ||
+      typeof detail !== "object" ||
+      !("trigger" in detail) ||
+      !(detail.trigger instanceof HTMLElement)
+    ) {
+      return;
     }
+    this.sidebarMenus.toggleAgentMenu(detail.trigger);
   };
   private readonly refreshAppearanceSettings = () => this.context?.theme.refresh();
   private readonly hiddenSessionCatalogsChanged = () => {

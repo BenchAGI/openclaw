@@ -8,10 +8,10 @@
 
 import { inferControlUiPublicAssetPath } from "../../app/public-assets.ts";
 
-export type BenchAgentRarity = "legendary" | "epic" | "rare" | "uncommon" | "common";
+type BenchAgentRarity = "legendary" | "epic" | "rare" | "uncommon" | "common";
 
 /** WoW-scale rarity ring colors shared with the web app (`--rar-*`). */
-export const BENCH_RARITY_COLORS: Readonly<Record<BenchAgentRarity, string>> = {
+const BENCH_RARITY_COLORS: Readonly<Record<BenchAgentRarity, string>> = {
   legendary: "#ff8000",
   epic: "#a335ee",
   rare: "#0070dd",
@@ -19,7 +19,7 @@ export const BENCH_RARITY_COLORS: Readonly<Record<BenchAgentRarity, string>> = {
   common: "#c8ced6",
 };
 
-export type BenchAgentGlyph =
+type BenchAgentGlyph =
   | "feather"
   | "target"
   | "leaf"
@@ -140,8 +140,6 @@ const BENCH_AGENT_ALIASES: Readonly<Record<string, string>> = {
   sully: "piper",
   ogilvy: "piper",
 };
-
-export const BENCH_AGENT_IDS: readonly string[] = Object.keys(BENCH_AGENTS);
 
 /** The Bench identity for an agent id, or null for any other (customer) agent. */
 export function benchAgentIdentity(agentId: string | null | undefined): BenchAgentIdentity | null {

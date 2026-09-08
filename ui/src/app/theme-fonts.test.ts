@@ -4,7 +4,6 @@ import {
   applyTypefaceOverrides,
   loadTypefaceSpecimens,
   normalizeTypefaceOverride,
-  resolveDisplayTypeface,
   resolveTypefaces,
   syncTypefaceStylesheets,
   TYPEFACES,
@@ -60,7 +59,6 @@ describe("typeface presentation", () => {
     (theme, [ui, chat], display) => {
       const faces = resolveTypefaces(theme);
       expect(faces).toEqual({ ui, chat });
-      expect(resolveDisplayTypeface(theme)).toBe(display);
       syncTypefaceStylesheets(faces, theme);
       // Bench palettes point --font-display at a third face; it is declared with
       // the pair so headlines never fall through to the system stack.
@@ -71,7 +69,6 @@ describe("typeface presentation", () => {
   );
 
   it("declares no display face for upstream families", () => {
-    expect(resolveDisplayTypeface("miami")).toBeUndefined();
     syncTypefaceStylesheets(resolveTypefaces("miami"), "miami");
     expect(hrefs()).toEqual(["/fonts/space-grotesk.css", "/fonts/jetbrains-mono.css"]);
   });
