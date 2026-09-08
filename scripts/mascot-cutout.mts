@@ -49,6 +49,13 @@ try {
       ctx.drawImage(image, 0, 0);
       const frame = ctx.getImageData(0, 0, w, h);
       const px = frame.data;
+      const readByte = (buffer: Uint8ClampedArray, index: number): number => {
+        const value = buffer[index];
+        if (value === undefined) {
+          throw new Error(`pixel buffer index out of bounds: ${index}`);
+        }
+        return value;
+      };
 
       // Background reference: average the four corner pixels.
       const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + w - 1) * 4];
@@ -56,18 +63,18 @@ try {
       let bg = 0;
       let bb = 0;
       for (const offset of corners) {
-        br += px[offset];
-        bg += px[offset + 1];
-        bb += px[offset + 2];
+        br += readByte(px, offset);
+        bg += readByte(px, offset + 1);
+        bb += readByte(px, offset + 2);
       }
       br /= 4;
       bg /= 4;
       bb /= 4;
 
       const distance = (offset: number) => {
-        const dr = px[offset] - br;
-        const dg = px[offset + 1] - bg;
-        const db = px[offset + 2] - bb;
+        const dr = readByte(px, offset) - br;
+        const dg = readByte(px, offset + 1) - bg;
+        const db = readByte(px, offset + 2) - bb;
         return Math.sqrt(dr * dr + dg * dg + db * db);
       };
 
@@ -240,7 +247,8 @@ try {
         for (let channel = 0; channel < 3; channel += 1) {
           const backgroundChannel = channel === 0 ? br : channel === 1 ? bg : bb;
           const value =
-            (px[offset + channel] - backgroundChannel * (1 - alpha)) / Math.max(alpha, 0.05);
+            (readByte(px, offset + channel) - backgroundChannel * (1 - alpha)) /
+            Math.max(alpha, 0.05);
           px[offset + channel] = Math.min(255, Math.max(0, Math.round(value)));
         }
       };
@@ -273,7 +281,7 @@ try {
                 const nx = x + dx;
                 const ny = y + dy;
                 if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                  total += px[(ny * w + nx) * 4 + 3];
+                  total += readByte(px, (ny * w + nx) * 4 + 3);
                   count += 1;
                 }
               }
@@ -282,7 +290,7 @@ try {
           }
         }
         for (let index = 0; index < w * h; index += 1) {
-          px[index * 4 + 3] = smoothed[index];
+          px[index * 4 + 3] = readByte(smoothed, index);
         }
       }
 
@@ -291,7 +299,7 @@ try {
       // and disappears on dark surfaces instead of ringing light.
       for (let index = 0; index < w * h; index += 1) {
         const offset = index * 4;
-        const alpha = px[offset + 3];
+        const alpha = readByte(px, offset + 3);
         if (alpha > 0 && alpha < 250) {
           decontaminate(offset, alpha / 255);
         }
@@ -305,7 +313,7 @@ try {
       let maxY = 0;
       for (let y = 0; y < h; y += 1) {
         for (let x = 0; x < w; x += 1) {
-          if (px[(y * w + x) * 4 + 3] > 8) {
+          if (readByte(px, (y * w + x) * 4 + 3) > 8) {
             if (x < minX) {
               minX = x;
             }
@@ -362,7 +370,10 @@ try {
     { dataUrl, targetSize },
   );
 
-  const pngBase64 = result.dataUrl.split(",")[1];
+  const [, pngBase64] = result.dataUrl.split(",");
+  if (!pngBase64) {
+    throw new Error("image output did not contain PNG data");
+  }
   const destinationPath = path.resolve(destination);
   await mkdir(path.dirname(destinationPath), { recursive: true });
   await writeFile(destinationPath, Buffer.from(pngBase64, "base64"));

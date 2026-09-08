@@ -1,12 +1,17 @@
 import { html, nothing } from "lit";
 import { t } from "../i18n/index.ts";
-import type { ShellViewHost } from "./app-shell-view.ts";
 
 type DevicePairSetupModule = typeof import("../pages/devices/view-pairing.runtime.ts");
 type DevicePairSetupProps = Parameters<DevicePairSetupModule["renderDevicePairSetup"]>[0];
+type DevicePairSetupHost = {
+  readonly devicePairSetupRenderer: DevicePairSetupModule["renderDevicePairSetup"] | null;
+  readonly devicePairSetupLoadFailed: boolean;
+  loadDevicePairSetupRenderer(): void;
+  retryDevicePairSetupRenderer(): void;
+};
 
 // Keep pairing out of the startup chunk while the eager shell stays dismissible during loading.
-export function renderLazyDevicePairSetup(host: ShellViewHost, props: DevicePairSetupProps) {
+export function renderLazyDevicePairSetup(host: DevicePairSetupHost, props: DevicePairSetupProps) {
   if (!props.open) {
     return nothing;
   }
