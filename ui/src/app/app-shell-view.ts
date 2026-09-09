@@ -27,11 +27,7 @@ import type { ShellRouteState } from "./app-host-route-state.ts";
 import { renderCommandPaletteLoading } from "./app-shell-command-palette-loading.ts";
 import { renderLazyDevicePairSetup } from "./app-shell-device-pairing.ts";
 import type { OutboxStoreRuntime, StoredOutboxScopeHost } from "./app-shell-gateway.ts";
-import {
-  benchFabricEnabled as isBenchFabricEnabled,
-  renderBenchGravityFabric,
-  resolveBenchModeSwitchAgent,
-} from "./bench-shell.ts";
+import { resolveBenchModeSwitchAgent } from "./bench-shell.ts";
 import type { ApplicationRuntime } from "./bootstrap.ts";
 import type { ApplicationContext, ApplicationNavigationOptions } from "./context.ts";
 import { resolveControlUiAuthToken } from "./control-ui-auth.ts";
@@ -234,6 +230,7 @@ export function renderApplicationShell(host: ShellViewHost) {
     method: "sessions.create",
     params: {},
   });
+  const uiSettings = context.theme.settings;
   const openNewSession = (agentId: string, target?: NewSessionTarget) => {
     const access = readSessionMethodAccess(context.gateway.snapshot, {
       method: "sessions.create",
@@ -243,8 +240,6 @@ export function renderApplicationShell(host: ShellViewHost) {
       host.openNewSession(agentId, target);
     }
   };
-  const uiSettings = context.theme.settings;
-  const benchFabricEnabled = isBenchFabricEnabled(uiSettings.theme, uiSettings.backgroundMotion);
   // The new-session draft shares the chat layout: full-height pane that owns
   // its scrolling and pins the composer dock to the bottom.
   const chatLikeRoute = sessionRoute || activeRoute === "new-session";
@@ -395,17 +390,10 @@ export function renderApplicationShell(host: ShellViewHost) {
         mergedChatChrome ? "shell--merged-chat-chrome" : ""
       } ${navDrawerOpen ? "shell--nav-drawer-open" : ""} ${
         onboarding ? "shell--onboarding" : ""
-      } ${settingsTakeover ? "shell--settings" : ""} ${
-        benchFabricEnabled ? "shell--bench-fabric" : ""
-      }"
+      } ${settingsTakeover ? "shell--settings" : ""}"
       style=${`--shell-nav-expanded-width: ${navigationSnapshot.navWidth}px`}
       @theme-change=${(event: CustomEvent<ThemeModeChangeDetail>) => host.handleThemeChange(event)}
     >
-      ${
-        benchFabricEnabled
-          ? renderBenchGravityFabric(benchFabricEnabled, context.theme.resolvedMode)
-          : nothing
-      }
       <a class="shell-skip-link" href="#control-ui-main" ?inert=${navDrawerOpen}>
         ${t("common.skipToMainContent")}
       </a>

@@ -114,7 +114,7 @@ function selectWelcomeRecentSessions(
 }
 
 /** The agent this welcome speaks for: the session key's agent, else the host default. */
-export function resolveWelcomeAgentId(
+function resolveWelcomeAgentId(
   props: Pick<ChatWelcomeProps, "sessionKey" | "sessionHost">,
 ): string | null {
   return (
