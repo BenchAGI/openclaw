@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from "lit";
+import { benchFabricEnabled } from "../../app/bench-shell.ts";
 import type { ServerUiPrefProvenance } from "../../app/server-prefs.ts";
 import {
   normalizeCatalogOpenTarget,
@@ -169,6 +170,36 @@ function renderSettingsCameraField(props: ConfigProps) {
     onRefresh: props.onCameraRefresh,
     onSelect: props.onCameraSelect,
   });
+}
+
+// "Background motion": the Bench gravity fabric behind the shell
+// (UI-BRAND-CONTRACT §8.5). Only the Bench families draw it.
+export function renderBackgroundMotionSection(props: ConfigProps) {
+  if (!benchFabricEnabled(props.theme, props.backgroundMotion)) {
+    return nothing;
+  }
+  const enabled = props.backgroundMotion ?? UI_APPEARANCE_DEFAULTS.backgroundMotion;
+  return html`
+    <section class="settings-section">
+      <div class="settings-section__header">
+        <h2 class="settings-section__heading">${t("configView.appearance.backgroundMotion")}</h2>
+      </div>
+      <div class="settings-group">
+        ${renderSettingsToggleRow({
+          title: t("configView.appearance.backgroundMotionToggle"),
+          description: html`${t(
+              enabled
+                ? "configView.appearance.backgroundMotionOn"
+                : "configView.appearance.backgroundMotionOff",
+            )}<br />
+            ${t("configView.appearance.backgroundMotionHint")}
+            ${t("quickSettings.personal.browserOnly")}`,
+          checked: enabled,
+          onChange: (next) => props.setBackgroundMotion?.(next),
+        })}
+      </div>
+    </section>
+  `;
 }
 
 export function renderChatPreferencesSection(

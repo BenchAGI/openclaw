@@ -255,7 +255,7 @@ describe("OpenClaw shell dock suppression", () => {
     renderLit(shell.render(), container);
     expect(desktopAvailable()).toBe(true);
 
-    // Collapsed-nav fallback: the Ask OpenClaw toggle joins the chrome strip
+    // Collapsed-nav fallback: the Ask Aurelius toggle joins the chrome strip
     // only while the sidebar (its footer home) is hidden, and stays admin-gated.
     expect(container.querySelector(".shell-chrome-controls__custodian")).toBeNull();
     context.navigation.snapshot.navCollapsed = true;

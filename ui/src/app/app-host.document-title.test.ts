@@ -75,7 +75,7 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("Usage — OpenClaw");
+    expect(document.title).toBe("Usage — BenchAGI Aurelius Vault");
     expect(summarizeStoredChatOutboxes).not.toHaveBeenCalled();
   });
 
@@ -83,11 +83,11 @@ describe("OpenClaw shell document title", () => {
     const shell = createShell(createContext({ environment: { label: "edge", color: "amber" } }));
     shell.routeState = { routeId: "usage" };
     shell.syncDocumentTitle();
-    expect(document.title).toBe("Usage — OpenClaw · edge");
+    expect(document.title).toBe("Usage — BenchAGI Aurelius Vault · edge");
 
     shell.routeState = { routeId: "custodian" };
     shell.syncDocumentTitle();
-    expect(document.title).toBe("Ask OpenClaw · edge");
+    expect(document.title).toBe("Ask Aurelius · edge");
   });
 
   it("uses the active session's derived title for a non-main chat", () => {
@@ -103,7 +103,7 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("Quarterly launch plan — OpenClaw");
+    expect(document.title).toBe("Quarterly launch plan — BenchAGI Aurelius Vault");
   });
 
   it("uses the agent name for an agent main chat", () => {
@@ -115,7 +115,7 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("Molty — OpenClaw");
+    expect(document.title).toBe("Molty — BenchAGI Aurelius Vault");
   });
 
   it("uses the selected agent name for a global-scope main chat", () => {
@@ -130,7 +130,7 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("Molty — OpenClaw");
+    expect(document.title).toBe("Molty — BenchAGI Aurelius Vault");
   });
 
   it("falls back to the session display name when the main agent is missing", () => {
@@ -148,7 +148,7 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("Fallback thread — OpenClaw");
+    expect(document.title).toBe("Fallback thread — BenchAGI Aurelius Vault");
   });
 
   it("prefixes the pending approval count", () => {
@@ -157,7 +157,7 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("(2) Usage — OpenClaw");
+    expect(document.title).toBe("(2) Usage — BenchAGI Aurelius Vault");
   });
 
   it("shows disconnected instead of a stale approval count", () => {
@@ -166,7 +166,7 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("(Disconnected) Usage — OpenClaw");
+    expect(document.title).toBe("(Disconnected) Usage — BenchAGI Aurelius Vault");
   });
 
   it("includes stored chat outbox messages in the disconnected marker", () => {
@@ -178,7 +178,7 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("(Disconnected · 3 queued) Usage — OpenClaw");
+    expect(document.title).toBe("(Disconnected · 3 queued) Usage — BenchAGI Aurelius Vault");
   });
 
   it("uses the meaningful custodian label without a brand suffix", () => {
@@ -187,6 +187,6 @@ describe("OpenClaw shell document title", () => {
 
     shell.syncDocumentTitle();
 
-    expect(document.title).toBe("Ask OpenClaw");
+    expect(document.title).toBe("Ask Aurelius");
   });
 });

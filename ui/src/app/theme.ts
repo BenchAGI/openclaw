@@ -12,6 +12,10 @@ export type ThemeName =
   | "manuscript"
   | "rose"
   | "miami"
+  | "bench"
+  | "bench-garden"
+  | "bench-forge"
+  | "bench-aurelius"
   | "custom";
 export type ThemeMode = "system" | "light" | "dark";
 export type ResolvedTheme =
@@ -37,10 +41,33 @@ export type ResolvedTheme =
   | "rose-light"
   | "miami"
   | "miami-light"
+  | "bench"
+  | "bench-light"
+  | "bench-garden"
+  | "bench-garden-light"
+  | "bench-forge"
+  | "bench-forge-light"
+  | "bench-aurelius"
+  | "bench-aurelius-light"
   | "custom"
   | "custom-light";
 
-const VALID_THEME_NAMES = new Set<ThemeName>([
+// Bench fork families. Appended after upstream's eleven everywhere (theme.ts,
+// index.html boot map, wire enum, appearance cards, locales, typography) so
+// upstream merges stay insert-only; `bench` is the fork default.
+const BENCH_THEME_FAMILIES = [
+  "bench",
+  "bench-garden",
+  "bench-forge",
+  "bench-aurelius",
+] as const satisfies readonly ThemeName[];
+export type BenchThemeFamily = (typeof BENCH_THEME_FAMILIES)[number];
+
+export function isBenchThemeFamily(theme: ThemeName): theme is BenchThemeFamily {
+  return BENCH_THEME_FAMILIES.some((family) => family === theme);
+}
+
+const VALID_THEME_NAMES = new Set<string>([
   "claw",
   "knot",
   "dash",
@@ -52,10 +79,19 @@ const VALID_THEME_NAMES = new Set<ThemeName>([
   "manuscript",
   "rose",
   "miami",
+  ...BENCH_THEME_FAMILIES,
   "custom",
 ]);
 
-const VALID_THEME_MODES = new Set<ThemeMode>(["system", "light", "dark"]);
+const VALID_THEME_MODES = new Set<string>(["system", "light", "dark"]);
+
+function isThemeName(value: string): value is ThemeName {
+  return VALID_THEME_NAMES.has(value);
+}
+
+function isThemeMode(value: string): value is ThemeMode {
+  return VALID_THEME_MODES.has(value);
+}
 
 function prefersLightScheme(): boolean {
   if (typeof globalThis.matchMedia !== "function") {
@@ -71,8 +107,9 @@ export function parseThemeSelection(
   const theme = typeof themeRaw === "string" ? themeRaw : "";
   const mode = typeof modeRaw === "string" ? modeRaw : "";
 
-  const normalizedTheme = VALID_THEME_NAMES.has(theme as ThemeName) ? (theme as ThemeName) : "claw";
-  const normalizedMode = VALID_THEME_MODES.has(mode as ThemeMode) ? (mode as ThemeMode) : "system";
+  // Bench build: the brand theme is the default for fresh profiles.
+  const normalizedTheme = isThemeName(theme) ? theme : "bench";
+  const normalizedMode = isThemeMode(mode) ? mode : "system";
 
   return { theme: normalizedTheme, mode: normalizedMode };
 }

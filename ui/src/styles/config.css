@@ -251,6 +251,28 @@
   width: 100%;
 }
 
+/* "More themes" row between the Bench families and upstream's palettes. */
+.settings-theme-grid__divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--control-ui-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-theme-grid__divider::before,
+.settings-theme-grid__divider::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
+
 .settings-theme-card {
   position: relative;
   display: grid;
@@ -421,6 +443,35 @@
   --theme-chip-accent-2: #5fd7e8;
 }
 
+/* Bench families (public/themes/bench*.css): chips = (bg, accent, accent-2). */
+.settings-theme-card--bench,
+.settings-accent-theme--bench {
+  --theme-chip-bg: #0a0a0c;
+  --theme-chip-accent: #ff2d55;
+  --theme-chip-accent-2: #5fb8ff;
+}
+
+.settings-theme-card--bench-garden,
+.settings-accent-theme--bench-garden {
+  --theme-chip-bg: #0b1426;
+  --theme-chip-accent: #d4a056;
+  --theme-chip-accent-2: #7fa8c9;
+}
+
+.settings-theme-card--bench-forge,
+.settings-accent-theme--bench-forge {
+  --theme-chip-bg: #0a0a0c;
+  --theme-chip-accent: #67e8f9;
+  --theme-chip-accent-2: #f5879e;
+}
+
+.settings-theme-card--bench-aurelius,
+.settings-accent-theme--bench-aurelius {
+  --theme-chip-bg: #07070a;
+  --theme-chip-accent: #e7c182;
+  --theme-chip-accent-2: #ff2d55;
+}
+
 :root[data-theme-mode="light"] :is(.settings-theme-card--claw, .settings-accent-theme--claw) {
   --theme-chip-bg: #faf9f7;
   --theme-chip-accent: #bd4531;
@@ -488,6 +539,33 @@
   --theme-chip-bg: #f7f3f6;
   --theme-chip-accent: #b0246f;
   --theme-chip-accent-2: #0f6f7d;
+}
+
+:root[data-theme-mode="light"] :is(.settings-theme-card--bench, .settings-accent-theme--bench) {
+  --theme-chip-bg: #fafaf7;
+  --theme-chip-accent: #d40f3f;
+  --theme-chip-accent-2: #2a6fb8;
+}
+
+:root[data-theme-mode="light"]
+  :is(.settings-theme-card--bench-garden, .settings-accent-theme--bench-garden) {
+  --theme-chip-bg: #f0f5e8;
+  --theme-chip-accent: #8c6420;
+  --theme-chip-accent-2: #3b6f8a;
+}
+
+:root[data-theme-mode="light"]
+  :is(.settings-theme-card--bench-forge, .settings-accent-theme--bench-forge) {
+  --theme-chip-bg: #f3f8fa;
+  --theme-chip-accent: #0e7490;
+  --theme-chip-accent-2: #b8405f;
+}
+
+:root[data-theme-mode="light"]
+  :is(.settings-theme-card--bench-aurelius, .settings-accent-theme--bench-aurelius) {
+  --theme-chip-bg: #fbf7f2;
+  --theme-chip-accent: #8a6a2c;
+  --theme-chip-accent-2: #d40f3f;
 }
 /* stylelint-enable color-no-hex */
 

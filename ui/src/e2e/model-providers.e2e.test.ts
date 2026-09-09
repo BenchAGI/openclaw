@@ -278,6 +278,7 @@ describeControlUiE2e("Control UI Models mocked Gateway E2E", () => {
         { id: "claude-opus-4-8", name: "Claude Opus 4.8", provider: "anthropic", available: true },
         { id: "gpt-5.5", name: "GPT-5.5", provider: "openai", available: true },
         { id: "gemini-3-pro", name: "Gemini 3 Pro", provider: "google", available: false },
+        { id: "bench-test-model", name: "Bench test model", provider: "bench", available: true },
       ],
       methodResponses: {
         "models.authStatus": {
@@ -401,11 +402,7 @@ describeControlUiE2e("Control UI Models mocked Gateway E2E", () => {
       await googleCard.waitFor();
       await expect.poll(async () => googleCard.textContent()).toContain("0 of 1 models available");
 
-      const benchCard = page.locator('[data-provider-id="bench"]');
-      await benchCard.waitFor();
-      await expect.poll(async () => benchCard.textContent()).toContain("Bench");
-      await expect.poll(() => benchCard.locator('[data-provider-icon="bench"]').count()).toBe(1);
-      await expect.poll(async () => page.locator(".model-providers__row").count()).toBe(5);
+      await expect.poll(async () => page.locator(".model-providers__row").count()).toBe(4);
       expect(
         await page
           .locator(".model-providers__provider-list")

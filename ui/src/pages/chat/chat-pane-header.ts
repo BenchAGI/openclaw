@@ -7,6 +7,8 @@ import { isNativeLocalGateway } from "../../app/native-editor-locality.runtime.t
 import { hasOperatorAdminAccess } from "../../app/operator-access.ts";
 import { isDesktopPanelAvailable } from "../../app/panel-availability.ts";
 import type { ApplicationPlacementStartupStatus } from "../../app/session-placement-startup.ts";
+import { renderBenchAgentChip } from "../../components/bench-agent-chip.ts";
+import { renderBenchModeSwitch } from "../../components/bench-mode-switch-render.ts";
 import { COMMAND_PALETTE_OPEN_EVENT } from "../../components/command-palette-contract.ts";
 import { icons } from "../../components/icons.ts";
 import {
@@ -16,6 +18,8 @@ import {
 import { sessionMenuReasons } from "../../components/session-menu-access.ts";
 import { isCloudWorkerPlacementState } from "../../components/session-row-badges.ts";
 import { t } from "../../i18n/index.ts";
+import { benchAgentDisplayName } from "../../lib/agents/bench-agent-identity.ts";
+import { normalizeAgentLabel } from "../../lib/agents/display.ts";
 import { isGatewayMethodAdvertised } from "../../lib/gateway-methods.ts";
 import {
   projectPresenceViewers,
@@ -27,6 +31,8 @@ import { collectKnownSessionGroups } from "../../lib/sessions/grouping.ts";
 import {
   canArchiveSessionRow,
   canDeleteSessionRows,
+  normalizeAgentId,
+  parseAgentSessionKey,
   resolveUiConfiguredMainKey,
   resolveUiSessionNavigationParentKey,
 } from "../../lib/sessions/session-key.ts";
@@ -516,6 +522,24 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
               void this.setSessionMember(row, identityId, member),
           }
         : null;
+    // The mode switch carries the agent this pane is talking to across the flip.
+    // Test panes mount partial contexts, so every capability read is guarded.
+    const modeSwitchAgentId =
+      parseAgentSessionKey(row?.key ?? this.state?.sessionKey)?.agentId ??
+      this.context.agentSelection?.state?.selectedId ??
+      this.context.gateway.snapshot.assistantAgentId ??
+      null;
+    const modeSwitchAgentRow = modeSwitchAgentId
+      ? this.context.agents?.state?.agentsList?.agents.find(
+          (agent) => normalizeAgentId(agent.id) === normalizeAgentId(modeSwitchAgentId),
+        )
+      : undefined;
+    const modeSwitchAgentName = benchAgentDisplayName(
+      modeSwitchAgentId,
+      modeSwitchAgentRow
+        ? normalizeAgentLabel(modeSwitchAgentRow)
+        : (this.context.config?.current?.assistantIdentity?.name ?? modeSwitchAgentId ?? ""),
+    );
     const header = renderChatPaneHeader({
       paneId: this.paneId,
       narrow: this.narrow,
@@ -558,7 +582,13 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
             variant="session"
           ></openclaw-viewer-facepile>`
         : nothing,
-      faceControl: nothing,
+      // The identity chip is the 9.2 agent header (UI-BRAND-CONTRACT §4.2).
+      faceControl: renderBenchAgentChip({
+        agentId: modeSwitchAgentId,
+        name: modeSwitchAgentName,
+        switcherAvailable: (this.context.agents?.state?.agentsList?.agents.length ?? 0) > 1,
+      }),
+      modeSwitch: renderBenchModeSwitch({ id: modeSwitchAgentId, name: modeSwitchAgentName }),
       sharingControl:
         sharing &&
         (!canManageChatSessionSharing(sharing.session) || !sharing.openDisabledReason) &&

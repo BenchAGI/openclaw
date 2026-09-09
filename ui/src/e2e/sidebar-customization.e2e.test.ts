@@ -376,7 +376,7 @@ suite.define(() => {
       await expect
         .poll(() => trimmedTextContents(settingsLinks))
         .toEqual([
-          "Ask OpenClaw",
+          "Ask Aurelius",
           "Approvals",
           "Infrastructure",
           "Advanced",
@@ -509,12 +509,12 @@ suite.define(() => {
       await expect.poll(() => settingsSearch.inputValue()).toBe("");
       await captureSettingsSidebarProof(settingsSidebar, "01g-settings-search-reset.png");
       await holdUiProof(page);
-      await settingsSidebar.getByRole("link", { name: "Ask OpenClaw" }).click();
+      await settingsSidebar.getByRole("link", { name: "Ask Aurelius" }).click();
       await expect.poll(() => new URL(page.url()).pathname).toBe("/custodian");
       await expect
         .poll(() => page.locator(".shell").getAttribute("class"))
         .not.toContain("shell--onboarding");
-      // Ask OpenClaw is a settings-takeover page (#111686): the settings
+      // Ask Aurelius is a settings-takeover page (#111686): the settings
       // sidebar owns navigation there, not the app sidebar.
       await expect.poll(() => settingsSidebar.isVisible()).toBe(true);
       await expect.poll(() => sidebar.isVisible()).toBe(false);
@@ -554,7 +554,7 @@ suite.define(() => {
         .not.toContain("Workboard");
       const tasksItem = menu.getByRole("menuitemcheckbox", { name: "Tasks" });
       await expect.poll(() => tasksItem.getAttribute("aria-checked")).toBe("false");
-      // Ask OpenClaw moved to Settings (#111686): custodian is not a sidebar
+      // Ask Aurelius moved to Settings (#111686): custodian is not a sidebar
       // nav route anymore, so the pin editor does not offer it.
       await expect
         .poll(() => menu.getByRole("menuitemcheckbox", { name: "OpenClaw" }).count())

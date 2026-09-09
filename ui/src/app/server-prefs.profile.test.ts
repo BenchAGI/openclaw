@@ -57,6 +57,10 @@ describe("profile-bound appearance preferences", () => {
       manuscript: true,
       rose: true,
       miami: true,
+      bench: true,
+      "bench-garden": true,
+      "bench-forge": true,
+      "bench-aurelius": true,
       custom: false,
     };
     for (const [theme, storable] of Object.entries(profileStorable)) {

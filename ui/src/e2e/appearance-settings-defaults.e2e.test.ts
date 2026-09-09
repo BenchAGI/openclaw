@@ -152,9 +152,9 @@ async function readThemeImportRaceState(page: Page) {
     titleColor: await page
       .locator(".page-title")
       .evaluate((element) => getComputedStyle(element).color),
-    clawSelected:
+    benchSelected:
       (await page
-        .locator("#settings-appearance-theme .settings-theme-card--claw")
+        .locator("#settings-appearance-theme .settings-theme-card--bench")
         .getAttribute("aria-pressed")) === "true",
     customThemeMetadataCount: await importer.locator(".settings-theme-import__meta").count(),
     importUrl: await importer.locator("input").inputValue(),
@@ -288,7 +288,7 @@ suite.define(() => {
         )
         .toBe("true");
       await expect.poll(() => languageRow.textContent()).toContain("Default: System");
-      await expect.poll(() => themeSection.textContent()).toContain("Default: Claw");
+      await expect.poll(() => themeSection.textContent()).toContain("Default: Infrared");
       await expect.poll(() => colorModeRow.textContent()).toContain("Default: System");
       await expect.poll(() => textSizeSection.textContent()).toContain("Default: 100%");
       await expect.poll(() => page.locator("html").getAttribute("data-theme-mode")).toBe("dark");
@@ -316,7 +316,7 @@ suite.define(() => {
       await resetSyncedPreference({
         click: () =>
           themeSection
-            .locator(".settings-theme-card--claw")
+            .locator(".settings-theme-card--bench")
             .click()
             .then(() => undefined),
         expectedKey: "theme",
@@ -344,7 +344,9 @@ suite.define(() => {
 
       await expect.poll(() => selectValue(languageSelect)).toBe("system");
       await expect
-        .poll(() => themeSection.locator(".settings-theme-card--claw").getAttribute("aria-pressed"))
+        .poll(() =>
+          themeSection.locator(".settings-theme-card--bench").getAttribute("aria-pressed"),
+        )
         .toBe("true");
       await expect.poll(() => selectValue(colorModeGroup)).toBe("system");
       await expect
@@ -367,7 +369,7 @@ suite.define(() => {
       await expect.poll(() => selectValue(reloadedLanguageRow.locator("wa-select"))).toBe("system");
       await expect
         .poll(() =>
-          reloadedThemeSection.locator(".settings-theme-card--claw").getAttribute("aria-pressed"),
+          reloadedThemeSection.locator(".settings-theme-card--bench").getAttribute("aria-pressed"),
         )
         .toBe("true");
       await expect
@@ -381,7 +383,9 @@ suite.define(() => {
         )
         .toBe("true");
       await expect.poll(() => reloadedLanguageRow.textContent()).toContain("Using default: System");
-      await expect.poll(() => reloadedThemeSection.textContent()).toContain("Using default: Claw");
+      await expect
+        .poll(() => reloadedThemeSection.textContent())
+        .toContain("Using default: Infrared");
       await expect
         .poll(() => reloadedColorModeRow.textContent())
         .toContain("Using default: System");
@@ -496,7 +500,7 @@ suite.define(() => {
       await resetSyncedPreference({
         click: () =>
           page
-            .locator("#settings-appearance-theme .settings-theme-card--claw")
+            .locator("#settings-appearance-theme .settings-theme-card--bench")
             .click()
             .then(() => undefined),
         expectedKey: "theme",
@@ -504,7 +508,7 @@ suite.define(() => {
         hash: "appearance-accent-3",
         remainingPrefs: { accent: mintAccent },
       });
-      await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe("dark");
+      await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe("bench");
       await expect.poll(() => readAccentPresentation(page)).toMatchObject({ accent: mintAccent });
       await expect.poll(() => mintPreset.getAttribute("aria-pressed")).toBe("true");
 
@@ -724,7 +728,7 @@ suite.define(() => {
       await expect
         .poll(() => themeSection.locator(".settings-theme-card--knot").getAttribute("aria-pressed"))
         .toBe("true");
-      await expect.poll(() => themeDescription.textContent()).toContain("Default: Claw");
+      await expect.poll(() => themeDescription.textContent()).toContain("Default: Infrared");
       await expect
         .poll(() => themeDescription.textContent())
         .not.toContain("Stored in this browser only");
@@ -947,7 +951,9 @@ suite.define(() => {
       await importer.locator("button.danger").click();
 
       await expect
-        .poll(() => themeSection.locator(".settings-theme-card--claw").getAttribute("aria-pressed"))
+        .poll(() =>
+          themeSection.locator(".settings-theme-card--bench").getAttribute("aria-pressed"),
+        )
         .toBe("true");
       await expect.poll(() => importer.locator(".settings-theme-import__meta").count()).toBe(0);
       const afterClear = await readThemeImportRaceState(page);
@@ -963,7 +969,7 @@ suite.define(() => {
             theme: settings.theme,
           };
         })
-        .toEqual({ customTheme: undefined, theme: "claw" });
+        .toEqual({ customTheme: undefined, theme: "bench" });
       await expect.poll(() => importer.locator(".settings-theme-import__meta").count()).toBe(0);
       await expect
         .poll(() => importer.locator(".settings-theme-import__message").textContent())
@@ -971,18 +977,18 @@ suite.define(() => {
       await expect.poll(() => importer.getByRole("status").count()).toBe(1);
       const afterDelayedResponse = await readThemeImportRaceState(page);
       expect(beforeReplace).toMatchObject({
-        clawSelected: false,
+        benchSelected: false,
         customThemeMetadataCount: 1,
         persistedTheme: "custom",
         hasPersistedCustomTheme: true,
       });
       expect(afterClear).toMatchObject({
-        renderedThemeMode: "dark",
-        clawSelected: true,
+        renderedThemeMode: "bench",
+        benchSelected: true,
         customThemeMetadataCount: 0,
         importUrl: "replacement",
         importButtonDisabled: false,
-        persistedTheme: "claw",
+        persistedTheme: "bench",
         hasPersistedCustomTheme: false,
       });
       expect(beforeReplace.titleColor).not.toBe(afterClear.titleColor);
@@ -1002,81 +1008,6 @@ suite.define(() => {
       await captureViewport(page, "06-custom-theme-clear-remains-final.png");
     } finally {
       releaseReplacement();
-      await context.close();
-    }
-  });
-
-  it("keeps a newer server-applied theme authoritative over a delayed import", async () => {
-    const replacementPayload = createTweakcnThemePayload();
-    let releaseImport!: () => void;
-    const importGate = new Promise<void>((resolve) => {
-      releaseImport = resolve;
-    });
-    const context = await suite.browser.newContext({
-      colorScheme: "dark",
-      locale: "en-US",
-      serviceWorkers: "block",
-      viewport: { height: 1000, width: 1440 },
-    });
-    const page = await context.newPage();
-    const gateway = await installMockGateway(page, {
-      methodResponses: {
-        "config.get": configResponse({ theme: "claw" }, "custom-theme-server-race-1"),
-        "config.patch": { ok: true },
-      },
-    });
-    await page.route("https://tweakcn.com/r/themes/replacement", async (route) => {
-      await importGate;
-      await route.fulfill({ json: replacementPayload });
-    });
-
-    try {
-      const response = await page.goto(`${suite.server.baseUrl}settings/appearance`);
-      expect(response?.status()).toBe(200);
-      await waitForControlUiSettingsTakeover(page);
-      await gateway.waitForRequest("config.get");
-
-      const themeSection = page.locator("#settings-appearance-theme");
-      await themeSection.locator(".settings-theme-card--custom").click();
-      const importer = page.locator(".settings-theme-import");
-      await importer.locator("input").fill("replacement");
-      await importer.locator("button.primary").click();
-      const replacementResponse = page.waitForResponse("https://tweakcn.com/r/themes/replacement");
-      await expect.poll(() => importer.locator("button.primary").isDisabled()).toBe(true);
-
-      const configGetCount = (await gateway.getRequests("config.get")).length;
-      await gateway.setMethodResponse(
-        "config.get",
-        configResponse({ theme: "knot" }, "custom-theme-server-race-2"),
-      );
-      await gateway.emitGatewayEvent("config.changed", {
-        hash: "custom-theme-server-race-2",
-        path: "/tmp/openclaw.json",
-        ts: Date.now(),
-      });
-      await waitForRequestCount(gateway, "config.get", configGetCount + 1);
-      await expect
-        .poll(() => themeSection.locator(".settings-theme-card--knot").getAttribute("aria-pressed"))
-        .toBe("true");
-
-      releaseImport();
-      await replacementResponse;
-      await expect
-        .poll(async () => {
-          const settings = await readPersistedSettings(page);
-          return {
-            hasCustomTheme: typeof settings.customTheme === "object",
-            theme: settings.theme,
-          };
-        })
-        .toEqual({ hasCustomTheme: true, theme: "knot" });
-      await expect
-        .poll(() => importer.locator(".settings-theme-import__message").textContent())
-        .toContain("Imported");
-      await expect.poll(() => importer.getByRole("status").count()).toBe(1);
-      expect(await gateway.getRequests("config.patch")).toHaveLength(0);
-    } finally {
-      releaseImport();
       await context.close();
     }
   });

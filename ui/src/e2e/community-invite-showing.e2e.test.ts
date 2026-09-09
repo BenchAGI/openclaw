@@ -80,8 +80,12 @@ async function settleSidebarIdleWork(page: Page) {
   );
 }
 
+// Bench builds never render upstream's community invite (lib/bench-build.ts;
+// UI-BRAND-CONTRACT §5 ruling 2026-09-06), so the invitation flows below are
+// skipped in the fork rather than deleted: they document upstream's behavior
+// for the next base merge.
 suite.define(() => {
-  it("keeps the first policy-confirmed sidebar layout stable while invitation artwork loads", async () => {
+  it.skip("keeps the first policy-confirmed sidebar layout stable while invitation artwork loads", async () => {
     type LayoutWindow = Window & {
       sidebarInviteFirstLayout?: { invitationHeight: number; sidebarHeight: number };
     };
@@ -197,7 +201,7 @@ suite.define(() => {
     }
   });
 
-  it.each(["pointer", "keyboard", "drag", "touch"] as const)(
+  it.skip.each(["pointer", "keyboard", "drag", "touch"] as const)(
     "defers a late invitation during %s interaction without blocking navigation",
     async (interaction) => {
       const artifactDir = createControlUiE2eArtifactDir(`sidebar-invite-repair-${interaction}`);
@@ -385,7 +389,7 @@ suite.define(() => {
     },
   );
 
-  it("honors deployment policy before showing and preserves browser dismissals", async () => {
+  it.skip("honors deployment policy before showing and preserves browser dismissals", async () => {
     const artifactDir = createControlUiE2eArtifactDir("community-invite-policy");
     const viewport = { height: 900, width: 1280 };
     const context = await suite.newBrowserContext({
@@ -478,7 +482,7 @@ suite.define(() => {
     }
   });
 
-  it("shows immediately, survives Join, and stays dismissed across gateway connections on one origin", async () => {
+  it.skip("shows immediately, survives Join, and stays dismissed across gateway connections on one origin", async () => {
     const context = await suite.browser.newContext({
       locale: "en-US",
       serviceWorkers: "block",
@@ -539,7 +543,7 @@ suite.define(() => {
     }
   });
 
-  it("does not mount the workspace invite in Settings", async () => {
+  it.skip("does not mount the workspace invite in Settings", async () => {
     const context = await suite.browser.newContext({
       locale: "en-US",
       serviceWorkers: "block",
@@ -558,7 +562,7 @@ suite.define(() => {
     }
   });
 
-  it("dismisses for this page and reports when the preference cannot be saved", async () => {
+  it.skip("dismisses for this page and reports when the preference cannot be saved", async () => {
     const artifactDir = createControlUiE2eArtifactDir("community-invite-storage-failure");
     const viewport = { height: 900, width: 1280 };
     const context = await suite.newBrowserContext({
@@ -607,7 +611,7 @@ suite.define(() => {
     }
   });
 
-  it("hides after a malformed cross-tab state update", async () => {
+  it.skip("hides after a malformed cross-tab state update", async () => {
     const context = await suite.browser.newContext({
       locale: "en-US",
       serviceWorkers: "block",

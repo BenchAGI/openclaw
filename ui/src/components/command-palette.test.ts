@@ -850,7 +850,7 @@ describe("CommandPalette lifecycle", () => {
     { available: true, expectedCount: 1 },
     { available: false, expectedCount: 0 },
   ])(
-    "shows Ask OpenClaw only when availability is $available",
+    "shows Ask Aurelius only when availability is $available",
     async ({ available, expectedCount }) => {
       const { gateway } = createGateway(true);
       const { palette } = await mountPalette(
@@ -860,13 +860,13 @@ describe("CommandPalette lifecycle", () => {
         ),
       );
       palette.custodianAvailable = available;
-      await enterQuery(palette, "openclaw");
+      await enterQuery(palette, "aurelius");
 
-      expect(findPaletteOption(palette, "Ask OpenClaw", true) ? 1 : 0).toBe(expectedCount);
+      expect(findPaletteOption(palette, "Ask Aurelius", true) ? 1 : 0).toBe(expectedCount);
     },
   );
 
-  it("opens Ask OpenClaw from its palette action", async () => {
+  it("opens Ask Aurelius from its palette action", async () => {
     const { gateway } = createGateway(true);
     const { palette } = await mountPalette(
       createContext(
@@ -875,13 +875,13 @@ describe("CommandPalette lifecycle", () => {
       ),
     );
     palette.custodianAvailable = true;
-    await enterQuery(palette, "openclaw");
+    await enterQuery(palette, "aurelius");
     const events: CustomEvent<CustodianPanelToggleDetail>[] = [];
     const listener = (event: Event) =>
       events.push(event as CustomEvent<CustodianPanelToggleDetail>);
     window.addEventListener(CUSTODIAN_PANEL_TOGGLE_EVENT, listener);
     try {
-      findPaletteOption(palette, "Ask OpenClaw", true)?.click();
+      findPaletteOption(palette, "Ask Aurelius", true)?.click();
     } finally {
       window.removeEventListener(CUSTODIAN_PANEL_TOGGLE_EVENT, listener);
     }

@@ -178,7 +178,7 @@ export function normalizeTextScale(value: unknown, fallback: TextScaleStop = 100
 }
 
 export const UI_APPEARANCE_DEFAULTS = {
-  theme: "claw",
+  theme: "bench",
   themeMode: "system",
   textScale: 100,
   sidebarLiveActivity: true,
@@ -190,6 +190,9 @@ export const UI_APPEARANCE_DEFAULTS = {
   lobsterPetVisits: true,
   lobsterPetSounds: false,
   sessionDeleteConfirm: true,
+  // Retained for the pending gravity-fabric implementation; its control stays
+  // hidden while the current module is a no-op scaffold.
+  backgroundMotion: true,
 } as const;
 
 export type UiSettings = {
@@ -233,6 +236,8 @@ export type UiSettings = {
   customTheme?: ImportedCustomTheme;
   locale?: string;
   lobsterPetVisits?: boolean; // Whether the sidebar lobster pet drops by (default true)
+  // Preserved for the pending gravity-fabric implementation (default true).
+  backgroundMotion?: boolean;
   lobsterPetSounds?: boolean; // Opt-in poke/pet chirps from the lobster (default false)
   // Confirm before deleting sessions (default true). Device-local on purpose:
   // opting out on one browser must not lower the bar on the operator's others,
@@ -525,7 +530,7 @@ export function loadUiPreferences(targetGatewayUrl?: string): UiPreferences {
       sessionKey: scopedSessionSelection.sessionKey,
       lastActiveSessionKey: scopedSessionSelection.lastActiveSessionKey,
       selectedAgentId: scopedSessionSelection.selectedAgentId,
-      theme: theme === "custom" && !customTheme ? "claw" : theme,
+      theme: theme === "custom" && !customTheme ? "bench" : theme,
       themeMode: mode,
       accent: normalizeAccentColor(parsed.accent),
       fontUi: normalizeTypefaceOverride(parsed.fontUi),
@@ -593,6 +598,7 @@ export function loadUiPreferences(targetGatewayUrl?: string): UiPreferences {
       customTheme: customTheme ?? undefined,
       locale: isSupportedLocale(parsed.locale) ? parsed.locale : undefined,
       ...(parsed.lobsterPetVisits === false ? { lobsterPetVisits: false } : {}),
+      ...(parsed.backgroundMotion === false ? { backgroundMotion: false } : {}),
       ...(parsed.lobsterPetSounds === true ? { lobsterPetSounds: true } : {}),
       ...(parsed.sessionDeleteConfirm === false ? { sessionDeleteConfirm: false } : {}),
       ...(parsed.openLinksInControlUiBrowser === true ? { openLinksInControlUiBrowser: true } : {}),
@@ -749,6 +755,7 @@ function persistSettings(next: UiSettings, options: { selectGateway?: boolean } 
     // Visits default on; only an explicit opt-out persists. Sounds default
     // off; only an explicit opt-in persists.
     ...(next.lobsterPetVisits === false ? { lobsterPetVisits: false } : {}),
+    ...(next.backgroundMotion === false ? { backgroundMotion: false } : {}),
     ...(next.lobsterPetSounds === true ? { lobsterPetSounds: true } : {}),
     // Only the opted-out value is persisted; absence means the safe default.
     ...(next.sessionDeleteConfirm === false ? { sessionDeleteConfirm: false } : {}),

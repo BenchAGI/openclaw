@@ -436,6 +436,21 @@ const config = {
     "scripts/**/*.d.{mts,ts}",
     "**/live-*.ts",
     "src/shared/text/assistant-visible-text.ts",
+    // Bench gravity-fabric scaffold — deliberately unreachable, not dead by accident.
+    // Reason: the `<bench-gravity-fabric>` custom element and its motion helper are a
+    //   staged, API-compatible scaffold held behind `BENCH_GRAVITY_FABRIC_READY = false`
+    //   in `ui/src/app/bench-shell.ts`. With the flag off no production module imports the
+    //   element-registration module, so Knip correctly reports both files as unused.
+    //   Cory's ruling (2026-09-09): keep the scaffold and name it here — do not delete it,
+    //   do not add a fake import, do not widen a glob.
+    // Owner: Aurelius <aurelius@benchagi.com> (BenchAGI Aurelius Vault UI).
+    // Remove these two entries when EITHER holds:
+    //   - `BENCH_GRAVITY_FABRIC_READY` flips to true and the shell mounts the element, or
+    //   - any production module imports either file (Knip then passes without the exemption).
+    // Scope: two exact paths, never a glob — unrelated dead files under `ui/src/components/`
+    //   and `ui/src/lib/` must keep failing this scan.
+    "ui/src/components/bench-gravity-fabric.ts",
+    "ui/src/lib/gravity-fabric.ts",
     bundledPluginFile("telegram", "src/draft-chunking.ts"),
   ],
   // Knip's `ignoreFiles` only suppresses unused-file findings. Test helpers

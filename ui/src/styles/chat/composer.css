@@ -4248,10 +4248,20 @@
 }
 
 .agent-chat__welcome h2 {
-  font-size: 24px;
+  /* Headline face (Space Grotesk on the Bench families; upstream families alias body). */
+  font-family: var(--font-display);
+  font-size: 26px;
   font-weight: 600;
+  letter-spacing: -0.012em;
   margin: 0;
   color: var(--text);
+}
+
+.agent-chat__hint--bench {
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: var(--control-ui-text-md);
+  line-height: 1.5;
 }
 
 .agent-chat__welcome-identity {

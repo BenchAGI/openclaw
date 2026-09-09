@@ -51,13 +51,14 @@
   display: inline-flex;
   flex: none;
   align-items: center;
-  padding: 2px 6px;
+  padding: 3px 7px;
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--control-ui-environment-color) 16%, transparent);
   color: var(--control-ui-environment-ink);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1;
+  /* The Bench mono eyebrow: the one signature label (UI-BRAND-CONTRACT §1.6). */
+  font: 600 10.5px / 1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .shell-skip-link {
@@ -851,10 +852,23 @@ openclaw-settings-save-indicator:empty {
   min-width: 0;
 }
 
+/* Reserve the Vault ↔ App switch footprint until its deferred chunk defines it. */
+bench-mode-switch:not(:defined) {
+  display: inline-block;
+  width: 112px;
+  height: 28px;
+}
+
+bench-mode-switch[compact]:not(:defined) {
+  width: 78px;
+  height: 36px;
+}
+
+/* The animated eagle mark (favicon.svg) at 20px beside the short product name. */
 .topbar-brand__logo {
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-md);
 }
 
@@ -3128,8 +3142,9 @@ a:is(
 .nav-item.active,
 .nav-item--active {
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--accent-subtle) 88%, var(--bg-elevated) 12%);
-  border-color: color-mix(in srgb, var(--accent) 16%, transparent);
+  /* Bench: a quiet elevated fill with a strong hairline; the icon keeps the accent. */
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
 }
 
 .nav-item.active .nav-item__icon,
@@ -4085,7 +4100,9 @@ wa-dropdown.sidebar-identity-menu::part(menu) {
   overflow: hidden;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: var(--control-ui-text-xs);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-decoration: none;
@@ -4229,6 +4246,13 @@ wa-dropdown.sidebar-identity-menu::part(menu) {
 
 .content > * + * {
   margin-top: 20px;
+}
+
+/* Route mounts fade gently into place. The animation plays once per element
+   creation, so kept-alive or recycled pages never re-run it; opacity-only so
+   sticky descendants keep their containing block during entry. */
+.content > openclaw-router-outlet > * {
+  animation: fade-in var(--duration-slow) var(--ease-out);
 }
 
 .shell--settings .content:has(> .connection-action-block) {

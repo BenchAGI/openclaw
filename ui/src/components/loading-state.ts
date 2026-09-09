@@ -10,7 +10,7 @@ export function renderLoadingState() {
       aria-live="polite"
       aria-label=${t("common.loading")}
     >
-      <openclaw-mascot mood="thinking" .size=${120}></openclaw-mascot>
+      <openclaw-mascot mood="thinking" .size=${176}></openclaw-mascot>
     </section>
   `;
 }

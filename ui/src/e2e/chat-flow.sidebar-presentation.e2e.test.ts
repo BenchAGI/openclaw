@@ -456,7 +456,9 @@ suite.define(() => {
       const ordinaryBadge = busyRow.locator(".session-row-badge--incognito svg");
       for (const colorScheme of ["dark", "light"] as const) {
         await page.emulateMedia({ colorScheme });
-        await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe(colorScheme);
+        await expect
+          .poll(() => page.locator("html").getAttribute("data-theme-mode"))
+          .toBe(colorScheme);
         for (const reducedMotion of ["no-preference", "reduce"] as const) {
           await page.emulateMedia({ reducedMotion });
           const spinnerColors = await busyRow

@@ -31,6 +31,14 @@ const themeCases = [
   { family: "rose", mode: "light", resolved: "rose-light" },
   { family: "miami", mode: "dark", resolved: "miami" },
   { family: "miami", mode: "light", resolved: "miami-light" },
+  { family: "bench", mode: "dark", resolved: "bench" },
+  { family: "bench", mode: "light", resolved: "bench-light" },
+  { family: "bench-garden", mode: "dark", resolved: "bench-garden" },
+  { family: "bench-garden", mode: "light", resolved: "bench-garden-light" },
+  { family: "bench-forge", mode: "dark", resolved: "bench-forge" },
+  { family: "bench-forge", mode: "light", resolved: "bench-forge-light" },
+  { family: "bench-aurelius", mode: "dark", resolved: "bench-aurelius" },
+  { family: "bench-aurelius", mode: "light", resolved: "bench-aurelius-light" },
 ] as const;
 
 const textTokens = [
@@ -56,12 +64,18 @@ function themeConfigResponse(
     | "crt"
     | "manuscript"
     | "rose"
-    | "miami",
+    | "miami"
+    | "bench"
+    | "bench-garden"
+    | "bench-forge"
+    | "bench-aurelius",
   mode: "dark" | "light",
   accent?: string,
 ) {
   const config = {
-    ui: { prefs: { ...(family === "claw" ? {} : { theme: family }), themeMode: mode, accent } },
+    // `bench` is the fork's product default: omitting it is how the server says
+    // "default", and resetting to it patches theme: null (see the click below).
+    ui: { prefs: { ...(family === "bench" ? {} : { theme: family }), themeMode: mode, accent } },
   };
   const hash = `theme-contrast-${family}-${mode}`;
   return {
@@ -154,7 +168,7 @@ suite.define(() => {
         serviceWorkers: "block",
         viewport: { height: 900, width: 1440 },
       });
-      const initialFamily = family === "claw" ? "knot" : "claw";
+      const initialFamily = family === "bench" ? "knot" : "bench";
       await context.addInitScript(
         ({ gatewayUrl, initialMode, initialTheme }) => {
           localStorage.setItem(
@@ -191,7 +205,7 @@ suite.define(() => {
         const raw = (patch.params as { raw?: unknown } | undefined)?.raw;
         expect(typeof raw).toBe("string");
         expect(JSON.parse(String(raw))).toMatchObject({
-          ui: { prefs: { theme: family === "claw" ? null : family } },
+          ui: { prefs: { theme: family === "bench" ? null : family } },
         });
 
         // Theme clicks apply immediately; the eventual Gateway acknowledgement must not revert them.

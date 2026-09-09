@@ -38,7 +38,7 @@ function applyThemePresentation(settings: UiPreferences): void {
   root.style.colorScheme = root.dataset.themeMode;
   root.style.setProperty("--control-ui-text-scale", `${(settings.textScale ?? 100) / 100}`);
   const typefaces = resolveTypefaces(settings.theme, settings.fontUi, settings.fontChat);
-  syncTypefaceStylesheets(typefaces);
+  syncTypefaceStylesheets(typefaces, settings.theme);
   applyTypefaceOverrides(settings.fontUi, settings.fontChat);
   applyChatFontSmoothing(typefaces.chat);
   syncCustomThemeStyleTag(settings.customTheme);

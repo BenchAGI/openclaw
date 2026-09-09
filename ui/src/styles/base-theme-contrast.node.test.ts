@@ -178,6 +178,14 @@ function resolveThemes(blocks: Map<string, TokenMap>): Map<string, TokenMap> {
     ["rose-light", layer(light, blocks.get(':root[data-theme="rose-light"]'))],
     ["miami", layer(blocks.get(':root[data-theme="miami"]'))],
     ["miami-light", layer(light, blocks.get(':root[data-theme="miami-light"]'))],
+    ["bench", layer(blocks.get(':root[data-theme="bench"]'))],
+    ["bench-light", layer(light, blocks.get(':root[data-theme="bench-light"]'))],
+    ["bench-garden", layer(blocks.get(':root[data-theme="bench-garden"]'))],
+    ["bench-garden-light", layer(light, blocks.get(':root[data-theme="bench-garden-light"]'))],
+    ["bench-forge", layer(blocks.get(':root[data-theme="bench-forge"]'))],
+    ["bench-forge-light", layer(light, blocks.get(':root[data-theme="bench-forge-light"]'))],
+    ["bench-aurelius", layer(blocks.get(':root[data-theme="bench-aurelius"]'))],
+    ["bench-aurelius-light", layer(light, blocks.get(':root[data-theme="bench-aurelius-light"]'))],
   ]);
 }
 

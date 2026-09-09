@@ -166,18 +166,22 @@ describe("settingsSearchTextMatches", () => {
 
 describe("formatDocumentTitle", () => {
   it("does not duplicate a context ending in the brand", () => {
-    expect(formatDocumentTitle({ context: "Ask OpenClaw" })).toBe("Ask OpenClaw");
-    expect(formatDocumentTitle({ context: "OpenClaw" })).toBe("OpenClaw");
+    expect(formatDocumentTitle({ context: "Ask Aurelius" })).toBe("Ask Aurelius");
+    expect(formatDocumentTitle({ context: "BenchAGI Aurelius Vault" })).toBe(
+      "BenchAGI Aurelius Vault",
+    );
   });
 
   it("names the disconnected gateway without implying internet loss", () => {
     expect(
       formatDocumentTitle({ context: "Usage", gatewayDisconnected: true, queuedCount: 0 }),
-    ).toBe("(Disconnected) Usage — OpenClaw");
+    ).toBe("(Disconnected) Usage — BenchAGI Aurelius Vault");
   });
 
   it("ignores a queued count while online", () => {
-    expect(formatDocumentTitle({ context: "Usage", queuedCount: 3 })).toBe("Usage — OpenClaw");
+    expect(formatDocumentTitle({ context: "Usage", queuedCount: 3 })).toBe(
+      "Usage — BenchAGI Aurelius Vault",
+    );
   });
 });
 
@@ -197,7 +201,7 @@ describe("titleForRoute", () => {
       Object.fromEntries(ALL_ROUTES.map((routeId) => [routeId, titleForRoute(routeId)])),
     ).toEqual({
       chat: "Chat",
-      custodian: "OpenClaw",
+      custodian: "Aurelius",
       activity: "Activity",
       meetings: "Meetings",
       apps: "Apps",
