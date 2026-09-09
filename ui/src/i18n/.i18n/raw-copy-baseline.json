@@ -115,17 +115,10 @@
     },
     {
       "count": 1,
-      "kind": "html-attribute",
-      "name": "aria-label",
-      "path": "ui/src/components/app-topbar.ts",
-      "text": "OpenClaw"
-    },
-    {
-      "count": 1,
-      "kind": "html-text",
-      "name": "text",
-      "path": "ui/src/components/app-topbar.ts",
-      "text": "OpenClaw"
+      "kind": "object-property",
+      "name": "help",
+      "path": "ui/src/components/app-sidebar-agent-menu.ts",
+      "text": "https://benchagi.com/support"
     },
     {
       "count": 1,

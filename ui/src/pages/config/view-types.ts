@@ -166,6 +166,8 @@ export type ConfigProps = {
   setSessionObserverUtilityModel?: (selection: SessionObserverModelSelection) => void;
   lobsterPetVisits?: boolean;
   setLobsterPetVisits?: (enabled: boolean) => void;
+  backgroundMotion?: boolean;
+  setBackgroundMotion?: (enabled: boolean) => void;
   sessionDeleteConfirm?: boolean;
   setSessionDeleteConfirm?: (enabled: boolean) => void;
   lobsterPetSounds?: boolean;

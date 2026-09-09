@@ -14,6 +14,8 @@ type ControlUiPublicAsset =
   | `file-icons/${string}.svg`
   | `plugin-art/${string}.webp`
   | `app-art/${string}.webp`
+  | `app-art/${string}.png`
+  | `agent-art/${string}.png`
   | `community-art/${string}.webp`;
 
 export function controlUiPublicAssetPath(

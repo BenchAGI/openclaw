@@ -109,7 +109,7 @@ describe("ConfigPage custom theme import ownership", () => {
     await pendingImport;
 
     expect(state.customThemeImport.busy).toBe(false);
-    expect(state.settings.theme).toBe("claw");
+    expect(state.settings.theme).toBe("bench");
     expect(state.settings.customTheme).toBeUndefined();
     expect(state.customThemeImport.url).toBe("replacement");
     expect(state.customThemeImport.message).toBe(clearMessage);
@@ -233,7 +233,7 @@ describe("ConfigPage custom theme import ownership", () => {
     pending.resolve(customThemeFixture("First", "first"));
     await pendingImport;
 
-    expect(state.settings.theme).toBe("claw");
+    expect(state.settings.theme).toBe("bench");
     expect(state.settings.customTheme?.themeId).toBe("first");
   });
 
@@ -253,7 +253,7 @@ describe("ConfigPage custom theme import ownership", () => {
     expect(state.customThemeImport.busy).toBe(false);
     expect(state.customThemeImport.url).toBe("first");
     expect(state.customThemeImport.message).toBeNull();
-    expect(state.settings.theme).toBe("claw");
+    expect(state.settings.theme).toBe("bench");
     expect(state.settings.customTheme).toBeUndefined();
   });
 
@@ -272,7 +272,7 @@ describe("ConfigPage custom theme import ownership", () => {
     expect(state.customThemeImport.busy).toBe(false);
     expect(state.customThemeImport.url).toBe("first");
     expect(state.customThemeImport.message).toBeNull();
-    expect(state.settings.theme).toBe("claw");
+    expect(state.settings.theme).toBe("bench");
     expect(state.settings.customTheme).toBeUndefined();
   });
 
@@ -402,7 +402,7 @@ describe("ConfigPage custom theme import ownership", () => {
     expect(state.customThemeImport.busy).toBe(false);
     expect(state.customThemeImport.url).toBe("first");
     expect(state.customThemeImport.message).toBeNull();
-    expect(state.settings.theme).toBe("claw");
+    expect(state.settings.theme).toBe("bench");
     expect(state.settings.customTheme).toBeUndefined();
   });
 });

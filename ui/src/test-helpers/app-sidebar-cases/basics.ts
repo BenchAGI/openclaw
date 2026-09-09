@@ -55,7 +55,10 @@ describe("AppSidebar invitation admission", () => {
         expect(sidebar.querySelector(".community-invite-card")).toBeNull();
         sidebar.sessionOrganizer[finish]();
         await sidebar.updateComplete;
-        expect(sidebar.querySelector(".community-invite-card")).not.toBeNull();
+        // Bench builds never mount upstream's community invite, even once the
+        // deployment policy allows it and the interaction has finished
+        // (lib/bench-build.ts).
+        expect(sidebar.querySelector(".community-invite-card")).toBeNull();
       } finally {
         fetch.mockRestore();
       }

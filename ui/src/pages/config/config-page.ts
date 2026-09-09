@@ -1032,7 +1032,7 @@ export class ConfigPage extends OpenClawLightDomElement {
     this.customThemeImportOwner.clear({
       apply: () =>
         this.applySettings({
-          theme: this.settings.theme === "custom" ? "claw" : this.settings.theme,
+          theme: this.settings.theme === "custom" ? "bench" : this.settings.theme,
           customTheme: undefined,
         }),
       message: t("configPage.themeRemoved"),
@@ -1289,6 +1289,8 @@ export class ConfigPage extends OpenClawLightDomElement {
       },
       lobsterPetVisits: this.settings.lobsterPetVisits ?? UI_APPEARANCE_DEFAULTS.lobsterPetVisits,
       setLobsterPetVisits: (enabled) => this.applySettings({ lobsterPetVisits: enabled }),
+      backgroundMotion: this.settings.backgroundMotion ?? UI_APPEARANCE_DEFAULTS.backgroundMotion,
+      setBackgroundMotion: (enabled) => this.applySettings({ backgroundMotion: enabled }),
       sessionDeleteConfirm:
         this.settings.sessionDeleteConfirm ?? UI_APPEARANCE_DEFAULTS.sessionDeleteConfirm,
       setSessionDeleteConfirm: (enabled) => this.applySettings({ sessionDeleteConfirm: enabled }),

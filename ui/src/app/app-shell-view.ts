@@ -25,7 +25,13 @@ import { pluginTabKey, pluginTabRefFromSearch } from "../pages/plugin/route.ts";
 import { renderPluginSurface } from "../plugins/control-ui-view.ts";
 import type { ShellRouteState } from "./app-host-route-state.ts";
 import { renderCommandPaletteLoading } from "./app-shell-command-palette-loading.ts";
+import { renderLazyDevicePairSetup } from "./app-shell-device-pairing.ts";
 import type { OutboxStoreRuntime, StoredOutboxScopeHost } from "./app-shell-gateway.ts";
+import {
+  benchFabricEnabled as isBenchFabricEnabled,
+  renderBenchGravityFabric,
+  resolveBenchModeSwitchAgent,
+} from "./bench-shell.ts";
 import type { ApplicationRuntime } from "./bootstrap.ts";
 import type { ApplicationContext, ApplicationNavigationOptions } from "./context.ts";
 import { resolveControlUiAuthToken } from "./control-ui-auth.ts";
@@ -62,6 +68,8 @@ import { renderCollapsedAssistantToggles } from "./shell-assistant-toggles.ts";
 import { createUpdateProgressWatcher } from "./update-confirmation.ts";
 
 const EMPTY_SESSION_HAS_DRAFT = () => false;
+
+type DevicePairSetupModule = typeof import("../pages/devices/view-pairing.runtime.ts");
 
 export interface ShellViewHost {
   readonly context: ApplicationContext<RouteId> | undefined;
@@ -111,59 +119,6 @@ export interface ShellViewHost {
   toggleNavigationSurface(trigger?: HTMLElement): void;
 }
 
-type DevicePairSetupModule = typeof import("../pages/devices/view-pairing.runtime.ts");
-type DevicePairSetupProps = Parameters<DevicePairSetupModule["renderDevicePairSetup"]>[0];
-
-// Lazy: the pairing modal stays out of the startup chunk (perf budget); it is
-// fetched the first time an operator opens Pair mobile device. The eager shell
-// stays visible during that import so the action never appears to do nothing.
-function renderLazyDevicePairSetup(host: ShellViewHost, props: DevicePairSetupProps) {
-  if (!props.open) {
-    return nothing;
-  }
-  const renderer = host.devicePairSetupRenderer;
-  if (renderer) {
-    return renderer(props);
-  }
-  const failed = host.devicePairSetupLoadFailed;
-  if (!failed) {
-    host.loadDevicePairSetupRenderer();
-  }
-  // Loading and failure share the eager modal; a failed chunk remains dismissible and retryable.
-  const title = t("devices.pairing.title");
-  const message = t(failed ? "devices.pairing.loadFailed" : "common.loading");
-  return html`<openclaw-modal-dialog
-    label=${title}
-    description=${message}
-    @modal-cancel=${props.onClose}
-  >
-    <section class="device-pair-setup" aria-busy=${failed ? nothing : "true"}>
-      <header class="device-pair-setup__header">
-        <div>
-          <h2>${title}</h2>
-          <p role=${failed ? nothing : "status"}>${message}</p>
-        </div>
-      </header>
-      <footer class="device-pair-setup__footer">
-        ${
-          failed
-            ? html`<button
-                class="btn btn--primary"
-                type="button"
-                @click=${() => host.retryDevicePairSetupRenderer()}
-              >
-                ${t("common.retry")}
-              </button>`
-            : nothing
-        }
-        <button class="btn btn--ghost" type="button" @click=${props.onClose}>
-          ${t("common.close")}
-        </button>
-      </footer>
-    </section>
-  </openclaw-modal-dialog>`;
-}
-
 export function renderApplicationShell(host: ShellViewHost) {
   const context = host.context;
   const runtime = host.runtime;
@@ -172,7 +127,7 @@ export function renderApplicationShell(host: ShellViewHost) {
   }
   if (host.routeState.routeId === undefined) {
     return html`<main class="connect-splash" role="status" aria-label=${t("common.loading")}>
-      <openclaw-mascot mood="thinking" .size=${120}></openclaw-mascot>
+      <openclaw-mascot mood="thinking" .size=${176}></openclaw-mascot>
     </main>`;
   }
   const gatewaySnapshot = context.gateway.snapshot;
@@ -289,6 +244,7 @@ export function renderApplicationShell(host: ShellViewHost) {
     }
   };
   const uiSettings = context.theme.settings;
+  const benchFabricEnabled = isBenchFabricEnabled(uiSettings.theme, uiSettings.backgroundMotion);
   // The new-session draft shares the chat layout: full-height pane that owns
   // its scrolling and pins the composer dock to the bottom.
   const chatLikeRoute = sessionRoute || activeRoute === "new-session";
@@ -439,10 +395,17 @@ export function renderApplicationShell(host: ShellViewHost) {
         mergedChatChrome ? "shell--merged-chat-chrome" : ""
       } ${navDrawerOpen ? "shell--nav-drawer-open" : ""} ${
         onboarding ? "shell--onboarding" : ""
-      } ${settingsTakeover ? "shell--settings" : ""}"
+      } ${settingsTakeover ? "shell--settings" : ""} ${
+        benchFabricEnabled ? "shell--bench-fabric" : ""
+      }"
       style=${`--shell-nav-expanded-width: ${navigationSnapshot.navWidth}px`}
       @theme-change=${(event: CustomEvent<ThemeModeChangeDetail>) => host.handleThemeChange(event)}
     >
+      ${
+        benchFabricEnabled
+          ? renderBenchGravityFabric(benchFabricEnabled, context.theme.resolvedMode)
+          : nothing
+      }
       <a class="shell-skip-link" href="#control-ui-main" ?inert=${navDrawerOpen}>
         ${t("common.skipToMainContent")}
       </a>
@@ -469,6 +432,11 @@ export function renderApplicationShell(host: ShellViewHost) {
         ?inert=${navDrawerOpen}
         .resourceBasePath=${context.resourceBasePath}
         .environment=${config.environment}
+        .modeSwitchAgent=${resolveBenchModeSwitchAgent(
+          selectedAgentId,
+          context.agents?.state?.agentsList?.agents,
+          config?.assistantIdentity?.name,
+        )}
         .navDrawerOpen=${navDrawerOpen}
         .onOpenPalette=${() => host.openPalette()}
         .onToggleDrawer=${(trigger: HTMLElement) => host.toggleNavigationSurface(trigger)}

@@ -175,6 +175,10 @@ export type OpenClawConfig = {
         | "manuscript"
         | "rose"
         | "miami"
+        | "bench"
+        | "bench-garden"
+        | "bench-forge"
+        | "bench-aurelius"
         | "custom";
       /** Light/dark preference. */
       themeMode?: "light" | "dark" | "system";

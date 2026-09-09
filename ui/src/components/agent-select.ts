@@ -5,6 +5,11 @@ import { property } from "lit/decorators.js";
 import { ref } from "lit/directives/ref.js";
 import type { AgentIdentityResult, GatewayAgentRow } from "../api/types.ts";
 import { t } from "../i18n/index.ts";
+import {
+  benchAgentIdentity,
+  benchAgentPortraitUrl,
+  benchAgentRarityColor,
+} from "../lib/agents/bench-agent-identity.ts";
 import { resolveAgentTextAvatar } from "../lib/agents/display.ts";
 import { deriveAvatarInitial, resolveAgentAvatarUrl } from "../lib/avatar.ts";
 import { IdentityAvatarController } from "../lib/identity-avatar-loader.ts";
@@ -28,12 +33,20 @@ export function renderAgentSelectAvatar(
   identity: AgentIdentityResult | null = null,
   imageUrl?: string | null,
 ) {
+  const bench = benchAgentIdentity(option.agent?.id ?? option.value);
   const resolvedImageUrl =
-    imageUrl === undefined && option.agent
+    (imageUrl === undefined && option.agent
       ? resolveAgentAvatarUrl(option.agent, identity)
-      : (imageUrl ?? null);
+      : (imageUrl ?? null)) ?? benchAgentPortraitUrl(bench?.id);
   if (resolvedImageUrl) {
-    return html`<img class="agent-select__avatar" src=${resolvedImageUrl} alt="" loading="lazy" />`;
+    return html`<img
+      class="agent-select__avatar"
+      src=${resolvedImageUrl}
+      alt=""
+      loading="lazy"
+      data-bench-agent=${bench ? bench.id : nothing}
+      style=${bench ? `--agent-rarity: ${benchAgentRarityColor(bench)};` : nothing}
+    />`;
   }
   if (option.icon) {
     return html`<span class="agent-select__avatar agent-select__avatar--icon" aria-hidden="true"
@@ -51,13 +64,21 @@ export function renderAgentSelectAvatar(
   `;
 }
 
-export function renderAgentSelectCopy(option: AgentSelectOption) {
+export function renderAgentSelectCopy(
+  option: AgentSelectOption,
+  options: { descriptionClass?: string } = {},
+) {
+  // Bench agents carry their role line when the gateway sets no description.
+  const description =
+    option.description ?? benchAgentIdentity(option.agent?.id ?? option.value)?.role;
   return html`
     <span class="agent-select__option-copy">
       <span class="agent-select__option-label">${option.label}</span>
       ${
-        option.description
-          ? html`<span class="agent-select__option-description">${option.description}</span>`
+        description
+          ? html`<span class="agent-select__option-description ${options.descriptionClass ?? ""}"
+              >${description}</span
+            >`
           : nothing
       }
     </span>

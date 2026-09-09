@@ -17,6 +17,7 @@ import {
   type ChatModelCatalogState,
   renderChatModelCatalogState,
 } from "./chat-model-catalog-state.ts";
+import { applyBenchProviderSections } from "./chat-model-picker-groups.ts";
 import {
   renderChatModelPickerOption,
   renderChatModelPickerTargetOption,
@@ -314,6 +315,7 @@ export function renderChatModelPicker(params: ChatModelPickerParams) {
       orderedProviderGroups.unshift(defaultGroup);
     }
   }
+  const modelSectionLabels = applyBenchProviderSections(orderedProviderGroups);
   const orderedOptions = orderedProviderGroups.flatMap(([, options]) => options);
   const optionIndex = new Map(orderedOptions.map((option, index) => [option.value, index]));
   const targetGroups = params.targetGroups ?? [];
@@ -514,6 +516,16 @@ export function renderChatModelPicker(params: ChatModelPickerParams) {
                               orderedProviderGroups,
                               ([provider]) => provider,
                               ([provider, options]) => html`
+                                ${
+                                  modelSectionLabels.has(provider)
+                                    ? html`<div
+                                        class="chat-controls__inline-select-section-label chat-controls__model-section-label"
+                                        data-chat-model-section=${provider}
+                                      >
+                                        ${modelSectionLabels.get(provider)}
+                                      </div>`
+                                    : nothing
+                                }
                                 <section
                                   class="chat-controls__provider-model-group"
                                   data-chat-model-provider-group=${provider}

@@ -332,6 +332,7 @@ suite.define(() => {
       for (const mode of ["dark", "light"] as const) {
         themeBackgrounds.push(
           await menu.evaluate((node, nextMode) => {
+            document.documentElement.dataset.theme = nextMode === "light" ? "bench-light" : "bench";
             document.documentElement.dataset.themeMode = nextMode;
             const surface = node.shadowRoot?.querySelector('[part="menu"]');
             return surface ? getComputedStyle(surface).backgroundColor : "";

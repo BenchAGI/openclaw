@@ -7,7 +7,7 @@ import {
   type TextScaleStop,
 } from "../../app/settings.ts";
 import type { ThemeTransitionContext } from "../../app/theme-transition.ts";
-import type { ThemeName } from "../../app/theme.ts";
+import { type BenchThemeFamily, isBenchThemeFamily, type ThemeName } from "../../app/theme.ts";
 import {
   loadTypefaceSpecimens,
   normalizeTypefaceOverride,
@@ -29,6 +29,7 @@ import { APPEARANCE_SETTINGS_TARGET_IDS } from "./route-data.ts";
 import {
   renderChatPreferencesSection,
   renderLanguageSection,
+  renderBackgroundMotionSection,
   renderLobsterPetSection,
   serverUiPrefProvenanceHint,
   renderSidebarPreferencesSection,
@@ -48,6 +49,31 @@ type ThemeOption = {
   labelKey: string;
   descriptionKey: string;
 };
+
+// Bench families render first (UI-BRAND-CONTRACT §5.4); upstream's eleven
+// follow under a "More themes" divider so both lists stay insert-only.
+const BENCH_THEME_OPTIONS: ThemeOption[] = [
+  {
+    id: "bench",
+    labelKey: "configView.themes.bench.label",
+    descriptionKey: "configView.themes.bench.description",
+  },
+  {
+    id: "bench-garden",
+    labelKey: "configView.themes.bench-garden.label",
+    descriptionKey: "configView.themes.bench-garden.description",
+  },
+  {
+    id: "bench-forge",
+    labelKey: "configView.themes.bench-forge.label",
+    descriptionKey: "configView.themes.bench-forge.description",
+  },
+  {
+    id: "bench-aurelius",
+    labelKey: "configView.themes.bench-aurelius.label",
+    descriptionKey: "configView.themes.bench-aurelius.description",
+  },
+];
 
 const BUILTIN_THEME_OPTIONS: ThemeOption[] = [
   {
@@ -124,19 +150,34 @@ const ACCENT_PRESETS = [
    mirrored from the base.css theme blocks). The custom card only has real
    colors while active — its chips read the live CSS variables — so it falls
    back to the spark icon otherwise. */
+// Bench families fill upstream's icon slot with their glyph and keep the chips.
+const BENCH_THEME_GLYPHS: Record<BenchThemeFamily, TemplateResult> = {
+  bench: icons.benchGlyph,
+  "bench-garden": icons.leaf,
+  "bench-forge": icons.anvil,
+  "bench-aurelius": icons.feather,
+};
+
 function renderThemeCardVisual(id: ThemeName, activeTheme: ThemeName) {
   if (id === "custom" && activeTheme !== "custom") {
     return html`<span class="settings-theme-card__icon" aria-hidden="true"
       >${icons.download}</span
     >`;
   }
-  return html`
+  const palette = html`
     <span class="settings-theme-card__palette" aria-hidden="true">
       <span class="settings-theme-card__chip settings-theme-card__chip--accent"></span>
       <span class="settings-theme-card__chip settings-theme-card__chip--accent-2"></span>
       <span class="settings-theme-card__chip settings-theme-card__chip--bg"></span>
     </span>
   `;
+  if (isBenchThemeFamily(id)) {
+    return html`<span class="settings-theme-card__visual">
+      <span class="settings-theme-card__icon" aria-hidden="true">${BENCH_THEME_GLYPHS[id]}</span>
+      ${palette}
+    </span>`;
+  }
+  return palette;
 }
 
 function importedThemeName(props: Pick<ConfigProps, "hasCustomTheme" | "customThemeLabel">) {
@@ -246,12 +287,14 @@ export function renderAppearanceSection(
     focusCustomThemeImportInput();
   }
   const importedName = importedThemeName(props);
-  const themeOptions: Array<{ id: ThemeName; label: string; description: string }> = [
-    ...BUILTIN_THEME_OPTIONS.map((option) => ({
-      id: option.id,
-      label: t(option.labelKey),
-      description: t(option.descriptionKey),
-    })),
+  const toThemeOption = (option: ThemeOption) => ({
+    id: option.id,
+    label: t(option.labelKey),
+    description: t(option.descriptionKey),
+  });
+  const benchThemeOptions = BENCH_THEME_OPTIONS.map(toThemeOption);
+  const moreThemeOptions: Array<{ id: ThemeName; label: string; description: string }> = [
+    ...BUILTIN_THEME_OPTIONS.map(toThemeOption),
     {
       id: "custom",
       label: props.hasCustomTheme ? importedName : t("configView.appearance.import"),
@@ -260,6 +303,7 @@ export function renderAppearanceSection(
         : t("configView.appearance.importHint"),
     },
   ];
+  const themeOptions = [...benchThemeOptions, ...moreThemeOptions];
   const themeDefault =
     themeOptions.find((option) => option.id === props.themeResetValue)?.label ??
     t("configView.themes.claw.label");
@@ -297,6 +341,33 @@ export function renderAppearanceSection(
           ? t(selectedAccentPreset.labelKey)
           : t("configView.appearance.customAccent"),
       });
+  // One card template for both rows of the grid.
+  const renderThemeCard = (opt: { id: ThemeName; label: string; description: string }) => html`
+    <button
+      class="settings-theme-card settings-theme-card--${opt.id} ${
+        opt.id === props.theme ? "settings-theme-card--active" : ""
+      }"
+      aria-pressed=${
+        opt.id === "custom" && !props.hasCustomTheme ? nothing : String(opt.id === props.theme)
+      }
+      title=${opt.description}
+      @click=${(e: Event) => {
+        if (opt.id === "custom" && !props.hasCustomTheme) {
+          props.onOpenCustomThemeImport?.();
+          return;
+        }
+        if (opt.id !== props.theme || (opt.id === props.themeResetValue && props.themeOverridden)) {
+          const context: ThemeTransitionContext = {
+            element: (e.currentTarget as HTMLElement) ?? undefined,
+          };
+          props.setTheme(opt.id, context);
+        }
+      }}
+    >
+      ${renderThemeCardVisual(opt.id, props.theme)}
+      <span class="settings-theme-card__label">${opt.label}</span>
+    </button>
+  `;
   return html`
     <div class="settings-page">
       ${renderLanguageSection(props)}
@@ -312,39 +383,11 @@ export function renderAppearanceSection(
         <div class="settings-group">
           <div class="settings-row settings-row--stacked">
             <div class="settings-theme-grid">
-              ${themeOptions.map(
-                (opt) => html`
-                  <button
-                    class="settings-theme-card settings-theme-card--${opt.id} ${
-                      opt.id === props.theme ? "settings-theme-card--active" : ""
-                    }"
-                    aria-pressed=${
-                      opt.id === "custom" && !props.hasCustomTheme
-                        ? nothing
-                        : String(opt.id === props.theme)
-                    }
-                    title=${opt.description}
-                    @click=${(e: Event) => {
-                      if (opt.id === "custom" && !props.hasCustomTheme) {
-                        props.onOpenCustomThemeImport?.();
-                        return;
-                      }
-                      if (
-                        opt.id !== props.theme ||
-                        (opt.id === props.themeResetValue && props.themeOverridden)
-                      ) {
-                        const context: ThemeTransitionContext = {
-                          element: (e.currentTarget as HTMLElement) ?? undefined,
-                        };
-                        props.setTheme(opt.id, context);
-                      }
-                    }}
-                  >
-                    ${renderThemeCardVisual(opt.id, props.theme)}
-                    <span class="settings-theme-card__label">${opt.label}</span>
-                  </button>
-                `,
-              )}
+              ${benchThemeOptions.map(renderThemeCard)}
+              <div class="settings-theme-grid__divider" role="presentation">
+                <span>${t("configView.appearance.moreThemes")}</span>
+              </div>
+              ${moreThemeOptions.map(renderThemeCard)}
             </div>
           </div>
           ${renderSettingsRow({
@@ -579,7 +622,8 @@ export function renderAppearanceSection(
         </div>
       </section>
 
-      ${renderSidebarPreferencesSection(props)} ${renderLobsterPetSection(props)}
+      ${renderBackgroundMotionSection(props)} ${renderSidebarPreferencesSection(props)}
+      ${renderLobsterPetSection(props)}
       ${renderChatPreferencesSection(props, inputs.chatMessageWidth)}
 
       <section id=${APPEARANCE_SETTINGS_TARGET_IDS.connection} class="settings-section">

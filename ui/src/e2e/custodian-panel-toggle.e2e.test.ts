@@ -1,4 +1,4 @@
-// Control UI tests cover the global Ask OpenClaw panel toggle and persisted session identity.
+// Control UI tests cover the global Ask Aurelius panel toggle and persisted session identity.
 import path from "node:path";
 import { chromium, type Browser } from "playwright";
 import { beforeEach, afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -55,7 +55,7 @@ function custodianGatewayScenario() {
   };
 }
 
-describeControlUiE2e("Control UI Ask OpenClaw panel toggle mocked Gateway E2E", () => {
+describeControlUiE2e("Control UI Ask Aurelius panel toggle mocked Gateway E2E", () => {
   beforeAll(async () => {
     if (!chromiumAvailable) {
       throw new Error(`Playwright Chromium is unavailable at ${chromiumExecutablePath}`);
@@ -90,7 +90,7 @@ describeControlUiE2e("Control UI Ask OpenClaw panel toggle mocked Gateway E2E", 
       await page.locator(".sidebar-footer-bar__home").click();
       const panel = page.locator("openclaw-assistant-panel");
       await panel.getByRole("button", { name: "Home", exact: true }).waitFor();
-      expect(await panel.getByRole("button", { name: "Ask OpenClaw", exact: true }).count()).toBe(
+      expect(await panel.getByRole("button", { name: "Ask Aurelius", exact: true }).count()).toBe(
         0,
       );
       expect(await gateway.getRequests("openclaw.chat")).toHaveLength(0);
@@ -120,7 +120,7 @@ describeControlUiE2e("Control UI Ask OpenClaw panel toggle mocked Gateway E2E", 
 
       await page.locator(".sidebar-footer-bar__home").click();
       const panel = page.locator("openclaw-assistant-panel");
-      const openClawTab = panel.getByRole("button", { name: "Ask OpenClaw", exact: true });
+      const openClawTab = panel.getByRole("button", { name: "Ask Aurelius", exact: true });
       await openClawTab.waitFor();
       await page.screenshot({
         animations: "disabled",
@@ -143,8 +143,8 @@ describeControlUiE2e("Control UI Ask OpenClaw panel toggle mocked Gateway E2E", 
 
       // The command palette opens the same conversation directly.
       await page.locator(".sidebar-brand__search").click();
-      await page.getByPlaceholder("Search chats and commands…").fill("Ask OpenClaw");
-      const paletteItem = page.getByRole("option", { name: "Ask OpenClaw", exact: true });
+      await page.getByPlaceholder("Search chats and commands…").fill("Ask Aurelius");
+      const paletteItem = page.getByRole("option", { name: "Ask Aurelius", exact: true });
       await paletteItem.waitFor();
       await page.screenshot({
         animations: "disabled",

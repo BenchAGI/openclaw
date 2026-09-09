@@ -1,5 +1,5 @@
 // Control UI module implements icons behavior.
-import { svg, type TemplateResult } from "lit";
+import { html, svg, type TemplateResult } from "lit";
 import { strokeIcon, toolIcons } from "./icons-tools.ts";
 
 // Lucide-style SVG icons rendered through the shared strokeIcon() shell,
@@ -375,6 +375,38 @@ export const icons = {
   moreHorizontal: strokeIcon(svg` <circle cx="5" cy="12" r="1" />
     <circle cx="12" cy="12" r="1" />
     <circle cx="19" cy="12" r="1" />`),
+  // Bench agent identity glyphs (UI-BRAND-CONTRACT §6): fallbacks when an agent
+  // has no portrait, plus the theme-card marks for the Bench families.
+  feather: strokeIcon(svg` <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
+    <line x1="16" x2="2" y1="8" y2="22" />
+    <line x1="17.5" x2="9" y1="15" y2="15" />`),
+  leaf: strokeIcon(svg` <path
+      d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"
+    />
+    <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />`),
+  megaphone: strokeIcon(svg` <path d="m3 11 18-5v12L3 14v-3z" />
+    <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />`),
+  flame: strokeIcon(svg` <path
+      d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+    />`),
+  bird: strokeIcon(svg` <path d="M16 7h.01" />
+    <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20" />
+    <path d="m20 7 2 .5-2 .5" />
+    <path d="M10 18v3" />
+    <path d="M14 17.75V21" />
+    <path d="M7 18a6 6 0 0 0 3.84-10.61" />`),
+  summit: strokeIcon(svg` <path d="m8 3 4 8 5-5 5 15H2L8 3z" />`),
+  anvil: strokeIcon(svg` <path d="M7 10H6a4 4 0 0 1-4-4 1 1 0 0 1 1-1h4" />
+    <path d="M7 5a1 1 0 0 1 1-1h13a1 1 0 0 1 1 1 7 7 0 0 1-7 7H8a1 1 0 0 1-1-1z" />
+    <path d="M9 12v5" />
+    <path d="M15 12v5" />
+    <path d="M5 20a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3 1 1 0 0 1-1 1H6a1 1 0 0 1-1-1" />`),
+  // The Bench "B" mark (provider-icons/ProviderIcon-bench.svg on a 24 grid), filled.
+  benchGlyph: html`<svg viewBox="0 0 24 24" fill="currentColor" class="icon--filled">
+    <path
+      d="M4.8 4.8h14.4v2.88h-1.44v12.72H14.88V14.4H9.12v6H6.24V7.68H4.8V4.8Zm1.44 6.72h11.52V7.68H6.24v3.84Z"
+    />
+  </svg>`,
   ...toolIcons,
 } as const;
 

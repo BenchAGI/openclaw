@@ -12,7 +12,8 @@
 .about-hero__aurelius {
   position: relative;
   width: 168px;
-  aspect-ratio: 120 / 105;
+  /* The eagle bitmap is square (public/app-art/aurelius-mascot.png). */
+  aspect-ratio: 1;
   padding: 0;
   border: 0;
   background: transparent;
@@ -26,11 +27,8 @@
   position: absolute;
   inset: -14% -8% -4%;
   border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    color-mix(in srgb, var(--brand-bench) 20%, transparent),
-    transparent 72%
-  );
+  /* Aurelius gold rim-light (UI-BRAND-CONTRACT §5.2), not the Infrared. */
+  background: radial-gradient(closest-side, rgba(231, 193, 130, 0.22), transparent 72%);
   pointer-events: none;
 }
 
@@ -47,17 +45,43 @@
   box-shadow: var(--focus-ring);
 }
 
+/* Poke: the mascot lifts 4px while the greeting mood plays. */
+.about-hero__aurelius--greeting {
+  transform: translateY(-4px);
+}
+
 .about-hero__aurelius openclaw-mascot {
   position: relative;
 }
 
+/* The Bench glyph in Infrared leads the typeset name (the wordmark treatment). */
+.about-hero__name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .about-hero__name {
-  margin: 14px 0 0;
+  margin: 0;
   color: var(--text-strong);
+  font-family: var(--font-display);
   font-size: 30px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
+}
+
+.about-hero__glyph {
+  display: inline-flex;
+  color: var(--brand-bench);
+}
+
+.about-hero__glyph svg {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+  stroke: none;
 }
 
 .about-hero__tagline {

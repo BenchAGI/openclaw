@@ -100,7 +100,7 @@ describe("server pref extraction", () => {
 
   it("preserves authored provenance when a server value equals the product default", () => {
     const config = configWithPrefs({
-      theme: "claw",
+      theme: "bench",
       themeMode: "system",
       chatSendShortcut: "enter",
     });
@@ -108,8 +108,8 @@ describe("server pref extraction", () => {
     expect(resolveServerUiPrefState(config, "theme")).toEqual({
       overridden: true,
       provenance: "synced",
-      resetValue: "claw",
-      value: "claw",
+      resetValue: "bench",
+      value: "bench",
     });
     expect(resolveServerUiPrefState(config, "themeMode")).toEqual({
       overridden: true,
@@ -131,8 +131,8 @@ describe("server pref extraction", () => {
     expect(state).toEqual({
       overridden: true,
       provenance: "synced",
-      resetValue: "claw",
-      value: "claw",
+      resetValue: "bench",
+      value: "bench",
     });
     patchSettings({ theme: "knot" });
     expect(
@@ -142,7 +142,7 @@ describe("server pref extraction", () => {
     ).toEqual({
       overridden: true,
       provenance: "device-local",
-      resetValue: "claw",
+      resetValue: "bench",
       value: "knot",
     });
 
@@ -282,13 +282,13 @@ describe("applyServerUiPrefs", () => {
     expect(
       applyServerUiPrefs(configWithPrefs({ theme: "custom" }), { onApplied, onThemeChanged }),
     ).toBe(false);
-    expect(loadSettings().theme).toBe("claw");
+    expect(loadSettings().theme).toBe("bench");
     expect(onThemeChanged).toHaveBeenLastCalledWith("custom");
 
     expect(
-      applyServerUiPrefs(configWithPrefs({ theme: "claw" }), { onApplied, onThemeChanged }),
+      applyServerUiPrefs(configWithPrefs({ theme: "bench" }), { onApplied, onThemeChanged }),
     ).toBe(false);
-    expect(onThemeChanged).toHaveBeenLastCalledWith("claw");
+    expect(onThemeChanged).toHaveBeenLastCalledWith("bench");
     expect(onApplied).not.toHaveBeenCalled();
   });
 });
@@ -386,7 +386,7 @@ describe("changedServerUiPrefs", () => {
       }
     });
 
-    const state = resolveServerUiPrefState(configWithPrefs({ theme: "claw" }), "theme", scope);
+    const state = resolveServerUiPrefState(configWithPrefs({ theme: "bench" }), "theme", scope);
     resetServerUiPref("theme", state);
 
     await vi.waitFor(() =>
@@ -435,7 +435,7 @@ describe("clearable pref removal from the server", () => {
     expect(applyServerUiPrefs(configWithPrefs({}), { onApplied })).toBe(true);
     const reset = loadSettings();
     expect(reset).toMatchObject({
-      theme: "claw",
+      theme: "bench",
       themeMode: "system",
     });
     expect(reset.accent).toBeUndefined();
@@ -505,11 +505,11 @@ describe("pushServerUiPrefs", () => {
     pushServerUiPrefs(createClient(vi.fn(), scope, false), prefs ?? {});
 
     expect(readPending(scope)).toEqual({ theme: null });
-    expect(resolveServerUiPrefState(configWithPrefs({ theme: "claw" }), "theme", scope)).toEqual({
+    expect(resolveServerUiPrefState(configWithPrefs({ theme: "bench" }), "theme", scope)).toEqual({
       overridden: false,
       provenance: "pending",
-      resetValue: "claw",
-      value: "claw",
+      resetValue: "bench",
+      value: "bench",
     });
   });
 

@@ -36,7 +36,6 @@ async function loadControlUiPage(currentPage: Page) {
   await currentPage.goto(suite.server.baseUrl);
   await currentPage.waitForFunction(() => Boolean(customElements.get("openclaw-lobster-pet")));
   await currentPage.locator("openclaw-app-sidebar").waitFor();
-  await currentPage.locator(".community-invite-card").waitFor();
   const loadedAt = await currentPage.evaluate(() => Date.now());
   await currentPage.clock.pauseAt(loadedAt + 1_000);
 }
@@ -182,7 +181,7 @@ suite.define(() => {
   beforeEach(() => {
     artifactDir = createControlUiE2eArtifactDir("lobster-dismiss-menu-overflow");
   });
-  it("keeps the lobster clickable and its dismissal menu within the viewport on both sidebar ledges", () =>
+  it("keeps the lobster clickable and its dismissal menu within the viewport at the sidebar footer", () =>
     withDismissMenuPage({}, async (page) => {
       await configureRealSidebarPet(page, 42);
       const sprite = page.locator(".lobster-pet");
@@ -192,34 +191,6 @@ suite.define(() => {
       await page.locator("wa-dropdown.lobster-pet-dismiss-menu").waitFor();
       await page.getByText("Dismiss and don't show again", { exact: true }).waitFor();
 
-      const inviteMeasurement = await measureDismissMenu(page);
-      await page.screenshot({ path: path.join(artifactDir, "real-sidebar-invite-ledge.png") });
-
-      // Asserting on the whole measurement so a regression prints the anchor
-      // position and resolved max-height that explain it.
-      expect(inviteMeasurement).toMatchObject({
-        overflowPx: 0,
-        popupIsTopLayer: true,
-        hasOuterMenuSurface: false,
-        hostParentClass: "sidebar-shell__invite",
-        inviteCardPresent: true,
-      });
-      expect(inviteMeasurement.menuTop).toBeGreaterThanOrEqual(0);
-      expect(inviteMeasurement.menuBottom).toBeLessThanOrEqual(inviteMeasurement.viewportHeight);
-      expect(inviteMeasurement.inviteHeight).toBeGreaterThan(0);
-      expect(inviteMeasurement.hostBottom).not.toBeNull();
-      expect(inviteMeasurement.inviteTop).not.toBeNull();
-      expect(
-        Math.abs((inviteMeasurement.hostBottom ?? 0) - (inviteMeasurement.inviteTop ?? 0) - 3),
-      ).toBeLessThan(0.5);
-
-      await page.keyboard.press("Escape");
-      const invite = page.locator(".community-invite-card");
-      await page.getByRole("button", { name: "Dismiss and don't show again" }).click();
-      await invite.waitFor({ state: "detached" });
-
-      await sprite.click({ button: "right" });
-      await page.locator("wa-dropdown.lobster-pet-dismiss-menu").waitFor();
       const footerMeasurement = await measureDismissMenu(page);
       await page.screenshot({ path: path.join(artifactDir, "real-sidebar-footer-ledge.png") });
 

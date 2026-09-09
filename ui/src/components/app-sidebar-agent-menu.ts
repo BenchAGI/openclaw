@@ -8,6 +8,7 @@ import { pathForAgentPanel } from "../app-route-paths.ts";
 import type { ApplicationNavigationOptions } from "../app/context.ts";
 import type { ThemeMode } from "../app/theme.ts";
 import { t } from "../i18n/index.ts";
+import { benchAgentIdentity, benchAgentStyle } from "../lib/agents/bench-agent-identity.ts";
 import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "../lib/external-link.ts";
 import {
@@ -31,25 +32,25 @@ import {
   trackDropdownKeyboardDismissal,
 } from "./web-awesome.ts";
 
-// External rows of the footer identity menu. Docs-first: public docs pages over
-// raw GitHub, matching the ClawSweeper docs-link policy for user-facing copy.
+// External rows of the footer identity menu: Bench links for customers
+// (UI-BRAND-CONTRACT §3), verified live on benchagi.com 2026-09-06. No Docs
+// row until a docs path exists; never ship a URL that 404s.
+export const BENCH_LINKS = {
+  website: "https://benchagi.com",
+  help: "https://benchagi.com/support",
+  whatsNew: "https://benchagi.com/blog",
+  agents: "https://benchagi.com/agents",
+} as const;
+
 const IDENTITY_MENU_LINKS: ReadonlyArray<{
   href: string;
   icon: IconName;
   label: () => string;
 }> = [
-  { href: "https://docs.openclaw.ai", icon: "book", label: () => t("common.docs") },
-  {
-    href: "https://docs.openclaw.ai/help",
-    icon: "messageSquare",
-    label: () => t("agentChip.getHelp"),
-  },
-  { href: "https://discord.gg/clawd", icon: "users", label: () => t("agentChip.discord") },
-  {
-    href: "https://docs.openclaw.ai/releases",
-    icon: "scrollText",
-    label: () => t("agentChip.viewChangelog"),
-  },
+  { href: BENCH_LINKS.website, icon: "globe", label: () => t("agentChip.website") },
+  { href: BENCH_LINKS.help, icon: "messageSquare", label: () => t("agentChip.getHelp") },
+  { href: BENCH_LINKS.whatsNew, icon: "scrollText", label: () => t("agentChip.whatsNew") },
+  { href: BENCH_LINKS.agents, icon: "users", label: () => t("agentChip.yourAgents") },
 ];
 
 const AGENT_VALUE_PREFIX = "agent:";
@@ -234,7 +235,8 @@ function renderAgentRow(agent: AgentMenuAgent, params: SidebarAgentMenuParams) {
   const label = normalizeAgentLabel(agent, identity);
   const active = agentId === params.activeId;
   const unread = active ? 0 : params.agentUnreadCount(agentId);
-  const option = { value: agentId, label, agent };
+  const bench = benchAgentIdentity(agentId);
+  const option = { value: agentId, label, agent, description: bench?.role };
   return html`
     <wa-dropdown-item
       class="sidebar-customize-menu__item sidebar-agent-menu__agent-switch agent-select__option ${
@@ -246,11 +248,11 @@ function renderAgentRow(agent: AgentMenuAgent, params: SidebarAgentMenuParams) {
       aria-checked=${String(active)}
       ${ref((element) => syncDropdownItemRadio(element, active))}
     >
-      <span class="sidebar-agent-menu__agent-tile">
-        <span class="sidebar-agent-menu__agent-avatar">
+      <span class="sidebar-agent-menu__agent-tile" style=${benchAgentStyle(agentId)}>
+        <span class="sidebar-agent-menu__agent-avatar ${bench ? "bench-agent-halo" : ""}">
           ${renderAgentSelectAvatar(option, identity)}
         </span>
-        ${renderAgentSelectCopy(option)}
+        ${renderAgentSelectCopy(option, { descriptionClass: "bench-agent-role bench-eyebrow" })}
         <span class="sidebar-agent-menu__agent-status">
           ${
             unread > 0
@@ -265,6 +267,17 @@ function renderAgentRow(agent: AgentMenuAgent, params: SidebarAgentMenuParams) {
       </span>
     </wa-dropdown-item>
   `;
+}
+
+// Voice casting of the selected agent (UI-BRAND-CONTRACT §4.2 switcher footer).
+function renderAgentMenuFooter(activeId: string) {
+  const voice = benchAgentIdentity(activeId)?.voice;
+  if (!voice) {
+    return nothing;
+  }
+  return html`<div class="sidebar-agent-menu__footer">
+    <span>${t("agentChip.voice", { voice })}</span>
+  </div>`;
 }
 
 function renderIdentityMenuHelpSubmenu() {
@@ -390,6 +403,7 @@ export function renderSidebarAgentMenu(params: SidebarAgentMenuParams) {
               <div class="sidebar-agent-menu__agent-grid">
                 ${rows.map((entry) => renderAgentRow(entry, params))}
               </div>
+              ${renderAgentMenuFooter(params.activeId)}
             `
           : nothing
       }
