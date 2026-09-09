@@ -1,11 +1,13 @@
+import { html } from "lit";
 import type { AgentsListResult } from "../api/types.ts";
 import { benchAgentDisplayName } from "../lib/agents/bench-agent-identity.ts";
 import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { normalizeAgentId } from "../lib/sessions/session-key.ts";
 import { isBenchThemeFamily, type ThemeName } from "./theme.ts";
 
-// Keep the preference data intact, but do not expose the control or mount a
-// background layer until the product-accepted implementation is available.
+// The current gravity-fabric module is an API-compatible no-op scaffold. Keep
+// its browser preference data intact, but do not expose or mount it until the
+// product-accepted implementation replaces the scaffold.
 const BENCH_GRAVITY_FABRIC_READY = false;
 
 export function benchFabricEnabled(
@@ -13,6 +15,10 @@ export function benchFabricEnabled(
   backgroundMotion: boolean | undefined,
 ): boolean {
   return BENCH_GRAVITY_FABRIC_READY && isBenchThemeFamily(theme) && backgroundMotion !== false;
+}
+
+export function renderBenchGravityFabric(enabled: boolean, theme: string) {
+  return html`<bench-gravity-fabric ?enabled=${enabled} theme=${theme}></bench-gravity-fabric>`;
 }
 
 export function resolveBenchModeSwitchAgent(

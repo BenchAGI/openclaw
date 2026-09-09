@@ -1,0 +1,24 @@
+/* Gravity fabric host (UI-BRAND-CONTRACT §8.5). The canvas is a fixed,
+   pointer-transparent layer at the bottom of the shell's own stacking context,
+   so it paints over the page background and under every shell surface that
+   paints one (sidebar, pane headers); the transcript and content areas are
+   transparent and let the field show through. Loaded with the deferred chunk. */
+
+bench-gravity-fabric {
+  display: contents;
+}
+
+canvas.bench-gravity-fabric {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Only while the fabric is on: give the shell its own stacking context so the
+   z-index:-1 canvas stays under the shell's children yet above the document. */
+.shell--bench-fabric {
+  isolation: isolate;
+}
