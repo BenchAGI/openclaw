@@ -120,6 +120,38 @@ test("a failed refresh clears the previous allowlist until a later success", asy
   );
 });
 
+test("a failed concurrent refresh cannot retain an older allowlist", async () => {
+  let attempt = 0;
+  let resolveFirst;
+  let rejectSecond;
+  await withManifestModule(
+    {
+      enforce: true,
+      fetchImpl: async () => {
+        attempt += 1;
+        if (attempt === 1) {
+          return new Promise((resolve) => {
+            resolveFirst = resolve;
+          });
+        }
+        return new Promise((_, reject) => {
+          rejectSecond = reject;
+        });
+      },
+    },
+    async ({ fetchHarnessManifest, isHarnessAllowedSlug }) => {
+      const first = fetchHarnessManifest();
+      const second = fetchHarnessManifest();
+      resolveFirst(response({ entries: [{ slug: "stale/page.md" }] }));
+      await first;
+      rejectSecond(new Error("latest refresh unavailable"));
+      await second;
+
+      assert.equal(isHarnessAllowedSlug("stale/page"), false);
+    },
+  );
+});
+
 test("default-off enforcement preserves unfiltered behavior", async () => {
   const payload = searchPayload();
   await withManifestModule(

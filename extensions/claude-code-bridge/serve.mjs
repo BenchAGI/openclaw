@@ -60,6 +60,7 @@ const HARNESS_MANIFEST_REFRESH_MS = Number(
 let harnessAllowedSlugs = null; // null = unknown/unavailable → fail closed; Set → enforce
 let harnessManifestVersion = 0;
 let harnessManifestRefreshTimer = null;
+let harnessManifestFetchGeneration = 0;
 
 function normalizeWikiPath(value) {
   if (typeof value !== "string") {
@@ -72,6 +73,7 @@ async function fetchHarnessManifest() {
   if (!HARNESS_MANIFEST_ENFORCE) {
     return;
   }
+  const fetchGeneration = ++harnessManifestFetchGeneration;
   // The manifest is an authorization boundary. Close the gate while the
   // initial load or any refresh is in flight; failures must not retain access.
   harnessAllowedSlugs = null;
@@ -107,6 +109,11 @@ async function fetchHarnessManifest() {
           slugs.add(norm);
         }
       }
+    }
+    // SIGHUP and interval refreshes may overlap. Only the newest response may
+    // publish state; stale responses must not resurrect an older allowlist.
+    if (fetchGeneration !== harnessManifestFetchGeneration) {
+      return;
     }
     harnessAllowedSlugs = slugs;
     harnessManifestVersion =
@@ -167,13 +174,15 @@ function filterSearchResultByManifest(payload) {
   if (!data || typeof data !== "object") {
     return payload;
   }
-  const results = Array.isArray(data.results)
-    ? data.results
-    : Array.isArray(data.matches)
-      ? data.matches
-      : Array.isArray(data.items)
-        ? data.items
-        : null;
+  const results = Array.isArray(data)
+    ? data
+    : Array.isArray(data.results)
+      ? data.results
+      : Array.isArray(data.matches)
+        ? data.matches
+        : Array.isArray(data.items)
+          ? data.items
+          : null;
   if (!results) {
     return payload;
   }
@@ -192,6 +201,15 @@ function filterSearchResultByManifest(payload) {
     return payload;
   }
 
+  const harnessManifest = {
+    version: harnessManifestVersion,
+    filteredOut: filteredCount,
+    ceiling: HARNESS_MANIFEST_CEILING,
+  };
+  if (Array.isArray(data)) {
+    return payload.data !== undefined ? { ...payload, data: filtered, harnessManifest } : filtered;
+  }
+
   const next = { ...data };
   if (Array.isArray(data.results)) {
     next.results = filtered;
@@ -202,11 +220,7 @@ function filterSearchResultByManifest(payload) {
   if (Array.isArray(data.items)) {
     next.items = filtered;
   }
-  next.harnessManifest = {
-    version: harnessManifestVersion,
-    filteredOut: filteredCount,
-    ceiling: HARNESS_MANIFEST_CEILING,
-  };
+  next.harnessManifest = harnessManifest;
 
   return payload.data !== undefined ? { ...payload, data: next } : next;
 }
