@@ -501,3 +501,99 @@ describe("Claude Code memory mirror", () => {
     });
   });
 });
+
+describe("Claude Code wiki owner selection through MCP", () => {
+  // The fake CLI uses a POSIX executable shebang, like the installed Mac bridge.
+  it.skipIf(process.platform === "win32").each([
+    {
+      label: "configured default",
+      agents: [{ id: "other" }, { id: "owner", default: true }],
+      selected: undefined,
+      expected: "owner",
+    },
+    { label: "sole agent", agents: [{ id: "sole" }], selected: undefined, expected: "sole" },
+    {
+      label: "explicit remote agent",
+      agents: [{ id: "local", default: true }],
+      selected: "remote",
+      expected: "remote",
+    },
+    {
+      label: "ambiguous agents",
+      agents: [{ id: "one" }, { id: "two" }],
+      selected: undefined,
+      expected: undefined,
+    },
+    {
+      label: "multiple defaults",
+      agents: [
+        { id: "one", default: true },
+        { id: "two", default: true },
+      ],
+      selected: undefined,
+      expected: undefined,
+    },
+  ])("routes search and get using $label", async ({ agents, selected, expected }) => {
+    const home = makeTempDir("openclaw-wiki-owner-");
+    writeFileSync(path.join(home, "openclaw.json"), JSON.stringify({ agents: { list: agents } }));
+    const shim = path.join(home, "openclaw-shim");
+    writeFileSync(
+      shim,
+      `#!${process.execPath}
+const args = process.argv.slice(2);
+const params = JSON.parse(args[args.indexOf("--params") + 1]);
+process.stdout.write(JSON.stringify({ method: args[2], params, timeout: Number(args[args.indexOf("--timeout") + 1]) }));
+`,
+    );
+    chmodSync(shim, 0o755);
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: [path.resolve("extensions/claude-code-bridge/serve.mjs")],
+      env: {
+        OPENCLAW_HOME: home,
+        OPENCLAW_BIN: shim,
+        OPENCLAW_BRIDGE_AUTOSTART: "false",
+        BENCH_HARNESS_MANIFEST_ENFORCE: "false",
+      },
+      stderr: "pipe",
+    });
+    const client = new Client({ name: "wiki-owner-test", version: "1.0.0" });
+    try {
+      await client.connect(transport);
+      for (const [tool, args] of [
+        ["openclaw_wiki_search", { query: "known decision", limit: 3 }],
+        ["openclaw_wiki_get", { lookup: "canon/decision.md", lineCount: 10 }],
+      ] as const) {
+        const result = await client.callTool({
+          name: tool,
+          arguments: { ...args, ...(selected ? { agentId: selected } : {}) },
+        });
+        const blocks = result.content as Array<{ type: string; text?: string }>;
+        const text = blocks.find((block) => block.type === "text")?.text;
+        expect(text).toBeDefined();
+        if (!expected) {
+          expect(result.isError).toBe(true);
+          expect(text).toContain("Wiki reads require an agentId");
+          continue;
+        }
+        const payload = JSON.parse(text!);
+        expect(payload.ok).toBe(true);
+        expect(payload.data.params.agentId).toBe(expected);
+        expect(payload.data.timeout).toBe(48_000);
+        if (tool === "openclaw_wiki_search") {
+          expect(payload.data).toMatchObject({
+            method: "wiki.search",
+            params: { query: "known decision", maxResults: 3 },
+          });
+        } else {
+          expect(payload.data).toMatchObject({
+            method: "wiki.get",
+            params: { lookup: "canon/decision.md", lineCount: 10 },
+          });
+        }
+      }
+    } finally {
+      await client.close();
+    }
+  });
+});

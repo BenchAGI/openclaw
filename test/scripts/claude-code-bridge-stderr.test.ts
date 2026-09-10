@@ -144,6 +144,23 @@ describe("standalone bridge stderr classification", () => {
 });
 
 describe("standalone bridge CLI result boundary", () => {
+  it.each([0, 1])("preserves structured gateway failures with exit %i", async (exitCode) => {
+    const result = {
+      exitCode,
+      stdout: JSON.stringify({
+        ok: false,
+        error: { type: "gateway_request_error", message: "Select an agent explicitly" },
+      }),
+      stderr: "[state-migrations] advisory\n- Left existing state",
+    };
+    await expect(createProbe(result).callGatewayMethod("wiki.search")).resolves.toEqual({
+      ok: false,
+      error: "Select an agent explicitly",
+      exitCode,
+      stderr: result.stderr,
+    });
+  });
+
   it.each([
     [' {"answer":42} ', { answer: 42 }],
     [" usable text ", "usable text"],
