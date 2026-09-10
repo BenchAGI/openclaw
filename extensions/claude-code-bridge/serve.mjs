@@ -9,6 +9,7 @@ import { promises as fs, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -56,9 +57,10 @@ const HARNESS_MANIFEST_REFRESH_MS = Number(
   process.env.BENCH_HARNESS_MANIFEST_REFRESH_MS ?? "300000",
 );
 
-let harnessAllowedSlugs = null; // null = unknown/no-manifest → fail open; Set → enforce
+let harnessAllowedSlugs = null; // null = unknown/unavailable → fail closed; Set → enforce
 let harnessManifestVersion = 0;
 let harnessManifestRefreshTimer = null;
+let harnessManifestFetchGeneration = 0;
 
 function normalizeWikiPath(value) {
   if (typeof value !== "string") {
@@ -71,6 +73,10 @@ async function fetchHarnessManifest() {
   if (!HARNESS_MANIFEST_ENFORCE) {
     return;
   }
+  const fetchGeneration = ++harnessManifestFetchGeneration;
+  // The manifest is an authorization boundary. Close the gate while the
+  // initial load or any refresh is in flight; failures must not retain access.
+  harnessAllowedSlugs = null;
   try {
     const url = new URL(HARNESS_MANIFEST_URL);
     url.searchParams.set("rarityCeiling", HARNESS_MANIFEST_CEILING);
@@ -104,6 +110,11 @@ async function fetchHarnessManifest() {
         }
       }
     }
+    // SIGHUP and interval refreshes may overlap. Only the newest response may
+    // publish state; stale responses must not resurrect an older allowlist.
+    if (fetchGeneration !== harnessManifestFetchGeneration) {
+      return;
+    }
     harnessAllowedSlugs = slugs;
     harnessManifestVersion =
       typeof body?.manifest?.manifestVersion === "number" ? body.manifest.manifestVersion : 0;
@@ -133,8 +144,8 @@ function isHarnessAllowedSlug(value) {
     return true;
   } // not enforcing
   if (harnessAllowedSlugs === null) {
-    return true;
-  } // manifest not loaded yet — fail open
+    return false;
+  } // manifest unknown/unavailable — fail closed
   const norm = normalizeWikiPath(value);
   if (!norm) {
     return false;
@@ -153,7 +164,7 @@ function isHarnessAllowedSlug(value) {
 }
 
 function filterSearchResultByManifest(payload) {
-  if (!HARNESS_MANIFEST_ENFORCE || harnessAllowedSlugs === null) {
+  if (!HARNESS_MANIFEST_ENFORCE) {
     return payload;
   }
   if (!payload || typeof payload !== "object") {
@@ -163,13 +174,15 @@ function filterSearchResultByManifest(payload) {
   if (!data || typeof data !== "object") {
     return payload;
   }
-  const results = Array.isArray(data.results)
-    ? data.results
-    : Array.isArray(data.matches)
-      ? data.matches
-      : Array.isArray(data.items)
-        ? data.items
-        : null;
+  const results = Array.isArray(data)
+    ? data
+    : Array.isArray(data.results)
+      ? data.results
+      : Array.isArray(data.matches)
+        ? data.matches
+        : Array.isArray(data.items)
+          ? data.items
+          : null;
   if (!results) {
     return payload;
   }
@@ -188,6 +201,15 @@ function filterSearchResultByManifest(payload) {
     return payload;
   }
 
+  const harnessManifest = {
+    version: harnessManifestVersion,
+    filteredOut: filteredCount,
+    ceiling: HARNESS_MANIFEST_CEILING,
+  };
+  if (Array.isArray(data)) {
+    return payload.data !== undefined ? { ...payload, data: filtered, harnessManifest } : filtered;
+  }
+
   const next = { ...data };
   if (Array.isArray(data.results)) {
     next.results = filtered;
@@ -198,11 +220,7 @@ function filterSearchResultByManifest(payload) {
   if (Array.isArray(data.items)) {
     next.items = filtered;
   }
-  next.harnessManifest = {
-    version: harnessManifestVersion,
-    filteredOut: filteredCount,
-    ceiling: HARNESS_MANIFEST_CEILING,
-  };
+  next.harnessManifest = harnessManifest;
 
   return payload.data !== undefined ? { ...payload, data: next } : next;
 }
@@ -859,46 +877,56 @@ function buildServer() {
 
 // -- Entrypoint ------------------------------------------------------------
 
-const args = process.argv.slice(2);
+export { fetchHarnessManifest, filterSearchResultByManifest, isHarnessAllowedSlug };
 
-if (args.includes("--once-list-tools")) {
-  const descriptors = [
-    {
-      name: "openclaw_gateway_health",
-      description: "Check OpenClaw gateway reachability (auto-starts if down).",
-    },
-    { name: "openclaw_agent_list", description: "List OpenClaw agents." },
-    { name: "openclaw_skill_list", description: "List skills for an OpenClaw agent." },
-    { name: "openclaw_wiki_search", description: "Search the OpenClaw memory wiki." },
-    { name: "openclaw_wiki_get", description: "Fetch a wiki page." },
-    { name: "openclaw_wiki_inbox_append", description: "Append a note to the inbox." },
-    {
-      name: "openclaw_agent_handoff",
-      description: "Hand a brief to an OpenClaw agent (creates a fresh session).",
-    },
-    { name: "openclaw_agent_send", description: "Send a follow-up to an existing agent session." },
-    {
-      name: "openclaw_agent_messages",
-      description: "Fetch recent messages from an agent session.",
-    },
-    { name: "openclaw_wiki_status", description: "Report wiki bridge status." },
-  ];
-  process.stdout.write(JSON.stringify(descriptors, null, 2) + "\n");
-  process.exit(0);
+async function main() {
+  const args = process.argv.slice(2);
+
+  if (args.includes("--once-list-tools")) {
+    const descriptors = [
+      {
+        name: "openclaw_gateway_health",
+        description: "Check OpenClaw gateway reachability (auto-starts if down).",
+      },
+      { name: "openclaw_agent_list", description: "List OpenClaw agents." },
+      { name: "openclaw_skill_list", description: "List skills for an OpenClaw agent." },
+      { name: "openclaw_wiki_search", description: "Search the OpenClaw memory wiki." },
+      { name: "openclaw_wiki_get", description: "Fetch a wiki page." },
+      { name: "openclaw_wiki_inbox_append", description: "Append a note to the inbox." },
+      {
+        name: "openclaw_agent_handoff",
+        description: "Hand a brief to an OpenClaw agent (creates a fresh session).",
+      },
+      {
+        name: "openclaw_agent_send",
+        description: "Send a follow-up to an existing agent session.",
+      },
+      {
+        name: "openclaw_agent_messages",
+        description: "Fetch recent messages from an agent session.",
+      },
+      { name: "openclaw_wiki_status", description: "Report wiki bridge status." },
+    ];
+    process.stdout.write(JSON.stringify(descriptors, null, 2) + "\n");
+    return;
+  }
+
+  const server = buildServer();
+  const transport = new StdioServerTransport();
+
+  // Load the harness manifest before accepting MCP requests when enforcement is
+  // enabled. Requests stay closed while an initial load or refresh is failing.
+  if (HARNESS_MANIFEST_ENFORCE) {
+    await fetchHarnessManifest();
+    scheduleHarnessManifestRefresh();
+    process.on("SIGHUP", () => {
+      void fetchHarnessManifest();
+    });
+  }
+
+  await server.connect(transport);
 }
 
-const server = buildServer();
-const transport = new StdioServerTransport();
-
-// Load the harness manifest before accepting MCP requests when enforcement is
-// enabled. Fire-and-forget the refresh loop; individual calls tolerate a null
-// allowlist by failing open, so a slow initial fetch never deadlocks startup.
-if (HARNESS_MANIFEST_ENFORCE) {
-  await fetchHarnessManifest();
-  scheduleHarnessManifestRefresh();
-  process.on("SIGHUP", () => {
-    void fetchHarnessManifest();
-  });
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  await main();
 }
-
-await server.connect(transport);

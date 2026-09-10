@@ -14,6 +14,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -34,6 +35,29 @@ function runNode(args: string[], options: { env?: NodeJS.ProcessEnv } = {}) {
     cwd: process.cwd(),
     encoding: "utf8",
     env: { ...process.env, ...options.env },
+  });
+}
+
+async function startJsonServer(body: unknown) {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify(body));
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    throw new Error("manifest test server did not expose a TCP address");
+  }
+  return { server, url: `http://127.0.0.1:${address.port}/manifest` };
+}
+
+async function stopServer(server: ReturnType<typeof createServer>) {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
   });
 }
 
@@ -423,6 +447,68 @@ describe("Claude Code bridge installer", () => {
       expect(realpathSync(dependencyPath)).toBe(
         realpathSync(path.join(runtime.secondStoreRoot, "node_modules")),
       );
+    },
+  );
+});
+
+describe("Claude Code harness manifest enforcement through MCP", () => {
+  it.skipIf(process.platform === "win32")(
+    "filters the memory-wiki gateway's array response",
+    async () => {
+      const home = makeTempDir("openclaw-harness-manifest-");
+      const manifest = await startJsonServer({
+        entries: [{ slug: "approved/page.md" }],
+        manifest: { manifestVersion: 9 },
+      });
+      const shim = path.join(home, "openclaw-shim");
+      writeFileSync(
+        shim,
+        `#!${process.execPath}
+process.stdout.write(JSON.stringify([
+  { path: "approved/page.md" },
+  { path: "blocked/page.md" },
+]));
+`,
+        "utf8",
+      );
+      chmodSync(shim, 0o755);
+
+      const transport = new StdioClientTransport({
+        command: process.execPath,
+        args: [path.resolve("extensions/claude-code-bridge/serve.mjs")],
+        env: {
+          PATH: process.env.PATH ?? "",
+          HOME: home,
+          OPENCLAW_HOME: home,
+          OPENCLAW_BIN: shim,
+          OPENCLAW_BRIDGE_AUTOSTART: "false",
+          BENCH_HARNESS_MANIFEST_ENFORCE: "true",
+          BENCH_HARNESS_MANIFEST_URL: manifest.url,
+        },
+        stderr: "pipe",
+      });
+      const client = new Client({ name: "harness-manifest-test", version: "1.0.0" });
+      try {
+        await client.connect(transport);
+        const result = await client.callTool({
+          name: "openclaw_wiki_search",
+          arguments: { query: "known decision" },
+        });
+        const blocks = result.content as Array<{ type: string; text?: string }>;
+        const text = blocks.find((block) => block.type === "text")?.text;
+        expect(text).toBeDefined();
+        const payload = JSON.parse(text!);
+        expect(payload.ok).toBe(true);
+        expect(payload.data).toEqual([{ path: "approved/page.md" }]);
+        expect(payload.harnessManifest).toEqual({
+          version: 9,
+          filteredOut: 1,
+          ceiling: "orange",
+        });
+      } finally {
+        await client.close();
+        await stopServer(manifest.server);
+      }
     },
   );
 });
