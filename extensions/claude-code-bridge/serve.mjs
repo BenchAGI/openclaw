@@ -272,31 +272,34 @@ async function callGatewayMethod(method, params, opts = {}) {
     env: childEnv,
   });
   const trimmed = res.stdout.trim();
-  // A non-zero exit is NOT sufficient to call this a failure. The CLI exits 1
-  // whenever legacy state-migration warnings are present, and those warnings are
-  // permanent on a migrated install — they fire on every invocation and never
-  // clear. Treating that as an error made every CLI-backed tool here return
-  // ok:false while discarding perfectly good stdout, which trained agents to
-  // stop reaching for the harness at all. Trust the payload over the exit code:
-  // if the command produced usable output and stderr shows no hard failure,
-  // surface the data and carry the warnings alongside it.
-  if (res.exitCode !== 0 && !(trimmed.length > 0 && isWarningOnlyStderr(res.stderr))) {
+  let data = trimmed || null;
+  try {
+    data = JSON.parse(trimmed);
+  } catch {
+    // Older gateway methods can return plain text instead of JSON.
+  }
+  // The CLI writes gateway failures to stdout in --json mode. Preserve that
+  // error even when unrelated migration diagnostics also appear on stderr.
+  const gatewayFailed = data?.ok === false;
+  const commandFailed =
+    res.exitCode !== 0 && !(trimmed.length > 0 && isWarningOnlyStderr(res.stderr));
+  if (gatewayFailed || commandFailed) {
     return {
       ok: false,
-      error: res.stderr.trim() || `openclaw exited with code ${res.exitCode}`,
+      error: gatewayFailed
+        ? (data.error?.message ?? data.error ?? "Gateway request failed")
+        : res.stderr.trim() || `openclaw exited with code ${res.exitCode}`,
       exitCode: res.exitCode,
       stderr: res.stderr,
     };
   }
-  const degraded = res.exitCode !== 0;
-  if (trimmed.length === 0) {
-    return { ok: true, data: null, exitCode: 0, stderr: res.stderr };
-  }
-  try {
-    return { ok: true, data: JSON.parse(trimmed), exitCode: 0, stderr: res.stderr, degraded };
-  } catch {
-    return { ok: true, data: trimmed, exitCode: 0, stderr: res.stderr, degraded };
-  }
+  return {
+    ok: true,
+    data,
+    exitCode: 0,
+    stderr: res.stderr,
+    ...(trimmed ? { degraded: res.exitCode !== 0 } : {}),
+  };
 }
 
 // True when stderr carries only known-benign advisory output. Deliberately
@@ -360,7 +363,8 @@ function runCommand(command, args, opts) {
       clearTimeout(timer);
       resolve({ exitCode: 127, stdout, stderr: stderr + `\n[spawn error: ${err.message}]` });
     });
-    child.on("exit", (code) => {
+    // Wait for the output pipes too: exit may precede the last JSON bytes.
+    child.on("close", (code) => {
       if (settled) {
         return;
       }
@@ -529,11 +533,33 @@ async function resolveAgentId(agentIdOrAlias) {
   return agentIdOrAlias ?? null;
 }
 
+// Wiki reads need an owner even when the remote gateway has several agents.
+// Use only an explicit selection, one configured default, or a sole agent.
+async function resolveWikiAgentId(agentId) {
+  if (agentId) {
+    return agentId;
+  }
+  const schedules = [...(await loadAgentSchedules()).values()];
+  const owners =
+    schedules.length === 1 ? schedules : schedules.filter((schedule) => schedule.defaultAgent);
+  if (owners.length !== 1) {
+    throw new Error("Wiki reads require an agentId or one configured default agent.");
+  }
+  return owners[0].agentId;
+}
+
 // -- MCP server ------------------------------------------------------------
 
 function jsonResult(value) {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
 }
+
+const wikiAgentIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .optional()
+  .describe("Agent that owns this memory; defaults to the configured default or sole agent.");
 
 function buildServer() {
   const server = new McpServer({
@@ -594,6 +620,7 @@ function buildServer() {
         "are excluded — pass include_staged:true to see them. Raise min_confidence to tighten the floor.",
       inputSchema: {
         query: z.string().min(1).describe("Free-text search query."),
+        agentId: wikiAgentIdSchema,
         corpus: z
           .enum(["all", "wiki", "memory"])
           .optional()
@@ -619,9 +646,9 @@ function buildServer() {
           ),
       },
     },
-    async ({ query, corpus, backend, limit, min_confidence, include_staged }) => {
+    async ({ query, agentId, corpus, backend, limit, min_confidence, include_staged }) => {
       await ensureGatewayUp();
-      const params = { query };
+      const params = { query, agentId: await resolveWikiAgentId(agentId) };
       if (corpus) {
         params.corpus = corpus;
       }
@@ -637,7 +664,8 @@ function buildServer() {
       if (typeof include_staged === "boolean") {
         params.includeStaged = include_staged;
       }
-      const raw = await callGatewayMethod("wiki.search", params);
+      // Shared wiki retrieval can outlast the general 15-second RPC budget.
+      const raw = await callGatewayMethod("wiki.search", params, { timeoutMs: 50_000 });
       return jsonResult(filterSearchResultByManifest(raw));
     },
   );
@@ -648,6 +676,7 @@ function buildServer() {
       description:
         "Fetch a wiki page by title or vault-relative path. Optional fromLine/lineCount for paged reads.",
       inputSchema: {
+        agentId: wikiAgentIdSchema,
         lookup: z
           .string()
           .min(1)
@@ -662,7 +691,7 @@ function buildServer() {
           .describe("Number of lines to return."),
       },
     },
-    async ({ lookup, fromLine, lineCount }) => {
+    async ({ lookup, agentId, fromLine, lineCount }) => {
       await ensureGatewayUp();
       if (!isHarnessAllowedSlug(lookup)) {
         return jsonResult({
@@ -672,14 +701,14 @@ function buildServer() {
           ceiling: HARNESS_MANIFEST_CEILING,
         });
       }
-      const params = { lookup };
+      const params = { lookup, agentId: await resolveWikiAgentId(agentId) };
       if (fromLine !== undefined) {
         params.fromLine = fromLine;
       }
       if (lineCount !== undefined) {
         params.lineCount = lineCount;
       }
-      return jsonResult(await callGatewayMethod("wiki.get", params));
+      return jsonResult(await callGatewayMethod("wiki.get", params, { timeoutMs: 50_000 }));
     },
   );
 

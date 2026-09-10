@@ -56,6 +56,23 @@ All prefixed `openclaw_`:
 | `agent_send`        | gateway `sessions.send` (follow-up to existing sessionKey)                             |
 | `agent_messages`    | gateway `chat.history` (param is `sessionKey` not `key`)                               |
 
+## Memory ownership and errors
+
+`wiki_search` and `wiki_get` accept an optional `agentId`. When omitted, the bridge
+uses the single agent marked `default: true` in its local OpenClaw configuration,
+or the sole configured agent. With no unambiguous owner, pass `agentId` explicitly;
+the bridge never chooses the first of several agents for a memory read. Explicit
+IDs are forwarded to the gateway, which validates the target and access.
+
+Gateway JSON errors remain failures even when the CLI also emits migration
+warnings. The response exposes the gateway's error message alongside diagnostics.
+A successful empty search is an empty result list, not an error. Wiki reads have
+a bounded 50-second subprocess budget (48 seconds for the gateway RPC), allowing
+shared retrieval to finish beyond the general 15-second tool budget.
+
+After updating the staged bridge, reconnect the MCP client to load the new code.
+The running gateway and its memory indexes do not need to be restarted.
+
 ## Operational gotchas
 
 - `openclaw gateway call` defaults its `--timeout` to 10000 ms — pass `--timeout` explicitly or calls >10 s fail with a misleading "gateway timeout" error.
