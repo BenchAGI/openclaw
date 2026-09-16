@@ -90,6 +90,13 @@
       "kind": "object-property",
       "name": "label",
       "path": "ui/src/app/typography.ts",
+      "text": "Inter"
+    },
+    {
+      "count": 1,
+      "kind": "object-property",
+      "name": "label",
+      "path": "ui/src/app/typography.ts",
       "text": "JetBrains Mono"
     },
     {

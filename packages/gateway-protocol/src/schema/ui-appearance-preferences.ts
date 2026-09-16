@@ -45,6 +45,8 @@ export const UI_APPEARANCE_TYPEFACE_VALUES = [
   "fraunces",
   "lora",
   "jetbrains-mono",
+  // Bench fork face (Inter Variable), kept ahead of the closing system entry.
+  "inter",
   "system",
 ] as const;
 const UI_APPEARANCE_THEMES = new Set<string>(UI_APPEARANCE_THEME_VALUES);

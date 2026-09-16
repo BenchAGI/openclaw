@@ -50,10 +50,10 @@ describe("typeface presentation", () => {
   });
 
   it.each([
-    ["bench", ["instrument-sans", "instrument-sans"], "space-grotesk"],
-    ["bench-garden", ["instrument-sans", "lora"], "lora"],
-    ["bench-forge", ["instrument-sans", "instrument-sans"], "space-grotesk"],
-    ["bench-aurelius", ["instrument-sans", "instrument-sans"], "lora"],
+    ["bench", ["inter", "inter"], "space-grotesk"],
+    ["bench-garden", ["inter", "lora"], "lora"],
+    ["bench-forge", ["inter", "inter"], "space-grotesk"],
+    ["bench-aurelius", ["inter", "inter"], "lora"],
   ] as const)(
     "loads %s's default faces plus its display face and the shared mono face",
     (theme, [ui, chat], display) => {
@@ -100,8 +100,8 @@ describe("typeface presentation", () => {
     loadTypefaceSpecimens();
     const specimens = fontLinks();
     expect(specimens).toEqual(expect.arrayContaining(active));
-    expect(specimens).toHaveLength(9);
-    expect(new Set(hrefs()).size).toBe(9);
+    expect(specimens).toHaveLength(10);
+    expect(new Set(hrefs()).size).toBe(10);
     loadTypefaceSpecimens();
     syncTypefaceStylesheets(resolveTypefaces("knot", "lora"));
     expect(fontLinks()).toEqual(specimens);

@@ -620,6 +620,7 @@ const enSettings = {
         fraunces: "Expressive reading serif",
         lora: "Calm, literary serif",
         "jetbrains-mono": "Clear, evenly spaced letters",
+        inter: "Neutral and screen-ready",
         system: "No webfont",
       },
       accent: "Accent color",

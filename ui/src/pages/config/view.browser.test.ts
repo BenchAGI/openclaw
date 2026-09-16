@@ -323,8 +323,9 @@ describe("config view", () => {
       "Dash · Fraunces",
     );
     expect(ui.closest(".settings-row")?.textContent).toContain("Saved to your profile");
-    expect(ui.querySelectorAll("wa-option")).toHaveLength(11);
-    expect(chat.querySelectorAll("wa-option")).toHaveLength(11);
+    // Theme default plus the ten self-hosted faces and System.
+    expect(ui.querySelectorAll("wa-option")).toHaveLength(12);
+    expect(chat.querySelectorAll("wa-option")).toHaveLength(12);
     Object.defineProperty(ui, "value", { configurable: true, value: "lora" });
     ui.dispatchEvent(new Event("change"));
     expect(props.setFontUi).toHaveBeenLastCalledWith("lora");
