@@ -8,7 +8,7 @@
    * Aurelius stage tokens (--ax-*): #07070a stage black, gold #e7c182 as the
    * text-carrying accent with an amber glow, a deeper gold fill for buttons
    * with dark ink, and Infrared stepping back to the second series. Display
-   * type in Lora; chrome and chat in Instrument Sans.
+   * type in Lora; chrome and chat in Inter.
    *
    * WCAG 2.1 AA audit (bg = #07070a, relative luminance ≈ 0.0022):
    *   --accent #e7c182  contrast ≈ 11.8:1 AAA ✓ (11.4:1 on --card)
@@ -82,8 +82,8 @@
 
   --grid-line: rgba(250, 246, 238, 0.035);
 
-  /* Typography — Instrument Sans chrome and chat; Lora (fonts/lora.css) display. */
-  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Typography — Inter chrome and chat; Lora (fonts/lora.css) display. */
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Lora", Georgia, "Times New Roman", serif;
   --font-chat: var(--font-body);
 }
@@ -165,7 +165,7 @@
   --grid-line: rgba(18, 16, 12, 0.05);
 
   /* Typography — see the dark block. */
-  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Lora", Georgia, "Times New Roman", serif;
   --font-chat: var(--font-body);
 }

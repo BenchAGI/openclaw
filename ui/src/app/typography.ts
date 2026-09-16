@@ -27,6 +27,7 @@ const TYPEFACE_METADATA: Record<
   fraunces: { label: "Fraunces", kind: "serif" },
   lora: { label: "Lora", kind: "serif" },
   "jetbrains-mono": { label: "JetBrains Mono", kind: "mono" },
+  inter: { label: "Inter", kind: "sans" },
   system: { label: "System", kind: "sans" },
 };
 
@@ -54,13 +55,13 @@ export const THEME_TYPEFACES = {
   manuscript: { ui: "lora", chat: "lora" },
   rose: { ui: "dm-sans", chat: "dm-sans" },
   miami: { ui: "space-grotesk", chat: "space-grotesk" },
-  // Bench families: Instrument Sans is the nearest bundled neo-grotesque to the
-  // brand's Inter; Garden reads chat in Lora. Display faces live in
-  // BENCH_DISPLAY_TYPEFACES below.
-  bench: { ui: "instrument-sans", chat: "instrument-sans" },
-  "bench-garden": { ui: "instrument-sans", chat: "lora" },
-  "bench-forge": { ui: "instrument-sans", chat: "instrument-sans" },
-  "bench-aurelius": { ui: "instrument-sans", chat: "instrument-sans" },
+  // Bench families: Inter (fonts/inter.css) is the brand's body face, the same
+  // Inter Variable the Vault shell and the Bench web app bundle; Garden reads
+  // chat in Lora. Display faces live in BENCH_DISPLAY_TYPEFACES below.
+  bench: { ui: "inter", chat: "inter" },
+  "bench-garden": { ui: "inter", chat: "lora" },
+  "bench-forge": { ui: "inter", chat: "inter" },
+  "bench-aurelius": { ui: "inter", chat: "inter" },
   custom: { ui: "system", chat: "system" },
 } satisfies Record<ThemeName, TypefacePair>;
 

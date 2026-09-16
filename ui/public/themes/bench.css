@@ -37,11 +37,20 @@
   --destructive-hover: #bc2a2a;
   --destructive-foreground: #fafafa;
 
+  /* Focus stays Infrared (the brand focus across the a11y suite): 5.4:1 on
+     --bg, 5.0:1 on --card, 4.7:1 on --bg-elevated, all above the 3:1 non-text
+     floor. The Vault chrome's own controls ring in its digital blue #1fa2ff;
+     the two never share a surface, so the seam is by design. */
   --focus: rgba(255, 45, 85, 0.2);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 70%, transparent);
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 16px var(--accent-glow);
 
-  /* Surfaces — the ink ramp, true neutral; no cast so Infrared owns the hue. */
+  /* Surfaces — the ink ramp, true neutral; no cast so Infrared owns the hue.
+     Same values as the Vault shell's bench-tokens.css so the embedded Control
+     UI shows no seam: --bg = ink-0, --bg-accent = ink-1, --card = ink-2
+     (#14141a; the web app's --bench-ink-2 #16161b is the outlier, not chased),
+     --bg-elevated/--border = ink-3, --bg-hover/--bg-muted = ink-4,
+     --border-strong = ink-5, --border-hover = ink-6. */
   --bg: #0a0a0c;
   --bg-accent: #101013;
   --bg-elevated: #1c1c22;
@@ -60,7 +69,11 @@
   --chrome: rgba(10, 10, 12, 0.96);
   --chrome-strong: rgba(10, 10, 12, 0.98);
 
-  /* Chalk ramp: chrome text one step under chat prose, emphasis on --text-strong. */
+  /* Chalk ramp: chrome text one step under chat prose, emphasis on --text-strong.
+     --text-strong = chalk-1, --card-foreground = chalk-2, --text = chalk-3.
+     --muted is deliberately lifted above the Vault's chalk-4 (#7c7c87): that
+     value lands at 3.8:1 on --bg-muted and 4.1:1 on --bg-elevated, under the
+     4.5:1 the muted-token contrast tests hold every family to. */
   --text: #b9b9c1;
   --text-strong: #fafafa;
   --chat-text: #c4c4cb;
@@ -87,13 +100,13 @@
 
   --grid-line: rgba(255, 255, 255, 0.035);
 
-  /* Typography — Instrument Sans (fonts/instrument-sans.css) is the closest
-     bundled neo-grotesque to the kit's Inter; Space Grotesk is the kit's
-     display face for headlines. Fallbacks keep text painting on failure. */
-  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Typography — Inter (fonts/inter.css), the same Inter Variable the Vault
+     shell and the Bench web app bundle, for chrome and chat; Space Grotesk is
+     the kit's display face for headlines; code spans keep base.css --mono
+     (JetBrains Mono). Fallbacks keep text painting on failure. */
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display:
-    "Space Grotesk", "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
+    "Space Grotesk", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-chat: var(--font-body);
 }
 
@@ -176,9 +189,8 @@
   --grid-line: rgba(20, 20, 26, 0.05);
 
   /* Typography — see the dark block. */
-  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display:
-    "Space Grotesk", "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
+    "Space Grotesk", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-chat: var(--font-body);
 }

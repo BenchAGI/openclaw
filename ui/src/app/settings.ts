@@ -190,8 +190,8 @@ export const UI_APPEARANCE_DEFAULTS = {
   lobsterPetVisits: true,
   lobsterPetSounds: false,
   sessionDeleteConfirm: true,
-  // Retained for the pending gravity-fabric implementation; its control stays
-  // hidden while the current module is a no-op scaffold.
+  // Bench gravity fabric behind the shell; bench-shell.ts gates it to Bench
+  // families outside the desktop Vault.
   backgroundMotion: true,
 } as const;
 
@@ -236,7 +236,7 @@ export type UiSettings = {
   customTheme?: ImportedCustomTheme;
   locale?: string;
   lobsterPetVisits?: boolean; // Whether the sidebar lobster pet drops by (default true)
-  // Preserved for the pending gravity-fabric implementation (default true).
+  // Bench gravity fabric behind the shell (default true; Bench families only).
   backgroundMotion?: boolean;
   lobsterPetSounds?: boolean; // Opt-in poke/pet chirps from the lobster (default false)
   // Confirm before deleting sessions (default true). Device-local on purpose:
