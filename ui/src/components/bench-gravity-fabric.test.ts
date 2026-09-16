@@ -13,6 +13,8 @@ function createMount() {
   const calls: Array<{ canvas: HTMLCanvasElement; options: GravityFabricOptions }> = [];
   const mount = vi.fn((canvas: HTMLCanvasElement, options: GravityFabricOptions) => {
     calls.push({ canvas, options });
+    // The vendored module pins z-index 0 inline; the host must give it back.
+    canvas.style.zIndex = "0";
     const handle = {
       destroy: vi.fn(),
       setTheme: vi.fn(),
@@ -55,6 +57,7 @@ describe("bench-gravity-fabric host", () => {
       pointerTarget: window,
       reducedMotion: false,
     });
+    expect(calls[0]?.canvas.style.zIndex).toBe("");
     host.theme = "dark";
     await host.updateComplete;
     expect(handles[0]?.setTheme).toHaveBeenCalledWith("dark");

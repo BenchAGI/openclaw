@@ -84,6 +84,11 @@ class BenchGravityFabric extends OpenClawLightDomContentsElement {
       pointerTarget: window,
       reducedMotion: this.motionQuery?.matches ?? false,
     });
+    // The module pins its canvas inline (fixed, inset 0, full size, z-index 0,
+    // pointer-events none). Everything but z-index matches
+    // bench-gravity-fabric.css; the stylesheet's -1 under the isolated shell is
+    // the layer contract here, so hand z-index back to it.
+    canvas.style.removeProperty("z-index");
   }
 
   private unmount(): void {
