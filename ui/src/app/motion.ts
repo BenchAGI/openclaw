@@ -56,6 +56,18 @@ export function applyMotionPresentation(root: HTMLElement, presentation: MotionP
   root.dataset.motion = presentation;
 }
 
+/** Whether a script-driven loop (canvas, rAF) should hold its static pose. */
+export function calmMotionRequested(): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  return (
+    document.documentElement.dataset.motion === "reduced" ||
+    (typeof globalThis.matchMedia === "function" &&
+      globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches === true)
+  );
+}
+
 export function currentMotion(preference: MotionPreference | undefined): MotionPresentation {
   return resolveMotionPresentation(preference, readMotionEnvironment());
 }

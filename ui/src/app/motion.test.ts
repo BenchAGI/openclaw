@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { isEmbeddedWebKitHost, resolveMotionPresentation } from "./motion.ts";
+import { calmMotionRequested, isEmbeddedWebKitHost, resolveMotionPresentation } from "./motion.ts";
 
 const SAFARI =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15";
@@ -50,5 +50,11 @@ describe("resolveMotionPresentation", () => {
       resolveMotionPresentation("full", { prefersReducedMotion: true, embeddedHost: true }),
     ).toBe("full");
     expect(resolveMotionPresentation("reduced", calm)).toBe("reduced");
+  });
+});
+
+describe("calmMotionRequested", () => {
+  it("is false without a document", () => {
+    expect(calmMotionRequested()).toBe(false);
   });
 });
