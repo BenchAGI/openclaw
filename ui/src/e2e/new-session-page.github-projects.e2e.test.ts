@@ -74,6 +74,7 @@ suite.define(() => {
           .fill("openclaw");
         await projects.getByRole("button", { name: /openclaw\/openclaw/u }).click();
 
+<<<<<<< HEAD
         await captureProjectUiProof(suite, page, "github-worktree-direct.png");
         const checkout = page.locator("#new-session-checkout-trigger");
         await expect.poll(() => checkout.isVisible()).toBe(true);
@@ -88,7 +89,9 @@ suite.define(() => {
           "New worktree",
         );
         const baseRef = checkoutPopover.getByLabel("From");
-        expect(await baseRef.getAttribute("placeholder")).toBe("From");
+        expect(await baseRef.getAttribute("placeholder")).toBe(
+          "Automatic (fresh remote default; HEAD for local-only repositories)",
+        );
         expect(await baseRef.inputValue()).toBe("");
         expect(await checkoutPopover.locator("datalist option").count()).toBe(0);
         await captureProjectUiProof(suite, page, "github-worktree-selected.png", {
