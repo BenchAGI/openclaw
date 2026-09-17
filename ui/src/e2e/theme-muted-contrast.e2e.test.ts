@@ -12,6 +12,8 @@ const proofDirectory = path.resolve(
 );
 
 const themeCases = [
+  { family: "bench", mode: "dark", resolved: "bench" },
+  { family: "bench", mode: "light", resolved: "bench-light" },
   { family: "claw", mode: "dark", resolved: "dark" },
   { family: "claw", mode: "light", resolved: "light" },
   { family: "knot", mode: "dark", resolved: "openknot" },
@@ -40,12 +42,12 @@ const textTokens = [
 const surfaceTokens = ["--bg", "--bg-elevated", "--bg-muted", "--card", "--panel"] as const;
 
 function themeConfigResponse(
-  family: "claw" | "knot" | "dash" | "absolutely" | "tide" | "beacon" | "phosphor",
+  family: "bench" | "claw" | "knot" | "dash" | "absolutely" | "tide" | "beacon" | "phosphor",
   mode: "dark" | "light",
   accent?: string,
 ) {
   const config = {
-    ui: { prefs: { ...(family === "claw" ? {} : { theme: family }), themeMode: mode, accent } },
+    ui: { prefs: { ...(family === "bench" ? {} : { theme: family }), themeMode: mode, accent } },
   };
   const hash = `theme-contrast-${family}-${mode}`;
   return {
@@ -207,7 +209,7 @@ suite.define(() => {
         const raw = (patch.params as { raw?: unknown } | undefined)?.raw;
         expect(typeof raw).toBe("string");
         expect(JSON.parse(String(raw))).toMatchObject({
-          ui: { prefs: { theme: family === "claw" ? null : family } },
+          ui: { prefs: { theme: family === "bench" ? null : family } },
         });
 
         // Theme clicks apply immediately; the eventual Gateway acknowledgement must not revert them.

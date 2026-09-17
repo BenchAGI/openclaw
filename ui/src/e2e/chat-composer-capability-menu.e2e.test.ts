@@ -329,12 +329,15 @@ suite.define(() => {
 
       const themeBackgrounds: string[] = [];
       for (const mode of ["dark", "light"] as const) {
+        await page.emulateMedia({ colorScheme: mode });
+        await expect
+          .poll(() => page.locator("html").getAttribute("data-theme"))
+          .toBe(mode === "dark" ? "bench" : "bench-light");
         themeBackgrounds.push(
-          await menu.evaluate((node, nextMode) => {
-            document.documentElement.dataset.themeMode = nextMode;
+          await menu.evaluate((node) => {
             const surface = node.shadowRoot?.querySelector('[part="menu"]');
             return surface ? getComputedStyle(surface).backgroundColor : "";
-          }, mode),
+          }),
         );
       }
       expect(themeBackgrounds[0]).not.toBe("");
