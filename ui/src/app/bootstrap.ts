@@ -50,6 +50,7 @@ import { syncCustomThemeStyleTag } from "./custom-theme.ts";
 import { createScopeUpgradeCapability } from "./device-scope-upgrade.ts";
 import { createApplicationGateway } from "./gateway-store.ts";
 import { createInitialUserMessageHandoff } from "./initial-user-message-handoff.ts";
+import { currentMotion, detachMotionSync, syncMotion } from "./motion.ts";
 import { createNativeChatDrafts } from "./native-bridge.ts";
 import { startNativeLinkRouting } from "./native-link-routing.ts";
 import { createNativeNotificationsCapability } from "./native-notifications.ts";
@@ -96,6 +97,7 @@ function applyThemePresentation(settings: ReturnType<typeof loadSettings>): void
   root.classList.toggle("wa-light", root.dataset.themeMode === "light");
   root.classList.toggle("wa-dark", root.dataset.themeMode === "dark");
   root.style.colorScheme = root.dataset.themeMode;
+  syncMotion(root, settings.motion);
   root.style.setProperty("--control-ui-text-scale", `${(settings.textScale ?? 100) / 100}`);
   const typefaces = resolveTypefaces(settings.theme, settings.fontUi, settings.fontChat);
   syncTypefaceStylesheets(typefaces);
@@ -182,6 +184,9 @@ function createApplicationTheme(
     get resolvedMode() {
       return resolveTheme(settings.theme, settings.themeMode).endsWith("light") ? "light" : "dark";
     },
+    get motion() {
+      return currentMotion(settings.motion);
+    },
     get serverSelection() {
       return serverSelection;
     },
@@ -218,6 +223,7 @@ function createApplicationTheme(
       presentationGeneration += 1;
       detachSystemThemeListener();
       chromeBreakpointCleanup?.();
+      detachMotionSync();
       listeners.clear();
     },
   };

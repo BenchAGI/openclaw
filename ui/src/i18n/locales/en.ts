@@ -1745,6 +1745,12 @@ export const en: TranslationMap = {
       lobsterSounds: "Lobster sounds",
       lobsterSoundsOn: "Tiny blubs when touched",
       lobsterSoundsOff: "Silent",
+      motion: "Motion",
+      motionHint:
+        "Ambient animation. Auto stays calm inside the Aurelius Vault and when the system prefers reduced motion.",
+      motionAuto: "Auto",
+      motionFull: "Full",
+      motionReduced: "Reduced",
       lobsterdex: "Lobsterdex",
       lobsterdexSeen: "{seen}/{total} visited",
       lobsterdexFirstVisited: "{name} · first visited {date}",

@@ -56,6 +56,27 @@ describe("settings preference persistence", () => {
     expect(loadSettings().chatSendShortcut).toBe("enter");
   });
 
+  it("persists only a non-auto motion preference", () => {
+    setTestLocation({
+      protocol: "https:",
+      host: "gateway.example:8443",
+      pathname: "/",
+    });
+
+    const gwUrl = expectedGatewayUrl("");
+    const scopedKey = `openclaw.control.settings.v1:${gwUrl}`;
+    expect(loadSettings().motion).toBe("auto");
+    saveSettings({ ...loadSettings(), motion: "reduced" });
+    expect(JSON.parse(localStorage.getItem(scopedKey) ?? "{}").motion).toBe("reduced");
+    expect(loadSettings().motion).toBe("reduced");
+
+    saveSettings({ ...loadSettings(), motion: "auto" });
+    expect(JSON.parse(localStorage.getItem(scopedKey) ?? "{}")).not.toHaveProperty("motion");
+
+    localStorage.setItem(scopedKey, JSON.stringify({ gatewayUrl: gwUrl, motion: "unsupported" }));
+    expect(loadSettings().motion).toBe("auto");
+  });
+
   it("persists only explicit chat follow-up overrides", () => {
     setTestLocation({
       protocol: "https:",

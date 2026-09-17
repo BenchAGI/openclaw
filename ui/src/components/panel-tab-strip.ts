@@ -483,6 +483,7 @@ export const panelTabStripStyles = css`
   }
   .tabstrip-tab.is-connecting .tabstrip-tab__icon {
     animation: tabstrip-pulse 1.2s ease-in-out infinite;
+    animation-play-state: var(--control-ui-motion-play-state, running);
   }
   .tabstrip-tab__icon {
     display: inline-flex;

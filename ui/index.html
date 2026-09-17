@@ -99,6 +99,20 @@
           document.documentElement.setAttribute("data-theme-mode", resolvedMode);
           // Carapace CSS selects on [data-theme-resolved]; keep in lockstep.
           document.documentElement.setAttribute("data-theme-resolved", resolvedMode);
+          // Motion budget before first paint. Kept in lockstep with
+          // resolveMotionPresentation() and isEmbeddedWebKitHost() in app/motion.ts.
+          var motion = s && s.motion;
+          if (motion !== "full" && motion !== "reduced") motion = "auto";
+          var ua = navigator.userAgent || "";
+          var embedded =
+            /\bAureliusVault\//.test(ua) ||
+            (/AppleWebKit\//.test(ua) &&
+              !/(?:Safari|Chrome|Chromium|CriOS|FxiOS|Firefox|Edg|Electron)\//.test(ua));
+          var calm =
+            motion === "reduced" ||
+            (motion === "auto" &&
+              (embedded || window.matchMedia("(prefers-reduced-motion: reduce)").matches));
+          document.documentElement.setAttribute("data-motion", calm ? "reduced" : "full");
         } catch (e) {}
       })();
     </script>

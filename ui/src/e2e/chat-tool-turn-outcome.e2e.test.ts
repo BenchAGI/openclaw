@@ -661,8 +661,9 @@ suite.define(() => {
 
     const runningRow = page.locator(".chat-tool-row--running");
     await runningRow.waitFor();
-    // Visual-regression guard for the active-task text wave: the running
-    // command text must carry the glyph-clipped gradient animation.
+    // Visual-regression guard for the active-task text breathe: the running
+    // command text carries the compositor-only opacity animation and keeps its
+    // plain, unclipped color.
     const wave = await runningRow.locator(".chat-tool-row__cmd").evaluate((node) => {
       const style = getComputedStyle(node);
       return {
@@ -671,9 +672,9 @@ suite.define(() => {
         color: style.color,
       };
     });
-    expect(wave.animationName).toBe("chatToolRowTextWave");
-    expect(wave.backgroundClip).toBe("text");
-    expect(wave.color).toBe("rgba(0, 0, 0, 0)");
+    expect(wave.animationName).toBe("chatToolRowTextBreathe");
+    expect(wave.backgroundClip).not.toBe("text");
+    expect(wave.color).not.toBe("rgba(0, 0, 0, 0)");
     await captureToolActivityProof(page, "tool-row-running-text-wave");
 
     await gateway.emitGatewayEvent("agent", {

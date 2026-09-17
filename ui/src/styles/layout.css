@@ -688,6 +688,13 @@ openclaw-settings-save-indicator:empty {
   animation: settingsSaveIndicatorFade 2s ease-out both;
 }
 
+/* The fade ends hidden; under the motion budget (styles/motion.css) it would
+   snap straight to that end state, so the budget keeps it static like the OS
+   reduced-motion rule below does. */
+:root[data-motion="reduced"] .settings-save-indicator--saved {
+  animation: none;
+}
+
 .settings-save-indicator svg {
   width: 15px;
   height: 15px;
