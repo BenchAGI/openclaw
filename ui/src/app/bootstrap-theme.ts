@@ -4,7 +4,7 @@ import type {
   ApplicationThemeServerSelection,
 } from "./context.ts";
 import { applyControlUiAccent, syncControlUiSystemChrome } from "./control-ui-presentation.ts";
-import { currentMotion, syncMotion } from "./motion.ts";
+import { currentMotion, detachMotionSync, syncMotion } from "./motion.ts";
 import { syncCustomThemeStyleTag } from "./custom-theme.ts";
 import {
   bindUiPreferences,
@@ -188,6 +188,7 @@ export function createApplicationTheme(
       presentationGeneration += 1;
       detachSystemThemeListener();
       chromeBreakpointCleanup?.();
+      detachMotionSync();
       listeners.clear();
     },
   };
