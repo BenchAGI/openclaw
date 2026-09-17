@@ -19,6 +19,11 @@ const repositoryScriptEntries = [
   ".github/actions/git-owner/test-prerequisites.mjs!",
   // mobile-release-authority invokes this helper from composite-action YAML.
   ".github/actions/mobile-release-authority/authority.mjs!",
+  // Bench mascot asset-generation and visual-proof commands are invoked directly.
+  "scripts/capture-mascot-proof.mts!",
+  "scripts/composite-check.mts!",
+  "scripts/mascot-cutout.mts!",
+  "scripts/mascot-geometry-check.mts!",
   // setup-node-env invokes this helper from composite-action YAML.
   ".github/actions/setup-node-env/dependency-fingerprint.mjs!",
   "apps/android/scripts/build-release-artifacts.ts!",
