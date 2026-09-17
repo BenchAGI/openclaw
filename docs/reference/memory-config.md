@@ -653,7 +653,11 @@ There are no glob patterns, substring matches, or message-content searches.
 optional boolean (default `false`). When `true`, learning holds unattributed
 candidates and daily files; only trusted, host-attributed session evidence can
 progress. Exact session exclusions hold a mixed candidate if any origin matches.
-These holds are reversible and do not create deletion tombstones. See
+These holds are reversible and do not create deletion tombstones. Generated diary
+publication and diary-context reuse always require complete host-recorded lineage
+while either exact session exclusions or `requireSessionLineage` is active, even
+when unattributed candidates remain eligible for append-only `MEMORY.md` promotion.
+See
 [reversible learning quarantine](/concepts/memory-provenance#reversible-learning-quarantine)
 for diary lineage, preservation, and retention boundaries.
 

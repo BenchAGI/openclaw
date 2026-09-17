@@ -99,6 +99,56 @@ describe("reversible session quarantine", () => {
     expect(originStore.listMemorySessionTombstones({ agentId: "main" })).toEqual([]);
   });
 
+  it("keeps diary lineage conservative under exact-ID-only quarantine without blocking clean diary or daily-note promotion", async () => {
+    const { workspaceDir, snippets, options } = await fixture();
+    const exactOnlyPolicy = { ...policy, requireSessionLineage: false };
+    const candidates = await rankShortTermPromotionCandidates({
+      ...options,
+      memorySessionPolicy: exactOnlyPolicy,
+    });
+    expect(candidates.map((candidate) => candidate.snippet).toSorted()).toEqual(
+      [snippets[0], snippets[3]].toSorted(),
+    );
+    const clean = candidates.find((candidate) => candidate.snippet === snippets[0])!;
+    const unattributed = candidates.find((candidate) => candidate.snippet === snippets[3])!;
+    const publish = {
+      ...options,
+      memorySessionPolicy: exactOnlyPolicy,
+      narrative: "An unattributed narrative remains held.",
+    };
+    for (const sourceEntryKeys of [[unattributed.key], []]) {
+      expect(await appendNarrativeEntry({ ...publish, sourceEntryKeys })).toBeUndefined();
+    }
+    await expect(fs.readFile(path.join(workspaceDir, "DREAMS.md"), "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await appendNarrativeEntry({
+      ...publish,
+      sourceEntryKeys: [unattributed.key],
+      memorySessionPolicy: undefined,
+    });
+    expect(
+      await appendNarrativeEntry({
+        ...publish,
+        sourceEntryKeys: [clean.key],
+        narrative: "A fully attributed narrative remains eligible.",
+      }),
+    ).toBe(path.join(workspaceDir, "DREAMS.md"));
+    expect(
+      await readRecentDreamDiaryEntries({ workspaceDir, memorySessionPolicy: exactOnlyPolicy }),
+    ).toEqual(["A fully attributed narrative remains eligible."]);
+    expect(await readRecentDreamDiaryEntries({ workspaceDir })).toHaveLength(2);
+    const result = await applyShortTermPromotions({
+      ...options,
+      agentId: "main",
+      candidates,
+      memorySessionPolicy: exactOnlyPolicy,
+    });
+    expect(result.appliedCandidates.map((candidate) => candidate.snippet).toSorted()).toEqual(
+      [snippets[0], snippets[3]].toSorted(),
+    );
+  });
+
   it("rechecks stale-ranked candidates on direct apply and promotes only the clean owner room", async () => {
     const { workspaceDir, snippets, options } = await fixture();
     const candidates = await rankShortTermPromotionCandidates(options);

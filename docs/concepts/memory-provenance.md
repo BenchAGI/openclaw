@@ -185,16 +185,23 @@ Normal source and short-term-store retention remains unchanged; this policy is n
 While either session-policy setting is active, deep promotion is append-only:
 existing `MEMORY.md` text is not used for model consolidation or budget compaction.
 This keeps unattributed historical context out of new derivations and leaves it
-readable. Removing the policy restores normal consolidation and compaction.
-Removing the policy restores eligibility subject to normal trust and age gates.
+readable. Removing the policy restores normal consolidation, compaction, and
+eligibility, subject to normal trust and age gates.
 No forgotten-session tombstones are created.
 
 New generated diary blocks retain content-hash-bound lineage in host-owned plugin
 state, including origins inherited from prior diary context. Source IDs or markers
 written inside prose cannot grant admission. Untracked historical blocks, changed
 blocks, incomplete lineage, and blocks with a quarantined origin are excluded from
-future diary context while quarantine is active, without rewriting the diary.
-The host does not guess or reconstruct missing historical provenance.
+future diary context while either session-policy setting is active, without
+rewriting the diary. The same rule holds new generated diary narratives: every
+source and prior diary context block must have complete host-recorded lineage.
+Narratives using unattributed daily-file candidates or no source entries are held,
+even when `requireSessionLineage` is `false`. With exact IDs alone, those daily-file
+candidates can still progress to append-only `MEMORY.md` promotion; they cannot
+seed reusable diary context whose relationship to an excluded session is unknown.
+Clean, fully attributed diary narratives remain eligible. The host does not guess
+or reconstruct missing historical provenance.
 
 ### The admission boundary
 
