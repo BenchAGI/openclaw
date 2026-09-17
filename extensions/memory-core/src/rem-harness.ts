@@ -5,12 +5,14 @@ import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import {
   resolveMemoryDeepDreamingConfig,
   resolveMemoryRemDreamingConfig,
+  resolveMemoryDreamingWorkspaces,
 } from "openclaw/plugin-sdk/memory-core-host-status";
 import {
   filterRecallEntriesWithinLookback,
   previewRemDreaming,
   type RemDreamingPreview,
 } from "./dreaming-phases.js";
+import { resolveMemorySessionPolicy } from "./memory-session-policy.js";
 import { previewGroundedRemMarkdown, type GroundedRemPreviewResult } from "./rem-evidence.js";
 import {
   filterLiveShortTermRecallEntries,
@@ -132,8 +134,16 @@ export async function previewRemHarness(
     workspaceDir: params.workspaceDir,
     nowMs,
   });
+  const memorySessionPolicy = resolveMemorySessionPolicy(params.pluginConfig);
+  const workspaceAgentIds = params.cfg
+    ? (resolveMemoryDreamingWorkspaces(params.cfg).find(
+        (workspace) => path.resolve(workspace.workspaceDir) === path.resolve(params.workspaceDir),
+      )?.agentIds ?? [])
+    : [];
   const recallEntries = await filterLiveShortTermRecallEntries({
     workspaceDir: params.workspaceDir,
+    workspaceAgentIds,
+    memorySessionPolicy,
     entries: filterRecallEntriesWithinLookback({
       entries: allRecallEntries,
       nowMs,
@@ -152,7 +162,7 @@ export async function previewRemHarness(
 
   let groundedInputPaths = params.groundedInputPaths ?? [];
   let grounded: GroundedRemPreviewResult | null = null;
-  if (params.grounded) {
+  if (params.grounded && !memorySessionPolicy?.requireSessionLineage) {
     if (groundedInputPaths.length === 0) {
       groundedInputPaths = await listWorkspaceDailyFiles(
         params.workspaceDir,
@@ -171,6 +181,8 @@ export async function previewRemHarness(
   const candidateLimit = normalizeOptionalPositiveLimit(params.candidateLimit);
   const rankedCandidates = await rankShortTermPromotionCandidates({
     workspaceDir: params.workspaceDir,
+    workspaceAgentIds,
+    memorySessionPolicy,
     minScore: 0,
     minRecallCount: 0,
     minUniqueQueries: 0,

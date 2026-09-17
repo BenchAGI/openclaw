@@ -33,6 +33,7 @@ import type {
   MemorySearchCommandOptions,
 } from "./cli.types.js";
 import { forgetMemoryEntries } from "./memory-forget.js";
+import { resolveMemorySessionPolicy } from "./memory-session-policy.js";
 import { formatMemoryVectorDegradedWriteReason } from "./memory/manager-vector-warning.js";
 import type { MemoryCoreRuntimeHost } from "./memory/runtime-host.js";
 import {
@@ -397,6 +398,10 @@ export async function runMemoryPromote(
         const gatherAllForApply = Boolean(opts.apply);
         candidates = await rankShortTermPromotionCandidates({
           workspaceDir,
+          workspaceAgentIds: resolveMemoryDreamingWorkspaces(cfg).find(
+            (workspace) => path.resolve(workspace.workspaceDir) === path.resolve(workspaceDir),
+          )?.agentIds ?? [agentId],
+          memorySessionPolicy: resolveMemorySessionPolicy(resolveMemoryPluginConfig(cfg)),
           limit: gatherAllForApply ? undefined : opts.limit,
           minScore: gatherAllForApply ? 0 : (opts.minScore ?? dreaming.minScore),
           minRecallCount: gatherAllForApply ? 0 : (opts.minRecallCount ?? dreaming.minRecallCount),
@@ -417,6 +422,9 @@ export async function runMemoryPromote(
         try {
           applyResult = await applyShortTermPromotions({
             agentId,
+            memorySessionPolicy: resolveMemorySessionPolicy(resolveMemoryPluginConfig(cfg)),
+            getMemorySessionPolicy: () =>
+              resolveMemorySessionPolicy(resolveMemoryPluginConfig(getRuntimeConfig())),
             workspaceAgentIds: resolveMemoryDreamingWorkspaces(cfg).find(
               (workspace) => path.resolve(workspace.workspaceDir) === path.resolve(workspaceDir),
             )?.agentIds,
@@ -575,6 +583,10 @@ export async function runMemoryPromoteExplain(
       try {
         candidates = await rankShortTermPromotionCandidates({
           workspaceDir,
+          workspaceAgentIds: resolveMemoryDreamingWorkspaces(cfg).find(
+            (workspace) => path.resolve(workspace.workspaceDir) === path.resolve(workspaceDir),
+          )?.agentIds ?? [agentId],
+          memorySessionPolicy: resolveMemorySessionPolicy(resolveMemoryPluginConfig(cfg)),
           minScore: 0,
           minRecallCount: 0,
           minUniqueQueries: 0,

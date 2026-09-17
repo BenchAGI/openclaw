@@ -51,6 +51,8 @@ export type SessionEntryOrigin = {
 };
 
 export type SessionAdmissionPolicy = {
+  sessionIds?: string[];
+  requireSessionLineage?: boolean;
   hookExternalContentSources: string[];
   channels: string[];
   chatTypes: string[];
@@ -152,21 +154,30 @@ export function resolveAdmissionPolicy(
   const exclusions = asNullableRecord(
     asNullableRecord(pluginConfig?.memoryPolicy)?.excludeSessions,
   );
-  if (!exclusions) {
+  const requireSessionLineage =
+    asNullableRecord(pluginConfig?.memoryPolicy)?.requireSessionLineage === true;
+  if (!exclusions && !requireSessionLineage) {
     return undefined;
   }
-  const values = (key: keyof SessionAdmissionPolicy): string[] =>
-    Array.isArray(exclusions[key])
+  const values = (
+    key: Exclude<keyof SessionAdmissionPolicy, "requireSessionLineage">,
+  ): string[] => {
+    const entries = exclusions?.[key];
+    return Array.isArray(entries)
       ? normalizeStringEntries(
-          exclusions[key].filter((value): value is string => typeof value === "string"),
+          entries.filter((value): value is string => typeof value === "string"),
         )
       : [];
+  };
   const policy = {
+    sessionIds: values("sessionIds"),
     hookExternalContentSources: values("hookExternalContentSources"),
     channels: values("channels"),
     chatTypes: values("chatTypes"),
   };
-  return Object.values(policy).some((entries) => entries.length > 0) ? policy : undefined;
+  return Object.values(policy).some((entries) => entries.length > 0) || requireSessionLineage
+    ? { ...policy, requireSessionLineage }
+    : undefined;
 }
 
 export function sessionExclusionReason(
@@ -175,7 +186,7 @@ export function sessionExclusionReason(
   forgottenSessionIds?: ReadonlySet<string>,
 ): string | undefined {
   if (!source.sessionOrigin) {
-    return undefined;
+    return policy?.requireSessionLineage ? "session lineage required" : undefined;
   }
   const { agentId, sessionId } = source.sessionOrigin;
   const forgotten = forgottenSessionIds
@@ -186,6 +197,9 @@ export function sessionExclusionReason(
   }
   if (!policy) {
     return undefined;
+  }
+  if (policy.sessionIds?.includes(sessionId)) {
+    return "sessionId";
   }
   const metadata = loadMemorySessionMetadata({
     ...source.sessionOrigin,
