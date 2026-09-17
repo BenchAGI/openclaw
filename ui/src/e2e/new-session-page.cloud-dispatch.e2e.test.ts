@@ -306,7 +306,7 @@ suite.define(() => {
       await page.getByRole("button", { name: "Use this folder" }).click();
       await expect.poll(() => trigger.getAttribute("data-cloud-profile")).toBe("aws");
       await checkoutTrigger.click();
-      await expect.poll(() => checkout.getByLabel("From").inputValue()).toBe("main");
+      await expect.poll(() => checkout.getByLabel("From").inputValue()).toBe("");
       await checkout.getByLabel("From").fill("release");
       await expect.poll(() => checkout.getByLabel("From").inputValue()).toBe("release");
       await checkout.getByLabel("From").fill("main");
@@ -452,11 +452,11 @@ suite.define(() => {
         message: "",
         projectId: "openclaw",
         worktree: true,
-        worktreeBaseRef: "main",
         worktreeName: "cloud-e2e",
         thinkingLevel: "high",
         fastMode: true,
       });
+      expect(create.params).not.toHaveProperty("worktreeBaseRef");
       expect(create.params).not.toHaveProperty("attachments");
       expect(create.params).not.toHaveProperty("cwd");
       await expect.poll(() => runtimeRequested).toBe(true);

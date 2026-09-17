@@ -88,7 +88,9 @@ suite.define(() => {
           "New worktree",
         );
         const baseRef = checkoutPopover.getByLabel("From");
-        expect(await baseRef.getAttribute("placeholder")).toBe("From");
+        expect(await baseRef.getAttribute("placeholder")).toBe(
+          "Automatic (fresh remote default; HEAD for local-only repositories)",
+        );
         expect(await baseRef.inputValue()).toBe("");
         expect(await checkoutPopover.locator("datalist option").count()).toBe(0);
         await captureProjectUiProof(suite, page, "github-worktree-selected.png", {

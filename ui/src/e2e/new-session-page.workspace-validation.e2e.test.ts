@@ -415,7 +415,10 @@ suite.define(() => {
       await page.keyboard.press("Escape");
       await page.locator("#new-session-checkout-trigger").click();
       const checkout = page.locator("wa-popover.new-session-page__checkout-popover");
-      await expect.poll(() => checkout.getByLabel("From").inputValue()).toBe("beta");
+      await expect.poll(() => checkout.getByLabel("From").inputValue()).toBe("");
+      await expect
+        .poll(() => checkout.locator("#new-session-branches option").getAttribute("value"))
+        .toBe("beta");
       await page.keyboard.press("Escape");
 
       await gateway.resolveDeferred("fs.listDir", {

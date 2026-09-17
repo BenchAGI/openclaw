@@ -3695,7 +3695,7 @@ test.each([
     const root = openClawState.root;
     const workspace = await initializeGitWorkspace(root);
     const origin = path.join(root, "origin.git");
-    await execFileAsync("git", ["init", "--bare", origin]);
+    await execFileAsync("git", ["init", "--bare", "-b", "main", origin]);
     await execFileAsync("git", ["-C", workspace, "remote", "add", "origin", origin]);
     await execFileAsync("git", ["-C", workspace, "push", "-u", "origin", "main"]);
     closeOpenClawStateDatabaseForTest();
@@ -3802,7 +3802,7 @@ test("sessions.create reset-in-place detaches the prior worktree permission boun
   // A remote makes the base commit reachable from `--remotes`, so leaving the worktree via a
   // plain New Chat is lossless and the reset can remove it (the real leave-worktree flow).
   const origin = path.join(root, "origin.git");
-  await execFileAsync("git", ["init", "--bare", origin]);
+  await execFileAsync("git", ["init", "--bare", "-b", "main", origin]);
   await execFileAsync("git", ["-C", workspace, "remote", "add", "origin", origin]);
   await execFileAsync("git", ["-C", workspace, "push", "-u", "origin", "main"]);
   closeOpenClawStateDatabaseForTest();
