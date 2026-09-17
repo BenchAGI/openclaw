@@ -1,8 +1,49 @@
 import { render } from "lit";
-import { describe, expect, it } from "vitest";
-import { renderDetailChip, resolveDetailChip } from "./detail-chip.ts";
+import { describe, expect, it, vi } from "vitest";
+import { renderDetailChip, renderWorktreeFields, resolveDetailChip } from "./detail-chip.ts";
 
 describe("Detail chip state", () => {
+  it("keeps automatic empty and selects unambiguous local or remote refs", () => {
+    const container = document.createElement("div");
+    const onBaseRefInput = vi.fn();
+    render(
+      renderWorktreeFields({
+        branches: {
+          repoRoot: "/repo",
+          defaultBranch: "refs/remotes/origin/main",
+          branches: [
+            { name: "refs/heads/origin/main", kind: "local" },
+            { name: "refs/remotes/origin/main", kind: "remote" },
+          ],
+        },
+        branchesLoading: false,
+        baseRef: "",
+        worktreeName: "",
+        submitting: false,
+        pendingPlacement: false,
+        onBaseRefInput,
+        onWorktreeNameInput: () => undefined,
+      }),
+      container,
+    );
+    const input = container.querySelector<HTMLInputElement>('input[list="new-session-branches"]')!;
+    const choices = Array.from(container.querySelectorAll<HTMLOptionElement>("datalist option"));
+    expect(input.value).toBe("");
+    expect(input.placeholder).toContain("Automatic");
+    expect(choices.map(({ value, label }) => ({ value, label }))).toEqual([
+      { value: "refs/heads/origin/main", label: "Local · origin/main" },
+      { value: "refs/remotes/origin/main", label: "Remote · origin/main" },
+    ]);
+    for (const choice of choices) {
+      input.value = choice.value;
+      input.dispatchEvent(new Event("input"));
+      expect(onBaseRefInput).toHaveBeenLastCalledWith(choice.value);
+    }
+    input.value = "";
+    input.dispatchEvent(new Event("input"));
+    expect(onBaseRefInput).toHaveBeenLastCalledWith("");
+  });
+
   it.each([
     {
       name: "hides the detail chip for remote destinations",

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ApplicationContext } from "../../app/context.ts";
+import { buildDraftSessionCreateParams } from "./create-params.ts";
 import type { DraftCloudProfile } from "./discovery.ts";
 import type { DraftGatewayState } from "./draft-gateway-state.ts";
 import { DraftPlaceBrowser } from "./draft-place-browser.ts";
@@ -11,11 +12,11 @@ const REMOTE_PROJECT = {
   cloneUrl: "https://github.com/openclaw/openclaw.git",
 };
 
-function createRepositoryFixture() {
+function createRepositoryFixture(options: { workspaceGit?: boolean } = {}) {
   const requestUpdate = vi.fn();
   const persistPreference = vi.fn();
   const readPreference = vi.fn(() => ({ worktree: true }));
-  const request = vi.fn(async (method: string) =>
+  const request = vi.fn<(method: string) => Promise<unknown>>(async (method) =>
     method === "fs.listDir"
       ? { path: "/plain", entries: [] }
       : { repositoryStatus: "not_git", branches: [] },
@@ -32,7 +33,9 @@ function createRepositoryFixture() {
       state: {
         agentsList: {
           defaultId: "main",
-          agents: [{ id: "main", workspace: "/workspace", workspaceGit: false }],
+          agents: [
+            { id: "main", workspace: "/workspace", workspaceGit: options.workspaceGit ?? false },
+          ],
         },
       },
     },
@@ -72,10 +75,44 @@ function createRepositoryFixture() {
     () => ({ context, data: undefined, submitting: false, pendingPlacementSessionKey: "" }),
     { requestUpdate, onError: vi.fn(), onClearError: vi.fn() },
   );
-  return { state, browser, persistPreference, requestUpdate };
+  return { state, browser, persistPreference, request, requestUpdate };
 }
 
 describe("DraftPlaceState repository selection", () => {
+  it.each(["refs/remotes/origin/main", undefined])(
+    "leaves discovery automatic and submits only explicitly selected bases (%s)",
+    async (defaultBranch) => {
+      const { state, request } = createRepositoryFixture({ workspaceGit: true });
+      request.mockResolvedValue({
+        repositoryStatus: "git",
+        branches: [{ name: "refs/heads/main", kind: "local" }],
+        defaultBranch,
+        headBranch: "main",
+      });
+      state.adoptAgentDefaults();
+      await vi.waitFor(() => expect(state.repository.kind).toBe("git"));
+      const createParams = () =>
+        buildDraftSessionCreateParams({
+          agentId: "main",
+          message: "Start work",
+          worktree: state.worktree,
+          baseRef: state.baseRef,
+        });
+      expect(createParams()).toMatchObject({ worktree: true });
+      expect(createParams()).not.toHaveProperty("worktreeBaseRef");
+
+      state.setBaseRef("refs/heads/main");
+      expect(createParams().worktreeBaseRef).toBe("refs/heads/main");
+      state.setBaseRef("");
+      expect(createParams()).not.toHaveProperty("worktreeBaseRef");
+
+      state.setBaseRef("refs/remotes/origin/main");
+      state.applyFolder("/another-repository");
+      await vi.waitFor(() => expect(state.repository.kind).toBe("git"));
+      expect(createParams()).not.toHaveProperty("worktreeBaseRef");
+    },
+  );
+
   it("offers remote-project worktrees locally without resetting the typed base branch on toggle", () => {
     const { state } = createRepositoryFixture();
     state.selectRemoteProject(REMOTE_PROJECT);

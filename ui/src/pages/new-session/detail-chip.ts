@@ -39,16 +39,20 @@ export function renderWorktreeFields(params: {
         type="text"
         list="new-session-branches"
         ?disabled=${params.submitting || params.pendingPlacement}
-        placeholder=${params.branchesLoading
-          ? t("common.loading")
-          : (params.branches?.defaultBranch ?? t("newSession.baseBranch"))}
+        placeholder=${params.branchesLoading ? t("common.loading") : t("worktrees.automaticBase")}
         .value=${params.baseRef}
         @input=${(event: Event) =>
           params.onBaseRefInput((event.target as HTMLInputElement).value.trim())}
       />
       <datalist id="new-session-branches">
         ${(params.branches?.branches ?? []).map(
-          (branch) => html`<option value=${branch.name}></option>`,
+          (branch) => html`<option
+            value=${branch.name}
+            label=${t(
+              branch.kind === "local" ? "worktrees.localBranch" : "worktrees.remoteBranch",
+              { branch: branch.name.replace(/^refs\/(heads|remotes)\//u, "") },
+            )}
+          ></option>`,
         )}
       </datalist>
     </label>

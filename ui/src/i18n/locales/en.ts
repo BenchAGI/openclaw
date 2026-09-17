@@ -853,6 +853,9 @@ export const en: TranslationMap = {
     },
   },
   worktrees: {
+    automaticBase: "Automatic (fresh remote default; HEAD for local-only repositories)",
+    localBranch: "Local · {branch}",
+    remoteBranch: "Remote · {branch}",
     adminRequired: "Browsing only. Worktree changes require operator.admin access.",
     newWorktree: "New worktree",
     ownerManual: "Manual",
