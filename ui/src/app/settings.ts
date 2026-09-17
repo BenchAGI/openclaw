@@ -155,6 +155,11 @@ export type CatalogOpenTarget = (typeof CATALOG_OPEN_TARGETS)[number];
 
 export const normalizeCatalogOpenTarget = normalizeChoice(CATALOG_OPEN_TARGETS, "viewer");
 
+const MOTION_PREFERENCES = ["auto", "full", "reduced"] as const;
+export type MotionPreference = (typeof MOTION_PREFERENCES)[number];
+
+export const normalizeMotionPreference = normalizeChoice(MOTION_PREFERENCES, "auto");
+
 const CHAT_WORKSPACE_DOCKS = ["right", "bottom"] as const;
 export type ChatWorkspaceDock = (typeof CHAT_WORKSPACE_DOCKS)[number];
 
@@ -191,6 +196,7 @@ export const UI_APPEARANCE_DEFAULTS = {
   chatCollapseTaskProgress: false,
   chatSendShortcut: "enter",
   catalogOpenTarget: "viewer",
+  motion: "auto",
   composerHoldToRecord: true,
   lobsterPetVisits: true,
   lobsterPetSounds: false,
@@ -217,6 +223,9 @@ export type UiSettings = {
   chatSendShortcut?: ChatSendShortcut;
   chatFollowUpMode?: ChatFollowUpMode; // Default handling for messages sent while a run is active
   catalogOpenTarget?: CatalogOpenTarget;
+  // Ambient animation budget. "auto" stays calm inside a native app shell
+  // (the Aurelius Vault) and under the OS reduce-motion preference.
+  motion?: MotionPreference;
   realtimeTalkInputDeviceId?: string;
   realtimeTalkVideoDeviceId?: string;
   composerHoldToRecord?: boolean;
@@ -474,6 +483,7 @@ export function loadSettings(): UiSettings {
     chatCollapseTaskProgress: UI_APPEARANCE_DEFAULTS.chatCollapseTaskProgress,
     chatSendShortcut: UI_APPEARANCE_DEFAULTS.chatSendShortcut,
     catalogOpenTarget: UI_APPEARANCE_DEFAULTS.catalogOpenTarget,
+    motion: UI_APPEARANCE_DEFAULTS.motion,
     navCollapsed: false,
     navWidth: NAV_WIDTH_DEFAULT,
     sidebarEntries: [...DEFAULT_SIDEBAR_ENTRIES],
@@ -552,6 +562,7 @@ export function loadSettings(): UiSettings {
       chatSendShortcut: normalizeChatSendShortcut(parsed.chatSendShortcut),
       chatFollowUpMode: normalizeChatFollowUpModeOverride(parsed.chatFollowUpMode),
       catalogOpenTarget: normalizeCatalogOpenTarget(parsed.catalogOpenTarget),
+      motion: normalizeMotionPreference(parsed.motion),
       realtimeTalkInputDeviceId: normalizeOptionalString(parsed.realtimeTalkInputDeviceId),
       realtimeTalkVideoDeviceId: normalizeOptionalString(parsed.realtimeTalkVideoDeviceId),
       composerHoldToRecord:
@@ -704,6 +715,10 @@ function persistSettings(next: UiSettings, options: { selectGateway?: boolean } 
     ...(chatFollowUpMode ? { chatFollowUpMode } : {}),
     ...(normalizeCatalogOpenTarget(next.catalogOpenTarget) === "terminal"
       ? { catalogOpenTarget: "terminal" as const }
+      : {}),
+    // Motion defaults to auto; only an explicit full/reduced choice persists.
+    ...(normalizeMotionPreference(next.motion) !== "auto"
+      ? { motion: normalizeMotionPreference(next.motion) }
       : {}),
     ...(normalizeOptionalString(next.realtimeTalkInputDeviceId)
       ? { realtimeTalkInputDeviceId: normalizeOptionalString(next.realtimeTalkInputDeviceId) }

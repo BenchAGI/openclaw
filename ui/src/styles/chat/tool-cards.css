@@ -303,41 +303,28 @@
   color: var(--muted);
 }
 
-/* Active-task text wave: a subtle left-to-right color sweep across the
-   running row's primary text (same shimmer language as the skeleton/usage
-   loaders, clipped to glyphs). The band fades text toward --bg so it stays
-   correct in both themes. Scoped to no-preference so reduced-motion users
-   keep plain static text and syntax colors. */
+/* Active-task text breathe: the running row's primary text eases between
+   full and muted opacity. Opacity animates on the compositor; the earlier
+   background-position sweep (clipped to glyphs) re-resolved style every
+   frame and, per running row, dragged a compositing walk of the whole
+   transcript. Scoped to no-preference so reduced-motion users keep plain
+   static text. */
 @media (prefers-reduced-motion: no-preference) {
   /* Whichever element names the work in progress: the action verb on file rows,
-     the command itself on terminal rows. Syntax tokens inherit `color`, so the
-     clipped gradient paints their glyphs too. */
+     the command itself on terminal rows. */
   .chat-tool-row--running :is(.chat-tool-row__verb, .chat-tool-row__cmd) {
-    background-image: linear-gradient(
-      90deg,
-      var(--text) 0%,
-      var(--text) 35%,
-      color-mix(in srgb, var(--text) 42%, var(--bg) 58%) 50%,
-      var(--text) 65%,
-      var(--text) 100%
-    );
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: chatToolRowTextWave 2.2s ease-in-out infinite;
+    animation: chatToolRowTextBreathe 2.2s ease-in-out infinite;
   }
 }
 
-/* Gradient is 2x element width with identical end stops, so one full period
-   per cycle wraps seamlessly and the band sweeps left to right. */
-@keyframes chatToolRowTextWave {
-  0% {
-    background-position: 100% 0;
+@keyframes chatToolRowTextBreathe {
+  0%,
+  100% {
+    opacity: 1;
   }
 
-  100% {
-    background-position: -100% 0;
+  50% {
+    opacity: 0.55;
   }
 }
 

@@ -13,6 +13,7 @@ import type { ApplicationConfigCapability } from "./config.ts";
 import type { ScopeUpgradeCapability } from "./device-scope-upgrade.ts";
 import type { ApplicationGateway } from "./gateway.ts";
 import type { ApplicationInitialUserMessageHandoff } from "./initial-user-message-handoff.ts";
+import type { MotionPresentation } from "./motion.ts";
 import type { NativeChatDrafts } from "./native-bridge.ts";
 import type { NativeNotificationsCapability } from "./native-notifications.ts";
 import type { ApplicationOverlays } from "./overlays-types.ts";
@@ -39,6 +40,7 @@ export type ApplicationTheme = {
   readonly settings: UiSettings;
   readonly mode: ThemeMode;
   readonly resolvedMode: "dark" | "light";
+  readonly motion: MotionPresentation;
   readonly serverSelection: ApplicationThemeServerSelection | null;
   recordServerSelection: (theme: ThemeName | null, scope: string) => void;
   setMode: (mode: ThemeMode, element?: HTMLElement | null) => void;

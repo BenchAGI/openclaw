@@ -2,6 +2,7 @@ import { html, nothing, type TemplateResult } from "lit";
 import type { ServerUiPrefProvenance } from "../../app/server-prefs.ts";
 import {
   normalizeCatalogOpenTarget,
+  normalizeMotionPreference,
   normalizeChatFollowUpMode,
   normalizeChatSendShortcut,
   UI_APPEARANCE_DEFAULTS,
@@ -312,6 +313,39 @@ export function renderChatPreferencesSection(
 
 // Lobster pet toggles and the Lobsterdex live with the rest of the appearance
 // prefs; the toggles are browser-local, so embedded editors omit this section.
+export function renderMotionSection(props: ConfigProps) {
+  if (!props.setMotion) {
+    return nothing;
+  }
+  const motion = normalizeMotionPreference(props.motion);
+  const motionDefaultDescription = renderSettingsDefaultDescription(
+    t("quickSettings.appearance.motionAuto"),
+    motion !== UI_APPEARANCE_DEFAULTS.motion,
+  );
+  return html`
+    <section class="settings-section">
+      <div class="settings-section__header">
+        <h2 class="settings-section__heading">${t("quickSettings.appearance.motion")}</h2>
+      </div>
+      <div class="settings-group">
+        ${renderSettingsSelectRow({
+          title: t("quickSettings.appearance.motion"),
+          value: motion,
+          setting: "motion",
+          description: html`${t("quickSettings.appearance.motionHint")}<br />
+            ${motionDefaultDescription} ${t("quickSettings.personal.browserOnly")}`,
+          options: [
+            { value: "auto", label: t("quickSettings.appearance.motionAuto") },
+            { value: "full", label: t("quickSettings.appearance.motionFull") },
+            { value: "reduced", label: t("quickSettings.appearance.motionReduced") },
+          ],
+          onChange: (value) => props.setMotion?.(normalizeMotionPreference(value)),
+        })}
+      </div>
+    </section>
+  `;
+}
+
 export function renderLobsterPetSection(props: ConfigProps) {
   if (!props.setLobsterPetVisits || !props.setLobsterPetSounds) {
     return nothing;

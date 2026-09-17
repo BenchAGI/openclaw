@@ -11,7 +11,12 @@ import type {
   NativeNotificationTestOutcome,
 } from "../../app/native-notifications.ts";
 import type { ServerUiPrefProvenance } from "../../app/server-prefs.ts";
-import type { ChatFollowUpMode, ChatSendShortcut, CatalogOpenTarget } from "../../app/settings.ts";
+import type {
+  CatalogOpenTarget,
+  ChatFollowUpMode,
+  ChatSendShortcut,
+  MotionPreference,
+} from "../../app/settings.ts";
 import type { ThemeTransitionContext } from "../../app/theme-transition.ts";
 import type { ThemeMode, ThemeName } from "../../app/theme.ts";
 import type { TypefaceId } from "../../app/typography.ts";
@@ -170,6 +175,8 @@ export type ConfigProps = {
   setSessionDeleteConfirm?: (enabled: boolean) => void;
   lobsterPetSounds?: boolean;
   setLobsterPetSounds?: (enabled: boolean) => void;
+  motion?: MotionPreference;
+  setMotion?: (value: MotionPreference) => void;
   lobsterdexHref?: string;
   onOpenLobsterdex?: () => void;
   chatSendShortcut: ChatSendShortcut;

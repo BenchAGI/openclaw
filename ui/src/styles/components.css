@@ -3256,25 +3256,34 @@ td.data-table-key-col {
   background: var(--bg-muted);
 }
 
+/* The streaming pulse rides an overlay's opacity, which animates on the
+   compositor. A border-color keyframe re-resolves style every frame and, on a
+   long transcript, drags a full compositing-requirements walk with it. */
 @keyframes chatStreamPulse {
   0%,
   100% {
-    border-color: var(--border);
+    opacity: 0;
   }
 
   50% {
-    border-color: var(--accent);
+    opacity: 1;
   }
 }
 
-.chat-bubble.streaming {
+.chat-bubble.streaming::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--accent);
+  border-radius: inherit;
+  pointer-events: none;
   animation: chatStreamPulse 1.5s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-bubble.streaming {
+  .chat-bubble.streaming::after {
     animation: none;
-    border-color: var(--accent);
+    opacity: 1;
   }
 }
 

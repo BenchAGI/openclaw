@@ -24,6 +24,7 @@ import { resetServerUiPref, resolveServerUiPrefState } from "../../app/server-pr
 import {
   loadSettings,
   normalizeCatalogOpenTarget,
+  normalizeMotionPreference,
   normalizeTextScale,
   normalizeChatSendShortcut,
   patchSettings,
@@ -103,6 +104,7 @@ type ConfigPageSetting =
   | "chatSendShortcut"
   | "chatFollowUpMode"
   | "catalogOpenTarget"
+  | "motion"
   | "composerHoldToRecord"
   | "openLinksInControlUiBrowser";
 
@@ -1314,6 +1316,8 @@ export class ConfigPage extends OpenClawLightDomElement {
       resetChatFollowUpMode: () => this.resetSyncedAppearancePref("chatFollowUpMode"),
       catalogOpenTarget: normalizeCatalogOpenTarget(this.settings.catalogOpenTarget),
       setCatalogOpenTarget: (value) => this.setSetting("catalogOpenTarget", value),
+      motion: normalizeMotionPreference(this.settings.motion),
+      setMotion: (value) => this.setSetting("motion", value),
       microphone: {
         devices: this.microphoneDevices,
         permissionRequired: this.microphonePermissionRequired,
