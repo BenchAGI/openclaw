@@ -1,11 +1,13 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
 import {
   canRunPlaywrightChromium,
   resolvePlaywrightChromiumExecutablePath,
 } from "../ui/src/test-helpers/control-ui-e2e.ts";
 const executablePath = resolvePlaywrightChromiumExecutablePath(chromium.executablePath());
-if (!(await canRunPlaywrightChromium(executablePath))) throw new Error("no chromium");
+if (!canRunPlaywrightChromium(executablePath)) {
+  throw new Error("no chromium");
+}
 const png = await readFile("ui/public/app-art/aurelius-mascot.png");
 const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage({ viewport: { width: 1360, height: 720 } });

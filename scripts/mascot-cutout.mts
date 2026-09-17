@@ -13,13 +13,13 @@ import {
 
 const source = process.argv[2];
 const destination = process.argv[3] ?? "ui/public/app-art/aurelius-mascot.png";
-const targetSize = Number(process.argv[4] ?? 640);
+const requestedSize = Number(process.argv[4] ?? 640);
 if (!source) {
   throw new Error("usage: mascot-cutout.mts <source-image> [destination] [size]");
 }
 
 const executablePath = resolvePlaywrightChromiumExecutablePath(chromium.executablePath());
-if (!(await canRunPlaywrightChromium(executablePath))) {
+if (!canRunPlaywrightChromium(executablePath)) {
   throw new Error(`Playwright Chromium is unavailable at ${executablePath}`);
 }
 
@@ -31,7 +31,7 @@ try {
   // browser context needs the no-op for the closure to run.
   await page.addInitScript("globalThis.__name = (fn) => fn;");
   await page.goto("about:blank");
-  const dataUrl = `data:image/jpeg;base64,${sourceBytes.toString("base64")}`;
+  const sourceDataUrl = `data:image/jpeg;base64,${sourceBytes.toString("base64")}`;
   const result = await page.evaluate(
     async ({ dataUrl, targetSize }) => {
       const image = new Image();
@@ -43,10 +43,20 @@ try {
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) throw new Error("no 2d context");
+      if (!ctx) {
+        throw new Error("no 2d context");
+      }
       ctx.drawImage(image, 0, 0);
       const frame = ctx.getImageData(0, 0, w, h);
       const px = frame.data;
+      // Bounds-check existing raster/queue values inside the serialized browser callback; no coercion.
+      const readRasterElement = (values: ArrayLike<number>, index: number): number => {
+        const value = values[index];
+        if (value === undefined) {
+          throw new Error(`Image buffer index out of bounds: ${index}`);
+        }
+        return value;
+      };
 
       // Background reference: average the four corner pixels.
       const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + w - 1) * 4];
@@ -54,18 +64,18 @@ try {
       let bg = 0;
       let bb = 0;
       for (const offset of corners) {
-        br += px[offset];
-        bg += px[offset + 1];
-        bb += px[offset + 2];
+        br += readRasterElement(px, offset);
+        bg += readRasterElement(px, offset + 1);
+        bb += readRasterElement(px, offset + 2);
       }
       br /= 4;
       bg /= 4;
       bb /= 4;
 
       const distance = (offset: number) => {
-        const dr = px[offset] - br;
-        const dg = px[offset + 1] - bg;
-        const db = px[offset + 2] - bb;
+        const dr = readRasterElement(px, offset) - br;
+        const dg = readRasterElement(px, offset + 1) - bg;
+        const db = readRasterElement(px, offset + 2) - bb;
         return Math.sqrt(dr * dr + dg * dg + db * db);
       };
 
@@ -98,7 +108,9 @@ try {
       const queue: number[] = [];
       const push = (x: number, y: number) => {
         const index = y * w + x;
-        if (state[index]) return;
+        if (state[index]) {
+          return;
+        }
         if (backgroundLike[index] && walkable(x, y)) {
           state[index] = 2;
           queue.push(index);
@@ -117,10 +129,18 @@ try {
         state[index] = 1;
         const x = index % w;
         const y = (index - x) / w;
-        if (x > 0) push(x - 1, y);
-        if (x < w - 1) push(x + 1, y);
-        if (y > 0) push(x, y - 1);
-        if (y < h - 1) push(x, y + 1);
+        if (x > 0) {
+          push(x - 1, y);
+        }
+        if (x < w - 1) {
+          push(x + 1, y);
+        }
+        if (y > 0) {
+          push(x, y - 1);
+        }
+        if (y < h - 1) {
+          push(x, y + 1);
+        }
       }
       // Grow the filled region back over the guard margin: background-like
       // pixels adjacent to filled background join it, repeated to cover the
@@ -161,7 +181,7 @@ try {
         const component: number[] = [start];
         componentSeen[start] = 1;
         for (let cursor = 0; cursor < component.length; cursor += 1) {
-          const index = component[cursor];
+          const index = readRasterElement(component, cursor);
           const x = index % w;
           const y = (index - x) / w;
           for (const neighbor of [
@@ -229,7 +249,8 @@ try {
         for (let channel = 0; channel < 3; channel += 1) {
           const backgroundChannel = channel === 0 ? br : channel === 1 ? bg : bb;
           const value =
-            (px[offset + channel] - backgroundChannel * (1 - alpha)) / Math.max(alpha, 0.05);
+            (readRasterElement(px, offset + channel) - backgroundChannel * (1 - alpha)) /
+            Math.max(alpha, 0.05);
           px[offset + channel] = Math.min(255, Math.max(0, Math.round(value)));
         }
       };
@@ -262,7 +283,7 @@ try {
                 const nx = x + dx;
                 const ny = y + dy;
                 if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                  total += px[(ny * w + nx) * 4 + 3];
+                  total += readRasterElement(px, (ny * w + nx) * 4 + 3);
                   count += 1;
                 }
               }
@@ -271,7 +292,7 @@ try {
           }
         }
         for (let index = 0; index < w * h; index += 1) {
-          px[index * 4 + 3] = smoothed[index];
+          px[index * 4 + 3] = readRasterElement(smoothed, index);
         }
       }
 
@@ -280,7 +301,7 @@ try {
       // and disappears on dark surfaces instead of ringing light.
       for (let index = 0; index < w * h; index += 1) {
         const offset = index * 4;
-        const alpha = px[offset + 3];
+        const alpha = readRasterElement(px, offset + 3);
         if (alpha > 0 && alpha < 250) {
           decontaminate(offset, alpha / 255);
         }
@@ -294,11 +315,19 @@ try {
       let maxY = 0;
       for (let y = 0; y < h; y += 1) {
         for (let x = 0; x < w; x += 1) {
-          if (px[(y * w + x) * 4 + 3] > 8) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
+          if (readRasterElement(px, (y * w + x) * 4 + 3) > 8) {
+            if (x < minX) {
+              minX = x;
+            }
+            if (x > maxX) {
+              maxX = x;
+            }
+            if (y < minY) {
+              minY = y;
+            }
+            if (y > maxY) {
+              maxY = y;
+            }
           }
         }
       }
@@ -315,7 +344,9 @@ try {
       out.width = targetSize;
       out.height = targetSize;
       const outCtx = out.getContext("2d");
-      if (!outCtx) throw new Error("no output context");
+      if (!outCtx) {
+        throw new Error("no output context");
+      }
       outCtx.imageSmoothingEnabled = true;
       outCtx.imageSmoothingQuality = "high";
       const scale = targetSize / square;
@@ -338,10 +369,13 @@ try {
         crop: { minX, minY, cropWidth, cropHeight },
       };
     },
-    { dataUrl, targetSize },
+    { dataUrl: sourceDataUrl, targetSize: requestedSize },
   );
 
   const pngBase64 = result.dataUrl.split(",")[1];
+  if (!pngBase64) {
+    throw new Error("Canvas did not return PNG data");
+  }
   const destinationPath = path.resolve(destination);
   await mkdir(path.dirname(destinationPath), { recursive: true });
   await writeFile(destinationPath, Buffer.from(pngBase64, "base64"));

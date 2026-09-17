@@ -14,7 +14,7 @@ import {
 
 const outputDir = path.resolve(".artifacts/control-ui-e2e/bench-theme-proof");
 const executablePath = resolvePlaywrightChromiumExecutablePath(chromium.executablePath());
-if (!(await canRunPlaywrightChromium(executablePath))) {
+if (!canRunPlaywrightChromium(executablePath)) {
   throw new Error(`Playwright Chromium is unavailable at ${executablePath}`);
 }
 

@@ -367,7 +367,7 @@ suite.define(() => {
       await worktreeButton.waitFor({ state: "visible" });
       const initialBranchRequestCount = (await gateway.getRequests("worktrees.branches")).length;
       await worktreeButton.click();
-      await expect.poll(() => placePopover.getByLabel("Base branch").inputValue()).toBe("main");
+      await expect.poll(() => placePopover.getByLabel("Base branch").inputValue()).toBe("");
       await placePopover.getByLabel("Worktree name").fill("terminal-task");
       await page.locator("#new-session-detail-trigger").click();
       await page.locator(".new-session-page__message").fill("  inspect the checkout  ");
@@ -403,7 +403,6 @@ suite.define(() => {
       expect(worktreeRequest.params).toEqual({
         repoRoot: WORKSPACE,
         name: "terminal-task",
-        baseRef: "main",
       });
       const terminalRequest = await gateway.waitForRequest("sessions.catalog.startTerminal");
       expect(terminalRequest.params).toEqual({
@@ -920,7 +919,7 @@ suite.define(() => {
       const worktreeItem = placeSelect.getByRole("button", { name: "Worktree" });
       await worktreeItem.click();
       const baseInput = page.getByLabel("Base branch");
-      await expect.poll(() => baseInput.inputValue()).toBe("main");
+      await expect.poll(() => baseInput.inputValue()).toBe("");
       await page.keyboard.press("Escape");
 
       await gateway.deferNext("worktrees.branches");

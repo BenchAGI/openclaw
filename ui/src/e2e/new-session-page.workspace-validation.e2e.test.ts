@@ -384,7 +384,10 @@ suite.define(() => {
       expect(await page.locator("#new-session-detail-trigger").count()).toBe(0);
       await projectTrigger.click();
       await projectSelect.getByText("Advanced", { exact: true }).click();
-      await expect.poll(() => projectSelect.getByLabel("Base branch").inputValue()).toBe("beta");
+      await expect.poll(() => projectSelect.getByLabel("Base branch").inputValue()).toBe("");
+      await expect
+        .poll(() => projectSelect.locator('datalist option[value="beta"]').count())
+        .toBe(1);
       await page.keyboard.press("Escape");
 
       await gateway.resolveDeferred("fs.listDir", {

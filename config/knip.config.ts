@@ -13,6 +13,11 @@ function bundledPluginFile(pluginId: string, relativePath: string, suffix = ""):
 // Package scripts, workflows, Docker scenarios, and documented maintainer commands invoke these
 // files by path. They are executable roots rather than importable library modules.
 const repositoryScriptEntries = [
+  // Bench mascot asset-generation and visual-proof commands are invoked directly.
+  "scripts/capture-mascot-proof.mts!",
+  "scripts/composite-check.mts!",
+  "scripts/mascot-cutout.mts!",
+  "scripts/mascot-geometry-check.mts!",
   // setup-node-env invokes this helper from composite-action YAML.
   ".github/actions/setup-node-env/dependency-fingerprint.mjs!",
   "apps/android/scripts/build-release-artifacts.ts!",

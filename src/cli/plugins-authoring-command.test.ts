@@ -824,9 +824,17 @@ describe("plugin authoring commands", () => {
     });
 
     const indexSource = fs.readFileSync(path.join(projectDir, "src/index.ts"), "utf8");
+    const hostPackage = JSON.parse(
+      fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { exports: Record<string, { types?: string }> };
+    const sdkImports = [...indexSource.matchAll(/from "openclaw\/(plugin-sdk\/[^"]+)"/gu)];
+    expect(sdkImports.length).toBeGreaterThan(0);
+    for (const [, subpath] of sdkImports) {
+      expect(hostPackage.exports[`./${subpath}`]?.types, subpath).toBeTypeOf("string");
+    }
     expect(indexSource).toContain("definePluginEntry");
     expect(indexSource).toContain("api.registerProvider");
-    expect(indexSource).toContain("buildSingleProviderApiKeyCatalog");
+    expect(indexSource).toContain("ctx.resolveProviderApiKey");
 
     expect(fs.readFileSync(path.join(projectDir, "src/index.test.ts"), "utf8")).toContain(
       "OpenClawPluginApi",

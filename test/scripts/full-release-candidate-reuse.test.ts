@@ -156,13 +156,20 @@ function constituentArtifactReader(manifest: CandidateConstituentSource) {
   };
 }
 
-async function fixture() {
+async function fixture(expiresAt = EXPIRES_AT) {
   const manifest = fullReleaseCandidateManifestFixture();
+  for (const artifact of [
+    manifest.package.artifact,
+    manifest.prepublishPluginRegistry.artifact,
+    manifest.sharedImage.artifact,
+  ]) {
+    artifact.expiresAt = expiresAt;
+  }
   const archive = await archiveWithManifest(manifest);
   return {
     archive,
     manifest,
-    metadata: artifactMetadata(archive),
+    metadata: artifactMetadata(archive, { expires_at: expiresAt }),
   };
 }
 
@@ -553,7 +560,9 @@ esac
 `,
     );
     chmodSync(ghPath, 0o755);
-    const { archive, manifest } = await fixture();
+    // Spawned CLI processes use the real clock; keep synthetic artifacts valid.
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000).toISOString();
+    const { archive, manifest } = await fixture(expiresAt);
     const artifacts = Array.from({ length: 6 }, (_, index) => {
       const runId = 80 + index;
       const jobs = workflowJobs(manifest, { runId });
@@ -562,6 +571,7 @@ esac
       writeFileSync(join(responses, `jobs-${runId}.json`), JSON.stringify([jobs]));
       return artifactMetadata(archive, {
         created_at: new Date(NOW - index * 1000).toISOString(),
+        expires_at: expiresAt,
         id: 400 + index,
         workflow_run: {
           head_repository_id: 1,
@@ -638,7 +648,9 @@ esac
 `,
     );
     chmodSync(ghPath, 0o755);
-    const { archive, manifest, metadata } = await fixture();
+    // This test targets constituent absence, not expiration against today's clock.
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000).toISOString();
+    const { archive, manifest, metadata } = await fixture(expiresAt);
     writeFileSync(inputPath, JSON.stringify(fullReleaseCandidateManifestFixture().request));
     writeFileSync(archivePath, archive);
     writeFileSync(artifactListingPath, JSON.stringify({ artifacts: [metadata] }));

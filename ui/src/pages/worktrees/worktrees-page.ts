@@ -103,9 +103,6 @@ class WorktreesPage extends OpenClawLightDomElement {
         : initialState,
     onComplete: (result) => {
       this.createBranches = result.branches.map((branch) => branch.name);
-      if (!this.createBaseRef) {
-        this.createBaseRef = result.defaultBranch ?? result.headBranch ?? "";
-      }
     },
     onError: () => {
       this.createBranches = [];
@@ -399,6 +396,7 @@ class WorktreesPage extends OpenClawLightDomElement {
             aria-label=${t("newSession.baseBranch")}
             ?disabled=${this.creating}
             list="worktrees-create-branches"
+            placeholder=${t("worktrees.automaticBase")}
             .value=${this.createBaseRef}
             @input=${(event: Event) => {
               this.createBaseRef = (event.target as HTMLInputElement).value;

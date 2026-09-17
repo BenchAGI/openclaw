@@ -277,7 +277,8 @@ export class DraftRepositoryController {
     }
     this.preferredWorktreeRestore = false;
     if (state.kind === "git" && restore.baseRefEditGeneration === this.baseRefEditGeneration) {
-      this.baseRefValue = restore.baseRef || state.defaultBranch || state.headBranch || "";
+      // Empty means automatic; discovery hints must not bypass create-time refresh.
+      this.baseRefValue = restore.baseRef;
       if (restore.baseRef) {
         this.preferredBaseRefRestore = "";
       }
