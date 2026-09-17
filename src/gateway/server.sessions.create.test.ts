@@ -4970,6 +4970,43 @@ test("sessions.create bypasses main-session reset for a catalog target", async (
   }
 });
 
+test("sessions.create pins an explicit agent default against automatic Main parenting", async () => {
+  const { storePath } = await createSessionStoreDir();
+  testState.agentConfig = { model: { primary: "synthetic/default-model" } };
+  agentDiscoveryMock.enabled = true;
+  agentDiscoveryMock.models = [{ id: "default-model", name: "Default", provider: "synthetic" }];
+  await writeSessionStore({
+    entries: {
+      main: sessionStoreEntry("sess-main-override", {
+        providerOverride: "synthetic-parent",
+        modelOverride: "parent-model",
+        modelOverrideSource: "user",
+      }),
+    },
+  });
+  const created = await directSessionReq<{
+    key: string;
+    entry: {
+      parentSessionKey?: string;
+      providerOverride?: string;
+      modelOverride?: string;
+      modelOverrideSource?: string;
+    };
+  }>("sessions.create", { agentId: "main", model: "synthetic/default-model" });
+  expect(created.ok, JSON.stringify(created.error)).toBe(true);
+  expect(created.payload?.entry).toMatchObject({
+    parentSessionKey: "agent:main:main",
+    providerOverride: "synthetic",
+    modelOverride: "default-model",
+    modelOverrideSource: "user",
+  });
+  expect(loadSessionEntry({ sessionKey: created.payload!.key, storePath })).toMatchObject({
+    providerOverride: "synthetic",
+    modelOverride: "default-model",
+    modelOverrideSource: "user",
+  });
+});
+
 test("sessions.create inherits explicit selection without runtime model identity", async () => {
   const { storePath } = await createSessionStoreDir();
   await writeSessionStore({

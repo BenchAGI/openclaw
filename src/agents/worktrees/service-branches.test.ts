@@ -75,7 +75,7 @@ describe("ManagedWorktreeService branch discovery", () => {
       const result = await service.listRepositoryBranches(repo);
 
       expect(result.headBranch).toBe("main");
-      expect(result.branches).toContainEqual({ name: "main", kind: "local" });
+      expect(result.branches).toContainEqual({ name: "refs/heads/main", kind: "local" });
     },
   );
 });

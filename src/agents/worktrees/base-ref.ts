@@ -4,7 +4,6 @@ import { commandError, requireGit, runGit } from "./git.js";
 type ResolvedWorktreeBase = {
   gitOperand: string;
   recordRef: string;
-  remote: boolean;
 };
 
 export async function resolveWorktreeBase(
@@ -48,21 +47,41 @@ export async function resolveWorktreeBase(
         ]);
       }
     }
-    return { gitOperand, recordRef: baseRef, remote: false };
+    return { gitOperand, recordRef: baseRef };
   }
-  const fetched = await runGit(repoRoot, ["fetch", "origin"], { signal });
+  const remotes = (await requireGit(repoRoot, ["remote"], { signal })).split("\n").filter(Boolean);
+  if (remotes.length === 0) {
+    return {
+      gitOperand: await requireGit(repoRoot, ["rev-parse", "--verify", "HEAD^{commit}"], {
+        signal,
+      }),
+      recordRef: "HEAD",
+    };
+  }
+  if (!remotes.includes("origin")) {
+    throw new Error(
+      "Automatic worktrees require origin; configure it or choose an explicit base ref.",
+    );
+  }
+  // The cached origin/HEAD can outlive a default-branch rename. Ask the remote,
+  // then fetch that branch explicitly (including narrow/single-branch clones).
+  const advertised = await requireGit(repoRoot, ["ls-remote", "--symref", "origin", "HEAD"], {
+    signal,
+  });
+  const remoteRef = /^ref: (refs\/heads\/[^\s]+)\s+HEAD$/mu.exec(advertised)?.[1];
+  if (!remoteRef) {
+    throw new Error(
+      "Origin has no resolvable default branch; repair its HEAD or choose an explicit base ref.",
+    );
+  }
+  const trackingRef = `refs/remotes/origin/${remoteRef.slice("refs/heads/".length)}`;
+  await requireGit(repoRoot, ["fetch", "--no-tags", "origin", `+${remoteRef}:${trackingRef}`], {
+    signal,
+  });
+  const commit = await requireGit(repoRoot, ["rev-parse", "--verify", `${trackingRef}^{commit}`], {
+    signal,
+  });
+  await requireGit(repoRoot, ["symbolic-ref", "refs/remotes/origin/HEAD", trackingRef], { signal });
   signal?.throwIfAborted();
-  if (fetched.termination === "exit" && fetched.code === 0) {
-    const remoteHead = await runGit(repoRoot, [
-      "symbolic-ref",
-      "--quiet",
-      "--short",
-      "refs/remotes/origin/HEAD",
-    ]);
-    if (remoteHead.termination === "exit" && remoteHead.code === 0 && remoteHead.stdout.trim()) {
-      const remoteRef = remoteHead.stdout.trim();
-      return { gitOperand: remoteRef, recordRef: remoteRef, remote: true };
-    }
-  }
-  return { gitOperand: "HEAD", recordRef: "HEAD", remote: false };
+  return { gitOperand: commit, recordRef: trackingRef };
 }

@@ -11,6 +11,7 @@ import { createEmptyPluginRegistry } from "../plugins/registry-empty.js";
 import { resetPluginRuntimeStateForTest, setActivePluginRegistry } from "../plugins/runtime.js";
 import { AGENT_HARNESS_SESSION_KEY_RESERVED_MESSAGE } from "../sessions/agent-harness-session-key.js";
 import { MODEL_SELECTION_LOCKED_MESSAGE } from "../sessions/model-overrides.js";
+import { resolveStoredModelOverride } from "../sessions/stored-model-overrides.js";
 import { withAgentSessionModelPatchOrigin } from "./session-model-patch-origin.js";
 import { projectSessionsPatchEntry } from "./sessions-patch.js";
 
@@ -2044,15 +2045,75 @@ describe("gateway sessions patch", () => {
     expectPatchError(result, "invalid groupActivation");
   });
 
+  test("explicit agent-default selection survives parent inheritance until reset", async () => {
+    const childKey = "agent:main:dashboard:explicit-default";
+    const cfg: OpenClawConfig = {
+      agents: { defaults: { model: "synthetic/default-model" } },
+    };
+    const store: Record<string, SessionEntry> = {
+      [MAIN_SESSION_KEY]: {
+        sessionId: "parent",
+        updatedAt: 1,
+        providerOverride: "synthetic-parent",
+        modelOverride: "parent-model",
+        modelOverrideSource: "user",
+      },
+    };
+    const resolveSelection = (entry: SessionEntry) =>
+      resolveStoredModelOverride({
+        sessionEntry: entry,
+        sessionStore: store,
+        sessionKey: childKey,
+        parentSessionKey: MAIN_SESSION_KEY,
+        defaultProvider: "synthetic",
+      });
+    const unspecified = expectPatchOk(
+      await runPatch({
+        cfg,
+        store,
+        storeKey: childKey,
+        patch: { key: childKey },
+      }),
+    );
+    expect(resolveSelection(unspecified)).toMatchObject({
+      source: "parent",
+      model: "parent-model",
+    });
+    const pinned = expectPatchOk(
+      await runPatch({
+        cfg,
+        store,
+        storeKey: childKey,
+        patch: { key: childKey, model: "synthetic/default-model" },
+        loadGatewayModelCatalog: loadCatalog("synthetic/default-model"),
+      }),
+    );
+    expect(pinned.modelOverrideSource).toBe("user");
+    expect(resolveSelection(pinned)).toMatchObject({
+      source: "session",
+      provider: "synthetic",
+      model: "default-model",
+    });
+    const reset = expectPatchOk(
+      await runPatch({
+        cfg,
+        store,
+        storeKey: childKey,
+        patch: { key: childKey, model: null },
+      }),
+    );
+    expect(reset.modelOverride).toBeUndefined();
+    expect(resolveSelection(reset)).toMatchObject({ source: "parent", model: "parent-model" });
+  });
+
   test("allows target agent own model for subagent session even when missing from global allowlist", async () => {
     const cfg = makeKimiSubagentCfg({
       agentPrimaryModel: SUBAGENT_MODEL,
     });
 
     const entry = await applySubagentModelPatch(cfg);
-    // Selected model matches the target agent default, so no override is stored.
-    expect(entry.providerOverride).toBeUndefined();
-    expect(entry.modelOverride).toBeUndefined();
+    // An explicit choice stays pinned even when it matches the target agent default.
+    expectModelSelection(entry, "synthetic", "hf:moonshotai/Kimi-K2.7-Code");
   });
 
   test("allows target agent subagents.model for subagent session even when missing from global allowlist", async () => {
