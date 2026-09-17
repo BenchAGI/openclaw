@@ -33,6 +33,7 @@ import { appendSessionCorpusLines, writeSessionIngestionState } from "./session-
 import {
   applyShortTermPromotions,
   rankShortTermPromotionCandidates,
+  readShortTermRecallEntries,
   recordShortTermRecalls,
   type ShortTermRecallEntry,
 } from "./short-term-promotion.js";
@@ -1272,6 +1273,62 @@ describe("memory-core dreaming phases", () => {
       nowMs: Date.parse("2026-04-05T19:00:00.000Z"),
     });
     expect(ranked).toHaveLength(0);
+  });
+
+  it("holds an exact legacy worker before transcript ingestion and re-admits it after policy removal", async () => {
+    const workspaceDir = await createDreamingWorkspace();
+    setDreamingTestEnv(path.join(workspaceDir, ".state"));
+    for (const sessionId of ["legacy-worker", "owner-room"]) {
+      await seedDreamingSessionTranscript({
+        sessionId,
+        messages: [
+          {
+            role: "user",
+            owner: true,
+            timestamp: "2026-04-05T18:01:00.000Z",
+            content: `${sessionId} has a durable distinct preference.`,
+          },
+        ],
+      });
+    }
+    const cfg: OpenClawConfig = {
+      agents: { entries: { main: { workspace: workspaceDir } } },
+      plugins: {
+        entries: {
+          "memory-core": {
+            config: {
+              memoryPolicy: {
+                excludeSessions: { sessionIds: ["legacy-worker"] },
+                requireSessionLineage: true,
+              },
+              dreaming: {
+                enabled: true,
+                phases: { light: { enabled: true, limit: 20, lookbackDays: 7 } },
+              },
+            },
+          },
+        },
+      },
+    };
+    await withDreamingTestClock(() =>
+      triggerLightDreaming(createHarness(cfg, workspaceDir).beforeAgentReply, workspaceDir, 5),
+    );
+    const checkpoint = await dreamingTestState.readSessionIngestionState(workspaceDir);
+    expect(checkpoint.files["main:sessions/main/legacy-worker"]).toMatchObject({
+      excludedReason: "sessionId",
+      contentHash: "",
+      lineCount: 0,
+    });
+    const before = await readShortTermRecallEntries({ workspaceDir });
+    expect(before.some((entry) => entry.snippet.includes("owner-room"))).toBe(true);
+    expect(before.some((entry) => entry.snippet.includes("legacy-worker"))).toBe(false);
+    cfg.plugins!.entries!["memory-core"]!.config!.memoryPolicy = {};
+    await withDreamingTestClock(() =>
+      triggerLightDreaming(createHarness(cfg, workspaceDir).beforeAgentReply, workspaceDir, 5),
+    );
+    const after = await readShortTermRecallEntries({ workspaceDir });
+    expect(after.some((entry) => entry.snippet.includes("legacy-worker"))).toBe(true);
+    expect(after.some((entry) => entry.snippet.includes("owner-room"))).toBe(true);
   });
 
   it("records policy exclusions and keeps forgotten sessions excluded after policy removal and resweeps", async () => {

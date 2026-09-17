@@ -13,6 +13,10 @@ import {
   recordMemoryEntryOrigins,
   type MemoryEntryOrigin,
 } from "./memory-entry-origins.js";
+import {
+  getMemoryEntryPolicyDecisions,
+  type MemorySessionPolicy,
+} from "./memory-session-policy.js";
 import { withMemoryWorkspaceLock } from "./memory-workspace-lock.js";
 import type { SessionEntryOrigin } from "./session-ingestion.js";
 import { readStore, writeStore } from "./short-term-promotion-store.js";
@@ -76,6 +80,8 @@ async function shortTermRecallSourceIsFile(sourcePath: string): Promise<boolean>
 export async function filterLiveShortTermRecallEntries(params: {
   workspaceDir: string;
   entries: ShortTermRecallEntry[];
+  workspaceAgentIds?: readonly string[];
+  memorySessionPolicy?: MemorySessionPolicy;
 }): Promise<ShortTermRecallEntry[]> {
   const workspaceDir = params.workspaceDir.trim();
   if (!workspaceDir) {
@@ -92,17 +98,24 @@ export async function filterLiveShortTermRecallEntries(params: {
     sourceFileChecks.set(sourcePath, check);
     return check;
   };
+  const policyRejections = getMemoryEntryPolicyDecisions({
+    agentIds: params.workspaceAgentIds ?? [],
+    entryKeys: params.entries.map((entry) => entry.key),
+    policy: params.memorySessionPolicy,
+  });
   const results = await Promise.all(
-    params.entries.map(async (entry) => {
-      let exists = false;
-      for (const sourcePath of resolveShortTermSourcePathCandidates(workspaceDir, entry.path)) {
-        if (await checkSourceFile(sourcePath)) {
-          exists = true;
-          break;
+    params.entries
+      .filter((entry) => !policyRejections.has(entry.key))
+      .map(async (entry) => {
+        let exists = false;
+        for (const sourcePath of resolveShortTermSourcePathCandidates(workspaceDir, entry.path)) {
+          if (await checkSourceFile(sourcePath)) {
+            exists = true;
+            break;
+          }
         }
-      }
-      return { entry, exists };
-    }),
+        return { entry, exists };
+      }),
   );
   return results.filter((result) => result.exists).map((result) => result.entry);
 }

@@ -93,4 +93,19 @@ describe("memory-core manifest config schema", () => {
 
     expect(result.ok).toBe(false);
   });
+
+  it("accepts reversible exact-session quarantine with conservative lineage admission", () => {
+    expect(
+      validateJsonSchemaValue({
+        schema: manifest.configSchema,
+        cacheKey: "memory-core.session-lineage-policy",
+        value: {
+          memoryPolicy: {
+            excludeSessions: { sessionIds: ["legacy-worker"] },
+            requireSessionLineage: true,
+          },
+        },
+      }).ok,
+    ).toBe(true);
+  });
 });

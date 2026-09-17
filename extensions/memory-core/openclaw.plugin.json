@@ -67,10 +67,20 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
+          "requireSessionLineage": {
+            "type": "boolean",
+            "default": false,
+            "description": "Hold learning candidates and diary context without host-recorded session lineage. Preserves all evidence; remove to restore eligibility."
+          },
           "excludeSessions": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
+              "sessionIds": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Exact session IDs excluded from ingestion and learning through retained candidate lineage. Does not erase memories or disable transcript search."
+              },
               "hookExternalContentSources": {
                 "type": "array",
                 "items": { "type": "string" }

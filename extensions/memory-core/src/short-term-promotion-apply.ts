@@ -23,6 +23,7 @@ import {
 import { applyMemoryConsolidationPlan, consolidateMemory } from "./dreaming-consolidation.js";
 import { compactMemoryForBudget, DEFAULT_MEMORY_FILE_MAX_CHARS } from "./memory-budget.js";
 import { pruneMemoryEntryOrigins, reserveMemoryEntryOrigins } from "./memory-entry-origins.js";
+import { getMemoryEntryPolicyDecisions } from "./memory-session-policy.js";
 import { withMemoryWorkspaceLock } from "./memory-workspace-lock.js";
 import {
   buildPromotionMarker,
@@ -246,6 +247,19 @@ export async function applyShortTermPromotions(
   const originAgentIds = options.agentId
     ? [...new Set([options.agentId, ...(options.workspaceAgentIds ?? [])])]
     : [];
+  const currentPolicy = () =>
+    options.getMemorySessionPolicy ? options.getMemorySessionPolicy() : options.memorySessionPolicy;
+  const assertPublicationAllowed = (candidates: readonly PromotionCandidate[], rewrite = false) => {
+    const policy = currentPolicy();
+    const rejected = getMemoryEntryPolicyDecisions({
+      agentIds: originAgentIds,
+      entryKeys: candidates.map((candidate) => candidate.key),
+      policy,
+    });
+    if (rejected.size > 0 || (rewrite && policy)) {
+      throw new Error("Memory session policy changed before publication; promotion remains held");
+    }
+  };
 
   const dailyProvenanceEntries = await listMemoryArtifactProvenance({ workspaceDir });
   const dailyProvenanceByPath = new Map(
@@ -276,6 +290,13 @@ export async function applyShortTermPromotions(
     return withDailyFileQuarantine(authoritative, dailyProvenanceByPath);
   });
   const rejectionReasons = new Map<string, string>();
+  const policyRejections = getMemoryEntryPolicyDecisions({
+    agentIds: originAgentIds,
+    entryKeys: currentCandidates.map((candidate) => candidate.key),
+    policy: options.getMemorySessionPolicy
+      ? options.getMemorySessionPolicy()
+      : options.memorySessionPolicy,
+  });
   const eligible = currentCandidates.filter((candidate) => {
     const latest = store.entries[candidate.key];
     const queryCount = Math.max(candidate.uniqueQueries, candidate.recallDays.length);
@@ -283,23 +304,25 @@ export async function applyShortTermPromotions(
     // consolidation): recall frequency must never launder externally-derived
     // content into MEMORY.md. Workspace memory files index as 'agent', so
     // legitimate daily-note candidates stay eligible.
-    const reason = isPromotionOriginBlocked(candidate)
-      ? `origin filter (${candidate.provenance?.originClass})`
-      : options.consolidation && (!latest || !isConsolidationCandidateEligible(candidate))
-        ? "consolidation origin/session filter"
-        : isContaminatedDreamingSnippet(candidate.snippet)
-          ? "contamination filter"
-          : candidate.promotedAt || latest?.promotedAt
-            ? "already promoted"
-            : candidate.score < minScore
-              ? `score threshold (${candidate.score.toFixed(3)} < ${minScore})`
-              : candidate.signalCount < minRecallCount
-                ? `signal threshold (${candidate.signalCount} < ${minRecallCount})`
-                : queryCount < minUniqueQueries
-                  ? `query threshold (${queryCount} < ${minUniqueQueries})`
-                  : maxAgeDays >= 0 && candidate.ageDays > maxAgeDays
-                    ? `age threshold (${candidate.ageDays.toFixed(1)}d > ${maxAgeDays}d)`
-                    : undefined;
+    const reason =
+      policyRejections.get(candidate.key) ??
+      (isPromotionOriginBlocked(candidate)
+        ? `origin filter (${candidate.provenance?.originClass})`
+        : options.consolidation && (!latest || !isConsolidationCandidateEligible(candidate))
+          ? "consolidation origin/session filter"
+          : isContaminatedDreamingSnippet(candidate.snippet)
+            ? "contamination filter"
+            : candidate.promotedAt || latest?.promotedAt
+              ? "already promoted"
+              : candidate.score < minScore
+                ? `score threshold (${candidate.score.toFixed(3)} < ${minScore})`
+                : candidate.signalCount < minRecallCount
+                  ? `signal threshold (${candidate.signalCount} < ${minRecallCount})`
+                  : queryCount < minUniqueQueries
+                    ? `query threshold (${queryCount} < ${minUniqueQueries})`
+                    : maxAgeDays >= 0 && candidate.ageDays > maxAgeDays
+                      ? `age threshold (${candidate.ageDays.toFixed(1)}d > ${maxAgeDays}d)`
+                      : undefined);
     if (reason) {
       rejectionReasons.set(candidate.key, reason);
     }
@@ -385,7 +408,7 @@ export async function applyShortTermPromotions(
       ? Math.max(0, Math.floor(options.memoryFileMaxChars))
       : DEFAULT_MEMORY_FILE_MAX_CHARS;
   const consolidationPlan =
-    options.agentId && options.consolidation?.subagent && toAppend.length > 0
+    options.agentId && options.consolidation?.subagent && toAppend.length > 0 && !currentPolicy()
       ? await consolidateMemory({
           agentId: options.agentId,
           subagent: options.consolidation.subagent,
@@ -415,7 +438,20 @@ export async function applyShortTermPromotions(
       const latestStore = await readStore(workspaceDir, nowIso);
       let retainedPreimageKeys: Set<string> | undefined;
       const authoritativeSelected: PromotionCandidate[] = [];
+      // Recheck host-owned lineage after model/source work and under the publication lock.
+      const latestPolicyRejections = getMemoryEntryPolicyDecisions({
+        agentIds: originAgentIds,
+        entryKeys: rehydratedSelected.map((candidate) => candidate.key),
+        policy: options.getMemorySessionPolicy
+          ? options.getMemorySessionPolicy()
+          : options.memorySessionPolicy,
+      });
       for (const candidate of rehydratedSelected) {
+        const policyReason = latestPolicyRejections.get(candidate.key);
+        if (policyReason) {
+          rejectionReasons.set(candidate.key, policyReason);
+          continue;
+        }
         const entry = latestStore.entries[candidate.key];
         if (!entry) {
           const wasDirectCandidate =
@@ -472,6 +508,7 @@ export async function applyShortTermPromotions(
         consolidationPlan?.operations.map((operation) => operation.candidateKey) ?? [],
       );
       const planIsCurrent =
+        !currentPolicy() &&
         consolidationPlan !== null &&
         plannedKeys.size === toAppend.length &&
         toAppend.every(
@@ -530,6 +567,7 @@ export async function applyShortTermPromotions(
             tempPrefix: `${path.basename(memoryPath)}.promotion`,
             expectedHash: consolidationBaseMemoryHash,
             content: consolidationResult.content,
+            assertPublicationAllowed: () => assertPublicationAllowed(toAppend, true),
           });
           committedMemoryContent = consolidationResult.content;
           for (const candidate of toAppend) {
@@ -578,11 +616,15 @@ export async function applyShortTermPromotions(
             options.timezone,
             options.maxPromotedSnippetTokens,
           );
-          const compaction = compactMemoryForBudget({
-            existingMemory,
-            newSection: section,
-            budgetChars,
-          });
+          // Held history remains untouched; untraceable MEMORY context cannot
+          // influence a rewrite while session quarantine is active.
+          const compaction = currentPolicy()
+            ? { compacted: existingMemory, droppedDates: [] }
+            : compactMemoryForBudget({
+                existingMemory,
+                newSection: section,
+                budgetChars,
+              });
           const droppedDates = compaction.droppedDates;
           const baseMemory = compaction.compacted;
           const header = baseMemory.trim().length > 0 ? "" : "# Long-Term Memory\n\n";
@@ -596,6 +638,8 @@ export async function applyShortTermPromotions(
             expectedContent: existingMemory,
             allowInPlaceFallback: true,
             content,
+            assertPublicationAllowed: () =>
+              assertPublicationAllowed(toAppend, baseMemory !== existingMemory),
           });
           committedMemoryContent = content;
           for (const candidate of toAppend) {

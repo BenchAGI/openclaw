@@ -42,6 +42,7 @@ import {
   writeMemoryCoreWorkspaceEntries,
 } from "./dreaming-state.js";
 import { listMemorySessionTombstones } from "./memory-entry-origins.js";
+import { resolveMemorySessionPolicy, type MemorySessionPolicy } from "./memory-session-policy.js";
 import { withMemoryWorkspaceLock } from "./memory-workspace-lock.js";
 import { textSimilarity as snippetSimilarity } from "./memory/tokenize.js";
 import {
@@ -105,6 +106,9 @@ type DreamingPhaseRunParams<TConfig extends LightDreamingConfig | RemDreamingCon
   detachNarratives?: boolean;
   nowMs?: number;
   admissionPolicy?: SessionAdmissionPolicy;
+  memorySessionPolicy?: MemorySessionPolicy;
+  getMemorySessionPolicy?: () => MemorySessionPolicy | undefined;
+  workspaceAgentIds?: readonly string[];
 };
 const DAILY_MEMORY_FILENAME_RE = /^(\d{4}-\d{2}-\d{2})(?:-[^/]+)?\.md$/i;
 const DAILY_INGESTION_SCORE = 0.62;
@@ -1339,13 +1343,17 @@ async function ingestDreamingPhaseSignals(
 ): Promise<number> {
   const nowMs =
     typeof params.nowMs === "number" && Number.isFinite(params.nowMs) ? params.nowMs : Date.now();
-  await ingestDailyMemorySignals({
-    workspaceDir: params.workspaceDir,
-    lookbackDays: dailyIngestionLookbackDays(params.config.lookbackDays),
-    limit: params.config.limit,
-    nowMs,
-    timezone: params.config.timezone,
-  });
+  // Unattributed daily files remain readable, but cannot contribute learning signals
+  // in conservative mode (including signals merged into an existing claim key).
+  if (!params.memorySessionPolicy?.requireSessionLineage) {
+    await ingestDailyMemorySignals({
+      workspaceDir: params.workspaceDir,
+      lookbackDays: dailyIngestionLookbackDays(params.config.lookbackDays),
+      limit: params.config.limit,
+      nowMs,
+      timezone: params.config.timezone,
+    });
+  }
   await ingestSessionTranscriptSignals({
     workspaceDir: params.workspaceDir,
     cfg: params.cfg,
@@ -1368,6 +1376,8 @@ async function runLightDreaming(
     const recentEntries = (
       await filterLiveShortTermRecallEntries({
         workspaceDir: params.workspaceDir,
+        workspaceAgentIds: params.workspaceAgentIds,
+        memorySessionPolicy: params.memorySessionPolicy,
         entries: await filterFreshLightDreamingEntries({
           workspaceDir: params.workspaceDir,
           nowMs,
@@ -1394,6 +1404,8 @@ async function runLightDreaming(
     );
     const recentDiaryEntries = await readRecentDreamDiaryEntries({
       workspaceDir: params.workspaceDir,
+      workspaceAgentIds: params.workspaceAgentIds,
+      memorySessionPolicy: params.memorySessionPolicy,
       limit: LIGHT_DIARY_HISTORY_LIMIT,
     });
     const entries = prioritizeLightEntriesByDiaryCoverage(rankedEntries, recentDiaryEntries);
@@ -1434,6 +1446,9 @@ async function runLightDreaming(
     };
     return await runDreamNarrative({
       agentId: params.agentId,
+      workspaceAgentIds: params.workspaceAgentIds,
+      memorySessionPolicy: params.memorySessionPolicy,
+      getMemorySessionPolicy: params.getMemorySessionPolicy,
       subagent: params.subagent,
       workspaceDir: params.workspaceDir,
       data,
@@ -1455,6 +1470,8 @@ async function runRemDreaming(
     const allEntries = (
       await filterLiveShortTermRecallEntries({
         workspaceDir: params.workspaceDir,
+        workspaceAgentIds: params.workspaceAgentIds,
+        memorySessionPolicy: params.memorySessionPolicy,
         entries: filterRecallEntriesWithinLookback({
           entries: await readShortTermRecallEntries({ workspaceDir: params.workspaceDir, nowMs }),
           nowMs,
@@ -1525,6 +1542,9 @@ async function runRemDreaming(
     };
     return await runDreamNarrative({
       agentId: params.agentId,
+      workspaceAgentIds: params.workspaceAgentIds,
+      memorySessionPolicy: params.memorySessionPolicy,
+      getMemorySessionPolicy: params.getMemorySessionPolicy,
       subagent: params.subagent,
       workspaceDir: params.workspaceDir,
       data,
@@ -1544,6 +1564,7 @@ type DreamingSweepPhaseResult = {
 };
 
 export async function runDreamingSweepPhases(params: {
+  getMemorySessionPolicy?: () => MemorySessionPolicy | undefined;
   /**
    * Agent whose model and credentials own this workspace's narrative completions.
    * Absent only when no roster or triggering agent can be attributed, which downgrades
@@ -1562,6 +1583,12 @@ export async function runDreamingSweepPhases(params: {
   const sweepNowMs =
     typeof params.nowMs === "number" && Number.isFinite(params.nowMs) ? params.nowMs : Date.now();
   const admissionPolicy = resolveAdmissionPolicy(params.pluginConfig);
+  const memorySessionPolicy = resolveMemorySessionPolicy(params.pluginConfig);
+  const workspaceAgentIds = params.cfg
+    ? resolveSessionAgentsForWorkspace({ cfg: params.cfg, workspaceDir: params.workspaceDir })
+    : params.agentId
+      ? [params.agentId]
+      : [];
   let degradedPhases = 0;
   let pendingNarratives = 0;
   async function runPhase<TConfig extends LightDreamingConfig | RemDreamingConfig>(
@@ -1573,7 +1600,14 @@ export async function runDreamingSweepPhases(params: {
       return;
     }
     try {
-      const outcome = await run({ ...params, config, nowMs: sweepNowMs, admissionPolicy });
+      const outcome = await run({
+        ...params,
+        config,
+        nowMs: sweepNowMs,
+        admissionPolicy,
+        memorySessionPolicy,
+        workspaceAgentIds,
+      });
       if (outcome.status === "degraded") {
         degradedPhases += 1;
       } else if (outcome.status === "pending") {

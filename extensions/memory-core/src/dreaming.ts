@@ -24,6 +24,7 @@ import { peekSystemEventEntries } from "openclaw/plugin-sdk/system-event-runtime
 import { appendFailedDreamingEvent } from "./dreaming-events.js";
 import type { NarrativePhaseData } from "./dreaming-narrative.js";
 import { formatErrorMessage, includesSystemEventToken } from "./dreaming-shared.js";
+import { resolveMemorySessionPolicy } from "./memory-session-policy.js";
 
 const RUNTIME_CRON_RECONCILE_INTERVAL_MS = 60_000;
 const HEARTBEAT_ISOLATED_SESSION_SUFFIX = ":heartbeat";
@@ -464,6 +465,7 @@ async function reconcileShortTermDreamingCronJob(params: {
 }
 
 async function runShortTermDreamingPromotionIfTriggered(params: {
+  resolveCurrentConfig?: () => OpenClawConfig;
   cleanedBody: string;
   trigger?: string;
   /** Agent whose heartbeat/cron turn triggered the sweep. */
@@ -551,6 +553,11 @@ async function runShortTermDreamingPromotionIfTriggered(params: {
   let degradedNarratives = 0;
   let pendingNarratives = 0;
   const pluginConfig = params.cfg ? resolveMemoryDreamingPluginConfig(params.cfg) : undefined;
+  const memorySessionPolicy = resolveMemorySessionPolicy(pluginConfig);
+  const getMemorySessionPolicy = () =>
+    params.resolveCurrentConfig
+      ? resolveMemorySessionPolicy(resolveMemoryDreamingPluginConfig(params.resolveCurrentConfig()))
+      : memorySessionPolicy;
   const detachNarratives = params.trigger === "cron";
   const [
     { writeDeepDreamingReport },
@@ -574,6 +581,7 @@ async function runShortTermDreamingPromotionIfTriggered(params: {
         agentId,
         workspaceDir,
         pluginConfig,
+        getMemorySessionPolicy,
         cfg: params.cfg,
         logger: params.logger,
         subagent: params.subagent,
@@ -601,6 +609,8 @@ async function runShortTermDreamingPromotionIfTriggered(params: {
       }
       const candidates = await rankShortTermPromotionCandidates({
         workspaceDir,
+        workspaceAgentIds: agentIds,
+        memorySessionPolicy,
         limit: params.config.limit,
         minScore: params.config.minScore,
         minRecallCount: params.config.minRecallCount,
@@ -629,7 +639,9 @@ async function runShortTermDreamingPromotionIfTriggered(params: {
         agentId,
         workspaceAgentIds: agentIds,
         workspaceDir,
+        memorySessionPolicy,
         candidates,
+        getMemorySessionPolicy,
         limit: params.config.limit,
         minScore: params.config.minScore,
         minRecallCount: params.config.minRecallCount,
@@ -681,6 +693,9 @@ async function runShortTermDreamingPromotionIfTriggered(params: {
         if (!params.subagent) {
           await appendFallbackNarrativeEntry({
             workspaceDir,
+            workspaceAgentIds: agentIds,
+            memorySessionPolicy,
+            getMemorySessionPolicy,
             data,
             nowMs: sweepNowMs,
             timezone: params.config.timezone,
@@ -690,6 +705,9 @@ async function runShortTermDreamingPromotionIfTriggered(params: {
         } else {
           const narrativeOutcome = await runDreamNarrative({
             agentId,
+            workspaceAgentIds: agentIds,
+            memorySessionPolicy,
+            getMemorySessionPolicy,
             subagent: params.subagent,
             workspaceDir,
             data,
@@ -985,6 +1003,7 @@ export function registerShortTermPromotionDreaming(api: OpenClawPluginApi): void
           workspaceDir: ctx.workspaceDir,
           cfg: currentConfig,
           config,
+          resolveCurrentConfig,
           logger: api.logger,
           subagent: config.enabled ? api.runtime?.subagent : undefined,
         });

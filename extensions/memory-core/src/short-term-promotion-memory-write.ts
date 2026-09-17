@@ -75,6 +75,7 @@ async function writeExistingMemoryInPlace(params: {
   expectedContent: string;
   content: string;
   conflictMessage?: string;
+  assertPublicationAllowed?: () => void;
 }): Promise<boolean> {
   if ((await readMemoryContent(params.filePath)) !== params.expectedContent) {
     throw new MemoryWriteConflictError(params.conflictMessage);
@@ -85,12 +86,18 @@ async function writeExistingMemoryInPlace(params: {
   } catch {
     return false;
   }
+  let writeStarted = false;
   try {
+    params.assertPublicationAllowed?.();
+    writeStarted = true;
     await handle.writeFile(params.content, { encoding: "utf-8" });
     await handle.truncate(Buffer.byteLength(params.content));
     await handle.sync();
     return true;
   } catch (error) {
+    if (!writeStarted) {
+      throw error;
+    }
     const original = Buffer.from(params.expectedContent, "utf-8");
     try {
       let restored = 0;
@@ -137,6 +144,7 @@ export async function commitMemoryContent(
     expectedHash?: string;
     allowInPlaceFallback?: boolean;
     conflictMessage?: string;
+    assertPublicationAllowed?: () => void;
   } & MemoryContentCommit,
 ): Promise<void> {
   if (params.content === null) {
@@ -144,6 +152,7 @@ export async function commitMemoryContent(
       throw new MemoryWriteConflictError(params.conflictMessage);
     }
     // Unlink is atomic; the preimage check preserves external edits made after planning.
+    params.assertPublicationAllowed?.();
     await fs.unlink(params.filePath);
     return;
   }
@@ -174,7 +183,11 @@ export async function commitMemoryContent(
           mkdir: fs.mkdir,
           chmod: fs.chmod,
           writeFile: fs.writeFile,
-          rename: fs.rename,
+          rename: (source, destination) => {
+            // No await between the current-policy fence and submitting publication.
+            params.assertPublicationAllowed?.();
+            return fs.rename(source, destination);
+          },
           copyFile: fs.copyFile,
           unlink: fs.unlink,
           rm: fs.rm,
@@ -196,6 +209,7 @@ export async function commitMemoryContent(
         expectedContent: params.expectedContent,
         content: params.content,
         conflictMessage: params.conflictMessage,
+        assertPublicationAllowed: params.assertPublicationAllowed,
       }))
     ) {
       throw error;

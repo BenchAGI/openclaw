@@ -8,6 +8,7 @@ import {
 } from "openclaw/plugin-sdk/error-runtime";
 import type { PluginRuntime } from "openclaw/plugin-sdk/runtime-store";
 import { appendNarrativeEntry, clampDreamDiaryContextEntry } from "./dreaming-dreams-file.js";
+import type { MemorySessionPolicy } from "./memory-session-policy.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -92,6 +93,9 @@ const REQUEST_SCOPED_FALLBACK_NARRATIVE =
   "A memory trace surfaced, but details were unavailable in this run.";
 
 export async function appendFallbackNarrativeEntry(params: {
+  workspaceAgentIds?: readonly string[];
+  memorySessionPolicy?: MemorySessionPolicy;
+  getMemorySessionPolicy?: () => MemorySessionPolicy | undefined;
   workspaceDir: string;
   data: NarrativePhaseData;
   nowMs: number;
@@ -100,8 +104,11 @@ export async function appendFallbackNarrativeEntry(params: {
   reason: string;
 }): Promise<void> {
   try {
-    await appendNarrativeEntry({
+    const written = await appendNarrativeEntry({
       workspaceDir: params.workspaceDir,
+      workspaceAgentIds: params.workspaceAgentIds,
+      memorySessionPolicy: params.memorySessionPolicy,
+      getMemorySessionPolicy: params.getMemorySessionPolicy,
       // Raw snippets and promotions are pre-processing memory staging fragments.
       // Keep fallback diary text generic so DREAMS.md never leaks staging content.
       narrative: REQUEST_SCOPED_FALLBACK_NARRATIVE,
@@ -109,7 +116,9 @@ export async function appendFallbackNarrativeEntry(params: {
       timezone: params.timezone,
     });
     params.logger.info(
-      `memory-core: narrative generation used fallback for ${params.data.phase} phase because ${params.reason}.`,
+      written
+        ? `memory-core: narrative generation used fallback for ${params.data.phase} phase because ${params.reason}.`
+        : `memory-core: narrative fallback held by session policy for ${params.data.phase} phase.`,
     );
   } catch (fallbackErr) {
     params.logger.warn(
@@ -227,6 +236,9 @@ function buildNarrativePrompt(data: NarrativePhaseData): string {
 // ── Orchestrator ───────────────────────────────────────────────────────
 
 export type DreamNarrativeRequest = {
+  workspaceAgentIds?: readonly string[];
+  memorySessionPolicy?: MemorySessionPolicy;
+  getMemorySessionPolicy?: () => MemorySessionPolicy | undefined;
   /** Agent whose configured model and credentials own the completion. */
   agentId: string;
   subagent: DreamingCompletion;
@@ -284,6 +296,9 @@ async function generateAndAppendDreamNarrative(
     }
     const dreamsPath = await appendNarrativeEntry({
       workspaceDir: params.workspaceDir,
+      workspaceAgentIds: params.workspaceAgentIds,
+      memorySessionPolicy: params.memorySessionPolicy,
+      getMemorySessionPolicy: params.getMemorySessionPolicy,
       narrative,
       nowMs,
       timezone: params.timezone,

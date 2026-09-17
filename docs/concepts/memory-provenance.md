@@ -15,7 +15,8 @@ tracked entries and related artifacts, and records the selected sessions as
 forgotten so later ingestion does not restore them.
 
 Two controls serve different purposes: **admission policy** excludes matching
-sessions from future dreaming ingestion and session backfill; **forget** removes
+sessions from dreaming ingestion and session backfill, with an optional reversible
+learning quarantine for existing session-derived candidates; **forget** removes
 identifiable artifacts from selected sessions. Neither is a general erasure
 of everything the agent has seen or written.
 
@@ -144,10 +145,56 @@ also records the exclusion reason in its ingestion checkpoint. Removing a matchi
 rule makes a session eligible for a later sweep, subject to the other trust
 and ingestion gates. A session recorded as forgotten remains excluded.
 
-Policy is prospective: it does not erase an existing corpus, staged
-candidate, or promoted entry. Use `memory forget` for existing attributable
-data. See [Memory config](/reference/memory-config#memory-admission-policy)
+Policy never erases an existing corpus, staged candidate, diary, or promoted entry.
+Hook, channel, and chat-type rules apply prospectively; exact session-ID rules also
+hold existing candidates through their recorded lineage. Use `memory forget` only
+when deletion is intended. See [Memory config](/reference/memory-config#memory-admission-policy)
 for exact matching rules and exclusion reasons.
+
+### Reversible learning quarantine
+
+Use exact session IDs to hold historical automation without deleting its evidence:
+
+```json5
+{
+  plugins: {
+    entries: {
+      "memory-core": {
+        config: {
+          memoryPolicy: {
+            excludeSessions: { sessionIds: ["<full-session-id>"] },
+            requireSessionLineage: true,
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+`sessionIds` matches full IDs exactly, not session keys, prefixes, or words in
+messages. Any matching source holds the entire candidate, including mixed-source
+claims. Light, REM, deep ranking, and promotion apply check host-recorded origins;
+promotion checks again against current policy before publication.
+
+`requireSessionLineage` defaults to `false`. When enabled, learning also holds
+candidates without at least one recorded trusted session origin, including
+unattributed daily files and foreign archives. Existing text stays readable, and
+raw transcript indexing, recall, and direct workspace writes are unchanged.
+Normal source and short-term-store retention remains unchanged; this policy is not an archival backup.
+While either session-policy setting is active, deep promotion is append-only:
+existing `MEMORY.md` text is not used for model consolidation or budget compaction.
+This keeps unattributed historical context out of new derivations and leaves it
+readable. Removing the policy restores normal consolidation and compaction.
+Removing the policy restores eligibility subject to normal trust and age gates.
+No forgotten-session tombstones are created.
+
+New generated diary blocks retain content-hash-bound lineage in host-owned plugin
+state, including origins inherited from prior diary context. Source IDs or markers
+written inside prose cannot grant admission. Untracked historical blocks, changed
+blocks, incomplete lineage, and blocks with a quarantined origin are excluded from
+future diary context while quarantine is active, without rewriting the diary.
+The host does not guess or reconstruct missing historical provenance.
 
 ### The admission boundary
 

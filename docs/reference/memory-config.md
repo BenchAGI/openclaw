@@ -637,16 +637,25 @@ erase existing memories. See
 [Memory provenance and deletion](/concepts/memory-provenance) for coverage and
 deletion workflows.
 
-| Key                          | Type       | Default | Matches                                                    |
-| ---------------------------- | ---------- | ------- | ---------------------------------------------------------- |
-| `hookExternalContentSources` | `string[]` | `[]`    | Recorded external-content hook sources, such as `"gmail"`. |
-| `channels`                   | `string[]` | `[]`    | Recorded channel/plugin identifiers, not room IDs.         |
-| `chatTypes`                  | `string[]` | `[]`    | Recorded chat type: `"direct"`, `"group"`, or `"channel"`. |
+| Key                          | Type       | Default | Matches                                                                                   |
+| ---------------------------- | ---------- | ------- | ----------------------------------------------------------------------------------------- |
+| `hookExternalContentSources` | `string[]` | `[]`    | Recorded external-content hook sources, such as `"gmail"`.                                |
+| `channels`                   | `string[]` | `[]`    | Recorded channel/plugin identifiers, not room IDs.                                        |
+| `chatTypes`                  | `string[]` | `[]`    | Recorded chat type: `"direct"`, `"group"`, or `"channel"`.                                |
+| `sessionIds`                 | `string[]` | `[]`    | Exact full session IDs; also holds existing learning candidates through recorded origins. |
 
 Every setting is optional. Omitted or empty arrays add no exclusions;
 the normal provenance and session-kind gates still apply. Configured strings
 are trimmed, with empty values dropped, then matched exactly and case-sensitively.
 There are no glob patterns, substring matches, or message-content searches.
+
+`plugins.entries.memory-core.config.memoryPolicy.requireSessionLineage` is an
+optional boolean (default `false`). When `true`, learning holds unattributed
+candidates and daily files; only trusted, host-attributed session evidence can
+progress. Exact session exclusions hold a mixed candidate if any origin matches.
+These holds are reversible and do not create deletion tombstones. See
+[reversible learning quarantine](/concepts/memory-provenance#reversible-learning-quarantine)
+for diary lineage, preservation, and retention boundaries.
 
 Hook sources are exact identifiers: IMAP uses `email`, Gmail hooks use `gmail`,
 and generic webhooks use `webhook`. To exclude both IMAP and Gmail ingestion,
@@ -683,7 +692,7 @@ establish whether another memory path can read an archived transcript.
 
 Automatic ingestion checks these rules before reading the transcript. A
 matched session's ingestion checkpoint records `excludedReason` as
-`hookExternalContentSource:<source>`,
+`sessionId`, `hookExternalContentSource:<source>`,
 `channel:<channel>`, or `chatType:<type>`, in that precedence order.
 Removing the rule makes the session eligible for a later sweep, subject to
 the other ingestion gates.

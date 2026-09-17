@@ -5,6 +5,17 @@ import { extractErrorCode } from "openclaw/plugin-sdk/error-runtime";
 import { replaceManagedMarkdownBlock } from "openclaw/plugin-sdk/memory-host-markdown";
 import { readRegularFile, replaceFileAtomic } from "openclaw/plugin-sdk/security-runtime";
 import { truncateUtf16Safe } from "openclaw/plugin-sdk/text-utility-runtime";
+import {
+  dreamDiaryContentHash,
+  dreamDiaryLineageExclusionReason,
+  readDreamDiaryLineage,
+  reserveDreamDiaryLineage,
+  type DreamDiaryLineage,
+} from "./dreaming-diary-lineage.js";
+import {
+  getMemoryEntryPolicyDecisions,
+  type MemorySessionPolicy,
+} from "./memory-session-policy.js";
 import { withMemoryWorkspaceLock } from "./memory-workspace-lock.js";
 import { readStore } from "./short-term-promotion-store.js";
 
@@ -72,7 +83,11 @@ async function assertSafeDreamsPath(dreamsPath: string): Promise<void> {
   }
 }
 
-async function writeDreamsFileAtomic(dreamsPath: string, content: string): Promise<void> {
+async function writeDreamsFileAtomic(
+  dreamsPath: string,
+  content: string,
+  assertPublicationAllowed?: () => void,
+): Promise<void> {
   await assertSafeDreamsPath(dreamsPath);
   await replaceFileAtomic({
     filePath: dreamsPath,
@@ -81,11 +96,21 @@ async function writeDreamsFileAtomic(dreamsPath: string, content: string): Promi
     preserveExistingMode: true,
     tempPrefix: `${path.basename(dreamsPath)}.dreams`,
     throwOnCleanupError: true,
+    fileSystem: {
+      promises: {
+        ...fs,
+        rename: (source, destination) => {
+          assertPublicationAllowed?.();
+          return fs.rename(source, destination);
+        },
+      },
+    },
   });
 }
 
 export async function updateDreamsFile<T>(params: {
   workspaceDir: string;
+  assertPublicationAllowed?: () => void;
   updater: (
     existing: string,
     dreamsPath: string,
@@ -105,7 +130,11 @@ export async function updateDreamsFile<T>(params: {
     const existing = await readDreamsFile(dreamsPath);
     const { content, result, shouldWrite = true } = await params.updater(existing, dreamsPath);
     if (shouldWrite) {
-      await writeDreamsFileAtomic(dreamsPath, content.endsWith("\n") ? content : `${content}\n`);
+      await writeDreamsFileAtomic(
+        dreamsPath,
+        content.endsWith("\n") ? content : `${content}\n`,
+        params.assertPublicationAllowed,
+      );
     }
     return result;
   });
@@ -231,14 +260,18 @@ function isOptionalDiaryContextReadError(err: unknown): boolean {
   return err instanceof Error && err.message === "path must be a regular file";
 }
 
-function getDiaryContextEntries(existing: string): string[] {
+function getDiaryBlocks(existing: string): string[] {
   const startIdx = existing.indexOf(DIARY_START_MARKER);
   const endIdx = existing.indexOf(DIARY_END_MARKER);
   if (startIdx < 0 || endIdx < 0 || endIdx < startIdx) {
     return [];
   }
   const inner = existing.slice(startIdx + DIARY_START_MARKER.length, endIdx);
-  return splitDiaryBlocks(inner)
+  return splitDiaryBlocks(inner);
+}
+
+function getDiaryContextEntries(existing: string): string[] {
+  return getDiaryBlocks(existing)
     .map(normalizeDiaryBlockBody)
     .filter((entry) => entry.length > 0);
 }
@@ -246,6 +279,8 @@ function getDiaryContextEntries(existing: string): string[] {
 export async function readRecentDreamDiaryEntries(params: {
   workspaceDir: string;
   limit?: number;
+  workspaceAgentIds?: readonly string[];
+  memorySessionPolicy?: MemorySessionPolicy;
 }): Promise<string[]> {
   const limit = Math.max(0, Math.floor(params.limit ?? RECENT_DIARY_CONTEXT_LIMIT));
   if (limit === 0) {
@@ -261,7 +296,22 @@ export async function readRecentDreamDiaryEntries(params: {
     }
     throw err;
   }
-  return getDiaryContextEntries(existing).slice(-limit).toReversed();
+  if (!params.memorySessionPolicy) {
+    return getDiaryContextEntries(existing).slice(-limit).toReversed();
+  }
+  const lineage = await readDreamDiaryLineage(params.workspaceDir);
+  return getDiaryBlocks(existing)
+    .filter(
+      (block) =>
+        !dreamDiaryLineageExclusionReason(
+          lineage.get(dreamDiaryContentHash(block)),
+          params.memorySessionPolicy,
+        ),
+    )
+    .map(normalizeDiaryBlockBody)
+    .filter(Boolean)
+    .slice(-limit)
+    .toReversed();
 }
 
 function normalizeDiaryBlockFingerprint(block: string): string {
@@ -481,27 +531,81 @@ export async function appendNarrativeEntry(params: {
   timezone?: string;
   sourceEntryKeys?: readonly string[];
   recentDiaryEntries?: readonly string[];
+  workspaceAgentIds?: readonly string[];
+  memorySessionPolicy?: MemorySessionPolicy;
+  getMemorySessionPolicy?: () => MemorySessionPolicy | undefined;
 }): Promise<string | undefined> {
   const dateStr = formatNarrativeDate(params.nowMs, params.timezone);
   const entry = buildDiaryEntry(params.narrative, dateStr);
+  let reservedLineage: DreamDiaryLineage | undefined;
   return await updateDreamsFile<string | undefined>({
     workspaceDir: params.workspaceDir,
+    assertPublicationAllowed: () => {
+      const policy = params.getMemorySessionPolicy
+        ? params.getMemorySessionPolicy()
+        : params.memorySessionPolicy;
+      const rejected = getMemoryEntryPolicyDecisions({
+        agentIds: params.workspaceAgentIds ?? [],
+        entryKeys: params.sourceEntryKeys ?? [],
+        policy,
+      });
+      if (rejected.size > 0 || dreamDiaryLineageExclusionReason(reservedLineage, policy)) {
+        throw new Error(
+          "Memory session policy changed before diary publication; narrative remains held",
+        );
+      }
+    },
     updater: async (existing, dreamsPath) => {
+      const policy = params.getMemorySessionPolicy
+        ? params.getMemorySessionPolicy()
+        : params.memorySessionPolicy;
       const sourceKeys = params.sourceEntryKeys ?? [];
+      const policyRejections = getMemoryEntryPolicyDecisions({
+        agentIds: params.workspaceAgentIds ?? [],
+        entryKeys: sourceKeys,
+        policy,
+      });
       const currentSources =
         sourceKeys.length > 0
           ? (await readStore(params.workspaceDir, new Date(params.nowMs).toISOString())).entries
           : undefined;
       const currentDiary = new Set(getDiaryContextEntries(existing));
+      const lineage =
+        params.workspaceAgentIds?.length || policy
+          ? await readDreamDiaryLineage(params.workspaceDir)
+          : new Map();
+      const contextBlocks = getDiaryBlocks(existing).filter((block) =>
+        params.recentDiaryEntries?.includes(
+          clampDreamDiaryContextEntry(normalizeDiaryBlockBody(block)),
+        ),
+      );
+      const parentLineages = contextBlocks.map((block) =>
+        lineage.get(dreamDiaryContentHash(block)),
+      );
       // The updater holds the purge lock. Model work ran outside it, so both
       // staged inputs and prior diary quotes must survive until this commit.
       if (
+        policyRejections.size > 0 ||
+        (policy?.requireSessionLineage && sourceKeys.length === 0) ||
+        parentLineages.some((parent) => dreamDiaryLineageExclusionReason(parent, policy)) ||
         sourceKeys.some((key) => !currentSources?.[key]) ||
         params.recentDiaryEntries?.some(
           (block) => !currentDiary.has(clampDreamDiaryContextEntry(block)),
         )
       ) {
         return { content: existing, result: undefined, shouldWrite: false };
+      }
+      if (params.workspaceAgentIds?.length) {
+        reservedLineage = await reserveDreamDiaryLineage({
+          workspaceDir: params.workspaceDir,
+          agentIds: params.workspaceAgentIds,
+          block: entry.replace(/^\s*---\s*\n/u, "").trim(),
+          sourceEntryKeys: sourceKeys,
+          parentLineages,
+        });
+        if (dreamDiaryLineageExclusionReason(reservedLineage, policy)) {
+          return { content: existing, result: undefined, shouldWrite: false };
+        }
       }
       let updated: string;
       if (existing.includes(DIARY_START_MARKER) && existing.includes(DIARY_END_MARKER)) {

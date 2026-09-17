@@ -5,6 +5,7 @@ import {
   DEFAULT_MEMORY_DEEP_DREAMING_MIN_UNIQUE_QUERIES,
 } from "openclaw/plugin-sdk/memory-core-host-status";
 import type { ConceptTagScriptCoverage } from "./concept-vocabulary.js";
+import type { MemorySessionPolicy } from "./memory-session-policy.js";
 
 export const DEFAULT_PROMOTION_MIN_SCORE = DEFAULT_MEMORY_DEEP_DREAMING_MIN_SCORE;
 export const DEFAULT_PROMOTION_MIN_RECALL_COUNT = DEFAULT_MEMORY_DEEP_DREAMING_MIN_RECALL_COUNT;
@@ -147,6 +148,8 @@ export type RepairShortTermPromotionArtifactsResult = {
 };
 
 export type RankShortTermPromotionOptions = {
+  workspaceAgentIds?: readonly string[];
+  memorySessionPolicy?: MemorySessionPolicy;
   workspaceDir: string;
   limit?: number;
   minScore?: number;
@@ -160,6 +163,8 @@ export type RankShortTermPromotionOptions = {
 };
 
 export type ApplyShortTermPromotionsOptions = {
+  memorySessionPolicy?: MemorySessionPolicy;
+  getMemorySessionPolicy?: () => MemorySessionPolicy | undefined;
   agentId?: string;
   workspaceAgentIds?: readonly string[];
   workspaceDir: string;

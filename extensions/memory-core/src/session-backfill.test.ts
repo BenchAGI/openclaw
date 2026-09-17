@@ -192,6 +192,7 @@ describe("runSessionBackfill", () => {
           },
         },
         { sessionId: "group", metadata: { chatType: "group" as const } },
+        { sessionId: "legacy-worker", metadata: {} },
         { sessionId: "retained", metadata: {} },
       ];
       for (const { sessionId, metadata } of sources) {
@@ -217,6 +218,7 @@ describe("runSessionBackfill", () => {
         pluginConfig: {
           memoryPolicy: {
             excludeSessions: {
+              sessionIds: ["legacy-worker"],
               hookExternalContentSources: ["gmail"],
               channels: ["discord"],
               chatTypes: ["group"],

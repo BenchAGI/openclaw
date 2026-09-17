@@ -1,6 +1,7 @@
 // Stable public surface for short-term promotion behavior.
 import { expectDefined } from "openclaw/plugin-sdk/expect-runtime";
 import { isPromotionOriginBlocked } from "./dreaming-consolidation-candidates.js";
+import { getMemoryEntryPolicyDecisions } from "./memory-session-policy.js";
 import { readPhaseSignalStore, readStore } from "./short-term-promotion-store.js";
 import {
   DEFAULT_PROMOTION_MIN_RECALL_COUNT,
@@ -122,13 +123,18 @@ export async function rankShortTermPromotionCandidates(
     readPhaseSignalStore(workspaceDir, nowIso),
   ]);
   const candidates: PromotionCandidate[] = [];
+  const policyRejections = getMemoryEntryPolicyDecisions({
+    agentIds: options.workspaceAgentIds ?? [],
+    entryKeys: Object.keys(store.entries),
+    policy: options.memorySessionPolicy,
+  });
 
   for (const entry of Object.values(store.entries)) {
     if (!entry || entry.source !== "memory" || !isShortTermMemoryPath(entry.path)) {
       continue;
     }
     // Apply rejects these origins too; exclude them before scoring and candidate limits.
-    if (isPromotionOriginBlocked(entry)) {
+    if (isPromotionOriginBlocked(entry) || policyRejections.has(entry.key)) {
       continue;
     }
     if (
