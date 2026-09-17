@@ -31,6 +31,7 @@ import {
   renderLanguageSection,
   renderBackgroundMotionSection,
   renderLobsterPetSection,
+  renderMotionSection,
   serverUiPrefProvenanceHint,
   renderSidebarPreferencesSection,
 } from "./view-appearance-preferences.ts";
@@ -623,6 +624,7 @@ export function renderAppearanceSection(
       </section>
 
       ${renderBackgroundMotionSection(props)} ${renderSidebarPreferencesSection(props)}
+      ${renderMotionSection(props)}
       ${renderLobsterPetSection(props)}
       ${renderChatPreferencesSection(props, inputs.chatMessageWidth)}
 

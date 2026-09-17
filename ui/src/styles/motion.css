@@ -1,0 +1,21 @@
+/* Calm motion budget.
+ *
+ * The app stamps data-motion="reduced" on <html> (app/motion.ts; index.html
+ * repeats it before first paint) when the operator asks for it, when the OS
+ * prefers reduced motion, or when the UI is embedded in a native app shell
+ * (the Aurelius Vault's WKWebView). Infinite keyframes on non-compositor
+ * properties (border-color, background-position, left, filter) force a style
+ * pass and a full compositing-requirements walk every frame; on a long
+ * session that walk is what makes typing lag. Under the budget every
+ * animation and transition completes on its first frame.
+ *
+ * Reaches light-DOM styles only; a component's shadow stylesheet keeps its
+ * own reduced-motion rules. */
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
