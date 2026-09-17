@@ -86,10 +86,17 @@ class OpenClawMascot extends LitElement {
     }
 
     if (typeof MutationObserver !== "undefined") {
-      this.themeObserver = new MutationObserver(() => this.drawPose(this.lastPose));
+      this.themeObserver = new MutationObserver((records) => {
+        if (records.some((record) => record.attributeName === "data-motion")) {
+          this.reducedMotion = (this.motionQuery?.matches ?? false) || calmMotionRequested();
+          this.syncPlayback();
+          return;
+        }
+        this.drawPose(this.lastPose);
+      });
       this.themeObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-theme-mode"],
+        attributeFilter: ["data-theme-mode", "data-motion"],
       });
     }
   }

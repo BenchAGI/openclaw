@@ -2015,6 +2015,13 @@ button.chat-reply-preview--message:disabled {
   animation: chat-reply-target-highlight 1.4s ease-out;
 }
 
+/* One-shot wayfinding, not ambient motion: the jump target must still read
+   under the motion budget (styles/motion.css), which would otherwise end the
+   highlight on its first frame. */
+:root[data-motion="reduced"] .chat-bubble--reply-target {
+  animation-duration: 1.4s !important;
+}
+
 @keyframes chat-reply-target-highlight {
   0%,
   35% {

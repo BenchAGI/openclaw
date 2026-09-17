@@ -72,33 +72,44 @@ export function currentMotion(preference: MotionPreference | undefined): MotionP
   return resolveMotionPresentation(preference, readMotionEnvironment());
 }
 
-let syncedRoot: HTMLElement | null = null;
-let syncedPreference: MotionPreference | undefined;
-let osListenerInstalled = false;
+let detachOsListener: (() => void) | null = null;
+
+/** Detaches the live OS listener, if any (bootstrap dispose). */
+export function detachMotionSync(): void {
+  detachOsListener?.();
+  detachOsListener = null;
+}
 
 /**
  * Stamps the resolved budget on the root and keeps it current when the OS
- * preference flips mid-session. The media listener is installed once per
- * document and re-applies against the last synced preference.
+ * preference flips mid-session. One media listener is live at a time, bound
+ * to the latest root and preference; the returned function detaches it.
  */
-export function syncMotion(root: HTMLElement, preference: MotionPreference | undefined): void {
-  syncedRoot = root;
-  syncedPreference = preference;
+export function syncMotion(
+  root: HTMLElement,
+  preference: MotionPreference | undefined,
+): () => void {
   applyMotionPresentation(root, currentMotion(preference));
-  if (osListenerInstalled || typeof globalThis.matchMedia !== "function") {
-    return;
+  detachOsListener?.();
+  detachOsListener = null;
+  if (typeof globalThis.matchMedia !== "function") {
+    return () => {};
   }
   const mediaQuery = globalThis.matchMedia("(prefers-reduced-motion: reduce)");
-  const onChange = () => {
-    if (syncedRoot) {
-      applyMotionPresentation(syncedRoot, currentMotion(syncedPreference));
-    }
-  };
+  const onChange = () => applyMotionPresentation(root, currentMotion(preference));
+  let detach: () => void = () => {};
   if (typeof mediaQuery.addEventListener === "function") {
     mediaQuery.addEventListener("change", onChange);
-    osListenerInstalled = true;
+    detach = () => mediaQuery.removeEventListener("change", onChange);
   } else if (typeof mediaQuery.addListener === "function") {
     mediaQuery.addListener(onChange);
-    osListenerInstalled = true;
+    detach = () => mediaQuery.removeListener(onChange);
   }
+  detachOsListener = detach;
+  return () => {
+    if (detachOsListener === detach) {
+      detachOsListener = null;
+    }
+    detach();
+  };
 }

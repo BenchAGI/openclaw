@@ -362,8 +362,7 @@ export function renderApplicationShell(host: ShellViewHost) {
       sidebarLiveActivity: uiSettings.sidebarLiveActivity !== false,
       pinnedAgentIds: navigationSnapshot.pinnedAgentIds,
       themeMode: context.theme.mode,
-      // Pet visits animate layout and filters; they stay home under a calm motion budget.
-      lobsterPetVisits: uiSettings.lobsterPetVisits !== false && context.theme.motion !== "reduced",
+      lobsterPetVisits: uiSettings.lobsterPetVisits !== false,
       lobsterPetSounds: uiSettings.lobsterPetSounds === true,
       gatewayVersion: config.serverVersion ?? gatewaySnapshot.hello?.server?.version ?? null,
       devGitBranch: config.devGitBranch,

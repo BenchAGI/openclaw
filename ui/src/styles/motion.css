@@ -7,18 +7,29 @@
  * properties (border-color, background-position, left, filter) force a style
  * pass and a full compositing-requirements walk every frame; on a long
  * session that walk is what makes typing lag. Under the budget every
- * animation and transition completes on its first frame.
+ * animation and transition completes on its first frame unless its owner
+ * opts it out (see below).
  *
  * Reaches light-DOM styles only; a component's shadow stylesheet keeps its
  * own reduced-motion rules. */
+:root[data-motion="reduced"],
 :root[data-motion="reduced"] *,
 :root[data-motion="reduced"] *::before,
-:root[data-motion="reduced"] *::after {
+:root[data-motion="reduced"] *::after,
+:root[data-motion="reduced"]::view-transition-group(*),
+:root[data-motion="reduced"]::view-transition-old(*),
+:root[data-motion="reduced"]::view-transition-new(*) {
   animation-duration: 0.001ms !important;
+  animation-delay: 0s !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
+  transition-delay: 0s !important;
   scroll-behavior: auto !important;
 }
+
+/* One-shot feedback that must still read (a jump-target highlight) opts out
+   next to its owner with a more specific `:root[data-motion="reduced"] .x`
+   rule; a fade that ends hidden opts out with `animation: none`. */
 
 /* Custom properties inherit across shadow boundaries, so a shadow stylesheet
    can opt its own loops into the budget with

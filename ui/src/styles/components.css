@@ -3258,7 +3258,9 @@ td.data-table-key-col {
 
 /* The streaming pulse rides an overlay's opacity, which animates on the
    compositor. A border-color keyframe re-resolves style every frame and, on a
-   long transcript, drags a full compositing-requirements walk with it. */
+   long transcript, drags a full compositing-requirements walk with it. The
+   overlay inherits the host border so bubbles that collapse theirs to 0
+   (flat assistant replies, tool shells in chat/grouped.css) stay flat. */
 @keyframes chatStreamPulse {
   0%,
   100% {
@@ -3274,7 +3276,8 @@ td.data-table-key-col {
   content: "";
   position: absolute;
   inset: -1px;
-  border: 1px solid var(--accent);
+  border: inherit;
+  border-color: var(--accent);
   border-radius: inherit;
   pointer-events: none;
   animation: chatStreamPulse 1.5s ease-in-out infinite;

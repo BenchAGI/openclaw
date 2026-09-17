@@ -50,7 +50,7 @@ import { syncCustomThemeStyleTag } from "./custom-theme.ts";
 import { createScopeUpgradeCapability } from "./device-scope-upgrade.ts";
 import { createApplicationGateway } from "./gateway-store.ts";
 import { createInitialUserMessageHandoff } from "./initial-user-message-handoff.ts";
-import { currentMotion, syncMotion } from "./motion.ts";
+import { currentMotion, detachMotionSync, syncMotion } from "./motion.ts";
 import { createNativeChatDrafts } from "./native-bridge.ts";
 import { startNativeLinkRouting } from "./native-link-routing.ts";
 import { createNativeNotificationsCapability } from "./native-notifications.ts";
@@ -223,6 +223,7 @@ function createApplicationTheme(
       presentationGeneration += 1;
       detachSystemThemeListener();
       chromeBreakpointCleanup?.();
+      detachMotionSync();
       listeners.clear();
     },
   };
