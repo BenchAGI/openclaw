@@ -1,5 +1,6 @@
 // Exercises wired plugin hooks after tool-call completion.
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { materializeBundleMcpToolsForRun } from "../agents/agent-bundle-mcp-materialize.js";
 /**
  * Test: after_tool_call hook wiring (embedded-agent-subscribe.handlers.tools.ts)
  */
@@ -116,6 +117,71 @@ describe("after_tool_call hook wiring", () => {
     hookMocks.runner.runBeforeToolCall.mockResolvedValue(undefined);
     hookMocks.runner.runAfterToolCall.mockClear();
     hookMocks.runner.runAfterToolCall.mockResolvedValue(undefined);
+  });
+
+  it("routes real materialized MCP metadata only to the after-tool hook", async () => {
+    hookMocks.runner.hasHooks.mockReturnValue(true);
+    const runtime = await materializeBundleMcpToolsForRun({
+      runtime: {
+        markUsed() {},
+        getCatalog: async () => ({
+          version: 1,
+          generatedAt: 0,
+          servers: {},
+          tools: [
+            {
+              serverName: "configured",
+              safeServerName: "configured",
+              toolName: "read",
+              description: "read",
+              fallbackDescription: "read",
+              inputSchema: { type: "object", properties: {} },
+            },
+          ],
+        }),
+        callTool: async () => ({
+          content: [{ type: "text", text: "result" }],
+          _meta: { tenant: "private-native-binding" },
+        }),
+        dispose: async () => {},
+      } as never,
+    });
+    const tool = runtime.tools[0];
+    const result = await tool.execute("native-mcp-call", {}, undefined, undefined);
+    const ctx = createToolHandlerCtx({ runId: "native-mcp-run", sessionId: "native-session" });
+    const onAgentToolResult = vi.fn();
+    Object.assign(ctx.params, { onAgentToolResult });
+    await handleToolExecutionStart(
+      ctx as never,
+      {
+        type: "tool_execution_start",
+        toolName: tool.name,
+        toolCallId: "native-mcp-call",
+        args: {},
+      } as never,
+    );
+    await handleToolExecutionEnd(
+      ctx as never,
+      {
+        type: "tool_execution_end",
+        toolName: tool.name,
+        toolCallId: "native-mcp-call",
+        result,
+        isError: false,
+      } as never,
+    );
+    expect(hookMocks.runner.runAfterToolCall.mock.calls[0]?.[0]).toMatchObject({
+      mcpResultMetadata: {
+        serverName: "configured",
+        toolName: "read",
+        metadata: { tenant: "private-native-binding" },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("private-native-binding");
+    expect(JSON.stringify(onAgentToolResult.mock.calls)).not.toContain("private-native-binding");
+    expect(JSON.stringify(ctx.log.debug.mock.calls)).not.toContain("private-native-binding");
+    expect(JSON.stringify(ctx.emitToolOutput.mock.calls)).not.toContain("private-native-binding");
+    await runtime.dispose();
   });
 
   it("calls runAfterToolCall in handleToolExecutionEnd when hook is registered", async () => {

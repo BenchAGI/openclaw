@@ -1,6 +1,10 @@
 /** Tests materializing MCP catalog tools into agent tool definitions and results. */
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { validateToolArguments } from "openclaw/plugin-sdk/llm";
+import {
+  createAssistantMessageEventStream,
+  validateToolArguments,
+  type AssistantMessage,
+} from "openclaw/plugin-sdk/llm";
 import { describe, expect, it } from "vitest";
 import { getPluginToolMeta } from "../plugins/tools.js";
 import {
@@ -11,6 +15,9 @@ import {
 import type { McpCatalogTool } from "./agent-bundle-mcp-types.js";
 import type { McpToolCatalogDiagnostic } from "./agent-bundle-mcp-types.js";
 import type { SessionMcpRuntime } from "./agent-bundle-mcp-types.js";
+import { toToolDefinitions } from "./agent-tool-definition-adapter.js";
+import { takeMcpResultHookMetadata } from "./mcp-result-hook-metadata.js";
+import { agentLoop, type AgentLoopConfig, type StreamFn } from "./runtime/index.js";
 
 function expectTextContentBlock(block: unknown, text: string) {
   const content = block as { type?: string; text?: string } | undefined;
@@ -84,6 +91,109 @@ function makeToolRuntime(
 }
 
 describe("createBundleMcpToolRuntime", () => {
+  it.each([false, true])(
+    "keeps real agent-loop provenance only without a replacement posthook (%s)",
+    async (replace) => {
+      const runtime = await materializeBundleMcpToolsForRun({
+        runtime: makeToolRuntime({
+          result: {
+            content: [{ type: "text", text: "native result" }],
+            _meta: { tenant: "native-only" },
+          },
+        }),
+      });
+      let turn = 0;
+      const model = {
+        id: "fixture",
+        name: "Fixture",
+        api: "test-api",
+        provider: "test-provider",
+        baseUrl: "https://example.test",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 1000,
+        maxTokens: 1000,
+      };
+      const config: AgentLoopConfig = {
+        model: model as AgentLoopConfig["model"],
+        convertToLlm: (messages) => messages as never,
+        afterToolCall: async () =>
+          replace ? { content: [{ type: "text", text: "replacement" }] } : undefined,
+      };
+      const streamFn: StreamFn = () => {
+        const stream = createAssistantMessageEventStream();
+        const message = {
+          role: "assistant",
+          content:
+            turn++ === 0
+              ? [{ type: "toolCall", id: "loop-call", name: runtime.tools[0].name, arguments: {} }]
+              : [{ type: "text", text: "done" }],
+          api: model.api,
+          provider: model.provider,
+          model: model.id,
+          usage: {
+            input: 0,
+            output: 0,
+            cacheRead: 0,
+            cacheWrite: 0,
+            totalTokens: 0,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+          },
+          stopReason: turn === 1 ? "toolUse" : "stop",
+          timestamp: 1,
+        } as AssistantMessage;
+        queueMicrotask(() => {
+          stream.push({
+            type: "done",
+            reason: message.stopReason === "toolUse" ? "toolUse" : "stop",
+            message,
+          });
+          stream.end();
+        });
+        return stream;
+      };
+      let ends = 0;
+      for await (const event of agentLoop(
+        [{ role: "user", content: "fixture", timestamp: 1 }],
+        { systemPrompt: "", messages: [], tools: runtime.tools },
+        config,
+        undefined,
+        streamFn,
+      )) {
+        expect(JSON.stringify(event)).not.toContain("native-only");
+        if (event.type === "tool_execution_end") {
+          ends++;
+          const metadata = takeMcpResultHookMetadata(event.result);
+          if (replace) expect(metadata).toBeUndefined();
+          else expect(metadata?.metadata.tenant).toBe("native-only");
+        }
+      }
+      expect(ends).toBe(1);
+      await runtime.dispose();
+    },
+  );
+
+  it("preserves native MCP metadata through the tool adapter without serializing it", async () => {
+    const runtime = await materializeBundleMcpToolsForRun({
+      runtime: makeToolRuntime({
+        result: {
+          content: [{ type: "text", text: "native result" }],
+          _meta: { tenant: "tenant-a" },
+        },
+      }),
+    });
+    const [definition] = toToolDefinitions(runtime.tools);
+    const result = await definition.execute("metadata-call", {}, undefined, undefined, {} as never);
+    expect(JSON.stringify(result)).not.toContain("tenant-a");
+    expect(takeMcpResultHookMetadata(result)).toEqual({
+      serverName: "bundleProbe",
+      toolName: "bundle_probe",
+      metadata: { tenant: "tenant-a" },
+    });
+    await runtime.dispose();
+  });
+
   it("materializes bundle MCP tools and executes them", async () => {
     const runtime = await materializeBundleMcpToolsForRun({
       runtime: makeToolRuntime(),

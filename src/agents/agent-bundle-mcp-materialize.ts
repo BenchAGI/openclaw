@@ -17,6 +17,7 @@ import type {
   SessionMcpRuntime,
 } from "./agent-bundle-mcp-types.js";
 import { normalizeToolParameterSchema } from "./agent-tools-parameter-schema.js";
+import { rememberMcpResultHookMetadata } from "./mcp-result-hook-metadata.js";
 import type { AgentToolResult } from "./runtime/index.js";
 import type { AnyAgentTool } from "./tools/common.js";
 
@@ -101,10 +102,16 @@ function toAgentToolResult(params: {
   if (params.result.isError === true) {
     details.status = "error";
   }
-  return {
+  const result = {
     content: normalizedContent,
     details,
   };
+  rememberMcpResultHookMetadata(result, {
+    serverName: params.serverName,
+    toolName: params.toolName,
+    metadata: params.result._meta,
+  });
+  return result;
 }
 
 function toJsonAgentToolResult(params: {

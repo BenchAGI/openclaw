@@ -656,6 +656,16 @@ export type PluginHookAfterToolCallEvent = {
   result?: unknown;
   error?: string;
   durationMs?: number;
+  /** Bounded metadata from the exact native MCP result, never model text.
+   * Server/tool names come from the configured catalog. Metadata values remain
+   * untrusted server output: consumers must validate their own authority and
+   * schema. Hook-only; omitted for synthetic/replaced results and never added
+   * to tool content, details, transcripts, logs, or UI events. */
+  mcpResultMetadata?: Readonly<{
+    serverName: string;
+    toolName: string;
+    metadata: Readonly<Record<string, unknown>>;
+  }>;
 };
 
 export type PluginHookToolResultPersistContext = {

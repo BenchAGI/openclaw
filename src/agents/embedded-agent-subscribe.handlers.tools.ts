@@ -77,6 +77,7 @@ import {
 } from "./embedded-agent-subscribe.tools.js";
 import { inferToolMetaFromArgs } from "./embedded-agent-utils.js";
 import { parseExecApprovalResultText } from "./exec-approval-result.js";
+import { takeMcpResultHookMetadata } from "./mcp-result-hook-metadata.js";
 import type { AgentEvent } from "./runtime/index.js";
 import { buildToolMutationState, isSameToolMutationAction } from "./tool-mutation.js";
 import { normalizeToolName } from "./tool-policy.js";
@@ -1122,6 +1123,7 @@ export async function handleToolExecutionEnd(
   const runId = ctx.params.runId;
   const isError = evt.isError;
   const result = evt.result;
+  const mcpResultMetadata = takeMcpResultHookMetadata(result);
   const toolSendReceiptResult = ctx.consumeToolSendReceipt?.(toolCallId);
   const observerIsError = isError || isToolResultError(result);
   const sanitizedResult = sanitizeToolResult(result);
@@ -1571,6 +1573,7 @@ export async function handleToolExecutionEnd(
       result: sanitizedResult,
       error: isToolError ? extractToolErrorMessage(sanitizedResult) : undefined,
       durationMs,
+      ...(mcpResultMetadata ? { mcpResultMetadata } : {}),
     };
     void hookRunnerAfter
       .runAfterToolCall(hookEvent, {
