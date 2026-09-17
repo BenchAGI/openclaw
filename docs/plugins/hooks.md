@@ -729,6 +729,15 @@ These hooks operate on OpenClaw-owned transcript writes. They do not rewrite
 Codex-native tool records; see
 [Codex transcript boundaries](/plugins/codex-harness-runtime#compaction-and-transcript-mirror).
 
+For an unmodified native MCP tool result, `after_tool_call` can also receive
+`event.mcpResultMetadata`: `{ serverName, toolName, metadata }`. Server and tool
+names come from the configured MCP catalog; `metadata` is a bounded, immutable
+snapshot of that response's `_meta`, not model-generated text. Values remain
+untrusted server output. Validate the expected server, tool, and metadata schema
+before using them as evidence. This hook-only field is not added to tool content,
+details, transcripts, UI events, or logs. Missing, malformed, oversized, synthetic,
+or replaced results omit it; consumers must not infer success from its absence.
+
 Tool results can include structured `details` for UI rendering, diagnostics,
 media routing, or plugin-owned metadata. Treat `details` as runtime metadata,
 not prompt content:

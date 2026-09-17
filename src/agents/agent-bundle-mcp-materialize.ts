@@ -29,11 +29,13 @@ import {
   setMcpCodeModeGuestResult,
   setMcpCodeModeGuestResultFromAgentResult,
 } from "./mcp-content.js";
+import { rememberMcpResultHookMetadata } from "./mcp-result-hook-metadata.js";
 import { isMcpToolAllowed } from "./mcp-tool-filter.js";
 import { buildMcpAppCanvasPayload, fetchMcpAppView } from "./mcp-ui-resource.js";
 import type { AgentToolResult } from "./runtime/index.js";
 import { toToolSearchJsonSafe } from "./tool-search-json.js";
 import type { AnyAgentTool } from "./tools/common.js";
+
 function isAppOnlyTool(tool: McpCatalogTool): boolean {
   return tool.uiVisibility !== undefined && !tool.uiVisibility.includes("model");
 }
@@ -104,10 +106,16 @@ function toAgentToolResult(params: {
   toolName: string;
   result: CallToolResult;
 }): AgentToolResult<unknown> {
-  return projectMcpCallToolResult(params.result, {
+  const result = projectMcpCallToolResult(params.result, {
     mcpServer: params.serverName,
     mcpTool: params.toolName,
   });
+  rememberMcpResultHookMetadata(result, {
+    serverName: params.serverName,
+    toolName: params.toolName,
+    metadata: params.result._meta,
+  });
+  return result;
 }
 
 function toJsonAgentToolResult(params: {
