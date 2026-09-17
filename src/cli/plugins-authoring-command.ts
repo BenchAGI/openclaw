@@ -725,7 +725,12 @@ import entry from "./index.js";
 
 function registeredProvider() {
   const providers: ProviderPlugin[] = [];
-  entry.register({ registerProvider: (provider) => providers.push(provider) } as OpenClawPluginApi);
+  const api: Partial<OpenClawPluginApi> = {
+    registerProvider(provider) {
+      providers.push(provider);
+    },
+  };
+  entry.register(api as OpenClawPluginApi);
   const provider = providers[0];
   if (providers.length !== 1 || !provider?.catalog) {
     throw new Error("Expected one provider with a catalog");
