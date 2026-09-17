@@ -19,3 +19,10 @@
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
 }
+
+/* Custom properties inherit across shadow boundaries, so a shadow stylesheet
+   can opt its own loops into the budget with
+   `animation-play-state: var(--control-ui-motion-play-state, running)`. */
+:root[data-motion="reduced"] {
+  --control-ui-motion-play-state: paused;
+}

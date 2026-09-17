@@ -1,5 +1,6 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
 import { property } from "lit/decorators.js";
+import { calmMotionRequested } from "../app/motion.ts";
 import { MascotAnimator } from "./mascot-animator.ts";
 import { drawMascot, whenMascotArtReady } from "./mascot-canvas.ts";
 import {
@@ -62,7 +63,7 @@ class OpenClawMascot extends LitElement {
   private readonly handleVisibilityChange = () => this.syncPlayback();
 
   private readonly handleMotionChange = (event: MediaQueryListEvent) => {
-    this.reducedMotion = event.matches;
+    this.reducedMotion = event.matches || calmMotionRequested();
     this.syncPlayback();
   };
 
@@ -72,7 +73,8 @@ class OpenClawMascot extends LitElement {
     document.addEventListener("visibilitychange", this.handleVisibilityChange);
 
     this.motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
-    this.reducedMotion = this.motionQuery?.matches ?? false;
+    // The page's motion budget (data-motion on <html>) holds the pose too.
+    this.reducedMotion = (this.motionQuery?.matches ?? false) || calmMotionRequested();
     this.motionQuery?.addEventListener("change", this.handleMotionChange);
 
     if (typeof IntersectionObserver !== "undefined") {
