@@ -28,7 +28,7 @@ import {
   withOpenClawAgentDatabaseReadOnly,
 } from "openclaw/plugin-sdk/sqlite-runtime";
 import { readMemoryPreimages } from "./dreaming-consolidation-artifacts.js";
-import { DREAMS_FILENAMES } from "./dreaming-dreams-file.js";
+import { DREAMS_FILENAMES } from "./dreaming-dreams-read.js";
 import {
   DREAMING_MEMORY_BACKUP_NAMESPACE,
   SHORT_TERM_RECALL_NAMESPACE,

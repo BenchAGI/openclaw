@@ -8,7 +8,7 @@ import {
   tableExists,
   withOpenClawAgentDatabaseReadOnly,
 } from "openclaw/plugin-sdk/sqlite-runtime";
-import { DREAMS_FILENAMES, readDreamsFile } from "./dreaming-dreams-file.js";
+import { DREAMS_FILENAMES, readDreamsFile } from "./dreaming-dreams-read.js";
 import { extractPromotionKeys } from "./short-term-promotion-memory-write.js";
 
 type MemoryOriginClass = "owner" | "agent" | "untrusted" | "system";

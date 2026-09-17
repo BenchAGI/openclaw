@@ -106,8 +106,9 @@ describe("reversible session quarantine", () => {
       ...options,
       memorySessionPolicy: exactOnlyPolicy,
     });
-    expect(candidates.map((candidate) => candidate.snippet).toSorted()).toEqual(
-      [snippets[0], snippets[3]].toSorted(),
+    expect(candidates).toHaveLength(2);
+    expect(candidates.map((candidate) => candidate.snippet)).toEqual(
+      expect.arrayContaining([snippets[0], snippets[3]]),
     );
     const clean = candidates.find((candidate) => candidate.snippet === snippets[0])!;
     const unattributed = candidates.find((candidate) => candidate.snippet === snippets[3])!;
@@ -144,8 +145,9 @@ describe("reversible session quarantine", () => {
       candidates,
       memorySessionPolicy: exactOnlyPolicy,
     });
-    expect(result.appliedCandidates.map((candidate) => candidate.snippet).toSorted()).toEqual(
-      [snippets[0], snippets[3]].toSorted(),
+    expect(result.appliedCandidates).toHaveLength(2);
+    expect(result.appliedCandidates.map((candidate) => candidate.snippet)).toEqual(
+      expect.arrayContaining([snippets[0], snippets[3]]),
     );
   });
 

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { extractErrorCode } from "openclaw/plugin-sdk/error-runtime";
 import { replaceManagedMarkdownBlock } from "openclaw/plugin-sdk/memory-host-markdown";
-import { readRegularFile, replaceFileAtomic } from "openclaw/plugin-sdk/security-runtime";
+import { replaceFileAtomic } from "openclaw/plugin-sdk/security-runtime";
 import { truncateUtf16Safe } from "openclaw/plugin-sdk/text-utility-runtime";
 import {
   dreamDiaryContentHash,
@@ -12,6 +12,7 @@ import {
   reserveDreamDiaryLineage,
   type DreamDiaryLineage,
 } from "./dreaming-diary-lineage.js";
+import { DREAMS_FILENAMES, readDreamsFile } from "./dreaming-dreams-read.js";
 import {
   getMemoryEntryPolicyDecisions,
   type MemorySessionPolicy,
@@ -19,7 +20,6 @@ import {
 import { withMemoryWorkspaceLock } from "./memory-workspace-lock.js";
 import { readStore } from "./short-term-promotion-store.js";
 
-export const DREAMS_FILENAMES = ["DREAMS.md", "dreams.md"] as const;
 const DEEP_START_MARKER = "<!-- openclaw:dreaming:deep:start -->";
 const DEEP_END_MARKER = "<!-- openclaw:dreaming:deep:end -->";
 
@@ -36,33 +36,6 @@ async function resolveDreamsPath(workspaceDir: string): Promise<string> {
     }
   }
   return path.join(workspaceDir, DREAMS_FILENAMES[0]);
-}
-
-function isEmptyDreamsReadError(err: unknown): boolean {
-  const code = extractErrorCode(err);
-  if (
-    code === "ENOENT" ||
-    code === "ENOTDIR" ||
-    code === "not-found" ||
-    code === "not-file" ||
-    code === "path-alias" ||
-    code === "path-mismatch" ||
-    code === "symlink"
-  ) {
-    return true;
-  }
-  return err instanceof Error && err.message === "path must be a regular file";
-}
-
-export async function readDreamsFile(dreamsPath: string): Promise<string> {
-  try {
-    return (await readRegularFile({ filePath: dreamsPath })).buffer.toString("utf-8");
-  } catch (err) {
-    if (isEmptyDreamsReadError(err)) {
-      return "";
-    }
-    throw err;
-  }
 }
 
 async function assertSafeDreamsPath(dreamsPath: string): Promise<void> {
