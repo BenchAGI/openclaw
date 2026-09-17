@@ -20,6 +20,9 @@ openclaw-lobster-pet {
   height: 52px;
   overflow: hidden;
   pointer-events: none;
+  /* Passer crossings measure the ledge in cqw; the strip's width comes from
+     its insets, so inline-size containment costs nothing. */
+  container-type: inline-size;
 }
 
 /* Departure/dismissal: duck down behind the ledge and fade. */
@@ -1361,13 +1364,23 @@ openclaw-lobster-pet[data-dex-complete]::after {
 
 /* ---- Pass-through visitors ---- */
 
-/* Passers cross the whole ledge once; left/right position comes from the
-   crossing keyframes, not the perch variable, and each kind sets its own
-   crossing time through --lob-cross (LOBSTER_PASSER_CROSS_MS). */
+/* Passers cross the whole ledge once. The crossing rides the individual
+   `translate` property (compositor-only, composed with the base centring
+   transform) measured in ledge widths; animating `left` re-laid the ledge
+   out every frame. Each kind sets its own crossing time through --lob-cross
+   (LOBSTER_PASSER_CROSS_MS). Under reduced motion the crossing is off and the
+   passer keeps the perch position the base rule gives it. */
 .lobster-pet--passer {
   pointer-events: none;
   cursor: default;
   bottom: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lobster-pet--passer {
+    left: 0;
+    transition: none;
+  }
 }
 
 .lobster-pet--passer .lobster-pet__body {
@@ -1409,19 +1422,21 @@ openclaw-lobster-pet[data-dex-complete]::after {
 
 @keyframes lobster-pet-cross-ltr {
   from {
-    left: -6%;
+    translate: -6cqw 0;
   }
+
   to {
-    left: 106%;
+    translate: 106cqw 0;
   }
 }
 
 @keyframes lobster-pet-cross-rtl {
   from {
-    left: 106%;
+    translate: 106cqw 0;
   }
+
   to {
-    left: -6%;
+    translate: -6cqw 0;
   }
 }
 
