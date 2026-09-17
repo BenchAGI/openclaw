@@ -77,7 +77,9 @@ suite.define(() => {
         await branches.getByRole("button", { name: "Worktree", exact: true }).click();
         await expect.poll(() => detail.getAttribute("data-worktree")).toBe("true");
         const baseRef = branches.getByLabel("Base branch");
-        expect(await baseRef.getAttribute("placeholder")).toBe("Base branch");
+        expect(await baseRef.getAttribute("placeholder")).toBe(
+          "Automatic (fresh remote default; HEAD for local-only repositories)",
+        );
         expect(await baseRef.inputValue()).toBe("");
         expect(await branches.locator("datalist option").count()).toBe(0);
         await captureProjectUiProof(page, "github-worktree-selected.png");

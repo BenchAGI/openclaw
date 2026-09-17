@@ -290,7 +290,7 @@ suite.define(() => {
       expect(await page.locator("#new-session-detail-trigger").count()).toBe(0);
       await projectTrigger.click();
       await project.getByText("Advanced", { exact: true }).click();
-      await expect.poll(() => project.getByLabel("Base branch").inputValue()).toBe("main");
+      await expect.poll(() => project.getByLabel("Base branch").inputValue()).toBe("");
       await project.getByLabel("Base branch").fill("release");
       await expect.poll(() => project.getByLabel("Base branch").inputValue()).toBe("release");
       await project.getByLabel("Base branch").fill("main");
