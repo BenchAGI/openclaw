@@ -89,6 +89,25 @@ function createRepositoryFixture(
 }
 
 describe("DraftPlaceState repository selection", () => {
+  it("submits automatic worktrees without turning discovery into an explicit base", async () => {
+    const { state, request } = createRepositoryFixture({ workspaceGit: true });
+    request.mockResolvedValue({
+      repositoryStatus: "git",
+      branches: [],
+      defaultBranch: "refs/remotes/origin/main",
+      headBranch: "main",
+    });
+    state.adoptAgentDefaults();
+    await vi.waitFor(() => expect(state.repository.kind).toBe("git"));
+    const params = () => state.buildSessionCreateParams({ message: "work", visibility: "normal" });
+    expect(params().worktree).toBe(true);
+    expect(params()).not.toHaveProperty("worktreeBaseRef");
+    state.setBaseRef("refs/heads/main");
+    expect(params().worktreeBaseRef).toBe("refs/heads/main");
+    state.setBaseRef("");
+    expect(params()).not.toHaveProperty("worktreeBaseRef");
+  });
+
   it.each(["git", "unavailable", "rejected"] as const)(
     "preserves an edited base branch through reconnect discovery (%s)",
     async (result) => {
@@ -127,7 +146,7 @@ describe("DraftPlaceState repository selection", () => {
       expect(state.baseRef).toBe("my-branch");
       state.applyFolder("/another-repo");
       await vi.waitFor(() => expect(state.repository.kind).toBe("git"));
-      expect(state.baseRef).toBe("main");
+      expect(state.baseRef).toBe("");
       expect(state.worktreeName).toBe("");
       expect(persistPreference).toHaveBeenCalledWith("main", "/workspace", {
         baseRef: "",

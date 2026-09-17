@@ -173,12 +173,12 @@ describe("ManagedWorktreeService", () => {
     const created = await service.create({ repoRoot: repo, name: "remote-task" });
     const repeated = await service.create({ repoRoot: repo, name: "remote-task" });
 
-    expect(created.baseRef).toBe("origin/main");
+    expect(created.baseRef).toBe("refs/remotes/origin/main");
     expect(created.branch).toBe("openclaw/remote-task");
     expect(created.path).toContain(path.join("worktrees", created.repoFingerprint, "remote-task"));
     expect(await git(created.path, "branch", "--show-current")).toBe(created.branch);
     expect(repeated).toEqual(created);
-    expectCheckoutTimeouts(commandSpy, ["origin/main"]);
+    expectCheckoutTimeouts(commandSpy, [await git(repo, "rev-parse", "origin/main")]);
   });
 
   it("reads registry records without retiring a temporarily unavailable worktree", async () => {
@@ -223,20 +223,21 @@ describe("ManagedWorktreeService", () => {
     await git(repo, "checkout", "-b", "current-work");
 
     const result = await service.listRepositoryBranches(repo);
-    expect(result.defaultBranch).toBe("main");
+    expect(result.defaultBranch).toBe("refs/remotes/origin/main");
     expect(result.headBranch).toBe("current-work");
     // Remote-only branches keep their remote-qualified form so the returned
     // name always resolves as a git worktree base ref.
     expect(result.branches.map((branch) => branch.name)).toEqual([
-      "main",
-      "current-work",
-      "origin/feature-a",
-      "zeta-local",
+      "refs/remotes/origin/main",
+      "refs/heads/current-work",
+      "refs/heads/main",
+      "refs/heads/zeta-local",
+      "refs/remotes/origin/feature-a",
     ]);
-    expect(result.branches.find((branch) => branch.name === "origin/feature-a")?.kind).toBe(
-      "remote",
-    );
-    expect(result.branches.find((branch) => branch.name === "main")?.kind).toBe("local");
+    expect(
+      result.branches.find((branch) => branch.name === "refs/remotes/origin/feature-a")?.kind,
+    ).toBe("remote");
+    expect(result.branches.find((branch) => branch.name === "refs/heads/main")?.kind).toBe("local");
   });
 
   it("creates a worktree from a remote-only branch ref returned by the picker", async () => {
@@ -251,8 +252,10 @@ describe("ManagedWorktreeService", () => {
     await git(repo, "branch", "-D", "remote-only");
 
     const listed = await service.listRepositoryBranches(repo);
-    const remoteRef = listed.branches.find((branch) => branch.kind === "remote")?.name;
-    expect(remoteRef).toBe("origin/remote-only");
+    const remoteRef = listed.branches.find(
+      (branch) => branch.name === "refs/remotes/origin/remote-only",
+    )?.name;
+    expect(remoteRef).toBe("refs/remotes/origin/remote-only");
     const created = await service.create({
       repoRoot: repo,
       name: "from-remote",
@@ -269,7 +272,10 @@ describe("ManagedWorktreeService", () => {
     const result = await service.listRepositoryBranches(repo);
     expect(result.defaultBranch).toBeUndefined();
     expect(result.headBranch).toBe("main");
-    expect(result.branches.map((branch) => branch.name)).toEqual(["main", "side"]);
+    expect(result.branches.map((branch) => branch.name)).toEqual([
+      "refs/heads/main",
+      "refs/heads/side",
+    ]);
     expect(result.branches.every((branch) => branch.kind === "local")).toBe(true);
   });
 
@@ -415,7 +421,7 @@ describe("ManagedWorktreeService", () => {
     expect(reused.ownerId).toBe("agent:main:dashboard:one");
   });
 
-  it("does not remove a concurrent successful create during remote fallback", async () => {
+  it("does not remove a concurrent successful create", async () => {
     await addRemote(root, repo);
 
     const results = await Promise.allSettled([
@@ -435,12 +441,101 @@ describe("ManagedWorktreeService", () => {
     expect(await git(created.path, "branch", "--show-current")).toBe("openclaw/concurrent");
   });
 
-  it("falls back to local HEAD when fetch fails", async () => {
-    await git(repo, "remote", "add", "origin", path.join(root, "missing.git"));
-    const created = await service.create({ repoRoot: repo, name: "offline" });
-    expect(created.baseRef).toBe("HEAD");
-    expect(await fs.readFile(path.join(created.path, "README.md"), "utf8")).toBe("base\n");
+  it.each(["discovery", "fetch"])(
+    "fails closed when origin becomes unreachable during %s",
+    async (phase) => {
+      const remote = await addRemote(root, repo);
+      const disconnect = () => fs.rename(remote, `${remote}.offline`);
+      if (phase === "discovery") {
+        await disconnect();
+      } else {
+        const runCommand = commandRunner.runCommandWithTimeout;
+        vi.spyOn(commandRunner, "runCommandWithTimeout").mockImplementation(async (...args) => {
+          const result = await runCommand(...args);
+          if (args[0].includes("ls-remote")) {
+            await disconnect();
+          }
+          return result;
+        });
+      }
+      await expect(service.create({ repoRoot: repo, name: "offline" })).rejects.toThrow(/git/);
+      expect(await service.list()).toEqual([]);
+      expect(await git(repo, "branch", "--list", "openclaw/offline")).toBe("");
+    },
+  );
+
+  it("fetches the current remote default while preserving a divergent dirty source", async () => {
+    const remote = await addRemote(root, repo);
+    const writer = path.join(root, "writer");
+    await execFileAsync("git", ["clone", remote, writer]);
+    await git(writer, "config", "user.name", "OpenClaw Test");
+    await git(writer, "config", "user.email", "openclaw-test@example.invalid");
+    await git(writer, "checkout", "-b", "trunk");
+    await fs.writeFile(path.join(writer, "new.txt"), "new remote default\n");
+    await git(writer, "add", "new.txt");
+    await git(writer, "commit", "-m", "remote advances");
+    await git(writer, "push", "origin", "trunk");
+    await git(remote, "symbolic-ref", "HEAD", "refs/heads/trunk");
+    const remoteCommit = await git(writer, "rev-parse", "HEAD");
+    const localCommit = await git(repo, "rev-parse", "HEAD");
+    await fs.writeFile(path.join(repo, "README.md"), "dirty local changes\n");
+    const created = await service.create({ repoRoot: repo, name: "fresh-default" });
+    expect(await git(created.path, "rev-parse", "HEAD")).toBe(remoteCommit);
+    expect(await git(repo, "rev-parse", "HEAD")).toBe(localCommit);
+    expect(await fs.readFile(path.join(repo, "README.md"), "utf8")).toBe("dirty local changes\n");
   });
+
+  it("rejects an origin without a default and a non-origin remote", async () => {
+    const remote = await addRemote(root, repo);
+    await git(remote, "symbolic-ref", "HEAD", "refs/heads/missing");
+    await expect(service.create({ repoRoot: repo, name: "missing-default" })).rejects.toThrow(
+      "no resolvable default branch",
+    );
+    await git(repo, "remote", "rename", "origin", "upstream");
+    await expect(service.create({ repoRoot: repo, name: "no-origin" })).rejects.toThrow(
+      "require origin",
+    );
+    expect(await service.list()).toEqual([]);
+    expect(await git(repo, "branch", "--list", "openclaw/*")).toBe("");
+  });
+
+  it("preserves distinct full refs when a local branch has a remote-looking name", async () => {
+    await addRemote(root, repo);
+    await git(repo, "branch", "origin/main");
+    const listed = await service.listRepositoryBranches(repo);
+    expect(listed.defaultBranch).toBe("refs/remotes/origin/main");
+    expect(listed.branches).toEqual(
+      expect.arrayContaining([
+        { name: "refs/remotes/origin/main", kind: "remote" },
+        { name: "refs/heads/main", kind: "local" },
+        { name: "refs/heads/origin/main", kind: "local" },
+      ]),
+    );
+  });
+
+  it("uses local HEAD automatically only when there are no remotes", async () => {
+    const created = await service.create({ repoRoot: repo, name: "local-only" });
+    expect(created.baseRef).toBe("HEAD");
+    expect(await git(created.path, "rev-parse", "HEAD")).toBe(await git(repo, "rev-parse", "HEAD"));
+  });
+
+  it.each(["HEAD", "main", "commit"])(
+    "explicit %s stays usable offline without fetching",
+    async (selection) => {
+      const baseRef = selection === "commit" ? await git(repo, "rev-parse", "HEAD") : selection;
+      await git(repo, "remote", "add", "origin", path.join(root, "missing.git"));
+      const commandSpy = vi.spyOn(commandRunner, "runCommandWithTimeout");
+      const created = await service.create({ repoRoot: repo, name: "explicit-offline", baseRef });
+      expect(await git(created.path, "rev-parse", "HEAD")).toBe(
+        await git(repo, "rev-parse", "HEAD"),
+      );
+      expect(
+        commandSpy.mock.calls.some(
+          ([argv]) => argv.includes("fetch") || argv.includes("ls-remote"),
+        ),
+      ).toBe(false);
+    },
+  );
 
   it.each(["active", "aborted", "closed"] as const)(
     "handles stale remote checkout with %s admission",
@@ -484,17 +579,16 @@ describe("ManagedWorktreeService", () => {
         await expect(creation).rejects.toMatchObject(
           admission === "aborted" ? { code: "OPENCLAW_STATE_LEASE_ABORTED" } : closed,
         );
-        expectCheckoutTimeouts(commandSpy, ["origin/main"]);
+        expectCheckoutTimeouts(commandSpy, [await git(repo, "rev-parse", "origin/main")]);
         expect(await git(repo, "worktree", "list", "--porcelain")).not.toContain("stale-remote");
         expect(await git(repo, "branch", "--list", "openclaw/stale-remote")).toBe("");
         return;
       }
-      const created = await creation;
-      expect(created.baseRef).toBe("HEAD");
-      expect(await git(created.path, "rev-parse", "HEAD")).toBe(
-        await git(repo, "rev-parse", "HEAD"),
-      );
-      expectCheckoutTimeouts(commandSpy, ["origin/main", "HEAD"]);
+      await expect(creation).rejects.toThrow("git worktree add");
+      expectCheckoutTimeouts(commandSpy, [remoteCommit]);
+      expect(await git(repo, "worktree", "list", "--porcelain")).not.toContain("stale-remote");
+      expect(await git(repo, "branch", "--list", "openclaw/stale-remote")).toBe("");
+      expect(await service.list()).toEqual([]);
     },
   );
 

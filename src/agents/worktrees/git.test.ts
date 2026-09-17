@@ -185,34 +185,26 @@ describe("Git ref mutation ownership", () => {
     await expect(resolveWorktreeBase(root, "-fixture")).rejects.toThrow("terminated");
   });
 
-  it.each(["fetch", "symbolic-ref"])(
+  it.each(["ls-remote", "fetch", "symbolic-ref"])(
     "does not select a remote base after an interrupted %s result",
     async (interrupted) => {
       const root = await repository();
+      const origin = await repository();
+      await requireGit(root, ["remote", "add", "origin", origin]);
       const run = processExec.runCommandWithTimeout;
-      vi.spyOn(processExec, "runCommandWithTimeout").mockImplementation((argv, options) => {
+      const commands: string[] = [];
+      vi.spyOn(processExec, "runCommandWithTimeout").mockImplementation(async (argv, options) => {
         const command = argv[argv.indexOf("-C") + 2];
-        if (command !== "fetch" && command !== "symbolic-ref") {
-          return run(argv, options);
-        }
-        return Promise.resolve({
-          stdout: command === "symbolic-ref" ? "origin/main\n" : "",
-          stderr: "",
-          code: 0,
-          signal: null,
-          killed: false,
-          termination: command === interrupted ? "signal" : "exit",
-        });
+        commands.push(command!);
+        const result = await run(argv, options);
+        return command === interrupted ? { ...result, termination: "signal" } : result;
       });
-      await expect(resolveWorktreeBase(root)).resolves.toEqual({
-        gitOperand: "HEAD",
-        recordRef: "HEAD",
-        remote: false,
-      });
+      await expect(resolveWorktreeBase(root)).rejects.toThrow("terminated");
+      expect(commands.at(-1)).toBe(interrupted);
     },
   );
 
-  it("serializes configured fetch pruning during managed-worktree base resolution", async () => {
+  it("serializes the automatic default-branch fetch without pruning unrelated refs", async () => {
     const root = await repository();
     const origin = await repository();
     const staleRef = "refs/remotes/origin/retired";
@@ -255,15 +247,10 @@ describe("Git ref mutation ownership", () => {
     }
     await Promise.all(pending);
     await expect(resolved).resolves.toEqual({
-      gitOperand: "origin/main",
-      recordRef: "origin/main",
-      remote: true,
+      gitOperand: await requireGit(origin, ["rev-parse", "HEAD"]),
+      recordRef: "refs/remotes/origin/main",
     });
-    await expect(
-      runGit(root, ["show-ref", "--verify", "--quiet", staleRef]),
-    ).resolves.toMatchObject({
-      code: 1,
-    });
+    await expect(requireGit(root, ["show-ref", "--verify", staleRef])).resolves.toContain(staleRef);
   });
 
   it("releases a rejected mutation and leaves a cancelled waiting branch deletion unexecuted", async () => {

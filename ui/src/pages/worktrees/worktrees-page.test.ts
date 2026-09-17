@@ -764,7 +764,7 @@ describe("WorktreesPage lifecycle", () => {
     expect(freshInputs.every((input) => !input.disabled)).toBe(true);
   });
 
-  it("uses the current branch when a repository has no remote default", async () => {
+  it("keeps automatic mode when branch discovery has no remote default", async () => {
     const request = vi.fn((method: string) => {
       if (method === "worktrees.branches") {
         return Promise.resolve({ branches: [{ name: "main" }], headBranch: "main" });
@@ -788,7 +788,9 @@ describe("WorktreesPage lifecycle", () => {
     page.loadCreateBranches();
 
     await waitForFast(() => expect(page.createBranches).toEqual(["main"]));
-    expect(page.createBaseRef).toBe("main");
+    expect(page.createBaseRef).toBe("");
+    await page.createWorktree();
+    expect(request).toHaveBeenCalledWith("worktrees.create", { repoRoot: "/tmp/repo" });
   });
 
   it("ignores a stale branch failure after a newer request succeeds", async () => {
@@ -820,13 +822,13 @@ describe("WorktreesPage lifecycle", () => {
     page.loadCreateBranches();
     page.loadCreateBranches();
     await waitForFast(() => expect(page.createBranches).toEqual(["main"]));
-    expect(page.createBaseRef).toBe("main");
+    expect(page.createBaseRef).toBe("");
 
     firstBranches.reject(new Error("stale branch failure"));
     await Promise.resolve();
     await Promise.resolve();
 
     expect(page.createBranches).toEqual(["main"]);
-    expect(page.createBaseRef).toBe("main");
+    expect(page.createBaseRef).toBe("");
   });
 });

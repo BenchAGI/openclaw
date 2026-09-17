@@ -244,41 +244,44 @@ describe("ManagedWorktreeService failure diagnostics", () => {
   it.each([
     { name: "long evidence inside the existing window", oldEvidenceVisible: true },
     { name: "evidence outside the existing newline window", oldEvidenceVisible: false },
-  ])("preserves retry authority for $name", async ({ oldEvidenceVisible }) => {
-    await git(path.join(root, "remote.git"), "symbolic-ref", "HEAD", "refs/heads/main");
-    await git(repo, "remote", "set-head", "origin", "-a");
-    const name = "retry-evidence";
-    const branch = `openclaw/${name}`;
-    let allocatedPath: string | undefined;
-    let firstAdd = true;
-    vi.spyOn(commandExec, "runCommandWithTimeout").mockImplementation(async (argv, options) => {
-      const result = await realRunCommand(argv, options);
-      const args = argv[0] === "git" ? argv.slice(3) : [];
-      if (firstAdd && args[0] === "worktree" && args[1] === "add") {
-        firstAdd = false;
-        allocatedPath = args.at(-2);
-        expect(result.code).toBe(0);
-        const separator = oldEvidenceVisible ? "\r" : "\n";
-        return {
-          ...result,
-          code: 1,
-          stderr: `Preparing worktree (new branch '${branch}')${separator}${`progress ${"x".repeat(200)}${separator}`.repeat(20)}fatal: checkout failed`,
-        };
-      }
-      return result;
-    });
+  ])(
+    "preserves cleanup authority without a checkout retry for $name",
+    async ({ oldEvidenceVisible }) => {
+      await git(path.join(root, "remote.git"), "symbolic-ref", "HEAD", "refs/heads/main");
+      await git(repo, "remote", "set-head", "origin", "-a");
+      const name = "retry-evidence";
+      const branch = `openclaw/${name}`;
+      let allocatedPath: string | undefined;
+      let addCalls = 0;
+      vi.spyOn(commandExec, "runCommandWithTimeout").mockImplementation(async (argv, options) => {
+        const result = await realRunCommand(argv, options);
+        const args = argv[0] === "git" ? argv.slice(3) : [];
+        if (args[0] === "worktree" && args[1] === "add") {
+          addCalls += 1;
+          allocatedPath = args.at(-2);
+          expect(result.code).toBe(0);
+          const separator = oldEvidenceVisible ? "\r" : "\n";
+          return {
+            ...result,
+            code: 1,
+            stderr: `Preparing worktree (new branch '${branch}')${separator}${`progress ${"x".repeat(200)}${separator}`.repeat(20)}fatal: checkout failed`,
+          };
+        }
+        return result;
+      });
 
-    if (oldEvidenceVisible) {
-      const created = await service.create({ repoRoot: repo, name });
-      expect(created.baseRef).toBe("HEAD");
-      expect(await git(created.path, "branch", "--show-current")).toBe(branch);
-      expect(service.listRegistryRecords()).toEqual([created]);
-    } else {
       await expect(service.create({ repoRoot: repo, name })).rejects.toThrow("checkout failed");
+      expect(addCalls).toBe(1);
       expect(service.listRegistryRecords()).toEqual([]);
-    }
-    expect(allocatedPath).toBeDefined();
-    expect(await git(repo, "worktree", "list", "--porcelain")).toContain(allocatedPath);
-    expect(await git(allocatedPath!, "branch", "--show-current")).toBe(branch);
-  });
+      expect(allocatedPath).toBeDefined();
+      if (oldEvidenceVisible) {
+        await expect(fs.stat(allocatedPath!)).rejects.toMatchObject({ code: "ENOENT" });
+        expect(await git(repo, "worktree", "list", "--porcelain")).not.toContain(allocatedPath);
+        expect(await git(repo, "branch", "--list", branch)).toBe("");
+      } else {
+        expect(await git(repo, "worktree", "list", "--porcelain")).toContain(allocatedPath);
+        expect(await git(allocatedPath!, "branch", "--show-current")).toBe(branch);
+      }
+    },
+  );
 });

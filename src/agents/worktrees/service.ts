@@ -362,8 +362,8 @@ async function canResetFailedWorktreeAdd(
   branch: string,
   failure: GitResult,
 ): Promise<boolean> {
-  // Keep retry evidence unchanged: diagnostic rendering/truncation must never
-  // grant cleanup or retry authority.
+  // Keep ownership evidence unchanged: diagnostic rendering/truncation must never
+  // grant cleanup authority.
   const message = (failure.stderr || failure.stdout).trim().split("\n").slice(-12).join("\n");
   const createdBranch = message.includes(`Preparing worktree (new branch '${branch}')`);
   if (message.includes("unable to checkout working tree") || createdBranch) {
@@ -913,13 +913,9 @@ export class ManagedWorktreeService {
       ? {
           gitOperand: params.checkoutCommit,
           recordRef: params.baseRef ?? params.checkoutCommit,
-          remote: false,
         }
       : await resolveWorktreeBase(repository.repoRoot, params.baseRef, params.signal);
-    const gitBytes = Math.max(
-      await estimateWorktreeGitBytes(repository.repoRoot, base.gitOperand),
-      base.remote ? await estimateWorktreeGitBytes(repository.repoRoot, "HEAD") : 0,
-    );
+    const gitBytes = await estimateWorktreeGitBytes(repository.repoRoot, base.gitOperand);
     const provisionedBytes = await estimateProvisionedFileBytes(repository.sourceRoot);
     const setupStat =
       params.runSetupScript === false
@@ -944,28 +940,21 @@ export class ManagedWorktreeService {
     await fs.mkdir(root, { recursive: true });
     params.signal?.throwIfAborted();
     params.commitGuard?.();
-    let gitBase = base.gitOperand;
-    let recordBase = base.recordRef;
-    const worktreeAddArgs = () => ["worktree", "add", "-b", branch, "--", worktreePath, gitBase];
-    let added = await runGit(repository.repoRoot, worktreeAddArgs(), {
-      timeoutMs: WORKTREE_CHECKOUT_TIMEOUT_MS,
-      signal: params.signal,
-    });
-    if (added.code !== 0 && base.remote) {
-      if (!(await canResetFailedWorktreeAdd(repository.repoRoot, worktreePath, branch, added))) {
-        throw commandError("git worktree add", added);
-      }
-      await resetFailedWorktreeAdd(repository.repoRoot, worktreePath, branch);
-      params.signal?.throwIfAborted();
-      params.commitGuard?.();
-      gitBase = "HEAD";
-      recordBase = "HEAD";
-      added = await runGit(repository.repoRoot, worktreeAddArgs(), {
+    const added = await runGit(
+      repository.repoRoot,
+      ["worktree", "add", "-b", branch, "--", worktreePath, base.gitOperand],
+      {
         timeoutMs: WORKTREE_CHECKOUT_TIMEOUT_MS,
         signal: params.signal,
-      });
-    }
+      },
+    );
     if (added.code !== 0) {
+      // Clean only debris owned by this failed add; never retry at another base.
+      if (await canResetFailedWorktreeAdd(repository.repoRoot, worktreePath, branch, added)) {
+        await resetFailedWorktreeAdd(repository.repoRoot, worktreePath, branch);
+      }
+      params.signal?.throwIfAborted();
+      params.commitGuard?.();
       throw commandError("git worktree add", added);
     }
     let provisionedPaths: string[];
@@ -997,7 +986,7 @@ export class ManagedWorktreeService {
       repoRoot: repository.repoRoot,
       path: worktreePath,
       branch,
-      baseRef: recordBase,
+      baseRef: base.recordRef,
       ownerKind: params.ownerKind ?? "manual",
       ...(params.ownerId ? { ownerId: params.ownerId } : {}),
       createdAt,
@@ -1090,9 +1079,8 @@ export class ManagedWorktreeService {
     } else {
       repository = await resolveRepository(repoRoot);
     }
-    // Keyed by short branch name; the stored name is always a resolvable base
-    // ref, so remote-only branches keep their remote-qualified form
-    // (origin/feature-a) instead of a bare name git cannot resolve.
+    // Full refs preserve local/remote identities even when a local branch has
+    // a remote-looking name. Picker values must resolve without ambiguity.
     const branches = new Map<string, ManagedWorktreeBranch>();
     const remoteRaw = await runGit(repository.repoRoot, [
       "for-each-ref",
@@ -1115,12 +1103,12 @@ export class ManagedWorktreeService {
         if (!shortName || shortName === "HEAD") {
           continue;
         }
-        branches.set(shortName, { name: withoutPrefix, kind: "remote" });
+        branches.set(trimmed, { name: trimmed, kind: "remote" });
       }
     }
     const localRaw = await runGit(repository.repoRoot, [
       "for-each-ref",
-      "--format=%(refname:short)",
+      "--format=%(refname)",
       "refs/heads",
     ]);
     if (localRaw.code === 0) {
@@ -1134,26 +1122,17 @@ export class ManagedWorktreeService {
     const remoteHead = await runGit(repository.repoRoot, [
       "symbolic-ref",
       "--quiet",
-      "--short",
       "refs/remotes/origin/HEAD",
     ]);
-    const defaultShort =
-      remoteHead.code === 0
-        ? remoteHead.stdout.trim().replace(/^origin\//, "") || undefined
-        : undefined;
+    const defaultBranch = remoteHead.code === 0 ? remoteHead.stdout.trim() || undefined : undefined;
     const head = await runGit(repository.repoRoot, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
     const headBranch = head.code === 0 ? head.stdout.trim() || undefined : undefined;
-    const defaultBranch = defaultShort
-      ? (branches.get(defaultShort)?.name ?? defaultShort)
-      : undefined;
-    // Deterministic picker ordering: default base first, current checkout next, rest alphabetical.
-    const rank = (shortName: string) =>
-      shortName === defaultShort ? 0 : shortName === headBranch ? 1 : 2;
-    const sorted = [...branches.entries()]
-      .toSorted(
-        ([aShort, a], [bShort, b]) => rank(aShort) - rank(bShort) || a.name.localeCompare(b.name),
-      )
-      .map(([, branch]) => branch);
+    // Default remote first, current local checkout next, then deterministic names.
+    const rank = (name: string) =>
+      name === defaultBranch ? 0 : name === `refs/heads/${headBranch}` ? 1 : 2;
+    const sorted = [...branches.values()].toSorted(
+      (a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name),
+    );
     return {
       branches: sorted,
       ...(defaultBranch ? { defaultBranch } : {}),

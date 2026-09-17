@@ -117,9 +117,9 @@ export function resolveSessionPatchModelSelection(params: {
     provider: resolved.ref.provider,
     model: resolved.ref.model,
     ...(profile ? { profile } : {}),
-    isDefault:
-      resolved.ref.provider === params.defaultProvider &&
-      resolved.ref.model === params.defaultModel,
+    // Explicit selections are pins, including the configured default. Only a
+    // null model patch resets the pin and restores parent/default inheritance.
+    isDefault: false,
   };
 }
 

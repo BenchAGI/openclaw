@@ -40,9 +40,11 @@ Each worktree lives at:
 
 The repository fingerprint is the first 16 hexadecimal characters of a SHA-256 hash over the canonical git common directory and origin URL. A supplied name must match `[a-z0-9][a-z0-9-]{0,63}`. Without a name, OpenClaw generates a readable crustacean-themed name such as `brisk-lobster`. Inferred names already occupied by any registered worktree (including the caller's own removed checkout), local branch, or unmanaged path get a numeric suffix such as `brisk-lobster-2`; only a supplied name reuses or restores the caller's existing record.
 
-OpenClaw creates branch `openclaw/<name>` at the requested base ref. Without a base ref, it fetches `origin`, uses the remote default branch when available, and falls back to local `HEAD` when the repository is offline or has no usable remote.
+OpenClaw creates branch `openclaw/<name>` at the requested base ref. Without a base ref, it resolves the current default branch from `origin`, fetches that branch, and creates the checkout at the resulting exact commit. If remote discovery, fetch, or checkout fails, creation fails visibly; it never substitutes local `HEAD`. Repositories with no remotes use the local `HEAD` commit. A repository with remotes but no `origin` requires an explicit base ref or an `origin` remote.
 
-Each `git worktree add` checkout during creation or snapshot restore has a five-minute timeout, including a creation retry from local `HEAD`. Fetching missing objects for the size estimate uses the same five-minute budget. Other managed-worktree Git commands keep their two-minute timeout. The separate `.openclaw/worktree-setup.sh` step also keeps its own two-minute timeout.
+An explicit base ref (a commit, local branch, remote-tracking ref, or `HEAD`) uses that local ref without an implicit fetch. Leave the base field empty for automatic mode; selecting a listed remote-tracking ref explicitly uses its locally cached value. Local and remote branches remain distinct, fully qualified choices (`refs/heads/main` and `refs/remotes/origin/main`).
+
+Each `git worktree add` checkout during creation or snapshot restore has a five-minute timeout, without retrying a different base. Fetching missing objects for the size estimate uses the same five-minute budget. Other managed-worktree Git commands keep their two-minute timeout. The separate `.openclaw/worktree-setup.sh` step also keeps its own two-minute timeout.
 
 ## Capacity and disk space
 
@@ -165,7 +167,7 @@ The Control UI **Worktrees** page under Settings provides the same actions plus 
 | `worktrees.restore`  | Restore a removed worktree from its snapshot.                           |
 | `worktrees.gc`       | Run idle, orphan, and retention cleanup now.                            |
 
-`worktrees.list` requires `operator.read`. `worktrees.create` and `worktrees.branches` require `operator.write` for configured agent workspaces and registered projects; arbitrary host paths still require `operator.admin`. All creation disables repository Git hooks; write-scoped creation also skips `.openclaw/worktree-setup.sh`. Removing, restoring, and garbage-collecting worktrees remain admin-only. Branch listing reads existing refs only and never fetches, and remote-only branches come back remote-qualified (`origin/feature-a`) so every returned name resolves as a base ref. New Session can also request a typed repository status from this method; a plain directory or unavailable checkout returns no branches instead of forcing the UI to infer Git capability from an error string.
+`worktrees.list` requires `operator.read`. `worktrees.create` and `worktrees.branches` require `operator.write` for configured agent workspaces and registered projects; arbitrary host paths still require `operator.admin`. All creation disables repository Git hooks; write-scoped creation also skips `.openclaw/worktree-setup.sh`. Removing, restoring, and garbage-collecting worktrees remain admin-only. Branch listing reads existing refs only and never fetches, and branches come back fully qualified (`refs/heads/main`, `refs/remotes/origin/main`) so local and remote choices cannot shadow each other. New Session can also request a typed repository status from this method; a plain directory or unavailable checkout returns no branches instead of forcing the UI to infer Git capability from an error string.
 
 ## Workboard workspaces
 

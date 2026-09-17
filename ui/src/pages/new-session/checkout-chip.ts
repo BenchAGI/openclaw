@@ -54,11 +54,7 @@ function renderWorktreeFields(params: {
         type="text"
         list="new-session-branches"
         ?disabled=${params.submitting || params.pendingPlacement}
-        placeholder=${
-          params.branchesLoading
-            ? t("common.loading")
-            : (params.branches?.defaultBranch ?? t("newSession.worktreeBaseRef"))
-        }
+        placeholder=${params.branchesLoading ? t("common.loading") : t("worktrees.automaticBase")}
         .value=${params.baseRef}
         @input=${(event: Event) => {
           if (event.currentTarget instanceof HTMLInputElement) {
@@ -68,7 +64,14 @@ function renderWorktreeFields(params: {
       />
       <datalist id="new-session-branches">
         ${(params.branches?.branches ?? []).map(
-          (branch) => html`<option value=${branch.name}></option>`,
+          (branch) =>
+            html`<option
+              value=${branch.name}
+              label=${t(
+                branch.kind === "local" ? "worktrees.localBranch" : "worktrees.remoteBranch",
+                { branch: branch.name.replace(/^refs\/(heads|remotes)\//u, "") },
+              )}
+            ></option>`,
         )}
       </datalist>
     </label>
