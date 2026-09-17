@@ -265,6 +265,40 @@ describe("DraftPlaceState repository selection", () => {
     },
   );
 
+  it.each(["refs/remotes/origin/main", undefined])(
+    "leaves discovery automatic and submits only explicitly selected bases (%s)",
+    async (defaultBranch) => {
+      const { state, request } = createRepositoryFixture({ workspaceGit: true });
+      request.mockResolvedValue({
+        repositoryStatus: "git",
+        branches: [{ name: "refs/heads/main", kind: "local" }],
+        defaultBranch,
+        headBranch: "main",
+      });
+      state.adoptAgentDefaults();
+      await vi.waitFor(() => expect(state.repository.kind).toBe("git"));
+      const createParams = () =>
+        buildDraftSessionCreateParams({
+          agentId: "main",
+          message: "Start work",
+          worktree: state.worktree,
+          baseRef: state.baseRef,
+        });
+      expect(createParams()).toMatchObject({ worktree: true });
+      expect(createParams()).not.toHaveProperty("worktreeBaseRef");
+
+      state.setBaseRef("refs/heads/main");
+      expect(createParams().worktreeBaseRef).toBe("refs/heads/main");
+      state.setBaseRef("");
+      expect(createParams()).not.toHaveProperty("worktreeBaseRef");
+
+      state.setBaseRef("refs/remotes/origin/main");
+      state.applyFolder("/another-repository");
+      await vi.waitFor(() => expect(state.repository.kind).toBe("git"));
+      expect(createParams()).not.toHaveProperty("worktreeBaseRef");
+    },
+  );
+
   it("selects a checkout explicitly without resetting the typed base branch", () => {
     const { state, persistPreference, requestUpdate, request } = createRepositoryFixture();
     state.selectRemoteProject(REMOTE_PROJECT);
