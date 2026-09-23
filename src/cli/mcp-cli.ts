@@ -30,6 +30,9 @@ import {
 } from "../agents/mcp-oauth.js";
 import { resolveMcpTransportConfig } from "../agents/mcp-transport-config.js";
 import { parseConfigValue } from "../auto-reply/reply/config-value.js";
+import { redactSensitiveArgv } from "../config/redact-argv.js";
+import { REDACTED_SENTINEL, redactConfigObject } from "../config/redact-snapshot.js";
+import { buildConfigSchemaCore } from "../config/schema.js";
 import { listConfiguredMcpServers } from "../config/mcp-config.js";
 import type { McpCodexToolApprovalMode } from "../config/types.mcp.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
@@ -69,6 +72,33 @@ function fail(message: string, json?: boolean): never {
 
 function printJson(value: unknown): void {
   defaultRuntime.writeJson(value);
+}
+
+function redactMcpServerArgsForDisplay(server: unknown): unknown {
+  if (!server || typeof server !== "object" || Array.isArray(server)) {
+    return server;
+  }
+  const record = server as Record<string, unknown>;
+  if (!Array.isArray(record.args) || !record.args.every((arg) => typeof arg === "string")) {
+    return server;
+  }
+  return {
+    ...record,
+    args: redactSensitiveArgv(record.args, REDACTED_SENTINEL),
+  };
+}
+
+function redactMcpServersForDisplay(servers: Record<string, unknown>): Record<string, unknown> {
+  const argvRedacted = Object.fromEntries(
+    Object.entries(servers).map(([name, server]) => [name, redactMcpServerArgsForDisplay(server)]),
+  );
+  const redactedRoot = redactConfigObject(
+    { mcp: { servers: argvRedacted } },
+    buildConfigSchemaCore().uiHints,
+  ) as {
+    mcp?: { servers?: Record<string, unknown> };
+  };
+  return redactedRoot.mcp?.servers ?? {};
 }
 
 const MCP_OAUTH_CALLBACK_TIMEOUT_MS = 5 * 60 * 1000;
@@ -708,7 +738,7 @@ export function registerMcpCli(program: Command) {
         fail(loaded.error, opts.json);
       }
       if (opts.json) {
-        printJson(loaded.mcpServers);
+        printJson(redactMcpServersForDisplay(loaded.mcpServers));
         return;
       }
       const entries = Object.entries(loaded.mcpServers).toSorted(([a], [b]) => a.localeCompare(b));
@@ -744,6 +774,9 @@ export function registerMcpCli(program: Command) {
         fail(loaded.error, opts.json);
       }
       const value = name ? loaded.mcpServers[name] : loaded.mcpServers;
+      const displayValue = name
+        ? redactMcpServersForDisplay({ [name]: value })[name] ?? {}
+        : redactMcpServersForDisplay(value ?? {});
       if (name && !value) {
         fail(
           `No MCP server named "${name}" in ${loaded.path}. Run ${formatCliCommand("openclaw mcp list")} to see configured servers.`,
@@ -751,7 +784,7 @@ export function registerMcpCli(program: Command) {
         );
       }
       if (opts.json) {
-        printJson(value ?? {});
+        printJson(displayValue);
         return;
       }
       if (name) {
@@ -759,7 +792,7 @@ export function registerMcpCli(program: Command) {
       } else {
         defaultRuntime.log(`OpenClaw-managed MCP servers (${loaded.path}):`);
       }
-      printJson(value ?? {});
+      printJson(displayValue);
     });
 
   mcp
