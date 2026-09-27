@@ -74,7 +74,6 @@ suite.define(() => {
           .fill("openclaw");
         await projects.getByRole("button", { name: /openclaw\/openclaw/u }).click();
 
-<<<<<<< HEAD
         await captureProjectUiProof(suite, page, "github-worktree-direct.png");
         const checkout = page.locator("#new-session-checkout-trigger");
         await expect.poll(() => checkout.isVisible()).toBe(true);
