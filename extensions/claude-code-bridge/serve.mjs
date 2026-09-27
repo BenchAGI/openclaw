@@ -12,6 +12,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { createHarnessManifestGate } from "./harness-manifest.mjs";
 
 // -- Gateway client --------------------------------------------------------
 
@@ -56,16 +57,13 @@ const HARNESS_MANIFEST_REFRESH_MS = Number(
   process.env.BENCH_HARNESS_MANIFEST_REFRESH_MS ?? "300000",
 );
 
-let harnessAllowedSlugs = null; // null = unknown/no-manifest → fail open; Set → enforce
-let harnessManifestVersion = 0;
 let harnessManifestRefreshTimer = null;
 
-function normalizeWikiPath(value) {
-  if (typeof value !== "string") {
-    return null;
-  }
-  return value.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\.md$/i, "");
-}
+const harnessManifestGate = createHarnessManifestGate({
+  enforce: HARNESS_MANIFEST_ENFORCE,
+  ceiling: HARNESS_MANIFEST_CEILING,
+  refreshMs: HARNESS_MANIFEST_REFRESH_MS,
+});
 
 async function fetchHarnessManifest() {
   if (!HARNESS_MANIFEST_ENFORCE) {
@@ -84,31 +82,14 @@ async function fetchHarnessManifest() {
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
+      // Leave the gate on its last state: unknown still denies, a loaded manifest
+      // keeps serving until it goes stale.
       process.stderr.write(`[harness-manifest] fetch ${res.status}: ${res.statusText}\n`);
       return;
     }
-    const body = await res.json();
-    const slugs = new Set();
-    if (Array.isArray(body?.entries)) {
-      for (const entry of body.entries) {
-        const norm = normalizeWikiPath(entry?.slug);
-        if (norm) {
-          slugs.add(norm);
-        }
-      }
-    } else if (Array.isArray(body?.manifest?.approvedSlugs)) {
-      for (const slug of body.manifest.approvedSlugs) {
-        const norm = normalizeWikiPath(slug);
-        if (norm) {
-          slugs.add(norm);
-        }
-      }
-    }
-    harnessAllowedSlugs = slugs;
-    harnessManifestVersion =
-      typeof body?.manifest?.manifestVersion === "number" ? body.manifest.manifestVersion : 0;
+    const size = harnessManifestGate.applyManifest(await res.json());
     process.stderr.write(
-      `[harness-manifest] loaded v${harnessManifestVersion} with ${slugs.size} approved slugs (ceiling=${HARNESS_MANIFEST_CEILING})\n`,
+      `[harness-manifest] loaded v${harnessManifestGate.manifestVersion} with ${size} approved slugs (ceiling=${HARNESS_MANIFEST_CEILING})\n`,
     );
   } catch (err) {
     process.stderr.write(`[harness-manifest] fetch error: ${err?.message ?? String(err)}\n`);
@@ -129,82 +110,11 @@ function scheduleHarnessManifestRefresh() {
 }
 
 function isHarnessAllowedSlug(value) {
-  if (!HARNESS_MANIFEST_ENFORCE) {
-    return true;
-  } // not enforcing
-  if (harnessAllowedSlugs === null) {
-    return true;
-  } // manifest not loaded yet — fail open
-  const norm = normalizeWikiPath(value);
-  if (!norm) {
-    return false;
-  }
-  if (harnessAllowedSlugs.has(norm)) {
-    return true;
-  }
-  // Tolerate nested paths: a slug "inbox/foo" should match a lookup of
-  // "inbox/foo.md" (already stripped) or the title embedded in a path.
-  for (const allowed of harnessAllowedSlugs) {
-    if (norm === allowed || norm.endsWith(`/${allowed}`) || allowed.endsWith(`/${norm}`)) {
-      return true;
-    }
-  }
-  return false;
+  return harnessManifestGate.isAllowedSlug(value);
 }
 
 function filterSearchResultByManifest(payload) {
-  if (!HARNESS_MANIFEST_ENFORCE || harnessAllowedSlugs === null) {
-    return payload;
-  }
-  if (!payload || typeof payload !== "object") {
-    return payload;
-  }
-  const data = payload.data ?? payload;
-  if (!data || typeof data !== "object") {
-    return payload;
-  }
-  const results = Array.isArray(data.results)
-    ? data.results
-    : Array.isArray(data.matches)
-      ? data.matches
-      : Array.isArray(data.items)
-        ? data.items
-        : null;
-  if (!results) {
-    return payload;
-  }
-
-  let filteredCount = 0;
-  const filtered = results.filter((row) => {
-    const candidate = row?.path ?? row?.slug ?? row?.title ?? row?.lookup ?? row?.id ?? null;
-    const allowed = isHarnessAllowedSlug(candidate);
-    if (!allowed) {
-      filteredCount += 1;
-    }
-    return allowed;
-  });
-
-  if (filteredCount === 0) {
-    return payload;
-  }
-
-  const next = { ...data };
-  if (Array.isArray(data.results)) {
-    next.results = filtered;
-  }
-  if (Array.isArray(data.matches)) {
-    next.matches = filtered;
-  }
-  if (Array.isArray(data.items)) {
-    next.items = filtered;
-  }
-  next.harnessManifest = {
-    version: harnessManifestVersion,
-    filteredOut: filteredCount,
-    ceiling: HARNESS_MANIFEST_CEILING,
-  };
-
-  return payload.data !== undefined ? { ...payload, data: next } : next;
+  return harnessManifestGate.filterSearchPayload(payload);
 }
 
 async function fetchGatewayHealth() {
@@ -694,10 +604,15 @@ function buildServer() {
     async ({ lookup, agentId, fromLine, lineCount }) => {
       await ensureGatewayUp();
       if (!isHarnessAllowedSlug(lookup)) {
+        const reason = harnessManifestGate.denialReason();
         return jsonResult({
           ok: false,
-          error: "wiki entry not in harness manifest allowlist",
-          manifestVersion: harnessManifestVersion,
+          error:
+            reason === "not-approved"
+              ? "wiki entry not in harness manifest allowlist"
+              : "harness manifest unavailable — refusing to serve unapproved wiki entries",
+          reason,
+          manifestVersion: harnessManifestGate.manifestVersion,
           ceiling: HARNESS_MANIFEST_CEILING,
         });
       }
@@ -891,8 +806,9 @@ const server = buildServer();
 const transport = new StdioServerTransport();
 
 // Load the harness manifest before accepting MCP requests when enforcement is
-// enabled. Fire-and-forget the refresh loop; individual calls tolerate a null
-// allowlist by failing open, so a slow initial fetch never deadlocks startup.
+// enabled. Startup still never deadlocks on a slow or failing fetch — but the
+// gate denies wiki reads until a manifest is actually loaded, so a failed fetch
+// degrades availability rather than disclosing unapproved pages.
 if (HARNESS_MANIFEST_ENFORCE) {
   await fetchHarnessManifest();
   scheduleHarnessManifestRefresh();
