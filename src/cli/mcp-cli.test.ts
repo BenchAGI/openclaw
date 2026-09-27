@@ -98,7 +98,7 @@ describe("mcp cli", () => {
       expect(JSON.parse(lastLogLine())).toEqual({
         url: "https://mcp.example.com/mcp",
         transport: "streamable-http",
-        headers: { Authorization: "Bearer token" },
+        headers: { Authorization: "__OPENCLAW_REDACTED__" },
         auth: "oauth",
         oauth: { scope: "docs.read" },
         toolFilter: { include: ["search", "read_*"] },
