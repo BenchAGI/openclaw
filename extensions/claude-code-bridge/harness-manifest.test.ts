@@ -57,6 +57,15 @@ describe("harness manifest gate — loaded manifest authorizes", () => {
     expect(filtered.data.results.map((r: { path: string }) => r.path)).toEqual(["inbox/approved"]);
   });
 
+  it("filters a raw array of rows the same way as results", () => {
+    const gate = createHarnessManifestGate({ enforce: true });
+    gate.applyManifest(APPROVED);
+    const rows = [{ path: "inbox/approved" }, { path: "secret/leak" }];
+    const filtered = gate.filterSearchPayload({ data: rows });
+    expect(filtered.data.map((r: { path: string }) => r.path)).toEqual(["inbox/approved"]);
+    expect(filtered.harnessManifest.filteredOut).toBe(1);
+  });
+
   it("treats a successfully loaded EMPTY manifest as approving nothing", () => {
     const gate = createHarnessManifestGate({ enforce: true });
     gate.applyManifest({ entries: [] });
