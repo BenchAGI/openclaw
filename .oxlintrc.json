@@ -238,6 +238,8 @@
     "pnpm-lock.yaml",
     "skills/**",
     "src/auto-reply/reply/export-html/template.js",
+    // Vendored from BenchAGI/aurelius at the sha in its header; kept diffable against the source.
+    "ui/src/lib/gravity-fabric.ts",
     "vendor/",
     "**/.cache/**",
     "**/.openclaw-runtime-deps-copy-*/**",

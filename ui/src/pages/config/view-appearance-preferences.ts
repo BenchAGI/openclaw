@@ -1,5 +1,5 @@
 import { html, nothing, type TemplateResult } from "lit";
-import { benchFabricEnabled } from "../../app/bench-shell.ts";
+import { benchFabricAvailable } from "../../app/bench-shell.ts";
 import type { ServerUiPrefProvenance } from "../../app/server-prefs.ts";
 import {
   normalizeCatalogOpenTarget,
@@ -173,9 +173,11 @@ function renderSettingsCameraField(props: ConfigProps) {
 }
 
 // "Background motion": the Bench gravity fabric behind the shell
-// (UI-BRAND-CONTRACT §8.5). Only the Bench families draw it.
+// (UI-BRAND-CONTRACT §8.5). Only the Bench families draw it, and never inside
+// the desktop Vault; the section keys on availability so an off toggle stays
+// reachable.
 export function renderBackgroundMotionSection(props: ConfigProps) {
-  if (!benchFabricEnabled(props.theme, props.backgroundMotion)) {
+  if (!benchFabricAvailable(props.theme)) {
     return nothing;
   }
   const enabled = props.backgroundMotion ?? UI_APPEARANCE_DEFAULTS.backgroundMotion;

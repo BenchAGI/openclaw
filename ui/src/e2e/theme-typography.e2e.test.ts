@@ -181,7 +181,8 @@ suite.define(() => {
     await captureTypography(page, "picker-default");
     await openPicker(ui);
     await ui.locator('wa-option[value="geist"]').waitFor({ state: "visible" });
-    await expect.poll(() => fontRequests().length).toBe(9);
+    // Every self-hosted specimen (ten faces; system has no stylesheet) plus the three already loaded.
+    await expect.poll(() => fontRequests().length).toBe(10);
     await captureTypography(page, "picker-specimens");
     await selectPickerValue(ui, "geist");
     await expect.poll(async () => (await families()).ui).toContain("Geist");
@@ -240,28 +241,10 @@ suite.define(() => {
     ["rose", "DM Sans", "DM Sans", ["dm-sans"], "antialiased"],
     ["miami", "Space Grotesk", "Space Grotesk", ["space-grotesk"], "antialiased"],
     // Bench families also declare their --font-display face (see typography.ts).
-    [
-      "bench",
-      "Instrument Sans",
-      "Instrument Sans",
-      ["instrument-sans", "space-grotesk"],
-      "antialiased",
-    ],
-    ["bench-garden", "Instrument Sans", "Lora", ["instrument-sans", "lora"], "auto"],
-    [
-      "bench-forge",
-      "Instrument Sans",
-      "Instrument Sans",
-      ["instrument-sans", "space-grotesk"],
-      "antialiased",
-    ],
-    [
-      "bench-aurelius",
-      "Instrument Sans",
-      "Instrument Sans",
-      ["instrument-sans", "lora"],
-      "antialiased",
-    ],
+    ["bench", "Inter", "Inter", ["inter", "space-grotesk"], "antialiased"],
+    ["bench-garden", "Inter", "Lora", ["inter", "lora"], "auto"],
+    ["bench-forge", "Inter", "Inter", ["inter", "space-grotesk"], "antialiased"],
+    ["bench-aurelius", "Inter", "Inter", ["inter", "lora"], "antialiased"],
   ] as const)(
     "paints %s chrome and chat prose in its own faces",
     async (theme, body, chat, faces, chatSmoothing) => {

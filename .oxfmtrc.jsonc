@@ -42,6 +42,8 @@
     "src/canvas-host/a2ui/a2ui.bundle.js",
     "test/fixtures/agents/prompt-snapshots/codex-model-catalog/*.instructions.md",
     "test/fixtures/agents/prompt-snapshots/happy-path/*.md",
+    // Vendored from BenchAGI/aurelius at the sha in its header; kept diffable against the source.
+    "ui/src/lib/gravity-fabric.ts",
     "vendor/",
   ],
 }

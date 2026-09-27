@@ -79,9 +79,9 @@
 
   --grid-line: rgba(236, 230, 216, 0.035);
 
-  /* Typography — Instrument Sans chrome; Lora (fonts/lora.css) for chat prose
-     and display, the editorial register from the Vault presence work. */
-  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Typography — Inter chrome; Lora (fonts/lora.css) for chat prose and
+     display, the editorial register from the Vault presence work. */
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Lora", Georgia, "Times New Roman", serif;
   --font-chat: "Lora", Georgia, "Times New Roman", serif;
 }
@@ -163,7 +163,7 @@
   --grid-line: rgba(24, 37, 24, 0.05);
 
   /* Typography — see the dark block. */
-  --font-body: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Lora", Georgia, "Times New Roman", serif;
   --font-chat: "Lora", Georgia, "Times New Roman", serif;
 }

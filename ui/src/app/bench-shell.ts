@@ -5,16 +5,28 @@ import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { normalizeAgentId } from "../lib/sessions/session-key.ts";
 import { isBenchThemeFamily, type ThemeName } from "./theme.ts";
 
-// The current gravity-fabric module is an API-compatible no-op scaffold. Keep
-// its browser preference data intact, but do not expose or mount it until the
-// product-accepted implementation replaces the scaffold.
-const BENCH_GRAVITY_FABRIC_READY = false;
+// The desktop Vault stamps this on <html> before any page script runs
+// (BenchAGI/aurelius app_ingress / openclaw_ingress). Inside it the Vault's own
+// gravity fabric is the one live loop: the embedded shell keeps its background
+// still and hides the toggle rather than drifting a second field under the first.
+const VAULT_HOST = "aurelius-vault";
+
+function hostedInVault(): boolean {
+  return globalThis.document?.documentElement.dataset.benchHost === VAULT_HOST;
+}
+
+// Whether the fabric can run here at all: a Bench family, outside the Vault.
+// The Appearance toggle keys on this, not on its own value, so switching it
+// off never hides the control that turns it back on.
+export function benchFabricAvailable(theme: ThemeName): boolean {
+  return isBenchThemeFamily(theme) && !hostedInVault();
+}
 
 export function benchFabricEnabled(
   theme: ThemeName,
   backgroundMotion: boolean | undefined,
 ): boolean {
-  return BENCH_GRAVITY_FABRIC_READY && isBenchThemeFamily(theme) && backgroundMotion !== false;
+  return benchFabricAvailable(theme) && backgroundMotion !== false;
 }
 
 export function renderBenchGravityFabric(enabled: boolean, theme: string) {

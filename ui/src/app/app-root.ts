@@ -132,6 +132,9 @@ export class OpenClawApp extends OpenClawLightDomElement {
     // Bench Vault ↔ App switch: the tag renders in the chrome at boot and
     // upgrades when this chunk lands, keeping the boot bundle in budget.
     void import("../components/bench-mode-switch.ts");
+    // Bench gravity fabric host (UI-BRAND-CONTRACT §8.5), same shape: the
+    // shell renders the tag only while the gate is on; this chunk upgrades it.
+    void import("../components/bench-gravity-fabric.ts");
     this.resetLoginSensitivePresentation();
     this.runtime = bootstrapApplication();
     const focusTarget = this.focusTarget;
