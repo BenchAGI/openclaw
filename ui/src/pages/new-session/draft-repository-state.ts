@@ -62,9 +62,8 @@ export class DraftRepositoryController {
   }
 
   get baseRef(): string {
-    // Discovery supplies defaults; reconnects never rewrite the operator's selection.
-    const repository = this.repositoryValue.kind === "git" ? this.repositoryValue : undefined;
-    return this.baseRefOverride ?? (repository?.defaultBranch || repository?.headBranch || "");
+    // Empty means automatic. Discovery hints must not pin a base the operator did not choose.
+    return this.baseRefOverride ?? "";
   }
 
   get repository(): DraftRepositoryState {
