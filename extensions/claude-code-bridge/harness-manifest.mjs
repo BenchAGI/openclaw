@@ -126,13 +126,15 @@ export function createHarnessManifestGate({
     if (!data || typeof data !== "object") {
       return payload;
     }
-    const results = Array.isArray(data.results)
-      ? data.results
-      : Array.isArray(data.matches)
-        ? data.matches
-        : Array.isArray(data.items)
-          ? data.items
-          : null;
+    const results = Array.isArray(data)
+      ? data
+      : Array.isArray(data.results)
+        ? data.results
+        : Array.isArray(data.matches)
+          ? data.matches
+          : Array.isArray(data.items)
+            ? data.items
+            : null;
     if (!results) {
       return payload;
     }
@@ -151,6 +153,13 @@ export function createHarnessManifestGate({
       return payload;
     }
 
+    const harnessManifest = manifestMeta(filteredCount);
+    if (Array.isArray(data)) {
+      return payload.data !== undefined
+        ? { ...payload, data: filtered, harnessManifest }
+        : filtered;
+    }
+
     const next = { ...data };
     if (Array.isArray(data.results)) {
       next.results = filtered;
@@ -161,7 +170,7 @@ export function createHarnessManifestGate({
     if (Array.isArray(data.items)) {
       next.items = filtered;
     }
-    next.harnessManifest = manifestMeta(filteredCount);
+    next.harnessManifest = harnessManifest;
     return payload.data !== undefined ? { ...payload, data: next } : next;
   }
 
