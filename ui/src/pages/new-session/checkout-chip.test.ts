@@ -136,6 +136,9 @@ describe("Checkout chip state", () => {
         const baseRef = fields[0]!.querySelector("input")!;
         const name = fields[1]!.querySelector("input")!;
         expect(baseRef.value).toBe("main");
+        expect(baseRef.placeholder).toBe(
+          "Automatic (fresh remote default; HEAD for local-only repositories)",
+        );
         expect(name.placeholder).toBe("Named from the session title");
         baseRef.value = " release ";
         baseRef.dispatchEvent(new Event("input"));
