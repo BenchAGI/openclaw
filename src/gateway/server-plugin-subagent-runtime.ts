@@ -337,6 +337,7 @@ export function createGatewaySubagentRuntime(
     async run(request) {
       const params = { ...request };
       const assertCurrent = params.assertCurrent;
+      const prepareCurrent = assertCurrent?.prepareCurrent;
       assertCurrent?.();
       if (params.disableTools === true && (params.toolsAlsoAllow?.length ?? 0) > 0) {
         throw new Error("Tool-free plugin subagent runs cannot request additive tools.");
@@ -411,6 +412,7 @@ export function createGatewaySubagentRuntime(
         {
           sessionKey: params.sessionKey,
           message: params.message,
+          ...(params.timeoutSeconds !== undefined ? { timeout: params.timeoutSeconds } : {}),
           deliver: params.deliver ?? false,
           ...(allowOverride && params.provider && { provider: params.provider }),
           ...(allowOverride && params.model && { model: params.model }),
@@ -425,6 +427,7 @@ export function createGatewaySubagentRuntime(
         {
           allowSyntheticModelOverride,
           sessionMutationCommitGuard,
+          ...(prepareCurrent ? { prepareDispatchCurrent: prepareCurrent } : {}),
           agentRunTracking: "plugin_subagent",
           ...(!scope?.client ? { operatorRoleActor: { kind: "system" as const } } : {}),
           ...(pluginId ? { pluginRuntimeOwnerId: pluginId } : {}),

@@ -96,6 +96,7 @@ Start agent work in the background: hook-dispatched turns for external content a
       message: "Expand this query into focused follow-up searches.",
       toolsAlsoAllow: ["my_plugin_progress"],
       promptMode: "minimal", // optional bounded subagent prompt
+      timeoutSeconds: 60, // optional agent execution deadline
       provider: "openai", // optional override
       model: "gpt-6-astra", // optional override
       deliver: false,
@@ -118,6 +119,21 @@ Start agent work in the background: hook-dispatched turns for external content a
     ```
 
     Gateway-backed runs return the canonical accepted `sessionKey` alongside `runId`. The field is optional in the TypeScript result only so explicit custom runtimes remain compatible.
+
+    `run({ timeoutSeconds })` forwards the runtime budget to the normal Gateway
+    agent execution deadline, which requests native worker cancellation when reached.
+    Omitting it keeps the configured agent timeout. This budget is independent
+    of the observation timeout on `waitForRun`. Hosts advertise this guarantee
+    in `api.runtime.capabilities` as `subagent-run-deadline-v1`; older hosts can
+    ignore the new argument. Runtime cleanup can outlast the execution budget;
+    observe terminal outcome and cleanup warnings before treating work as stopped.
+
+    `assertCurrent` stays a synchronous admission guard. It can also expose
+    `prepareCurrent(): Promise<void>` to refresh owner-held facts after host
+    preparation. The host awaits that hook before admitting the turn, then uses
+    the synchronous guard at its normal admission boundaries. Plugins must
+    invalidate observed owner changes themselves; the hook does not make an
+    external store and physical agent start one atomic transaction.
 
     `waitForRun(...)` returns the canonical Gateway wait result. `status` is `"ok"`, `"error"`, `"timeout"`, or `"pending"`; pending is a normal nonterminal observation, not an exception. Optional `error`, `startedAt`, `endedAt`, `stopReason`, `livenessState`, `yielded`, `pendingError`, `timeoutPhase`, `providerStarted`, and `terminalReply` metadata is preserved so callers can distinguish observation timeouts from terminal outcomes. `timeoutMs` bounds the wait call; it does not cancel the run.
 

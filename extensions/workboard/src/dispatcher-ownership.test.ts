@@ -650,7 +650,10 @@ describe("Workboard dispatcher ownership", () => {
         },
       });
       await expect(
-        store.heartbeat(card.id, { ownerId: "workboard-dispatcher" }),
+        store.heartbeat(card.id, {
+          ownerId: "workboard-dispatcher",
+          token: (await store.get(card.id))?.metadata?.claim?.token,
+        }),
       ).resolves.toMatchObject({
         status: "running",
         metadata: { claim: { ownerId: "workboard-dispatcher" } },

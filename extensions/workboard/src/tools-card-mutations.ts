@@ -1,9 +1,9 @@
 import type { WorkboardCard } from "@openclaw/workboard-contract";
 import { jsonResult, readStringParam } from "openclaw/plugin-sdk/core";
-import { safeEqualSecret } from "openclaw/plugin-sdk/security-runtime";
 import { asRecord, readStringValue } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { Type, type TProperties } from "typebox";
 import { redactClaimToken } from "./card-redaction.js";
+import { assertCanMutateClaimedCard } from "./store-authority.js";
 import type { WorkboardMutationScope } from "./store-inputs.js";
 import type { WorkboardStore } from "./store.js";
 
@@ -23,13 +23,12 @@ export function createWorkboardCardMutations(store: WorkboardStore, ownerId: str
       throw new Error(`card not found: ${id}`);
     }
     const claim = card.metadata?.claim;
-    if (claim && claim.ownerId !== ownerId && !safeEqualSecret(token, claim.token)) {
-      throw new Error(`card is claimed by ${claim.ownerId ?? "another agent"}.`);
-    }
+    const scope = { ownerId, token };
+    assertCanMutateClaimedCard(card, scope);
     if (requireClaim && !claim) {
       throw new Error("card must be claimed before lifecycle completion.");
     }
-    return { record, id, scope: { ownerId, token } };
+    return { record, id, scope };
   };
   const cardMutation =
     (mutate: WorkboardCardMutation, requireClaim = false) =>
@@ -49,7 +48,9 @@ export function cardIdField() {
   return Type.String({ description: "Workboard card id." });
 }
 
-export function claimTokenField(description = "Claim token returned by workboard_claim.") {
+export function claimTokenField(
+  description = "Current claim token from workboard_claim or the dispatched worker prompt; required for claimed cards, including same-agent attempts.",
+) {
   return Type.Optional(Type.String({ description }));
 }
 

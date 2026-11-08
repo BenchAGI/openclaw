@@ -9,6 +9,7 @@ describe("dispatchAndStartWorkboardCards", () => {
     const card = await store.create({
       title: "Claude worker",
       status: "ready",
+      maxRuntimeSeconds: 7,
       workspaceAccess: { unrestricted: true },
     });
     const run = vi.fn().mockResolvedValue({
@@ -25,6 +26,8 @@ describe("dispatchAndStartWorkboardCards", () => {
       subagent: { run },
       options: { now: 10, maxStarts: 1 },
     });
+
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({ timeoutSeconds: 7 }));
 
     await expect(store.get(card.id)).resolves.toMatchObject({
       execution: {

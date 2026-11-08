@@ -8,12 +8,8 @@ import type {
   WorkboardProof,
 } from "@openclaw/workboard-contract";
 import type { PersistedWorkboardAttachment } from "./persistence-types.js";
-import {
-  assertCanMutateClaimedCard,
-  cardRunId,
-  cardSessionKey,
-  closeRunningAttempts,
-} from "./store-card-helpers.js";
+import { assertCanMutateClaimedCard } from "./store-authority.js";
+import { cardRunId, cardSessionKey, closeRunningAttempts } from "./store-card-helpers.js";
 import {
   MAX_CARD_ARTIFACTS,
   MAX_CARD_ATTACHMENTS,
@@ -168,7 +164,7 @@ export class WorkboardEnrichmentStore extends WorkboardCoreStore {
       try {
         const updated = await this.withMutationAuthority(
           async () =>
-            this.updateCard(await this.requireCard(id), {
+            this.updateCard(existing, {
               metadata: {
                 ...clearDiagnostics(existing.metadata, ["missing_proof"]),
                 attachments: [...(existing.metadata?.attachments ?? []), attachment].slice(
@@ -215,8 +211,7 @@ export class WorkboardEnrichmentStore extends WorkboardCoreStore {
       if (!attachments.some((attachment) => attachment.id === attachmentId)) {
         throw new Error(`attachment not found: ${attachmentId}`);
       }
-      await this.attachmentStore.delete(attachmentId);
-      return await this.updateCard(await this.requireCard(cardId), {
+      return await this.updateCard(existing, {
         metadata: {
           ...existing.metadata,
           attachments: attachments.filter((attachment) => attachment.id !== attachmentId),
@@ -268,7 +263,7 @@ export class WorkboardEnrichmentStore extends WorkboardCoreStore {
           : {}),
         ...(runId || cardRunId(card) ? { runId: runId ?? cardRunId(card) } : {}),
       });
-      return await this.updateCard(await this.requireCard(card.id), {
+      return await this.updateCard(card, {
         ...finished,
         status: card.status === "done" ? card.status : "blocked",
         metadata: {

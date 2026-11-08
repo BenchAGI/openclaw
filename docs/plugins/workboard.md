@@ -390,14 +390,16 @@ already has the same terminal status is reused unchanged. Completion proof witho
 `proofId` remains append-only, so a later retry cannot rewrite older history merely because
 its command or note is identical.
 
-Claimed cards reject agent-tool mutations from other agents unless the caller
-holds the claim token returned by `workboard_claim`. Every card returned by an
+Claimed cards require the current claim token for agent-tool mutations, including
+calls from the same agent that owned an earlier attempt. Agent identity alone
+does not authorize a write, heartbeat, or release. An obsolete token is also
+rejected after a claim has been cleared. Every card returned by an
 agent tool or Gateway RPC call redacts `metadata.claim.token` to `[redacted]`
 (the token itself is returned once, top-level, only from `workboard_claim`),
 so Control UI operators and other agents can inspect claim state without ever
-seeing a usable token. Recovery goes through
-`workboard_promote`/`workboard_reassign`/`workboard_reclaim`, which do not
-require the token.
+seeing a usable token. Agent recovery tools also require the current token while
+a claim exists. Operators can override claims through the normal Control UI or
+Gateway recovery methods; the agent tools cannot select that override.
 
 ## Dispatch
 
@@ -416,6 +418,66 @@ attempt, and execution history.
 
 Workers get bounded card context plus the claim token needed to heartbeat,
 complete, or block the card through the Workboard tools.
+
+When a card supplies `maxRuntimeSeconds`, Workboard forwards that finite runtime
+budget to the normal Gateway agent execution deadline. The deadline requests
+native cancellation through the worker's existing runtime; claim heartbeats do not extend it. The
+normal session lifecycle then records a timed-out run as `blocked`. Omitting the
+card budget keeps the configured agent timeout. Runtime cleanup can continue
+after the execution deadline; inspect terminal outcome and cleanup warnings
+before treating its tools or background processes as stopped.
+
+### Scoped exact-card starts
+
+Automation that has approved one card can call `workboard.cards.start` with its
+observed `expectedUpdatedAt` and `expectedAuthority`:
+
+```json
+{
+  "id": "card-id",
+  "expectedUpdatedAt": 1794096000000,
+  "expectedAuthority": {
+    "boardId": "crew",
+    "agentId": "worker",
+    "tenant": "example",
+    "workspace": { "kind": "dir", "path": "/work/crew" },
+    "maxRuntimeSeconds": 300
+  }
+}
+```
+
+Both fields are required together. The card must still be `ready`, and all
+authority fields must match. The monotonically increasing card `updatedAt`
+also pins notes, acceptance criteria stored there, retry budget, and other card
+fields. Workboard checks the guard before preflight and again atomically with
+the SQLite claim, so a concurrent edit fails without launching a worker. Reread
+and review the changed card before retrying. The call starts only the requested
+card and returns `{ cardId, title, sessionKey, runId, card }`; ordinary run
+lifecycle updates can already have advanced the card when a caller rereads it.
+
+The claim is the atomic card-admission boundary. Before admitting the agent
+run, the host refreshes the live claim after its asynchronous preparation and
+rejects observed Workboard changes while admission is pending. Local mutation
+completion publishes changes; an observed publication invalidates the pending
+launch before its next checked admission boundary. Foreign SQLite
+writers become observable through the existing one-second change check or the
+admission refresh; this does not guarantee atomic physical model start against
+an unobserved foreign write. A change to another card can also require a retry.
+
+Reclaim fences claimed-card mutations; it does not cancel the worker's run or
+remove its other tool permissions. To stop a run, use the existing
+`chat.abort` method with its `sessionKey` and `runId`, then observe the terminal
+run outcome. An abort receipt alone does not establish that background
+processes have stopped.
+
+`workboard.boards.list` advertises support in
+`capabilities: { scopedExactStartVersion: 1, enforcedWorkerDeadlineVersion: 1,
+claimTokenFencingVersion: 1 }`. Clients that depend on these guarantees must
+check these capability versions before submitting or starting supervised work.
+The deadline version is `0` and scoped starts refuse when the host lacks
+`subagent-run-deadline-v1`, including a new Workboard extension loaded on an
+older host. Older Gateways omit the Workboard capabilities. Calls without an
+exact-start guard retain their existing operator behavior.
 
 Workspace paths follow the caller's existing filesystem authority:
 

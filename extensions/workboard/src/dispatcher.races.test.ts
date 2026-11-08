@@ -3,9 +3,66 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { dispatchAndStartWorkboardCards } from "./dispatcher.js";
+import { createConcurrentSqliteHarness } from "./test/sqlite-races.js";
 import { createWorkboardSqliteTestStore } from "./test/sqlite-store.js";
 
 describe("Workboard dispatcher lifecycle races", () => {
+  it.each(["prepare", "commit", "foreign writer"] as const)(
+    "refuses a reclaimed attempt at SDK admission %s",
+    async (phase) => {
+      await using harness =
+        phase === "foreign writer"
+          ? createConcurrentSqliteHarness("workboard-foreign-admission-")
+          : null;
+      const store = harness?.operation ?? createWorkboardSqliteTestStore();
+      const host = harness?.host ?? store;
+      const card = await store.create({
+        title: "Replace a prepared attempt",
+        status: "ready",
+        agentId: "worker",
+        workspaceAccess: { unrestricted: true },
+      });
+      const entered = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      let admitted = false;
+      const dispatch = dispatchAndStartWorkboardCards({
+        store,
+        subagent: {
+          run: async (request) => {
+            if (phase === "commit") {
+              await request.assertCurrent?.prepareCurrent?.();
+            }
+            entered.resolve();
+            await release.promise;
+            if (phase !== "commit") {
+              await request.assertCurrent?.prepareCurrent?.();
+            }
+            request.assertCurrent?.();
+            admitted = true;
+            return { runId: "obsolete-attempt", sessionKey: request.sessionKey };
+          },
+        },
+        options: { cardId: card.id, workspaceAccess: { unrestricted: true } },
+      });
+      await entered.promise;
+      await host.reclaim(card.id, { status: "ready", reason: "Operator takeover" }, null);
+      const replacement = await host.claim(card.id, { ownerId: "worker" });
+      release.resolve();
+
+      const result = await dispatch;
+      expect(admitted).toBe(false);
+      expect(result.started).toEqual([]);
+      expect(result.startFailures).toEqual([
+        expect.objectContaining({
+          cardId: card.id,
+          error: expect.stringMatching(/changed|claimed/),
+        }),
+      ]);
+      expect((await store.get(card.id))?.metadata?.claim?.token).toBe(replacement.token);
+      expect((await store.get(card.id))?.execution).toBeUndefined();
+    },
+  );
+
   it.each([
     { name: "archived", archive: true },
     { name: "completed", status: "done" as const },
