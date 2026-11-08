@@ -101,7 +101,8 @@ describe("dependency guard workflow", () => {
       const steps = job?.steps ?? [];
       const checkoutStep = workflowStep(steps, 0, `dependency guard checkout step ${index}`);
       expect(checkoutStep.uses).toBe("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1");
-      expect(checkoutStep.with?.ref).toBe("${{ github.event.pull_request.base.sha }}");
+      expect(checkoutStep.with?.ref).toBe("${{ github.workflow_sha }}");
+      expect(checkoutStep.with?.ref).not.toBe("${{ github.event.pull_request.base.sha }}");
       expect(checkoutStep.with?.["persist-credentials"]).toBe(false);
       expect(steps.at(-1)?.run).toBe("node scripts/github/dependency-guard.mjs");
     }
@@ -172,7 +173,7 @@ describe("dependency guard workflow", () => {
     const checkoutStep = workflowStep(steps, 0, "final dependency guard checkout step");
     const runStep = workflowStep(steps, 1, "final dependency guard run step");
     expect(checkoutStep.uses).toBe("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1");
-    expect(checkoutStep.with?.ref).toBe("${{ github.event.pull_request.base.sha }}");
+    expect(checkoutStep.with?.ref).toBe("${{ github.workflow_sha }}");
     expect(checkoutStep.with?.["persist-credentials"]).toBe(false);
     expect(runStep.run).toBe("node scripts/github/dependency-guard.mjs");
   });
