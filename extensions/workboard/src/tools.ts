@@ -194,7 +194,7 @@ export function createWorkboardTools(params: {
       name: "workboard_claim",
       label: "Workboard Claim",
       description:
-        "Claim a Workboard card for this agent and move backlog/todo cards into running. Returns a claim token for heartbeats and release.",
+        "Claim a Workboard card for this agent and move backlog/todo cards into running. Returns the current token required for claimed-card mutations, heartbeats, and release.",
       parameters: strictObject({
         id: cardIdField(),
         ttlSeconds: Type.Optional(Type.Number({ description: "Claim TTL in seconds." })),

@@ -12,9 +12,9 @@ import type {
 } from "@openclaw/workboard-contract";
 import { asNonArrayRecord } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { createWorkboardSqliteStores } from "./sqlite-store.js";
+import { assertCanMutateClaimedCard, assertWorkboardStartGuard } from "./store-authority.js";
 import {
   buildWorkerContext,
-  assertCanMutateClaimedCard,
   cardBoardId,
   cardParentIds,
   cardRunId,
@@ -35,6 +35,7 @@ import type {
   WorkboardDispatchOptions,
   WorkboardDispatchResult,
   WorkboardMutationScope,
+  WorkboardStartGuard,
 } from "./store-inputs.js";
 import { capText, normalizeBoardId, normalizeTimestamp } from "./store-normalizers.js";
 import { WorkboardNotificationStore } from "./store-notifications.js";
@@ -420,11 +421,16 @@ export class WorkboardStore extends WorkboardNotificationStore {
     id: string,
     now = Date.now(),
     assertOwnerCurrent?: () => void,
+    startGuard?: WorkboardStartGuard,
   ): Promise<WorkboardCard> {
-    return await this.enqueueMutation(
-      async () => await this.promoteDependencyReady(id, now),
-      assertOwnerCurrent,
-    );
+    return await this.enqueueMutation(async () => {
+      if (!startGuard) {
+        return await this.promoteDependencyReady(id, now);
+      }
+      const card = await this.requireCard(id);
+      assertWorkboardStartGuard(card, startGuard);
+      return card;
+    }, assertOwnerCurrent);
   }
 
   private async getAutoOrchestrationBoard(

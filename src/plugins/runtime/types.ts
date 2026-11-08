@@ -20,9 +20,14 @@ type PluginRuntimeChannel = import("./types-channel.js").PluginRuntimeChannel;
 
 type SubagentRunParams = {
   /** Revalidate command authority at the host's run admission boundary. */
-  assertCurrent?: () => void;
+  assertCurrent?: (() => void) & {
+    /** Refresh async owner facts after host preparation; the callable guard stays synchronous. */
+    prepareCurrent?: () => Promise<void>;
+  };
   sessionKey: string;
   message: string;
+  /** Execution timeout in seconds, using the regular Gateway agent deadline. */
+  timeoutSeconds?: number;
   /** Run with an exact empty tool surface. */
   disableTools?: boolean;
   /** Add exact tools registered by the calling plugin to the worker's normal tool surface. */

@@ -1,5 +1,6 @@
 import type { WorkboardCard } from "@openclaw/workboard-contract";
-import { appendComment, assertCanMutateClaimedCard } from "./store-card-helpers.js";
+import { assertCanMutateClaimedCard } from "./store-authority.js";
+import { appendComment } from "./store-card-helpers.js";
 import { WorkboardEnrichmentStore } from "./store-enrichment.js";
 import type { WorkboardMutationScope, WorkboardPromoteInput } from "./store-inputs.js";
 import { clearDiagnostics, normalizeBoundedString } from "./store-normalizers.js";
@@ -42,7 +43,7 @@ export class WorkboardPromoteStore extends WorkboardEnrichmentStore {
       const reason = normalizeBoundedString(input.reason, undefined, 1000, "promote reason");
       const comments = appendComment(existing.metadata?.comments, reason);
       return await this.updateCard(
-        await this.requireCard(id),
+        existing,
         {
           status: "ready",
           metadata: {

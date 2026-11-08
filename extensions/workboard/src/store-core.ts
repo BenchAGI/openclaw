@@ -9,10 +9,10 @@ import type {
 import { resolveNonNegativeIntegerOption } from "openclaw/plugin-sdk/number-runtime";
 import { isRecord, normalizeOptionalString } from "openclaw/plugin-sdk/string-coerce-runtime";
 import type { PersistedWorkboardCard } from "./persistence-types.js";
+import { assertCanMutateClaimedCard, assertCanLinkClaimedCards } from "./store-authority.js";
 import { normalizeAutomationPatch, normalizeCardAutomation } from "./store-automation.js";
 import { WorkboardBoardStore } from "./store-boards.js";
 import {
-  assertCanMutateClaimedCard,
   cardBoardId,
   cardParentIds,
   cardSessionKey,
@@ -867,8 +867,7 @@ export class WorkboardCoreStore extends WorkboardBoardStore {
     if (!child) {
       throw new Error(`card not found: ${childId}`);
     }
-    assertCanMutateClaimedCard(parent, options.scope);
-    assertCanMutateClaimedCard(child, options.scope);
+    assertCanLinkClaimedCards(parent, child, options.scope);
     if (child.status === "done" || child.status === "blocked") {
       const parentIds = [...cardParentIds(child), parent.id].filter(
         (id, index, ids) => ids.indexOf(id) === index,

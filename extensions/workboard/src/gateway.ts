@@ -11,6 +11,7 @@ import {
   readPatch,
   resolveGatewayWorkspaceMutationAccess,
   respondError,
+  supportsWorkboardWorkerDeadline,
   WorkboardUploadsDisabledError,
   type GatewayMethodContext,
 } from "./gateway-helpers.js";
@@ -249,7 +250,14 @@ export function registerWorkboardGatewayMethods(params: {
   register("workboard.cards.dispatchWithOptions", WRITE_SCOPE, (request) =>
     dispatchCards(request, { supportsMaxStarts: true }),
   );
-  register("workboard.boards.list", READ_SCOPE, () => store.listBoards());
+  register("workboard.boards.list", READ_SCOPE, async () => ({
+    ...(await store.listBoards()),
+    capabilities: {
+      scopedExactStartVersion: 1,
+      enforcedWorkerDeadlineVersion: supportsWorkboardWorkerDeadline(api) ? 1 : 0,
+      claimTokenFencingVersion: 1,
+    },
+  }));
   register("workboard.boards.upsert", WRITE_SCOPE, async (request) => {
     await resolveGatewayWorkspaceMutationAccess(request, request.params);
     return { board: await store.upsertBoard(request.params) };

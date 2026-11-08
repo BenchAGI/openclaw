@@ -91,8 +91,19 @@ export type WorkboardClaimInput = {
   token?: unknown;
   ttlSeconds?: unknown;
 };
+export type WorkboardStartGuard = {
+  expectedUpdatedAt: number;
+  expectedAuthority: {
+    boardId: string;
+    agentId: string;
+    tenant: string;
+    workspace: WorkboardWorkspace;
+    maxRuntimeSeconds: number;
+  };
+};
 export type WorkboardClaimOptions = {
   assertOwnerCurrent?: () => void;
+  startGuard?: WorkboardStartGuard;
   /** Trusted dispatcher guard; never accepted from public tool or gateway input. */
   expectedAuthority?: {
     boardId: string;

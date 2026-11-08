@@ -499,9 +499,9 @@ describe("workboard tools", () => {
       mainTools.get("workboard_link")?.execute("call-5", {
         parentId: parent.id,
         childId: child.id,
-        token: "child-token",
+        token: claimed.token,
       }),
-    ).rejects.toThrow(/active child/);
+    ).rejects.toThrow(/claimed by child-worker/);
   });
 
   it("creates dependent cards and completes claimed work through tools", async () => {

@@ -5,6 +5,7 @@ import { createLazyCoreHandlers } from "./server-methods/lazy-core-handlers.js";
 import type { GatewayRequestHandlerOptions } from "./server-methods/types.js";
 import { dispatchGatewayMethodInProcess } from "./server-plugin-in-process-dispatch.js";
 import { createContext } from "./server-plugin-in-process-dispatch.test-support.js";
+import { createGatewaySubagentRuntime } from "./server-plugin-subagent-runtime.js";
 
 export function registerInProcessGatewayDispatchPreparationTests({
   startTurn,
@@ -13,6 +14,53 @@ export function registerInProcessGatewayDispatchPreparationTests({
   startTurn: Mock;
   waitForTurn: Mock;
 }): void {
+  it.each(["current", "replaced"])(
+    "refreshes a %s SDK source after the actual host facade preparation",
+    async (outcome) => {
+      const context = createContext();
+      const entered = createDeferredCore();
+      const release = createDeferredCore();
+      const createFacade = context.createAgentTurnFacade!;
+      context.createAgentTurnFacade = async (principal) => {
+        entered.resolve();
+        await release.promise;
+        return createFacade(principal);
+      };
+      let claimCurrent = true;
+      const prepareCurrent = vi.fn(async () => {
+        if (!claimCurrent) {
+          throw new Error("source claim replaced during host preparation");
+        }
+      });
+      const assertCurrent = Object.assign(() => {}, { prepareCurrent });
+      const receipt = {
+        runId: "sdk-admission",
+        sessionKey: "agent:main:subagent:sdk-admission",
+      };
+      startTurn.mockImplementation(async ({ io, preflight }) => {
+        expect(preflight.request.timeout).toBe(7);
+        io.emitAcceptance([true, receipt]);
+      });
+      const pending = createGatewaySubagentRuntime(() => context).run({
+        sessionKey: "agent:main:subagent:sdk-admission",
+        message: "bounded work",
+        timeoutSeconds: 7,
+        assertCurrent,
+      });
+      const result =
+        outcome === "current"
+          ? expect(pending).resolves.toEqual(receipt)
+          : expect(pending).rejects.toThrow("source claim replaced during host preparation");
+      await entered.promise;
+      expect(prepareCurrent).not.toHaveBeenCalled();
+      claimCurrent = outcome === "current";
+      release.resolve();
+      await result;
+      expect(prepareCurrent).toHaveBeenCalledOnce();
+      expect(startTurn).toHaveBeenCalledTimes(outcome === "current" ? 1 : 0);
+    },
+  );
+
   it.each([
     { method: "agent", outcome: "current" },
     { method: "agent", outcome: "replaced" },

@@ -9,6 +9,8 @@ import {
 import type { OpenClawPluginApi } from "../api.js";
 import { redactClaimToken, redactDispatchResult } from "./card-redaction.js";
 import { dispatchAndStartWorkboardCards } from "./dispatcher.js";
+import type { WorkboardStartGuard } from "./store-inputs.js";
+import { normalizeWorkspace } from "./store-normalizers.js";
 import { WorkboardCardConflictError, type WorkboardStore } from "./store.js";
 import {
   assertWorkboardWorkspaceMutationAccess,
@@ -84,6 +86,40 @@ function readOptionalPositiveInteger(value: unknown, fieldName: string): number 
   return parsed;
 }
 
+function readStartGuard(params: Record<string, unknown>): WorkboardStartGuard | undefined {
+  const expectedUpdatedAt = readExpectedUpdatedAt(params);
+  if (expectedUpdatedAt === undefined && params.expectedAuthority === undefined) {
+    return undefined;
+  }
+  const authority = asRecord(params.expectedAuthority);
+  const boardId = normalizeOptionalString(authority.boardId);
+  const agentId = normalizeOptionalString(authority.agentId);
+  const tenant = normalizeOptionalString(authority.tenant);
+  const workspace = normalizeWorkspace(authority.workspace);
+  const maxRuntimeSeconds = readOptionalPositiveInteger(
+    authority.maxRuntimeSeconds,
+    "expectedAuthority.maxRuntimeSeconds",
+  );
+  if (
+    expectedUpdatedAt === undefined ||
+    !boardId ||
+    !agentId ||
+    !tenant ||
+    !workspace ||
+    !maxRuntimeSeconds
+  ) {
+    throw new Error("Scoped start requires expectedUpdatedAt and complete expectedAuthority.");
+  }
+  return {
+    expectedUpdatedAt,
+    expectedAuthority: { boardId, agentId, tenant, workspace, maxRuntimeSeconds },
+  };
+}
+
+export function supportsWorkboardWorkerDeadline(api: OpenClawPluginApi): boolean {
+  return api.runtime.capabilities?.includes("subagent-run-deadline-v1") === true;
+}
+
 export function readPatch(params: Record<string, unknown>): Record<string, unknown> {
   return isRecord(params.patch) ? params.patch : params;
 }
@@ -133,6 +169,15 @@ export function createWorkboardDispatchHandler(params: {
     options: { supportsMaxStarts: boolean; directCard?: boolean },
   ) => {
     const cardId = options.directCard ? readId(requestParams) : undefined;
+    const startGuard = readStartGuard(asRecord(requestParams));
+    if (startGuard && !cardId) {
+      throw new Error("expectedUpdatedAt/expectedAuthority require workboard.cards.start.");
+    }
+    if (startGuard && !supportsWorkboardWorkerDeadline(params.api)) {
+      throw new Error(
+        "Host subagent execution deadlines are unavailable; upgrade and restart the Gateway before scoped starts.",
+      );
+    }
     const { boardId, maxStarts: rawMaxStarts } = asRecord(requestParams);
     if (!options.supportsMaxStarts && rawMaxStarts !== undefined) {
       throw new Error("maxStarts requires workboard.cards.dispatchWithOptions.");
@@ -150,6 +195,7 @@ export function createWorkboardDispatchHandler(params: {
       worktrees: params.api.runtime.worktrees,
       options: {
         ...(cardId ? { cardId, maxStarts: 1 } : {}),
+        ...(startGuard ? { startGuard } : {}),
         boardId: typeof boardId === "string" ? boardId : undefined,
         ...(maxStarts !== undefined ? { maxStarts } : {}),
         ...(provider ? { provider } : {}),

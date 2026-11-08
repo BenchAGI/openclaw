@@ -13,9 +13,9 @@ import {
 } from "openclaw/plugin-sdk/number-runtime";
 import { safeEqualSecret } from "openclaw/plugin-sdk/security-runtime";
 import { isRecord, normalizeOptionalString } from "openclaw/plugin-sdk/string-coerce-runtime";
+import { assertCanMutateClaimedCard, assertWorkboardStartGuard } from "./store-authority.js";
 import {
   appendComment,
-  assertCanMutateClaimedCard,
   cardBoardId,
   cardChildIds,
   cardParentIds,
@@ -60,12 +60,8 @@ import { WorkboardPromoteStore } from "./store-promote.js";
 
 function assertClaimIdentity(claim: WorkboardClaim, input: WorkboardHeartbeatInput): void {
   const token = normalizeOptionalString(input.token);
-  const ownerId = normalizeOptionalString(input.ownerId);
-  if (token && !safeEqualSecret(token, claim.token)) {
+  if (!safeEqualSecret(token, claim.token)) {
     throw new Error("claim token does not match.");
-  }
-  if (!token && ownerId && ownerId !== claim.ownerId) {
-    throw new Error("claim owner does not match.");
   }
 }
 
@@ -88,7 +84,12 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
         now,
         ttlSeconds ? secondsToDurationMs(ttlSeconds) : DEFAULT_CLAIM_TTL_MS,
       );
-      const guarded = await this.promoteDependencyReady(id, now);
+      const guarded = options.startGuard
+        ? await this.requireCard(id)
+        : await this.promoteDependencyReady(id, now);
+      if (options.startGuard) {
+        assertWorkboardStartGuard(guarded, options.startGuard);
+      }
       if (guarded.metadata?.archivedAt) {
         throw new Error("card is archived.");
       }
@@ -205,6 +206,8 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
       const claim = existing.metadata?.claim;
       if (claim) {
         assertClaimIdentity(claim, input);
+      } else {
+        assertCanMutateClaimedCard(existing, input);
       }
       return await this.updateCard(
         await this.requireCard(id),
@@ -212,7 +215,7 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
           status,
           metadata: { ...existing.metadata, claim: undefined },
         },
-        { enforceStatusHolds: input.status !== undefined },
+        { enforceStatusHolds: input.status !== undefined, expectedUpdatedAt: existing.updatedAt },
       );
     });
   }
@@ -292,6 +295,7 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
       {
         enforceStatusHolds: true,
         preserveProofId: proofId ?? proof?.id,
+        expectedUpdatedAt: existing.updatedAt,
       },
     );
   }
@@ -339,6 +343,7 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
       return await this.updateCard(
         await this.requireCard(id),
         this.buildBlockedCardPatch(existing, reason, now, options),
+        { expectedUpdatedAt: existing.updatedAt },
       );
     });
   }
@@ -348,10 +353,11 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
       const existing = await this.requireCard(id);
       assertCanMutateClaimedCard(existing, scope);
       const metadata = clearDiagnostics(existing.metadata, ["blocked_too_long"]);
-      return await this.updateCard(await this.requireCard(id), {
-        status: "todo",
-        metadata: { ...metadata, stale: null },
-      });
+      return await this.updateCard(
+        existing,
+        { status: "todo", metadata: { ...metadata, stale: null } },
+        { expectedUpdatedAt: existing.updatedAt },
+      );
     });
   }
 
@@ -379,7 +385,7 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
       return await this.updateCard(
         await this.requireCard(id),
         { agentId, status, metadata },
-        { enforceStatusHolds: true },
+        { enforceStatusHolds: true, expectedUpdatedAt: existing.updatedAt },
       );
     });
   }
@@ -415,7 +421,7 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
             stale: null,
           },
         },
-        { enforceStatusHolds: true },
+        { enforceStatusHolds: true, expectedUpdatedAt: existing.updatedAt },
       );
       return await this.promoteDependencyReady(reclaimed.id, now);
     });
@@ -466,7 +472,12 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
           status: "todo",
           metadata,
         },
-        { enforceStatusHolds: true, event: { kind: "specified" }, eventAt: now },
+        {
+          enforceStatusHolds: true,
+          event: { kind: "specified" },
+          eventAt: now,
+          expectedUpdatedAt: existing.updatedAt,
+        },
       );
     });
   }
@@ -531,8 +542,9 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
               )
             : await (async () => {
                 const latestParent = (await this.get(parent.id)) ?? parent;
+                assertCanMutateClaimedCard(latestParent, scope === null ? undefined : scope);
                 return await this.updateCard(
-                  await this.requireCard(parent.id),
+                  latestParent,
                   {
                     status:
                       latestParent.status === "triage" || latestParent.status === "backlog"

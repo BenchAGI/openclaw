@@ -12,6 +12,7 @@ import {
 } from "openclaw/plugin-sdk/number-runtime";
 import type { PluginRuntime } from "openclaw/plugin-sdk/plugin-runtime";
 import { canonicalPathFromExistingAncestor } from "openclaw/plugin-sdk/security-runtime";
+import { captureWorkboardLaunchAuthority } from "./dispatcher-claim-authority.js";
 import {
   assertRestrictedWorkboardTarget,
   cleanupWorkboardCardWorktree,
@@ -22,6 +23,7 @@ import {
 import { workboardSessionKeyForCard } from "./session-link.js";
 import { cardBoardId } from "./store-card-helpers.js";
 import { workboardCardConsumesOwnerSlot, workboardCardSlotOwner } from "./store-constants.js";
+import type { WorkboardStartGuard } from "./store-inputs.js";
 import { WorkboardStore, type WorkboardDispatchResult } from "./store.js";
 import {
   assertCanonicalWorkboardRootAccess,
@@ -38,6 +40,7 @@ type WorkboardWorktreeRuntime = PluginRuntime["worktrees"];
 
 type WorkboardDispatchStartOptions = {
   cardId?: string;
+  startGuard?: WorkboardStartGuard;
   maxStarts?: number;
   model?: string;
   provider?: string;
@@ -265,7 +268,12 @@ async function runWorkboardDispatch(
   const directCardId = params.options?.cardId;
   const assertOwnerCurrent = params.options?.assertOwnerCurrent;
   const directCard = directCardId
-    ? await params.store.prepareStart(directCardId, now, assertOwnerCurrent)
+    ? await params.store.prepareStart(
+        directCardId,
+        now,
+        assertOwnerCurrent,
+        params.options?.startGuard,
+      )
     : undefined;
   const dispatch = directCard
     ? { promoted: [], reclaimed: [], blocked: [], orchestrated: [], count: 0 }
@@ -386,6 +394,7 @@ async function runWorkboardDispatch(
         card.id,
         { ownerId, ttlSeconds: card.metadata?.automation?.maxRuntimeSeconds },
         {
+          startGuard: params.options?.startGuard,
           expectedAuthority: {
             boardId: cardBoardId(card),
             status: card.status,
@@ -436,33 +445,48 @@ async function runWorkboardDispatch(
       preparedLaunch = prepared.launch;
       const runId = prepared.launch.provisionalRunId;
       assertOwnerCurrent?.();
-      const run = await params.subagent.run({
-        sessionKey,
-        ...(assertOwnerCurrent ? { assertCurrent: assertOwnerCurrent } : {}),
-        message: [
-          `Work on this OpenClaw Workboard card: ${claimed.card.title}`,
-          "",
-          "## Worker protocol",
-          `Card id: ${claimed.card.id}`,
-          `Claim ownerId: ${ownerId}`,
-          `Claim token: ${claimValue}`,
-          "",
-          "Heartbeat with workboard_heartbeat using the card id and token while working.",
-          "When done, call workboard_complete with the card id, token, summary, and proof.",
-          "If you recorded proof separately, pass its returned proofId to workboard_complete.",
-          "If blocked, call workboard_block with the card id, token, and reason.",
-          "",
-          context,
-        ].join("\n"),
-        toolsAlsoAllow: [...WORKBOARD_REQUIRED_WORKER_TOOLS],
-        ...(params.options?.provider ? { provider: params.options.provider } : {}),
-        ...(params.options?.model ? { model: params.options.model } : {}),
-        lane: `workboard:${cardBoardId(card)}:${card.id}`,
-        idempotencyKey: runId,
-        lightContext: true,
-        deliver: false,
-        ...(runCwd ? { cwd: runCwd } : {}),
+      const authority = captureWorkboardLaunchAuthority({
+        store: params.store,
+        cardId: card.id,
+        launch: prepared.launch,
+        scope: { ownerId, token: claimValue },
+        assertOwnerCurrent,
       });
+      let run: Awaited<ReturnType<WorkboardSubagentRuntime["run"]>>;
+      try {
+        run = await params.subagent.run({
+          sessionKey,
+          ...(claimed.card.metadata?.automation?.maxRuntimeSeconds !== undefined
+            ? { timeoutSeconds: claimed.card.metadata.automation.maxRuntimeSeconds }
+            : {}),
+          assertCurrent: authority.assertCurrent,
+          message: [
+            `Work on this OpenClaw Workboard card: ${claimed.card.title}`,
+            "",
+            "## Worker protocol",
+            `Card id: ${claimed.card.id}`,
+            `Claim ownerId: ${ownerId}`,
+            `Claim token: ${claimValue}`,
+            "",
+            "Heartbeat with workboard_heartbeat using the card id and token while working.",
+            "When done, call workboard_complete with the card id, token, summary, and proof.",
+            "If you recorded proof separately, pass its returned proofId to workboard_complete.",
+            "If blocked, call workboard_block with the card id, token, and reason.",
+            "",
+            context,
+          ].join("\n"),
+          toolsAlsoAllow: [...WORKBOARD_REQUIRED_WORKER_TOOLS],
+          ...(params.options?.provider ? { provider: params.options.provider } : {}),
+          ...(params.options?.model ? { model: params.options.model } : {}),
+          lane: `workboard:${cardBoardId(card)}:${card.id}`,
+          idempotencyKey: runId,
+          lightContext: true,
+          deliver: false,
+          ...(runCwd ? { cwd: runCwd } : {}),
+        });
+      } finally {
+        authority.release();
+      }
       runStarted = true;
       const acceptedSessionKey = run.sessionKey?.trim() || sessionKey;
       const acceptedExecution: WorkboardExecution = {
