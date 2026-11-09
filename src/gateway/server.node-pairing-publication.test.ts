@@ -7,18 +7,21 @@ import {
 } from "../../test/helpers/promise.js";
 import { captureNodePairingGeneration } from "../infra/device-pairing-node-state.js";
 import { approveNodePairing, requestNodePairing } from "../infra/device-pairing-node.js";
+import * as nodePairing from "../infra/device-pairing-node.js";
 import {
   getPairedDevice,
   updatePairedDevicePresence,
   withPairedDeviceRecords,
 } from "../infra/device-pairing.js";
 import { getActiveRuntimePluginRegistry } from "../plugins/active-runtime-registry.js";
+import { getGatewayContextResolver } from "../plugins/runtime/gateway-context-binding.js";
 import * as stateWorker from "../state/openclaw-state-worker-store.js";
 import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../utils/message-channel.js";
 import type { GatewayClient } from "./client.js";
 import { pairDeviceIdentity } from "./device-authz.test-helpers.js";
 import * as nodeInvokeReadiness from "./node-invoke-readiness.js";
 import * as requestAuthorization from "./server-methods/request-authorization.js";
+import { getGatewayRecoveryRuntime } from "./server-recovery-runtime-context.js";
 import { connectGatewayClient } from "./test-helpers.e2e.js";
 import { installGatewayTestHooks, rpcReq } from "./test-helpers.js";
 import { installConnectedControlUiServerSuite } from "./test-with-server.js";
@@ -316,9 +319,9 @@ test("delivers node commands and node requests during an unrelated pending pairi
   }
 });
 
-test.each(["token revoke", "token rotate", "unpair", "node reapproval"] as const)(
+test.for(["token revoke", "token rotate", "unpair", "node reapproval"] as const)(
   "refuses a node whose pairing changes during dispatch preparation: %s",
-  async (change) => {
+  async (change, { signal }) => {
     const node = await connectPairedNode(`publication-${change.replaceAll(" ", "-")}`);
     const held = createDeferred();
     const release = createDeferred();
@@ -343,9 +346,43 @@ test.each(["token revoke", "token rotate", "unpair", "node reapproval"] as const
           commands: ["canvas.snapshot"],
           permissions: { accessibility: true },
         });
-        const changed = await rpcReq(ws, "node.pair.approve", {
-          requestId: pending.request.requestId,
+        const backgroundObserved = createDeferred();
+        let approvalPublished = false;
+        const runtime = getGatewayRecoveryRuntime();
+        const registry = runtime && getGatewayContextResolver(runtime)?.()?.nodeRegistry;
+        if (!registry?.get(node.nodeId)) {
+          throw new Error("Suite Gateway registry does not own the paired node");
+        }
+        const originalList = registry.listCurrentConnected.bind(registry);
+        const list = vi.spyOn(registry, "listCurrentConnected").mockImplementation(async () => {
+          const caller = new Error().stack ?? "";
+          const beganAfterPublication = approvalPublished;
+          const result = await originalList();
+          if (beganAfterPublication && caller.includes("node-connection-notifications")) {
+            backgroundObserved.resolve();
+          }
+          return result;
         });
+        const originalApprove = nodePairing.approveNodePairing;
+        const approval = vi
+          .spyOn(nodePairing, "approveNodePairing")
+          .mockImplementationOnce(async (...args) => {
+            const result = await originalApprove(...args);
+            approvalPublished = true;
+            // The real notification owner must inspect the published generation
+            // before the RPC's worker-result continuation can run.
+            await withinTest(backgroundObserved.promise, signal);
+            return result;
+          });
+        let changed;
+        try {
+          changed = await rpcReq(ws, "node.pair.approve", {
+            requestId: pending.request.requestId,
+          });
+        } finally {
+          approval.mockRestore();
+          list.mockRestore();
+        }
         expect(changed.ok, changed.error?.message).toBe(true);
         const current = await captureNodePairingGeneration(node.nodeId);
         expect(current).not.toBeNull();

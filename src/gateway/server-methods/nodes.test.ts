@@ -12,6 +12,7 @@ import {
   resolveCurrentPairedDeviceNodeBinding,
 } from "../../infra/device-pairing-node-state.js";
 import { approveNodePairing, requestNodePairing } from "../../infra/device-pairing-node.js";
+import * as nodePairing from "../../infra/device-pairing-node.js";
 import { rotateDeviceToken } from "../../infra/device-pairing-tokens.js";
 import { listDevicePairing, requestDevicePairing } from "../../infra/device-pairing.js";
 import {
@@ -45,24 +46,6 @@ import { createWorkerSupervisorNodeClient } from "./nodes.runner-inventory.test-
 import type { GatewayRequestHandlerOptions } from "./types.js";
 
 const createdStates: OpenClawTestState[] = [];
-const pairingGenerationHooks = vi.hoisted(() => ({
-  beforeCapture: vi.fn<(nodeId: string) => Promise<void> | void>(),
-}));
-
-vi.mock("../../infra/device-pairing-node-state.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../infra/device-pairing-node-state.js")>();
-  return {
-    ...actual,
-    captureNodePairingState: async (nodeId: string) => {
-      await pairingGenerationHooks.beforeCapture(nodeId);
-      return await actual.captureNodePairingState(nodeId);
-    },
-    captureNodePairingGeneration: async (nodeId: string) => {
-      await pairingGenerationHooks.beforeCapture(nodeId);
-      return await actual.captureNodePairingGeneration(nodeId);
-    },
-  };
-});
 
 async function createNodeState(
   nodeId: string,
@@ -109,7 +92,6 @@ afterEach(async () => {
   resetDiagnosticEventsForTest();
   resetRemoteNodeSkillsForTests();
   resetNodeWakeStateForTest();
-  pairingGenerationHooks.beforeCapture.mockReset();
   vi.clearAllMocks();
   await closeStateDatabaseForTest();
   while (createdStates.length > 0) {
@@ -434,6 +416,20 @@ describe("nodeHandlers node.pair.approve", () => {
       stateDir,
     );
     const lifecycle = captureNodeWakeLifecycle(nodeId);
+    const duringAbort: unknown[] = [];
+    lifecycle.addEventListener("abort", () => {
+      const node = runtime.nodeRegistry.get(nodeId);
+      duringAbort.push({
+        generation: node?.pairingGeneration,
+        commands: node?.commands,
+        caps: node?.caps,
+        permissions: node?.permissions,
+        clientCommands: node?.client.connect.commands,
+        clientPermissions: node?.client.connect.permissions,
+        current:
+          node !== undefined && runtime.nodeRegistry.listCurrentConnectedSync().includes(node),
+      });
+    });
     const approval = createOptions({ requestId: pending.request.requestId });
     Object.assign(approval.context, { nodeRegistry: runtime.nodeRegistry });
     await invokeNode("node.pair.approve", approval.opts);
@@ -441,6 +437,17 @@ describe("nodeHandlers node.pair.approve", () => {
     expect(lifecycle.aborted).toBe(true);
     const nextGeneration = await captureNodePairingGeneration(nodeId);
     expect(nextGeneration?.key).not.toBe(previousState?.generation?.key);
+    expect(duringAbort).toEqual([
+      {
+        generation: nextGeneration?.key,
+        commands: [],
+        caps: [],
+        permissions: undefined,
+        clientCommands: [],
+        clientPermissions: undefined,
+        current: true,
+      },
+    ]);
     expectApproved(approval.opts, nodeId);
     await expect(runtime.nodeWorkerSupervisorTransport.listCurrentNodes()).resolves.toEqual([]);
     const message = send.mock.calls.at(-1)?.[0];
@@ -468,35 +475,91 @@ describe("nodeHandlers node.pair.approve", () => {
     runtime.nodeRegistry.unregister("conn-surface-reapproval");
   });
 
-  it.each(["before approval", "after surface commit"])(
-    "does not promote the old session when device reapproval wins %s",
-    async (timing) => {
-      const { stateDir, nodeId } = await createNodeState("node-reapproval-race", { surface: true });
-      const staleState = expectDefined(await captureNodePairingState(nodeId), "paired node");
-      const staleGeneration = expectDefined(staleState.generation, "approved surface");
-      const pending = await requestSurface(stateDir, nodeId, "Galaxy A54 5G reapproved");
-      if (timing === "before approval") {
-        await pairAndroidNodeDevice(stateDir, nodeId);
-        expect((await captureNodePairingGeneration(nodeId))?.key).not.toBe(staleGeneration.key);
-      } else {
-        let captureCount = 0;
-        pairingGenerationHooks.beforeCapture.mockImplementation(async (capturedNodeId) => {
-          if (capturedNodeId === nodeId && ++captureCount === 2) {
-            await pairAndroidNodeDevice(stateDir, nodeId);
-          }
-        });
-      }
-      const { context, opts } = createOptions({ requestId: pending.request.requestId });
-      context.nodeRegistry.get.mockReturnValue({
-        nodeId,
-        connId: "conn-before-reapproval",
-        pairingIdentity: staleState.identity.key,
-        pairingGeneration: staleGeneration.key,
+  it("does not promote the old session when device reapproval wins before approval", async () => {
+    const { stateDir, nodeId } = await createNodeState("node-reapproval-race", { surface: true });
+    const staleState = expectDefined(await captureNodePairingState(nodeId), "paired node");
+    const staleGeneration = expectDefined(staleState.generation, "approved surface");
+    const pending = await requestSurface(stateDir, nodeId, "Galaxy A54 5G reapproved");
+    await pairAndroidNodeDevice(stateDir, nodeId);
+    expect((await captureNodePairingGeneration(nodeId))?.key).not.toBe(staleGeneration.key);
+    const { context, opts } = createOptions({ requestId: pending.request.requestId });
+    context.nodeRegistry.get.mockReturnValue({
+      nodeId,
+      connId: "conn-before-reapproval",
+      pairingIdentity: staleState.identity.key,
+      pairingGeneration: staleGeneration.key,
+    });
+    await invokeNode("node.pair.approve", opts);
+    expect((await captureNodePairingGeneration(nodeId))?.key).not.toBe(staleGeneration.key);
+    expect(context.nodeRegistry.updateSurface).not.toHaveBeenCalled();
+    expectApproved(opts, nodeId);
+  });
+
+  it.each(["replacement", "later generation", "device reapproval"] as const)(
+    "does not replay a committed promotion or notification after %s wins result delivery",
+    async (change) => {
+      const { stateDir, nodeId } = await createNodeState("node-1", { surface: true });
+      const before = expectDefined(await captureNodePairingState(nodeId), "paired node");
+      const registry = new NodeRegistry({
+        resolveCurrentPairingState: resolveCurrentPairedDeviceNodeBinding,
+        isPairingStateCurrent: isPairedDeviceNodeBindingCurrent,
       });
-      await invokeNode("node.pair.approve", opts);
-      expect((await captureNodePairingGeneration(nodeId))?.key).not.toBe(staleGeneration.key);
-      expect(context.nodeRegistry.updateSurface).not.toHaveBeenCalled();
-      expectApproved(opts, nodeId);
+      const client = createWorkerSupervisorNodeClient("conn-delayed-approval");
+      registry.register(client, {
+        pairingIdentity: before.identity.key,
+        pairingGeneration: before.generation?.key,
+      });
+      const update = vi.spyOn(registry, "updateSurface");
+      const send = vi.spyOn(client.socket, "send");
+      const pending = await requestSurface(stateDir, nodeId, "First surface approval");
+      const originalApprove = nodePairing.approveNodePairing;
+      let laterRequestId: string | undefined;
+      const delivery = vi
+        .spyOn(nodePairing, "approveNodePairing")
+        .mockImplementationOnce(async (...args) => {
+          const approved = await originalApprove(...args);
+          expect(update).toHaveBeenCalledTimes(1);
+          if (change === "replacement") {
+            const current = expectDefined(await captureNodePairingState(nodeId), "paired node");
+            registry.register(createWorkerSupervisorNodeClient("conn-replacement"), {
+              pairingIdentity: current.identity.key,
+              pairingGeneration: current.generation?.key,
+            });
+          } else if (change === "later generation") {
+            const next = await requestSurface(stateDir, nodeId, "Later surface approval");
+            laterRequestId = next.request.requestId;
+            const later = createOptions({ requestId: laterRequestId });
+            Object.assign(later.context, { nodeRegistry: registry });
+            await invokeNode("node.pair.approve", later.opts);
+            expectApproved(later.opts, nodeId);
+          } else {
+            await pairAndroidNodeDevice(stateDir, nodeId);
+            await expect(registry.listCurrentConnected()).resolves.toEqual([]);
+          }
+          return approved;
+        });
+      try {
+        const approval = createOptions({ requestId: pending.request.requestId });
+        Object.assign(approval.context, { nodeRegistry: registry });
+        await invokeNode("node.pair.approve", approval.opts);
+        expectApproved(approval.opts, nodeId);
+        expect(update).toHaveBeenCalledTimes(change === "later generation" ? 2 : 1);
+        if (change === "later generation") {
+          expect(send).toHaveBeenCalledTimes(1);
+          expect(JSON.parse(String(send.mock.calls[0]?.[0]))).toMatchObject({
+            event: "node.pair.resolved",
+            payload: { requestId: laterRequestId },
+          });
+        } else {
+          expect(send).not.toHaveBeenCalled();
+        }
+      } finally {
+        delivery.mockRestore();
+        update.mockRestore();
+        send.mockRestore();
+        registry.unregister("conn-delayed-approval");
+        registry.unregister("conn-replacement");
+      }
     },
   );
 

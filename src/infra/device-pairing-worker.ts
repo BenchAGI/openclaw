@@ -9,7 +9,10 @@ import type { DevicePairingAdmissionFacts } from "./device-pairing-admission.typ
 import { invalidatePairedCardRendererCache } from "./device-pairing-card-renderer.js";
 import { withDevicePairingLock } from "./device-pairing-lock.js";
 import { captureDevicePairingPublication } from "./device-pairing-publication.js";
-import type { DevicePairingCommitReceipt } from "./device-pairing-read.types.js";
+import type {
+  DevicePairingCommitReceipt,
+  DevicePairingNodeApprovalPublication,
+} from "./device-pairing-read.types.js";
 import { listDevicePairingStoreRecordsReadOnly } from "./device-pairing-store-readonly.js";
 import type { DevicePairingWorkerOperations } from "./device-pairing-worker-contract.js";
 import type { PairedDevice } from "./device-pairing.types.js";
@@ -54,7 +57,76 @@ function admissionFacts(value: unknown): DevicePairingAdmissionFacts[] {
   return value as DevicePairingAdmissionFacts[];
 }
 
-function commitReceipt(value: unknown): DevicePairingCommitReceipt {
+function nodeApprovalPublication(
+  value: unknown,
+  command: { type: string; input: unknown },
+  changed: DevicePairingCommitReceipt["changed"],
+): DevicePairingNodeApprovalPublication | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (
+    !isRecord(value) ||
+    command.type !== "node.approve" ||
+    !isRecord(command.input) ||
+    typeof value.requestId !== "string" ||
+    value.requestId !== command.input.requestId ||
+    typeof value.nodeId !== "string" ||
+    typeof value.pairingIdentity !== "string" ||
+    typeof value.nextPairingGeneration !== "string" ||
+    (value.previousPairingGeneration !== undefined &&
+      (typeof value.previousPairingGeneration !== "string" ||
+        value.previousPairingGeneration === value.nextPairingGeneration)) ||
+    !isRecord(value.surface) ||
+    !Array.isArray(value.surface.caps) ||
+    !value.surface.caps.every((entry) => typeof entry === "string") ||
+    !Array.isArray(value.surface.commands) ||
+    !value.surface.commands.every((entry) => typeof entry === "string")
+  ) {
+    throw new Error("Invalid pairing node approval receipt");
+  }
+  const bindings = changed.filter((entry) => entry.deviceId === value.nodeId);
+  if (
+    bindings.length !== 1 ||
+    bindings[0]?.binding?.identity !== value.pairingIdentity ||
+    bindings[0]?.binding?.generation !== value.nextPairingGeneration
+  ) {
+    throw new Error("Pairing node approval differs from its committed binding");
+  }
+  let permissions: Record<string, boolean> | undefined;
+  if (value.surface.permissions !== undefined) {
+    if (!isRecord(value.surface.permissions)) {
+      throw new Error("Invalid pairing node approval permissions");
+    }
+    const entries: [string, boolean][] = [];
+    for (const [key, allowed] of Object.entries(value.surface.permissions)) {
+      if (typeof allowed !== "boolean") {
+        throw new Error("Invalid pairing node approval permissions");
+      }
+      entries.push([key, allowed]);
+    }
+    permissions = Object.fromEntries(entries);
+  }
+  return {
+    requestId: value.requestId,
+    nodeId: value.nodeId,
+    pairingIdentity: value.pairingIdentity,
+    nextPairingGeneration: value.nextPairingGeneration,
+    ...(value.previousPairingGeneration !== undefined
+      ? { previousPairingGeneration: value.previousPairingGeneration }
+      : {}),
+    surface: {
+      caps: value.surface.caps,
+      commands: value.surface.commands,
+      permissions,
+    },
+  };
+}
+
+function commitReceipt(
+  value: unknown,
+  command: { type: string; input: unknown },
+): DevicePairingCommitReceipt {
   if (
     !isRecord(value) ||
     value.kind !== "devicePairing" ||
@@ -104,24 +176,27 @@ function commitReceipt(value: unknown): DevicePairingCommitReceipt {
       updatedAtMs: environment.updatedAtMs,
     };
   }
+  const changed = value.changed.map((entry) => ({
+    deviceId: entry.deviceId,
+    binding:
+      entry.binding === null
+        ? null
+        : {
+            identity: entry.binding.identity,
+            ...(entry.binding.generation === undefined
+              ? {}
+              : { generation: entry.binding.generation }),
+          },
+  }));
+  const nodeApproval = nodeApprovalPublication(value.nodeApproval, command, changed);
   return {
     kind: "devicePairing",
     beforeRevision: value.beforeRevision,
     revision: value.revision,
     ...(tokensReplaced ? { tokensReplaced } : {}),
     ...(workerEnvironment ? { workerEnvironment } : {}),
-    changed: value.changed.map((entry) => ({
-      deviceId: entry.deviceId,
-      binding:
-        entry.binding === null
-          ? null
-          : {
-              identity: entry.binding.identity,
-              ...(entry.binding.generation === undefined
-                ? {}
-                : { generation: entry.binding.generation }),
-            },
-    })),
+    ...(nodeApproval ? { nodeApproval } : {}),
+    changed,
   };
 }
 
@@ -133,6 +208,7 @@ export function executeDevicePairingMutation<Key extends keyof DevicePairingWork
     assertCurrent?: () => void;
     admit?: (facts: DevicePairingAdmissionFacts) => void;
     onTokensReplaced?: (deviceId: string, roles: readonly string[]) => void;
+    onNodeApproval?: (approval: DevicePairingNodeApprovalPublication) => void;
     /** Map a refused operation only after its admission and publication have settled. */
     onAuthorityRefused?: () => DevicePairingWorkerOperations[Key]["output"];
   } = {},
@@ -163,7 +239,7 @@ export function executeDevicePairingMutation<Key extends keyof DevicePairingWork
       }
       const committed = admission?.committed;
       if (committed && !published) {
-        const receipt = commitReceipt(committed.facts);
+        const receipt = commitReceipt(committed.facts, captured);
         const environment = receipt.workerEnvironment;
         let environmentPublished = false;
         if (environment && publishEnvironment) {
@@ -176,6 +252,11 @@ export function executeDevicePairingMutation<Key extends keyof DevicePairingWork
         // A callback can throw or read publication recursively; the commit is already installed.
         published = true;
         mutation.publish(receipt);
+        // Transfer the exact live surface before projections or callers can
+        // observe the newly committed generation and retire the old session.
+        if (receipt.nodeApproval) {
+          options.onNodeApproval?.(receipt.nodeApproval);
+        }
         invalidatePairedCardRendererCache();
         if (environmentPublished) {
           sessionChanges.emit({ all: true, scope: "worker-environments" });
