@@ -18,7 +18,7 @@ export function appendRuntimePluginToolGrant(
 ): string[] {
   return grant
     ? [
-        ...allowlist,
+        ...(allowlist.length === 0 ? [DEFAULT_PLUGIN_TOOLS_ALLOWLIST_ENTRY] : allowlist),
         ...grant.toolNames.map((toolName) => runtimePluginToolGrantKey(grant.pluginId, toolName)),
       ]
     : allowlist;

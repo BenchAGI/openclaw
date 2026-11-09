@@ -16,6 +16,7 @@ import type {
   CliBackendPromptContext,
 } from "../../plugins/cli-backend.types.js";
 import type { PluginInstanceConsumer } from "../../plugins/plugin-instance.types.js";
+import type { RuntimePluginToolGrant } from "../../plugins/runtime/tool-grant.js";
 import type { SpawnSecretInput } from "../../process/supervisor/types.js";
 import type { AdmittedRunContext } from "../admitted-run-context.js";
 import type { AuthProfileStore } from "../auth-profiles/types.js";
@@ -157,6 +158,8 @@ export type RunCliAgentParams = {
   bashElevated?: ExecElevatedDefaults;
   /** Runtime tool allow-list. CLI harnesses need a backend-owned exact translation. */
   toolsAllow?: string[];
+  /** Exact plugin-owned additions supplied by the authenticated in-process run owner. */
+  runtimePluginToolGrant?: RuntimePluginToolGrant;
   skillLibraryAuthoring?: import("../../skills/library/authoring.js").SkillLibraryAuthoringCapability;
   /** Server-authored origin for fresh automation mutations from this CLI run. */
   cronCreatorCallerOrigin?: CronScheduledToolCallerOrigin;

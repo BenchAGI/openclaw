@@ -442,6 +442,7 @@ export function runAgentAttempt(
       extraSystemPrompt: params.opts.extraSystemPrompt,
       inputProvenance: params.opts.inputProvenance,
       skillLibraryAuthoring: params.opts.skillLibraryAuthoring,
+      runtimePluginToolGrant: params.opts.runtimePluginToolGrant,
       sourceReplyDeliveryMode: params.opts.sourceReplyDeliveryMode,
       taskSuggestionDeliveryMode: params.opts.taskSuggestionDeliveryMode,
       clientCaps: params.opts.clientCaps,
@@ -793,7 +794,6 @@ export function runAgentAttempt(
     bootstrapContextMode: params.opts.bootstrapContextMode,
     bootstrapContextRunKind: params.opts.bootstrapContextRunKind,
     toolsAllow: runtimeToolsAllow,
-    runtimePluginToolGrant: params.opts.runtimePluginToolGrant,
     trustedInternalHandoff: trustedSubagentCompletionHandoff
       ? params.opts.trustedInternalHandoff
       : undefined,

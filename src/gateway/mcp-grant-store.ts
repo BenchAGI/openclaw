@@ -27,6 +27,7 @@ import type { ExecMode } from "../infra/exec-approvals.js";
 import type { PluginHookChannelContext } from "../plugins/hook-types.js";
 import { getPluginRuntimeGatewayRequestScope } from "../plugins/runtime/gateway-request-scope.js";
 import type { PluginRuntimeGatewayRequestScope } from "../plugins/runtime/gateway-request-scope.types.js";
+import type { RuntimePluginToolGrant } from "../plugins/runtime/tool-grant.js";
 import type { InputProvenance } from "../sessions/input-provenance.js";
 import { resolveGlobalMap } from "../shared/global-singleton.js";
 import type { SkillLibraryAuthoringCapability } from "../skills/library/authoring.js";
@@ -80,6 +81,8 @@ export type McpLoopbackRequestContext = {
    * hard enforcement. Unset keeps the full session-scoped surface.
    */
   toolsAllow?: string[];
+  /** Plugin-owned additions captured from a trusted run, never child request fields. */
+  runtimePluginToolGrant?: RuntimePluginToolGrant;
   /** Host-minted search exclusion; independent of coding-tool authority in toolsAllow. */
   webSearchDisabled?: true;
   /** Canonical observed native authority; null awaits this turn's initialization. */

@@ -21,5 +21,6 @@ export function projectNativeMcpRunContext(run: ConversationCapabilityProfilePar
     inputProvenance: run.inputProvenance,
     trustedInternalHandoff: run.trustedInternalHandoff,
     scheduledToolPolicy: run.scheduledToolPolicy,
+    runtimePluginToolGrant: run.runtimePluginToolGrant,
   };
 }
