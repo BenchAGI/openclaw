@@ -410,6 +410,8 @@ export async function persistCronJobMutation(params: {
   agentId?: string;
   preconditionJob?: CronJob;
   expectedJob?: { id: string; configRevision: string };
+  /** Pins an absence decision whose caller visibility predicate remains host-owned. */
+  requireUnchangedJobs?: boolean;
   receiptMutation?: CronRuntimeMutationInputs["cron.mutateJobs"]["receiptMutation"];
   afterCommit?: () => void;
   afterPublish?: () => void;
@@ -422,9 +424,10 @@ export async function persistCronJobMutation(params: {
   const jobsFingerprint = loadedCronStoreRevisions.get(state)?.jobsFingerprint;
   const runtimeFingerprint = loadedCronStoreRevisions.get(state)?.runtimeFingerprint;
   if (
-    state.deps.cronEnabled &&
-    changes.changedIds.size > 0 &&
-    (!jobsFingerprint || !runtimeFingerprint)
+    (params.requireUnchangedJobs && !jobsFingerprint) ||
+    (state.deps.cronEnabled &&
+      changes.changedIds.size > 0 &&
+      (!jobsFingerprint || !runtimeFingerprint))
   ) {
     loadedCronStoreRevisions.set(state, { revision: -1 });
     throw new CronJobsStoreChangedError(source.storeKey);
@@ -452,6 +455,7 @@ export async function persistCronJobMutation(params: {
       agentId: params.agentId,
       preconditionJob: params.preconditionJob,
       expectedJob: params.expectedJob,
+      expectedJobsFingerprint: params.requireUnchangedJobs ? jobsFingerprint : undefined,
       receiptMutation: params.receiptMutation,
       replacement:
         state.deps.cronEnabled &&

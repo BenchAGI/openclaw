@@ -123,8 +123,19 @@ export function mutateCronJobsInWorker(
             deletionBlocked:
               input.agentId !== undefined && isAgentDeletionBlocked(input.agentId, {}, db),
           });
-          if (input.preconditionJob || input.expectedJob || input.replacement) {
+          if (
+            input.preconditionJob ||
+            input.expectedJob ||
+            input.expectedJobsFingerprint ||
+            input.replacement
+          ) {
             const current = loadCronMutationStore(db, input.storeKey);
+            if (
+              input.expectedJobsFingerprint &&
+              current.jobsFingerprint !== input.expectedJobsFingerprint
+            ) {
+              throw new CronJobsStoreChangedError(input.storeKey);
+            }
             if (
               input.replacement &&
               (current.jobsFingerprint !== input.replacement.jobsFingerprint ||

@@ -52,6 +52,7 @@ function normalizeCronRequestDeliveryMode(input: CronJobPatch | null): void {
 /** Validate authored fields before normalization can erase blank or invalid input. */
 export function normalizeCronAddRequest(params: unknown): {
   candidate: unknown;
+  normalizedJob: CronJobCreate | null;
   enabledExplicit: boolean;
 } {
   const rawParams = asOptionalObjectRecord(params);
@@ -73,6 +74,7 @@ export function normalizeCronAddRequest(params: unknown): {
   normalizeCronRequestDeliveryMode(normalized);
   return {
     candidate: normalized ?? params,
+    normalizedJob: normalized,
     enabledExplicit: parsedEnabled !== undefined,
   };
 }

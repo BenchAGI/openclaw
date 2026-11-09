@@ -482,6 +482,8 @@ export type CronListResult = CronJob[];
 export type CronAddInput = CronJobCreate;
 /** Caller-specific declaration-key visibility and explicit enablement metadata. */
 export type CronAddOptions = {
+  /** Refuses a visible declaration and pins its preparatory absence through durable commit. */
+  createOnly?: boolean;
   operatorSource?: NonNullable<CronStoredJob["operatorSource"]>["source"];
   sourceConversation?: CronStoredJob["sourceConversation"];
   /** Selected revisions captured from a validated caller session, never public input. */
