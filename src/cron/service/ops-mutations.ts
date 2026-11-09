@@ -127,6 +127,9 @@ export async function add(
           (job) => job.declarationKey === declarationKey && (opts?.matchesExisting?.(job) ?? true),
         ) ?? [])
       : [];
+    if (opts?.createOnly && matches.length > 0) {
+      throw new TypeError("cron declaration already exists within caller scope");
+    }
     if (matches.length > 1) {
       throw new Error(`cron declarationKey is ambiguous within caller scope: ${declarationKey}`);
     }
@@ -262,6 +265,7 @@ export async function add(
       method: "cron.add",
       assertCurrent: opts?.commitGuard,
       agentId,
+      requireUnchangedJobs: opts?.createOnly === true,
       postPersistNotifications,
       suppressScheduledJobId: job.id,
       afterPublish: () => {

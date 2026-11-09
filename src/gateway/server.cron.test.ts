@@ -23,6 +23,7 @@ import {
 import { getGatewayProcessInstanceId } from "./process-instance.js";
 import type { GatewayCronState } from "./server-cron.js";
 import type { GatewayClient } from "./server-methods/types.js";
+import { registerCronCreationTests } from "./server.cron.creation.test-support.js";
 import {
   agentCommandMock,
   connectOk,
@@ -399,21 +400,7 @@ describe("gateway server cron", () => {
     sendCronAnnouncePayloadStrictMock.mockClear();
   });
 
-  test("does not persist cron.add when the delivery preview cannot be resolved", async () => {
-    const { dir } = await setupCronTestRun();
-    testState.sessionStorePath = path.join(dir, "invalid.sqlite");
-    await fs.writeFile(testState.sessionStorePath, "not a SQLite database");
-    const cronState = await createDirectCronState();
-
-    const response = await directCronReq(cronState, "cron.add", {
-      name: "preview failure",
-      schedule: { kind: "every", everyMs: 60_000 },
-      payload: { kind: "agentTurn", message: "check status" },
-    });
-
-    expect(response.ok).toBe(false);
-    expect(await cronState.cron.list({ includeDisabled: true })).toHaveLength(0);
-  });
+  registerCronCreationTests({ setupCronTestRun, createDirectCronState, directCronReq, testState });
 
   test("atomically rejects stale config revisions without conflicting on runtime state", async () => {
     await setupCronTestRun();

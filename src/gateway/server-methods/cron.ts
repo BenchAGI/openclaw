@@ -1,7 +1,6 @@
 import {
   ErrorCodes,
   errorShape,
-  validateCronAddParams,
   validateCronGetParams,
   validateCronRemoveParams,
   validateCronRunParams,
@@ -12,27 +11,17 @@ import {
 import { bindCronSelfRemovalCommitGuard } from "../../cron/active-jobs.js";
 import { tryResolveCronJobEffectiveAgentId } from "../../cron/agent-id.js";
 import { resolveCronJobConfigRevision } from "../../cron/config-revision.js";
-import { assertValidCronCreateDelivery } from "../../cron/delivery-channel-validation.js";
 import { resolveCronDeliveryPlan } from "../../cron/delivery-plan.js";
-import {
-  resolveCronDeliveryFailurePreview,
-  resolveCronDeliveryPreview,
-} from "../../cron/delivery-preview.js";
+import { resolveCronDeliveryFailurePreview } from "../../cron/delivery-preview.js";
 import { resolveCronAgentSessionKey } from "../../cron/isolated-agent/session-key.js";
-import { cronAddResultReadView, cronJobReadView } from "../../cron/job-read-view.js";
+import { cronJobReadView } from "../../cron/job-read-view.js";
 import type { CronRuntimeAuthority } from "../../cron/runtime-authority.js";
 import type { CronUpdateOptions } from "../../cron/service/state.js";
 import {
   isInvalidCronSessionTargetIdError,
   resolveCronSessionTargetSessionKey,
 } from "../../cron/session-target.js";
-import { cronJobUsesToolRuntime } from "../../cron/tools-allow.js";
-import type {
-  CronDeliveryPreview,
-  CronJob,
-  CronJobCreate,
-  CronJobPatch,
-} from "../../cron/types.js";
+import type { CronDeliveryPreview, CronJob, CronJobPatch } from "../../cron/types.js";
 import { validateScheduleTimestamp } from "../../cron/validate-timestamp.js";
 import { formatErrorMessage } from "../../infra/errors.js";
 import { isSubagentSessionKey, normalizeAgentId } from "../../routing/session-key.js";
@@ -52,10 +41,8 @@ import { getGatewayProcessInstanceId } from "../process-instance.js";
 import { resolveRequestedSessionAgentId } from "../session-request-agent.js";
 import { loadGatewaySessionEntryReadOnly } from "../session-utils.js";
 import { assertActiveAgentRuntimeAuthority } from "./agent-runtime-authority.js";
+import { cronAddHandler } from "./cron-add.js";
 import {
-  applyCronCreateCallerScopeDefault,
-  cronCreateMatchesCallerScope,
-  cronJobMatchesDeclarationScope,
   cronJobMatchesCallerScope,
   cronPatchSessionRefsMatchCaller,
   readCronCallerScope,
@@ -68,11 +55,8 @@ import { isCronInvalidRequestError } from "./cron-error-classification.js";
 import { cronHistoryHandler } from "./cron-history.js";
 import {
   assertValidCronUpdatePatch,
-  captureCronCreatorSession,
   requiresExplicitAgentRuntimeToolsAllow,
-  normalizeCronAddRequest,
   normalizeCronUpdateRequest,
-  assertCronDoesNotTargetAgentHarness,
 } from "./cron-input-validation.js";
 import {
   assertCronReadCurrent,
@@ -229,157 +213,7 @@ export const cronHandlers: GatewayRequestHandlers = {
     },
   ),
   ...cronScratchHandlers,
-  "cron.add": async ({
-    params,
-    respond,
-    context,
-    client,
-    sessionMutationCommitGuard,
-    hasCurrentClientAuthority,
-  }) => {
-    let candidate: unknown;
-    let enabledExplicit: boolean;
-    try {
-      ({ candidate, enabledExplicit } = normalizeCronAddRequest(params));
-    } catch (err) {
-      respondInvalidCronParams(respond, "cron.add", formatErrorMessage(err));
-      return;
-    }
-    if (!assertValidParams(candidate, validateCronAddParams, "cron.add", respond)) {
-      return;
-    }
-    const callerScope = readCronCallerScope(client);
-    const jobCreate = applyCronCreateCallerScopeDefault(candidate as CronJobCreate, callerScope);
-    const {
-      assertCurrent: assertCreatorSessionCurrent,
-      assertOperatorSourceCurrent,
-      ...creatorOptions
-    } = captureCronCreatorSession(jobCreate, callerScope, client);
-    let captureRuntimeAuthority: (() => CronRuntimeAuthority | undefined) | undefined;
-    let assertCapturedAuthorityCurrent: (() => void) | undefined;
-    try {
-      const capture = resolveCronCreatorAuthorityCapture(callerScope);
-      captureRuntimeAuthority = capture?.captureRuntimeAuthority;
-      assertCapturedAuthorityCurrent = capture?.assertCurrent;
-    } catch (err) {
-      respondInvalidCronParams(respond, "cron.add", formatErrorMessage(err));
-      return;
-    }
-    const assertMutationCurrent = resolveCronMutationCommitGuard(client, context, undefined, {
-      sessionMutationCommitGuard,
-      hasCurrentClientAuthority,
-    });
-    const commitGuard = () => {
-      assertMutationCurrent?.();
-      assertCapturedAuthorityCurrent?.();
-      assertCreatorSessionCurrent();
-      assertOperatorSourceCurrent?.();
-    };
-    const cfg = context.getRuntimeConfig();
-    if (
-      !cronCreateMatchesCallerScope({
-        job: jobCreate,
-        callerScope,
-        defaultAgentId: context.cron.getDefaultAgentId(),
-      })
-    ) {
-      respondInvalidCronParams(respond, "cron.add", "job agentId outside caller scope");
-      return;
-    }
-    if (requiresExplicitAgentRuntimeToolsAllow({ job: jobCreate, callerScope })) {
-      respondInvalidCronParams(
-        respond,
-        "cron.add",
-        "agent-runtime tool jobs require an explicit payload.toolsAllow cap",
-      );
-      return;
-    }
-    const timestampValidation = validateScheduleTimestamp(jobCreate.schedule);
-    if (!timestampValidation.ok) {
-      respond(
-        false,
-        undefined,
-        errorShape(ErrorCodes.INVALID_REQUEST, timestampValidation.message),
-      );
-      return;
-    }
-    if (
-      respondRefusedCronAgent(
-        tryResolveCronJobEffectiveAgentId(jobCreate, context.cron.getDefaultAgentId()),
-        respond,
-      )
-    ) {
-      return;
-    }
-    try {
-      assertCronDoesNotTargetAgentHarness(jobCreate);
-      await assertValidCronCreateDelivery(cfg, jobCreate);
-    } catch (err) {
-      respondInvalidCronParams(respond, "cron.add", formatErrorMessage(err));
-      return;
-    }
-    // Resolve before the durable add. A preview failure after commit would make a safe retry
-    // create a duplicate job.
-    const previewContext = { cfg, defaultAgentId: context.cron.getDefaultAgentId() };
-    const deliveryPreview = await resolveCronDeliveryPreview({
-      ...previewContext,
-      job: { ...jobCreate, sourceConversation: creatorOptions.sourceConversation },
-    });
-    let result: Awaited<ReturnType<typeof context.cron.add>>;
-    try {
-      result = await context.cron.add(jobCreate, {
-        enabledExplicit,
-        ...creatorOptions,
-        commitGuard,
-        ...(captureRuntimeAuthority ? { captureRuntimeAuthority } : {}),
-        matchesExisting: (job) =>
-          cronJobMatchesDeclarationScope({
-            job,
-            input: jobCreate,
-            callerScope,
-            defaultAgentId: context.cron.getDefaultAgentId(),
-          }),
-        ...(cronJobUsesToolRuntime(jobCreate)
-          ? {
-              scheduledToolPolicy: resolveCronScheduledToolPolicyForCaller(callerScope),
-              ...(callerScope?.toolsAllowProvenance
-                ? { toolsAllowProvenance: callerScope.toolsAllowProvenance }
-                : {}),
-              ...(callerScope?.toolsAllowExecTarget
-                ? { toolsAllowExecTarget: callerScope.toolsAllowExecTarget }
-                : {}),
-            }
-          : {}),
-      });
-    } catch (err) {
-      if (
-        !(err instanceof TypeError) &&
-        !(err instanceof RangeError) &&
-        !isCronInvalidRequestError(err)
-      ) {
-        throw err;
-      }
-      respondInvalidCronParams(respond, "cron.add", formatErrorMessage(err));
-      return;
-    }
-    const job = "job" in result ? result.job : result;
-    context.logGateway.info("cron: job added", {
-      jobId: job.id,
-      declarationKey: job.declarationKey,
-      schedule: jobCreate.schedule,
-    });
-    respond(
-      true,
-      cronAddResultReadView({
-        result,
-        deliveryPreview:
-          "job" in result && !result.created
-            ? await resolveCronDeliveryPreview({ ...previewContext, job })
-            : deliveryPreview,
-      }),
-      undefined,
-    );
-  },
+  "cron.add": cronAddHandler,
   "cron.update": async ({
     params,
     respond,
@@ -831,4 +665,3 @@ for (const [method, handler] of Object.entries(cronHandlers)) {
   }
   cronHandlers[method] = wrapped;
 }
-/* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

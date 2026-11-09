@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { awaitGateBeforeSettlement, createDeferred } from "../../test/helpers/promise.js";
 import { createTestGatewayScheduler } from "../test-utils/gateway-scheduler-clock.js";
 import { resolveCronJobConfigRevision } from "./config-revision.js";
 import { resolveCronSession } from "./isolated-agent/session.js";
@@ -10,7 +11,7 @@ import {
   installCronTestHooks,
   writeCronStoreSnapshot,
 } from "./service.test-harness.js";
-import type { CronAddOptions } from "./service/state.js";
+import type { CronAddOptions, CronServiceDeps } from "./service/state.js";
 import { loadCronStore } from "./store.js";
 import type { CronJob, CronJobCreate } from "./types.js";
 
@@ -25,12 +26,17 @@ afterEach(() => {
   services.clear();
 });
 
-function createCronService(storePath: string, cronEnabled = true) {
+function createCronService(
+  storePath: string,
+  cronEnabled = true,
+  listConfiguredChannels?: CronServiceDeps["listConfiguredChannels"],
+) {
   const service = new CronService({
     scheduler: createTestGatewayScheduler(),
     nowMs: () => Date.now(),
     storePath,
     cronEnabled,
+    listConfiguredChannels,
     log: logger,
     enqueueSystemEvent: vi.fn(),
     requestHeartbeat: vi.fn(),
@@ -107,6 +113,71 @@ function ownedDeclaration(params: {
 }
 
 describe("CronService declarative jobs", () => {
+  it.each(["identical", "different"] as const)(
+    "create-only rejects an existing %s declaration without changing it",
+    async (kind) => {
+      const { cron, storePath } = await setup();
+      const created = await add(cron, declaration(), { createOnly: true });
+      const before = await loadCronStore(storePath);
+      await expect(
+        add(cron, declaration(kind === "different" ? { displayName: "Foreign replacement" } : {}), {
+          createOnly: true,
+        }),
+      ).rejects.toThrow("cron declaration already exists within caller scope");
+      expect(await loadCronStore(storePath)).toEqual(before);
+      expect((await cron.list()).map((job) => job.id)).toEqual([created.id]);
+    },
+  );
+
+  it("create-only preserves declarations outside the caller visibility predicate", async () => {
+    const { cron } = await setup();
+    const first = await add(cron, declaration({ owner: { agentId: "alpha" } }));
+    const second = await add(cron, declaration({ owner: { agentId: "beta" } }), {
+      createOnly: true,
+      matchesExisting: (job) => job.owner?.agentId === "beta",
+    });
+    expect(second.created).toBe(true);
+    expect(second.id).not.toBe(first.id);
+    expect(
+      (await cron.list())
+        .map((job) => job.owner?.agentId)
+        .toSorted((a, b) => (a ?? "").localeCompare(b ?? "")),
+    ).toEqual(["alpha", "beta"]);
+  });
+
+  it("create-only rejects a competing SQLite insertion after its preparatory read", async () => {
+    const { storePath } = await makeStorePath();
+    const { storePath: competitorPath } = await makeStorePath();
+    const competitor = createCronService(competitorPath, false);
+    const inserted = await add(competitor, declaration({ displayName: "Competing owner" }));
+    const prepared = createDeferred();
+    const release = createDeferred();
+    const first = createCronService(storePath, false, async () => {
+      prepared.resolve();
+      await release.promise;
+      return [];
+    });
+    const pending = add(first, declaration({ displayName: "Pending owner" }), { createOnly: true });
+    const refused = expect(pending).rejects.toThrow("changed after it was read");
+    try {
+      await awaitGateBeforeSettlement(
+        prepared.promise,
+        pending,
+        "creation did not reach preparation",
+      );
+      // A foreign process does not share the service queue; use its canonical SQLite writer.
+      await writeCronStoreSnapshot({ storePath, jobs: [inserted.job] });
+      release.resolve();
+      await refused;
+      const persisted = await loadCronStore(storePath);
+      expect(persisted.jobs).toHaveLength(1);
+      expect(persisted.jobs[0]).toEqual(inserted.job);
+    } finally {
+      release.resolve();
+      await Promise.allSettled([pending, refused]);
+    }
+  });
+
   it("rejects malformed declared triggers without changing persisted jobs", async () => {
     const { cron } = await setup();
 

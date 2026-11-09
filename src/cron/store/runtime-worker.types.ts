@@ -127,6 +127,7 @@ export type CronRuntimeMutationInputs = {
       options?: CronStoreSaveOptions;
     };
     expectedJob?: { id: string; configRevision: string };
+    expectedJobsFingerprint?: string;
     preconditionJob?: CronJob;
     receiptMutation?: {
       jobId: string;
