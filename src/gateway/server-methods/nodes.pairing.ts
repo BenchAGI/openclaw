@@ -23,6 +23,7 @@ import {
 } from "../../infra/device-pairing.js";
 import { reconcileRevokedDeviceWorker } from "../device-worker-revocation.js";
 import { clearRemovedNodeRuntimeState } from "../node-runtime-state.js";
+import type { NodeSession } from "../node-session.types.js";
 import { invalidateNodeWakeState } from "../node-wake-state.js";
 import { PAIRING_SCOPE } from "../operator-scopes.js";
 import {
@@ -166,7 +167,44 @@ export const nodePairingHandlers: GatewayRequestHandlers = {
       const sessionBeforeApproval = pendingApproval
         ? context.nodeRegistry.get(pendingApproval.nodeId)
         : undefined;
-      const approved = await approveNodePairing(requestId, { callerScopes });
+      const promotion: { session?: NodeSession; generation?: string } = {};
+      const approved = await approveNodePairing(requestId, {
+        callerScopes,
+        onNodeApproval: (publication) => {
+          try {
+            const previousGenerationKey = pairingStateBeforeApproval?.generation?.key;
+            if (
+              !sessionBeforeApproval ||
+              pairingStateBeforeApproval?.identity.key !== publication.pairingIdentity ||
+              sessionBeforeApproval.pairingIdentity !== publication.pairingIdentity ||
+              publication.previousPairingGeneration !== previousGenerationKey ||
+              sessionBeforeApproval.pairingGeneration !== previousGenerationKey
+            ) {
+              return;
+            }
+            const updated = context.nodeRegistry.updateSurface(
+              publication.nodeId,
+              publication.surface,
+              {
+                expectedConnId: sessionBeforeApproval.connId,
+                expectedPairingIdentity: publication.pairingIdentity,
+                ...(previousGenerationKey
+                  ? { expectedPairingGeneration: previousGenerationKey }
+                  : {}),
+                nextPairingGeneration: publication.nextPairingGeneration,
+              },
+            );
+            if (updated) {
+              promotion.session = updated;
+              promotion.generation = publication.nextPairingGeneration;
+            }
+          } finally {
+            // Wake abort listeners can reenter the registry, so retire them
+            // only after any exact-session authority handoff is complete.
+            invalidateNodeWakeState(publication.nodeId);
+          }
+        },
+      });
       if (!approved) {
         respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "unknown requestId"));
         return;
@@ -190,54 +228,29 @@ export const nodePairingHandlers: GatewayRequestHandlers = {
         return;
       }
       const approvedNode = approved.node;
-      // Surface approval rotates the persistent generation. Abort any wake
-      // already admitted under the prior command surface before it can send.
-      invalidateNodeWakeState(approvedNode.nodeId);
-      // Only the exact generation committed by this approval may inherit the
-      // authenticated live session. A later re-pair must reconnect instead.
-      const persistedApprovedState = await captureNodePairingState(approvedNode.nodeId);
-      const previousGenerationKey = pairingStateBeforeApproval?.generation?.key;
-      const liveSessionOwnsPreviousPairingState = Boolean(
-        sessionBeforeApproval &&
-        pairingStateBeforeApproval?.identity.key === approved.pairingIdentity &&
-        sessionBeforeApproval.pairingIdentity === approved.pairingIdentity &&
-        approved.previousPairingGeneration === previousGenerationKey &&
-        sessionBeforeApproval.pairingGeneration === previousGenerationKey,
-      );
-      const updatedNode =
-        liveSessionOwnsPreviousPairingState &&
-        sessionBeforeApproval &&
-        persistedApprovedState?.identity.key === approved.pairingIdentity &&
-        persistedApprovedState.generation?.key === approved.nextPairingGeneration
-          ? context.nodeRegistry.updateSurface(
-              approvedNode.nodeId,
-              {
-                caps: approvedNode.caps ?? [],
-                commands: approvedNode.commands ?? [],
-                permissions: approvedNode.permissions,
-              },
-              {
-                expectedConnId: sessionBeforeApproval.connId,
-                expectedPairingIdentity: approved.pairingIdentity,
-                ...(previousGenerationKey
-                  ? { expectedPairingGeneration: previousGenerationKey }
-                  : {}),
-                nextPairingGeneration: approved.nextPairingGeneration,
-              },
-            )
-          : null;
+      const updatedNode = promotion.session;
       const resolved = {
         requestId,
         nodeId: approvedNode.nodeId,
         decision: "approved",
         ts: Date.now(),
       };
-      if (updatedNode) {
+      // The committed-receipt continuation already promoted the exact session.
+      // Async result delivery cannot refresh a replacement or later approval.
+      if (
+        updatedNode &&
+        promotion.generation === approved.nextPairingGeneration &&
+        context.nodeRegistry.get(approvedNode.nodeId) === updatedNode &&
+        updatedNode.connId === sessionBeforeApproval?.connId &&
+        updatedNode.pairingIdentity === approved.pairingIdentity &&
+        updatedNode.pairingGeneration === promotion.generation
+      ) {
         refreshConnectedNodeSurfaceCaches({ context, nodeSession: updatedNode });
         const notified = await context.nodeRegistry.sendEventForPairingIdentity({
           nodeId: updatedNode.nodeId,
           connId: updatedNode.connId,
           pairingIdentity: approved.pairingIdentity,
+          pairingGeneration: promotion.generation,
           event: "node.pair.resolved",
           payload: resolved,
         });

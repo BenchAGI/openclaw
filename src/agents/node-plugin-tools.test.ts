@@ -790,12 +790,18 @@ describe("createNodePluginTools", () => {
           },
         ],
       });
-      const toolAllowlist = appendRuntimePluginToolGrant([], {
+      const grant = {
         pluginId: "github",
         toolNames: ["remote_repo_search"],
-      });
+      };
+      const toolAllowlist = appendRuntimePluginToolGrant(["read"], grant);
 
       expect(createNodePluginTools({ toolAllowlist })).toEqual([]);
+      expect(
+        createNodePluginTools({ toolAllowlist: appendRuntimePluginToolGrant([], grant) }).map(
+          (tool) => tool.name,
+        ),
+      ).toEqual(createNodePluginTools({}).map((tool) => tool.name));
       expect(createNodePluginTools({ toolAllowlist: ["git*"] })).toEqual([]);
       expect(callGatewayTool).not.toHaveBeenCalled();
     },

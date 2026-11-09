@@ -222,6 +222,9 @@ export function buildCliMcpGrantContext(params: {
     ...(params.run.scheduledToolPolicy
       ? { scheduledToolPolicy: { ...params.run.scheduledToolPolicy } }
       : {}),
+    ...(params.run.runtimePluginToolGrant
+      ? { runtimePluginToolGrant: params.run.runtimePluginToolGrant }
+      : {}),
     ...(params.run.cronCreatorCallerOrigin
       ? { cronCreatorCallerOrigin: { ...params.run.cronCreatorCallerOrigin } }
       : {}),

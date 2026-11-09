@@ -22,9 +22,66 @@ TAG="$(node -p 'require(process.argv[1]).tag' "$PIN")"
 CACHE_DIR="$ROOT_DIR/.cache/openclaw-bun/$TAG"
 mkdir -p "$CACHE_DIR"
 download() {
+  local request_url="https://github.com/openclaw/bun/releases/download/$TAG/$1"
+  local download_status=0
   curl --fail --location --proto '=https' --proto-redir '=https' --no-progress-meter --show-error \
     --connect-timeout 15 --max-time 300 --retry 3 --retry-delay 2 \
-    --output "$WORK/$1" "https://github.com/openclaw/bun/releases/download/$TAG/$1"
+    --dump-header "$WORK/$1.headers" --write-out '%{http_code}\n%{url_effective}\n' \
+    --output "$WORK/$1" "$request_url" > "$WORK/$1.transport" || download_status=$?
+  if [[ "$download_status" -ne 0 ]]; then
+    # The existing private WORK owner cleans raw response metadata on every exit.
+    # Diagnostics cannot replace curl's failure or emit cookies, auth, or signed queries.
+    node - "$download_status" "$WORK/$1.headers" "$WORK/$1.transport" "$request_url" <<'JS' 2>/dev/null || true
+const fs = require('node:fs');
+const { isIP } = require('node:net');
+const [exitCode, headerPath, resultPath, requestUrl] = process.argv.slice(2);
+const hostname = value => {
+  try {
+    const host = new URL(value).hostname;
+    if (!host || host.length > 253) return '[omitted]';
+    if (isIP(host) || (host.startsWith('[') && host.endsWith(']') && isIP(host.slice(1, -1)) === 6)) return host;
+    const domain = host.endsWith('.') ? host.slice(0, -1) : host;
+    return domain.split('.').every(label => label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))
+      ? host : '[omitted]';
+  } catch { return null; }
+};
+const safeHeader = (name, value) => {
+  if (name === 'content-length') return /^\d{1,20}$/.test(value) ? value : '[omitted]';
+  return value.length <= 160 && /^[A-Za-z0-9 .,/;()_-]+$/.test(value) &&
+    !/\b(?:authorization|bearer|token|secret|password|signature)\b/i.test(value)
+    ? value : '[omitted]';
+};
+try {
+  if (fs.statSync(headerPath).size > 1048576 || fs.statSync(resultPath).size > 16384) throw new Error();
+  const result = fs.readFileSync(resultPath, 'utf8').trimEnd().split('\n');
+  const responses = [];
+  let current;
+  for (const line of fs.readFileSync(headerPath, 'utf8').split(/\r?\n/)) {
+    const status = /^HTTP\/\S+\s+(\d{3})(.*)$/i.exec(line);
+    if (status) {
+      current = /connection established/i.test(status[2]) ? null : { status: Number(status[1]), headers: {} };
+      if (current) responses.push(current);
+      continue;
+    }
+    if (!current) continue;
+    const header = /^([^:]+):\s*(.*)$/.exec(line);
+    if (!header) continue;
+    const name = header[1].toLowerCase();
+    if (name === 'location') current.redirectHostname = hostname(header[2]);
+    if (['server', 'via', 'x-cache', 'content-length'].includes(name)) current.headers[name] = safeHeader(name, header[2]);
+  }
+  const request = new URL(requestUrl);
+  console.log('[download-failure] ' + JSON.stringify({
+    curlExitCode: Number(exitCode), method: 'GET', requestHostname: request.hostname, requestPath: request.pathname,
+    firstCapturedStatus: responses[0]?.status ?? null, finalStatus: Number(result[0]) || null,
+    finalHostname: hostname(result[1]), responses: responses.slice(-32),
+  }));
+} catch {
+  console.log('[download-failure] ' + JSON.stringify({ curlExitCode: Number(exitCode), diagnosticsUnavailable: true }));
+}
+JS
+  fi
+  return "$download_status"
 }
 download SHA256SUMS
 download manifest.json

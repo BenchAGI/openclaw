@@ -26,11 +26,7 @@ import {
   removeRemoteNodeSkills,
   replaceRemoteNodeSkills,
 } from "../skills/runtime/remote-skills.js";
-import {
-  resolveNodeCommandAllowlist,
-  retainFulfilledNodeCapabilities,
-} from "./node-command-policy.js";
-import { resolveEffectiveComputerUseDescriptor } from "./node-computer-use-descriptor.js";
+import { resolveNodeCommandAllowlist } from "./node-command-policy.js";
 import { isSerializedEventPayload, type SerializedEventPayload } from "./node-event-payload.js";
 import { sendNodeWebSocketEvent } from "./node-event-send.js";
 import { serializeNodeEvent } from "./node-invoke-request.js";
@@ -59,6 +55,11 @@ import {
   registerNodeRegistryPrivateRuntime,
   settleNodeRegistryPairingGenerationChange,
 } from "./node-registry-private.js";
+import {
+  installNodeSessionAuthority,
+  prepareNodeSessionAuthority,
+  type NodeSessionPolicy,
+} from "./node-registry-session-policy.js";
 import {
   NodeInvokeStreamController,
   type NodeInvokeProgressParams,
@@ -116,12 +117,6 @@ export type NodeSessionConnectParams = GatewayWsClient["connect"] &
     withheldCommands?: string[];
   };
 
-type NodeSessionPolicy = {
-  approvedCaps: string[];
-  approvedCommands: string[];
-  skills: NodeSkillDescriptor[];
-  withheldCommands: readonly string[];
-};
 const NODE_SESSION_POLICIES = new WeakMap<object, NodeSessionPolicy>();
 
 /** Reads commands withheld by current policy from the live session's declaration. */
@@ -344,41 +339,19 @@ export class NodeRegistry {
   }
 
   private refreshSessionPolicy(node: NodeSession): void {
+    const policy = expectDefined(NODE_SESSION_POLICIES.get(node), "registered node policy missing");
+    installNodeSessionAuthority(
+      node,
+      policy,
+      prepareNodeSessionAuthority(node, policy, this.committedConfig),
+    );
+    this.publishSessionPolicy(node);
+  }
+
+  private publishSessionPolicy(node: NodeSession): void {
     invalidateNodeCatalog(this);
     const policy = expectDefined(NODE_SESSION_POLICIES.get(node), "registered node policy missing");
     const cfg = this.committedConfig;
-    const declaredCommands = node.sessionCommandsCeiling ?? node.declaredCommands;
-    // Withholding describes Gateway policy, not missing pairing approval.
-    // Actual admission below still intersects the independently approved surface.
-    const allowlist = cfg
-      ? resolveNodeCommandAllowlist(cfg, {
-          ...node,
-          caps: node.sessionCapsCeiling ?? node.declaredCaps,
-          commands: declaredCommands,
-          approvedCommands: declaredCommands,
-        })
-      : undefined;
-    node.commands = policy.approvedCommands.filter(
-      (command) => declaredCommands.includes(command) && (!allowlist || allowlist.has(command)),
-    );
-    if (allowlist) {
-      policy.withheldCommands = declaredCommands.filter((command) => !allowlist.has(command));
-    }
-    // Capability visibility follows every admission gate, not policy diagnostics alone.
-    node.caps = retainFulfilledNodeCapabilities({
-      caps: policy.approvedCaps,
-      admittedCommands: node.commands,
-      withheldCommands: declaredCommands.filter((command) => !node.commands.includes(command)),
-    });
-    node.computerUse = resolveEffectiveComputerUseDescriptor({
-      commands: node.commands,
-      declared: node.declaredComputerUse,
-    });
-    Object.assign(node.client.connect, {
-      commands: node.commands,
-      caps: node.caps,
-      computerUse: node.computerUse,
-    });
     const normalized = normalizeNodePluginToolDescriptors({
       nodeId: node.nodeId,
       tools: node.declaredNodePluginTools,
@@ -985,18 +958,22 @@ export class NodeRegistry {
     // Runtime approvals can only narrow capabilities/commands/permissions declared at connect.
     const policy = expectDefined(NODE_SESSION_POLICIES.get(node), "registered node policy missing");
     const sessionCommandsCeiling = new Set(node.sessionCommandsCeiling ?? node.declaredCommands);
-    policy.approvedCommands = surface.commands.filter((command) =>
-      sessionCommandsCeiling.has(command),
-    );
+    const nextPolicy: NodeSessionPolicy = {
+      ...policy,
+      approvedCommands: surface.commands.filter((command) => sessionCommandsCeiling.has(command)),
+    };
 
     if ("caps" in surface) {
       const sessionCapsCeiling = new Set(node.sessionCapsCeiling ?? node.declaredCaps);
-      policy.approvedCaps = (surface.caps ?? []).filter((capability) =>
+      nextPolicy.approvedCaps = (surface.caps ?? []).filter((capability) =>
         sessionCapsCeiling.has(capability),
       );
     }
-    this.refreshSessionPolicy(node);
-
+    const authority = prepareNodeSessionAuthority(node, nextPolicy, this.committedConfig);
+    const previousPairingGeneration = node.pairingGeneration;
+    // Install every authority field before policy/skills/presence callbacks can
+    // reenter with the newly published persistent generation.
+    Object.assign(policy, nextPolicy);
     if ("permissions" in surface) {
       node.permissions =
         surface.permissions === undefined
@@ -1006,17 +983,21 @@ export class NodeRegistry {
               declared: node.declaredPermissions,
             });
       node.client.connect.permissions = node.permissions;
-      if (
-        node.permissions?.accessibility !== true &&
-        clearNodePresenceActivity(node, node.connId, "system")
-      ) {
-        this.publishActiveNodeContext();
-      }
+    }
+    if (generationTransition) {
+      node.pairingGeneration = generationTransition.nextPairingGeneration;
+    }
+    installNodeSessionAuthority(node, policy, authority);
+    this.publishSessionPolicy(node);
+    if (
+      "permissions" in surface &&
+      node.permissions?.accessibility !== true &&
+      clearNodePresenceActivity(node, node.connId, "system")
+    ) {
+      this.publishActiveNodeContext();
     }
 
     if (generationTransition) {
-      const previousPairingGeneration = node.pairingGeneration;
-      node.pairingGeneration = generationTransition.nextPairingGeneration;
       // Runner declarations are pairing-generation facts. Retire the old
       // declaration so the live process must publish for its promoted generation.
       settleNodeRegistryPairingGenerationChange({
@@ -1231,6 +1212,7 @@ export class NodeRegistry {
     nodeId: string;
     connId: string;
     pairingIdentity: string;
+    pairingGeneration?: string;
     event: string;
     payload?: unknown;
   }): Promise<boolean> {
@@ -1239,6 +1221,8 @@ export class NodeRegistry {
       !initial ||
       initial.connId !== params.connId ||
       initial.pairingIdentity !== params.pairingIdentity ||
+      (params.pairingGeneration !== undefined &&
+        initial.pairingGeneration !== params.pairingGeneration) ||
       initial.client.invalidated === true ||
       !this.options.resolveCurrentPairingState
     ) {

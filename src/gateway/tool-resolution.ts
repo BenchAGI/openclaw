@@ -62,6 +62,7 @@ import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { resolveEventSessionRoutingPolicy } from "../infra/event-session-routing.js";
 import { resolveExactExecModeFromPolicy } from "../infra/exec-approvals.js";
 import { logWarn } from "../logger.js";
+import { appendRuntimePluginToolGrant } from "../plugins/tool-grant-allowlist.js";
 import { getPluginToolMeta } from "../plugins/tool-metadata.js";
 import {
   DEFAULT_GATEWAY_HTTP_TOOL_DENY,
@@ -169,7 +170,14 @@ export async function resolveGatewayScopedTools(
     (params.inboundEventKind === "room_event" && messageProvider !== "webchat"
       ? "message_tool_only"
       : undefined);
-  const runtimeAlsoAllow = sourceReplyDeliveryMode === "message_tool_only" ? ["message"] : [];
+  // Attach and standalone HTTP sessions carry no admitted run authority. Only
+  // the Gateway-minted CLI context can retain its plugin-owned additions.
+  const runtimePluginToolGrant =
+    surface === "loopback" && params.admittedRunContext ? params.runtimePluginToolGrant : undefined;
+  const runtimeAlsoAllow = [
+    ...(sourceReplyDeliveryMode === "message_tool_only" ? ["message"] : []),
+    ...(runtimePluginToolGrant?.toolNames ?? []),
+  ];
   function resolveConfiguredToolPolicies(config: OpenClawConfig) {
     const effective = resolveEffectiveToolPolicy({
       config,
@@ -433,7 +441,10 @@ export async function resolveGatewayScopedTools(
     authProfileStore: params.authProfileStore,
     pinnedWidgetAuthoring: surface === "loopback" ? params.pinnedWidgetAuthoring : undefined,
     sandboxed,
-    pluginToolAllowlist: collectExplicitAllowlist(catalogPolicies),
+    pluginToolAllowlist: appendRuntimePluginToolGrant(
+      collectExplicitAllowlist(catalogPolicies),
+      runtimePluginToolGrant,
+    ),
     pluginToolDenylist: catalogDenylist,
     cronCreatorToolAllowlist,
     cronCreatorToolAllowlistCaptureRef,

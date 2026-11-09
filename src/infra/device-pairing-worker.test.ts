@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
+import { createDeferred, withinTest } from "../../test/helpers/promise.js";
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
 import { closeOpenClawStateDatabaseByPathAsync } from "../state/openclaw-state-db-cache.js";
 import { openOpenClawStateDatabase } from "../state/openclaw-state-db.js";
@@ -9,7 +10,9 @@ import {
   isPairedDeviceTokenIdentityCurrent,
   resolveAuthenticatedDeviceTokenIdentity,
 } from "./device-pairing-identity.js";
+import { approveNodePairing } from "./device-pairing-node.js";
 import { getPublishedPairedDeviceBinding } from "./device-pairing-publication.js";
+import type { DevicePairingNodeApprovalPublication } from "./device-pairing-read.types.js";
 import { loadPairedDevicePairingStoreRecordReadOnly } from "./device-pairing-store-readonly.js";
 import {
   persistDevicePairingStoreState,
@@ -21,6 +24,7 @@ import {
   rotateDeviceToken,
   verifyDeviceToken,
 } from "./device-pairing-tokens.js";
+import { executeDevicePairingMutation } from "./device-pairing-worker.js";
 import {
   getPairedDevice,
   getPendingDevicePairing,
@@ -30,6 +34,7 @@ import {
   updatePairedDeviceMetadata,
 } from "./device-pairing.js";
 import * as queries from "./kysely-sync.js";
+import * as sqliteAdmission from "./sqlite-worker-operation-admission.js";
 import { sqliteWorkerOwnerProbe as probe } from "./sqlite-worker-owner-probe.test-support.js";
 
 let baseDir: string;
@@ -138,6 +143,170 @@ beforeEach(() => {
     },
   };
   persistDevicePairingStoreState(state, baseDir, "both");
+});
+
+test("publishes the committed node surface before a held worker reply can return", async ({
+  signal,
+}) => {
+  await listDevicePairing(baseDir);
+  const previous = getPublishedPairedDeviceBinding("paired-rich", baseDir);
+  const entered = createDeferred();
+  const release = createDeferred();
+  const publications: DevicePairingNodeApprovalPublication[] = [];
+  const delivery = probe.command(stateWorker, async (command, options, scope) => {
+    const result = await scope.execute(command, options);
+    if (command.type === "node.approve") {
+      entered.resolve();
+      await withinTest(release.promise, signal);
+    }
+    return result;
+  });
+  const approval = approveNodePairing(
+    "node-pending",
+    {
+      callerScopes: ["operator.admin"],
+      onNodeApproval: (publication) => {
+        publications.push(publication);
+        // Reentrant authority reads must see the committed binding without
+        // invoking the continuation twice or waiting for the worker reply.
+        expect(getPublishedPairedDeviceBinding("paired-rich", baseDir)).toEqual({
+          identity: publication.pairingIdentity,
+          generation: publication.nextPairingGeneration,
+        });
+      },
+    },
+    baseDir,
+  );
+  try {
+    await withinTest(entered.promise, signal);
+    const current = getPublishedPairedDeviceBinding("paired-rich", baseDir);
+    expect(publications).toHaveLength(1);
+    expect(current?.generation).not.toBe(previous?.generation);
+    expect(publications[0]).toMatchObject({
+      requestId: "node-pending",
+      nodeId: "paired-rich",
+      previousPairingGeneration: previous?.generation,
+      surface: { caps: [], commands: [], permissions: undefined },
+    });
+  } finally {
+    release.resolve();
+    await Promise.allSettled([approval]);
+    delivery.mockRestore();
+  }
+  await expect(approval).resolves.toMatchObject({ requestId: "node-pending" });
+  expect(publications).toHaveLength(1);
+});
+
+test.each(["wrong command", "wrong request"] as const)(
+  "refuses a node approval receipt for the %s without handing off authority",
+  async (mismatch) => {
+    const onNodeApproval = vi.fn();
+    const delivery = probe.command(stateWorker, async (command, options, scope) => {
+      await scope.execute(
+        {
+          type: "node.approve",
+          input: { requestId: "node-pending", callerScopes: ["operator.admin"], nowMs: Date.now() },
+        },
+        options,
+      );
+      throw new Error(`Synthetic ${command.type} reply lost after commit`);
+    });
+    try {
+      const approval =
+        mismatch === "wrong command"
+          ? executeDevicePairingMutation(
+              { type: "node.reject", input: { requestId: "node-pending" } },
+              { baseDir, onNodeApproval },
+            )
+          : executeDevicePairingMutation(
+              {
+                type: "node.approve",
+                input: {
+                  requestId: "other-request",
+                  callerScopes: ["operator.admin"],
+                  nowMs: Date.now(),
+                },
+              },
+              { baseDir, onNodeApproval },
+            );
+      await expect(approval).rejects.toThrow("Invalid pairing node approval receipt");
+      expect(onNodeApproval).not.toHaveBeenCalled();
+    } finally {
+      delivery.mockRestore();
+    }
+    // A rejected receipt cannot pretend the underlying committed write rolled back.
+    expect((await getPairedDevice("paired-rich", baseDir))?.pendingNodeSurface).toBeUndefined();
+  },
+);
+
+test.each(["missing", "already approved", "policy revoked", "scope denied"] as const)(
+  "does not publish a node handoff when approval is %s",
+  async (refusal) => {
+    const onNodeApproval = vi.fn();
+    const before = JSON.stringify(readDevicePairingStoreStateFromDatabase(database.db));
+    const result = await approveNodePairing(
+      refusal === "missing" ? "missing-request" : "node-pending",
+      {
+        callerScopes: refusal === "scope denied" ? [] : ["operator.admin"],
+        initialOnly: refusal === "already approved",
+        isApprovalCurrent: () => refusal !== "policy revoked",
+        onNodeApproval,
+      },
+      baseDir,
+    );
+    if (refusal === "scope denied") {
+      expect(result).toMatchObject({ status: "forbidden" });
+    } else {
+      expect(result).toBeNull();
+    }
+    expect(onNodeApproval).not.toHaveBeenCalled();
+    expect(JSON.stringify(readDevicePairingStoreStateFromDatabase(database.db))).toBe(before);
+  },
+);
+
+test("does not hand off a node surface when the admitted transaction rolls back", async () => {
+  const before = JSON.stringify(readDevicePairingStoreStateFromDatabase(database.db));
+  const onNodeApproval = vi.fn();
+  const admission = probe.admission(sqliteAdmission, (request, grant, admit) => {
+    if (request.stage === "commit") {
+      throw new Error("Synthetic node approval commit refused");
+    }
+    admit(request, grant);
+  });
+  try {
+    await expect(
+      approveNodePairing(
+        "node-pending",
+        { callerScopes: ["operator.admin"], onNodeApproval },
+        baseDir,
+      ),
+    ).rejects.toThrow("Synthetic node approval commit refused");
+  } finally {
+    admission.mockRestore();
+  }
+  expect(onNodeApproval).not.toHaveBeenCalled();
+  expect(JSON.stringify(readDevicePairingStoreStateFromDatabase(database.db))).toBe(before);
+});
+
+test("retains the committed binding when the node handoff callback throws", async () => {
+  await listDevicePairing(baseDir);
+  const previous = getPublishedPairedDeviceBinding("paired-rich", baseDir);
+  const onNodeApproval = vi.fn(() => {
+    throw new Error("Synthetic node handoff failure");
+  });
+  await expect(
+    approveNodePairing(
+      "node-pending",
+      { callerScopes: ["operator.admin"], onNodeApproval },
+      baseDir,
+    ),
+  ).rejects.toThrow("Synthetic node handoff failure");
+  expect(onNodeApproval).toHaveBeenCalledTimes(1);
+  expect(getPublishedPairedDeviceBinding("paired-rich", baseDir)?.generation).not.toBe(
+    previous?.generation,
+  );
+  expect((await getPairedDevice("paired-rich", baseDir))?.pendingNodeSurface).toBeUndefined();
+  expect(onNodeApproval).toHaveBeenCalledTimes(1);
 });
 
 test("keeps public list, lookup, and pending bytes while executing no host queries", async () => {

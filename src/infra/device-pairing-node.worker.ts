@@ -143,7 +143,7 @@ export const nodePairingOperations = {
         initialOnly?: boolean;
         nowMs: number;
       },
-      { database },
+      { database, recordNodeApproval },
     ) => {
       const { requestId, callerScopes, nowMs } = input;
       return mutatePairedDevices<ApproveNodePairingResult>(database, (paired) => {
@@ -192,6 +192,22 @@ export const nodePairingOperations = {
         }
         clearNodePairingGenerationState(device, previousPairingGeneration);
         const node = toPairedNode(device);
+        if (node) {
+          recordNodeApproval({
+            requestId,
+            nodeId: node.nodeId,
+            pairingIdentity: nextPairingState.identity.key,
+            nextPairingGeneration,
+            ...(previousPairingGeneration
+              ? { previousPairingGeneration: previousPairingGeneration.key }
+              : {}),
+            surface: {
+              caps: node.caps ?? [],
+              commands: node.commands ?? [],
+              permissions: node.permissions,
+            },
+          });
+        }
         return node
           ? {
               value: {
