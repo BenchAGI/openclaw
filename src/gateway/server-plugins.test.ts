@@ -1699,10 +1699,10 @@ describe("loadGatewayPlugins", () => {
   test.each([
     {
       name: "named factory",
-      names: ["workboard_heartbeat", "workboard_complete", "workboard_block"],
-      declaredNames: ["workboard_heartbeat", "workboard_complete", "workboard_block"],
-      requested: ["workboard_heartbeat", " workboard_complete ", "workboard_heartbeat"],
-      expected: ["workboard_heartbeat", "workboard_complete"],
+      names: ["workboard_read", "workboard_proof", "workboard_block"],
+      declaredNames: ["workboard_read", "workboard_proof", "workboard_block"],
+      requested: ["workboard_read", " workboard_proof ", "workboard_read"],
+      expected: ["workboard_read", "workboard_proof"],
     },
     {
       name: "unnamed factory",

@@ -1,11 +1,13 @@
 import type { WorkboardCard } from "@openclaw/workboard-contract";
 import { jsonResult, readStringParam } from "openclaw/plugin-sdk/core";
+import type { OpenClawPluginToolContext } from "openclaw/plugin-sdk/plugin-entry";
 import { asRecord, readStringValue } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { Type, type TProperties } from "typebox";
 import { redactClaimToken } from "./card-redaction.js";
 import { assertCanMutateClaimedCard } from "./store-authority.js";
 import type { WorkboardMutationScope } from "./store-inputs.js";
 import type { WorkboardStore } from "./store.js";
+import { workboardWorkerScopeForCard } from "./tools-worker-scope.js";
 
 type WorkboardCardMutation = (
   id: string,
@@ -13,7 +15,11 @@ type WorkboardCardMutation = (
   scope: WorkboardMutationScope,
 ) => Promise<WorkboardCard>;
 
-export function createWorkboardCardMutations(store: WorkboardStore, ownerId: string) {
+export function createWorkboardCardMutations(
+  store: WorkboardStore,
+  ownerId: string,
+  workerContext?: OpenClawPluginToolContext,
+) {
   const readParams = async (rawParams: unknown, requireClaim = false) => {
     const record = asRecord(rawParams);
     const id = readStringParam(record, "id", { required: true });
@@ -23,7 +29,7 @@ export function createWorkboardCardMutations(store: WorkboardStore, ownerId: str
       throw new Error(`card not found: ${id}`);
     }
     const claim = card.metadata?.claim;
-    const scope = { ownerId, token };
+    const scope = { ownerId, token, worker: workboardWorkerScopeForCard(workerContext, card) };
     assertCanMutateClaimedCard(card, scope);
     if (requireClaim && !claim) {
       throw new Error("card must be claimed before lifecycle completion.");

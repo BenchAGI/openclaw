@@ -165,35 +165,42 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
 
   async heartbeat(id: string, input: WorkboardHeartbeatInput): Promise<WorkboardCard> {
     const note = normalizeBoundedString(input.note, undefined, 400, "heartbeat note");
-    return await this.updateMetadata(id, (existing) => {
-      const claim = existing.metadata?.claim;
-      if (!claim) {
-        throw new Error("card is not claimed.");
-      }
-      const now = Math.max(Date.now(), claim.lastHeartbeatAt + 1);
-      assertClaimIdentity(claim, input);
-      const nextClaim = {
-        ...claim,
-        lastHeartbeatAt: now,
-        expiresAt: claim.expiresAt
-          ? addWorkboardDurationMs(
-              now,
-              Math.max(
-                1,
-                claim.expiresAt > claim.claimedAt
-                  ? claim.expiresAt - claim.lastHeartbeatAt
-                  : DEFAULT_CLAIM_TTL_MS,
-              ),
-            )
-          : undefined,
-      };
-      const metadata = clearDiagnostics(existing.metadata, ["running_without_heartbeat"]);
-      return {
-        ...metadata,
-        claim: nextClaim,
-        comments: appendComment(metadata.comments, note, now),
-      };
-    });
+    return await this.updateMetadata(
+      id,
+      (existing) => {
+        if (input.worker) {
+          assertCanMutateClaimedCard(existing, input);
+        }
+        const claim = existing.metadata?.claim;
+        if (!claim) {
+          throw new Error("card is not claimed.");
+        }
+        const now = Math.max(Date.now(), claim.lastHeartbeatAt + 1);
+        assertClaimIdentity(claim, input);
+        const nextClaim = {
+          ...claim,
+          lastHeartbeatAt: now,
+          expiresAt: claim.expiresAt
+            ? addWorkboardDurationMs(
+                now,
+                Math.max(
+                  1,
+                  claim.expiresAt > claim.claimedAt
+                    ? claim.expiresAt - claim.lastHeartbeatAt
+                    : DEFAULT_CLAIM_TTL_MS,
+                ),
+              )
+            : undefined,
+        };
+        const metadata = clearDiagnostics(existing.metadata, ["running_without_heartbeat"]);
+        return {
+          ...metadata,
+          claim: nextClaim,
+          comments: appendComment(metadata.comments, note, now),
+        };
+      },
+      { assertCurrent: input.worker?.assertInvocationCurrent },
+    );
   }
 
   async releaseClaim(
@@ -225,7 +232,10 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
     input: WorkboardCompleteInput = {},
     scope: WorkboardMutationScope | null | undefined = input,
   ): Promise<WorkboardCard> {
-    return await this.enqueueMutation(() => this.completeDirect(id, input, scope));
+    return await this.enqueueMutation(
+      () => this.completeDirect(id, input, scope),
+      scope?.worker?.assertInvocationCurrent,
+    );
   }
 
   private async completeDirect(
@@ -345,7 +355,7 @@ export class WorkboardWorkflowStore extends WorkboardPromoteStore {
         this.buildBlockedCardPatch(existing, reason, now, options),
         { expectedUpdatedAt: existing.updatedAt },
       );
-    });
+    }, scope?.worker?.assertInvocationCurrent);
   }
 
   async unblock(id: string, scope?: WorkboardMutationScope): Promise<WorkboardCard> {

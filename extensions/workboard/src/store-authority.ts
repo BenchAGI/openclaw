@@ -4,6 +4,7 @@ import { safeEqualSecret } from "openclaw/plugin-sdk/security-runtime";
 import { normalizeOptionalString } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { cardBoardId } from "./store-card-helpers.js";
 import type { WorkboardMutationScope, WorkboardStartGuard } from "./store-inputs.js";
+import { assertWorkboardWorkerCard } from "./tools-worker-scope.js";
 
 export function assertCanMutateClaimedCard(
   card: WorkboardCard,
@@ -11,6 +12,9 @@ export function assertCanMutateClaimedCard(
 ) {
   if (!scope) {
     return;
+  }
+  if (scope.worker) {
+    assertWorkboardWorkerCard(card, scope.worker);
   }
   const claim = card.metadata?.claim;
   const token = normalizeOptionalString(scope.token);

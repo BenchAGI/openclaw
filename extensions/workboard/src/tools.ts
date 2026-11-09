@@ -4,6 +4,7 @@ import { resolveIntegerOption } from "openclaw/plugin-sdk/number-runtime";
 import type { AnyAgentTool, OpenClawPluginToolContext } from "openclaw/plugin-sdk/plugin-entry";
 import { Type } from "typebox";
 import { redactClaimToken } from "./card-redaction.js";
+import { assertCanMutateClaimedCard } from "./store-authority.js";
 import { normalizeCappedStringList } from "./store-string-lists.js";
 import type { WorkboardStore } from "./store.js";
 import {
@@ -14,6 +15,7 @@ import {
   workspaceField,
 } from "./tools-card-mutations.js";
 import { createWorkboardOrchestrationTools } from "./tools-orchestration.js";
+import { workboardWorkerScopeForCard } from "./tools-worker-scope.js";
 
 function contextOwner(ctx: OpenClawPluginToolContext | undefined): string {
   return ctx?.agentId || ctx?.sessionKey || ctx?.sessionId || "agent";
@@ -72,8 +74,12 @@ export function createWorkboardTools(params: {
 }): AnyAgentTool[] {
   const { store } = params;
   const ownerId = contextOwner(params.context);
-  const { readScopedCardToolParams, scopedCardMutation, claimedCardMutation } =
-    createWorkboardCardMutations(store, ownerId);
+  const { scopedCardMutation } = createWorkboardCardMutations(store, ownerId);
+  const {
+    readScopedCardToolParams,
+    scopedCardMutation: workerCardMutation,
+    claimedCardMutation,
+  } = createWorkboardCardMutations(store, ownerId, params.context);
   const tools: AnyAgentTool[] = [
     {
       name: "workboard_list",
@@ -180,13 +186,27 @@ export function createWorkboardTools(params: {
       execute: async (_toolCallId, rawParams) => {
         const record = rawParams as Record<string, unknown>;
         const id = readStringParam(record, "id", { required: true });
-        const card = await store.get(id);
+        let card = await store.get(id);
         if (!card) {
           throw new Error(`card not found: ${id}`);
         }
+        const worker = workboardWorkerScopeForCard(params.context, card);
+        const scope = { ownerId, token: record.token, worker };
+        if (worker) {
+          assertCanMutateClaimedCard(card, scope);
+        }
+        const workerContext = await store.buildWorkerContext(id);
+        if (worker) {
+          // All asynchronous context reads finish before the final authority check.
+          card = await store.get(id);
+          if (!card) {
+            throw new Error("Workboard worker card is no longer available.");
+          }
+          assertCanMutateClaimedCard(card, scope);
+        }
         return jsonResult({
           card: redactClaimToken(card),
-          workerContext: await store.buildWorkerContext(id),
+          workerContext,
         });
       },
     },
@@ -219,7 +239,7 @@ export function createWorkboardTools(params: {
         token: claimTokenField(),
         note: Type.Optional(Type.String({ description: "Optional compact progress note." })),
       }),
-      execute: scopedCardMutation((id, record, scope) =>
+      execute: workerCardMutation((id, record, scope) =>
         store.heartbeat(id, { ...scope, note: record.note }),
       ),
     },
