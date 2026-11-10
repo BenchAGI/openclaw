@@ -76,6 +76,8 @@ const WORKBOARD_TOOL_NAMES = [
 ] as const;
 
 export const WORKBOARD_REQUIRED_WORKER_TOOLS = [
+  "workboard_read",
+  "workboard_proof",
   "workboard_heartbeat",
   "workboard_complete",
   "workboard_block",

@@ -419,6 +419,15 @@ attempt, and execution history.
 Workers get bounded card context plus the claim token needed to heartbeat,
 complete, or block the card through the Workboard tools.
 
+Dispatch also adds `workboard_read` and `workboard_proof` to that run's optional
+plugin tools, subject to its existing deny policy. In a Workboard worker session,
+these two tools and `workboard_heartbeat`, `workboard_complete`, and
+`workboard_block` require the current card's claim token and persisted launch and
+execution association. A read rechecks that authority after building its context;
+mutations recheck it in the store's queued write. Claim recovery keeps the existing
+five-minute heartbeat grace. These checks preserve ordinary operator tools and do
+not restrict unrelated tools or establish physical process cancellation.
+
 When a card supplies `maxRuntimeSeconds`, Workboard forwards that finite runtime
 budget to the normal Gateway agent execution deadline. The deadline requests
 native cancellation through the worker's existing runtime; claim heartbeats do not extend it. The

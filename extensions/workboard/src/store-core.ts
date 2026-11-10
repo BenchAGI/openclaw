@@ -12,6 +12,7 @@ import type { PersistedWorkboardCard } from "./persistence-types.js";
 import { assertCanMutateClaimedCard, assertCanLinkClaimedCards } from "./store-authority.js";
 import { normalizeAutomationPatch, normalizeCardAutomation } from "./store-automation.js";
 import { WorkboardBoardStore } from "./store-boards.js";
+import { WorkboardCardConflictError } from "./store-card-conflict.js";
 import {
   cardBoardId,
   cardParentIds,
@@ -209,16 +210,21 @@ export class WorkboardCoreStore extends WorkboardBoardStore {
   protected async updateMetadata(
     id: string,
     mutate: (existing: WorkboardCard) => WorkboardMetadata,
-    options: { preserveProofId?: string; expectedUpdatedAt?: number } = {},
+    options: {
+      preserveProofId?: string;
+      expectedUpdatedAt?: number;
+      assertCurrent?: () => void;
+    } = {},
   ): Promise<WorkboardCard> {
+    const { assertCurrent, ...cardOptions } = options;
     return await this.enqueueMutation(async () => {
       const result = await this.updateLatestCard(
         id,
         (current) => ({ metadata: mutate(current) }),
-        options,
+        cardOptions,
       );
       return result.card;
-    });
+    }, assertCurrent);
   }
 
   protected async deleteDetachedAttachments(
@@ -996,10 +1002,4 @@ export class WorkboardCoreStore extends WorkboardBoardStore {
   }
 }
 
-export class WorkboardCardConflictError extends Error {
-  constructor(readonly current: WorkboardCard) {
-    super("Card changed while you were editing. Review the latest values and retry.");
-    this.name = "WorkboardCardConflictError";
-  }
-}
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

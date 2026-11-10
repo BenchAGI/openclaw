@@ -42,7 +42,7 @@ import { WorkboardNotificationStore } from "./store-notifications.js";
 import { readCards } from "./store-read.js";
 
 export type { WorkboardDispatchResult } from "./store-inputs.js";
-export { WorkboardCardConflictError } from "./store-core.js";
+export { WorkboardCardConflictError } from "./store-card-conflict.js";
 
 type WorkboardExecutionAssociationInput = {
   expectedSessionKey?: string;

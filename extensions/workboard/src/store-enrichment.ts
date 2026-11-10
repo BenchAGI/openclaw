@@ -135,7 +135,7 @@ export class WorkboardEnrichmentStore extends WorkboardCoreStore {
         }
         return metadata;
       },
-      { preserveProofId: proof?.id },
+      { preserveProofId: proof?.id, assertCurrent: scope?.worker?.assertInvocationCurrent },
     );
   }
 

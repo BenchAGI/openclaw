@@ -1,6 +1,6 @@
 // Tests session usage command output and token accounting summaries.
 import path from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/config.js";
 import { loadSessionEntry, replaceSessionEntry } from "../../config/sessions/session-accessor.js";
 import type {
@@ -8,9 +8,15 @@ import type {
   CostUsageTotals,
   SessionCostSummary,
 } from "../../infra/session-cost-usage.js";
-import { withTempDir } from "../../test-utils/temp-dir.js";
+import { useSessionStoreTempDirs } from "../../test-utils/session-state-cleanup.js";
 import { handleFastCommand, handleUsageCommand } from "./commands-session.js";
 import type { HandleCommandsParams } from "./commands-types.js";
+
+const sessionDirs = useSessionStoreTempDirs(afterAll, "openclaw-session-usage-command-");
+
+function withTempSessionDir<T>(run: (dir: string) => Promise<T>): Promise<T> {
+  return run(sessionDirs.make());
+}
 
 const resolveSessionAgentIdMock = vi.hoisted(() => vi.fn(() => "main"));
 const loadSessionCostSummaryMock = vi.hoisted(() =>
@@ -440,7 +446,7 @@ describe("handleFastCommand", () => {
     { mode: "auto", value: "auto", text: "⚙️ Fast mode set to auto." },
     { mode: "ultrafast", value: "ultrafast", text: "⚙️ Ultrafast mode enabled." },
   ] as const)("persists /fast $mode on the canonical target", async ({ mode, value, text }) => {
-    await withTempDir("openclaw-fast-command-", async (dir) => {
+    await withTempSessionDir(async (dir) => {
       const params = buildUsageParams();
       params.command.commandBodyNormalized = `/fast ${mode}`;
       params.storePath = path.join(dir, "sessions.json");
@@ -504,7 +510,7 @@ describe("handleFastCommand", () => {
   });
 
   it.each(["default", "off"])("reports a /fast %s persistence conflict", async (mode) => {
-    await withTempDir("openclaw-fast-conflict-", async (dir) => {
+    await withTempSessionDir(async (dir) => {
       const params = buildUsageParams();
       params.command.commandBodyNormalized = `/fast ${mode}`;
       params.storePath = path.join(dir, "sessions.json");

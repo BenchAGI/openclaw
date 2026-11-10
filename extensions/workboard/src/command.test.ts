@@ -183,7 +183,13 @@ describe("handleWorkboardCommand", () => {
     );
     expect(prepareWorkspaceAuthority).toHaveBeenCalledWith(
       expect.objectContaining({
-        requiredToolNames: ["workboard_heartbeat", "workboard_complete", "workboard_block"],
+        requiredToolNames: [
+          "workboard_read",
+          "workboard_proof",
+          "workboard_heartbeat",
+          "workboard_complete",
+          "workboard_block",
+        ],
       }),
     );
   });

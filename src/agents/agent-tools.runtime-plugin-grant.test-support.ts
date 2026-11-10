@@ -26,7 +26,12 @@ export function registerRuntimePluginToolGrantCases(
           config,
           runtimePluginToolGrant: {
             pluginId: "workboard",
-            toolNames: ["workboard_heartbeat", "workboard_complete"],
+            toolNames: [
+              "workboard_read",
+              "workboard_proof",
+              "workboard_heartbeat",
+              "workboard_complete",
+            ],
           },
         }),
       });
@@ -36,6 +41,9 @@ export function registerRuntimePluginToolGrantCases(
       expect(options.pluginToolAllowlist).not.toContain("workboard_heartbeat");
       const allowlist = createPluginToolAllowlist(options.pluginToolAllowlist);
       expect(allowlist.allowsTool("workboard", "workboard_heartbeat")).toBe(true);
+      expect(allowlist.allowsTool("workboard", "workboard_read")).toBe(true);
+      expect(allowlist.allowsTool("workboard", "workboard_proof")).toBe(true);
+      expect(allowlist.allowsTool("other-plugin", "workboard_proof")).toBe(false);
       expect(allowlist.includesDefaults).toBe(profile === undefined);
       expect(options).not.toHaveProperty("runtimePluginToolGrant");
       expect(options.pluginToolDenylist).toEqual(expect.arrayContaining(["workboard_block"]));

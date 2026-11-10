@@ -3,6 +3,7 @@ import type {
   WorkboardCard,
   WorkboardDiagnostic,
   WorkboardEvent,
+  WorkboardLaunchState,
   WorkboardWorkspace,
   WorkboardWorkspaceAccess,
 } from "@openclaw/workboard-contract";
@@ -115,9 +116,7 @@ export type WorkboardClaimOptions = {
   /** Trusted legacy-card adoption; applied only while expectedAuthority still matches. */
   adoptWorkspaceAccess?: WorkboardWorkspaceAccess;
 };
-export type WorkboardHeartbeatInput = {
-  token?: unknown;
-  ownerId?: unknown;
+export type WorkboardHeartbeatInput = WorkboardMutationScope & {
   note?: unknown;
 };
 export type WorkboardBulkInput = {
@@ -211,6 +210,16 @@ export type WorkboardNotificationEventsInput = WorkboardNotificationListOptions 
 export type WorkboardMutationScope = {
   ownerId?: unknown;
   token?: unknown;
+  /** Factory-owned worker admission, never accepted from public tool arguments. */
+  worker?: WorkboardWorkerScope;
+};
+export type WorkboardWorkerScope = {
+  cardId: string;
+  agentId: string;
+  assignedAgentId?: string;
+  sessionKey: string;
+  launch: Exclude<WorkboardLaunchState, { phase: "failed" }>;
+  assertInvocationCurrent: () => void;
 };
 
 export type WorkboardDiagnosticsResult = {
